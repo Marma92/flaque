@@ -1,4 +1,6 @@
 import type {
+  AlbumEntry,
+  ArtistEntry,
   LibraryResponse,
   Playlist,
   PlaylistVisibility,
@@ -97,6 +99,45 @@ export async function getLibrary(filters: {
   const path = query ? `/api/library?${query}` : "/api/library";
 
   return requestJson<LibraryResponse>(path);
+}
+
+export async function getArtists(filters: {
+  owner?: string;
+  q?: string;
+}): Promise<ArtistEntry[]> {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (!value) {
+      continue;
+    }
+    searchParams.set(key, value);
+  }
+
+  const query = searchParams.toString();
+  const path = query ? `/api/artists?${query}` : "/api/artists";
+  const payload = await requestJson<{ artists: ArtistEntry[] }>(path);
+  return payload.artists;
+}
+
+export async function getAlbums(filters: {
+  owner?: string;
+  artist?: string;
+  q?: string;
+}): Promise<AlbumEntry[]> {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (!value) {
+      continue;
+    }
+    searchParams.set(key, value);
+  }
+
+  const query = searchParams.toString();
+  const path = query ? `/api/albums?${query}` : "/api/albums";
+  const payload = await requestJson<{ albums: AlbumEntry[] }>(path);
+  return payload.albums;
 }
 
 export type UploadTracksInput = {

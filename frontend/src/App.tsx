@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  getAlbums,
+  getArtists,
   coverUrl,
   createPlaylist,
   createUserAccount,
@@ -28,7 +30,7 @@ import { ConfigView } from "./components/ConfigView";
 import { LibraryView } from "./components/LibraryView";
 import { LoginPage } from "./components/LoginPage";
 import { UploadView } from "./components/UploadView";
-import type { LibraryResponse, Playlist, PlaylistVisibility, Track, TrackMetadataPatch, User } from "./types";
+import type { AlbumEntry, ArtistEntry, LibraryResponse, Playlist, PlaylistVisibility, Track, TrackMetadataPatch, User } from "./types";
 import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
@@ -36,7 +38,7 @@ import {
 } from "./utils/tracks";
 
 type ViewName = "library" | "upload" | "player" | "config";
-type LibrarySection = "music" | "playlist";
+type LibrarySection = "music" | "artists" | "albums" | "playlist";
 
 type NoticeTone = "success" | "error" | "info";
 
@@ -247,8 +249,13 @@ export default function App(): JSX.Element {
   const [allTracksLibrary, setAllTracksLibrary] = useState<LibraryResponse>(EMPTY_LIBRARY);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [loadingAllTracks, setLoadingAllTracks] = useState(false);
+  const [libraryArtists, setLibraryArtists] = useState<ArtistEntry[]>([]);
+  const [libraryAlbums, setLibraryAlbums] = useState<AlbumEntry[]>([]);
+  const [loadingLibraryArtists, setLoadingLibraryArtists] = useState(false);
+  const [loadingLibraryAlbums, setLoadingLibraryAlbums] = useState(false);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [allTracksError, setAllTracksError] = useState<string | null>(null);
+  const [libraryMetadataError, setLibraryMetadataError] = useState<string | null>(null);
 
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [playQueue, setPlayQueue] = useState<Track[]>([]);
@@ -271,6 +278,8 @@ export default function App(): JSX.Element {
   const [appNotice, setAppNotice] = useState<AppNotice | null>(null);
   const libraryRequestIdRef = useRef(0);
   const allTracksRequestIdRef = useRef(0);
+  const artistsRequestIdRef = useRef(0);
+  const albumsRequestIdRef = useRef(0);
 
   const allTracksById = useMemo(() => {
     return new Map(allTracksLibrary.tracks.map((track) => [track.id, track]));
@@ -466,10 +475,15 @@ export default function App(): JSX.Element {
     if (!user) {
       setLibrary(EMPTY_LIBRARY);
       setAllTracksLibrary(EMPTY_LIBRARY);
+      setLibraryArtists([]);
+      setLibraryAlbums([]);
       setLoadingLibrary(false);
       setLoadingAllTracks(false);
+      setLoadingLibraryArtists(false);
+      setLoadingLibraryAlbums(false);
       setLibraryError(null);
       setAllTracksError(null);
+      setLibraryMetadataError(null);
       return;
     }
 
@@ -498,6 +512,75 @@ export default function App(): JSX.Element {
         }
       });
   }, [user, filters]);
+
+  useEffect(() => {
+    if (!user || activeView !== "library" || activeLibrarySection !== "artists") {
+      return;
+    }
+
+    const requestId = artistsRequestIdRef.current + 1;
+    artistsRequestIdRef.current = requestId;
+
+    setLoadingLibraryArtists(true);
+    setLibraryMetadataError(null);
+
+    getArtists({
+      owner: filters.owner,
+      q: filters.q
+    })
+      .then((artists) => {
+        if (artistsRequestIdRef.current !== requestId) {
+          return;
+        }
+        setLibraryArtists(artists);
+      })
+      .catch((error) => {
+        if (artistsRequestIdRef.current !== requestId) {
+          return;
+        }
+        setLibraryMetadataError(error instanceof Error ? error.message : "Failed to load artists");
+      })
+      .finally(() => {
+        if (artistsRequestIdRef.current === requestId) {
+          setLoadingLibraryArtists(false);
+        }
+      });
+  }, [activeLibrarySection, activeView, filters.owner, filters.q, user]);
+
+  useEffect(() => {
+    if (!user || activeView !== "library" || activeLibrarySection !== "albums") {
+      return;
+    }
+
+    const requestId = albumsRequestIdRef.current + 1;
+    albumsRequestIdRef.current = requestId;
+
+    setLoadingLibraryAlbums(true);
+    setLibraryMetadataError(null);
+
+    getAlbums({
+      owner: filters.owner,
+      artist: filters.artist,
+      q: filters.q
+    })
+      .then((albums) => {
+        if (albumsRequestIdRef.current !== requestId) {
+          return;
+        }
+        setLibraryAlbums(albums);
+      })
+      .catch((error) => {
+        if (albumsRequestIdRef.current !== requestId) {
+          return;
+        }
+        setLibraryMetadataError(error instanceof Error ? error.message : "Failed to load albums");
+      })
+      .finally(() => {
+        if (albumsRequestIdRef.current === requestId) {
+          setLoadingLibraryAlbums(false);
+        }
+      });
+  }, [activeLibrarySection, activeView, filters.artist, filters.owner, filters.q, user]);
 
   useEffect(() => {
     if (!user) {
@@ -1077,8 +1160,8 @@ export default function App(): JSX.Element {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.28em] text-flaque-steel">Library</p>
-                <h2 className="mt-1 font-display text-2xl text-flaque-ink">Music & Playlists</h2>
-                <p className="mt-2 text-sm text-flaque-steel">Switch between track browsing and playlist management.</p>
+                <h2 className="mt-1 font-display text-2xl text-flaque-ink">Music, Artists, Albums & Playlists</h2>
+                <p className="mt-2 text-sm text-flaque-steel">Switch between tracks, artists, albums and playlist management.</p>
               </div>
 
               <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
@@ -1092,6 +1175,28 @@ export default function App(): JSX.Element {
                   onClick={() => setActiveLibrarySection("music")}
                 >
                   Music
+                </button>
+                <button
+                  className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
+                    activeLibrarySection === "artists"
+                      ? "bg-flaque-ink text-flaque-cream"
+                      : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
+                  }`}
+                  type="button"
+                  onClick={() => setActiveLibrarySection("artists")}
+                >
+                  Artists
+                </button>
+                <button
+                  className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
+                    activeLibrarySection === "albums"
+                      ? "bg-flaque-ink text-flaque-cream"
+                      : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
+                  }`}
+                  type="button"
+                  onClick={() => setActiveLibrarySection("albums")}
+                >
+                  Albums
                 </button>
                 <button
                   className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
@@ -1196,6 +1301,98 @@ export default function App(): JSX.Element {
                   </div>
                 )}
               </div>
+            </section>
+          ) : null}
+
+          {activeLibrarySection === "artists" ? (
+            <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+              <h2 className="font-display text-xl text-flaque-ink">Artists</h2>
+              <p className="mt-1 text-sm text-flaque-steel">Artist list from `/api/artists` based on your current owner/search filters.</p>
+
+              {libraryMetadataError ? (
+                <p className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{libraryMetadataError}</p>
+              ) : null}
+
+              {loadingLibraryArtists ? (
+                <p className="mt-3 text-sm text-flaque-steel">Loading artists...</p>
+              ) : libraryArtists.length === 0 ? (
+                <p className="mt-3 text-sm text-flaque-steel">No artists found for these filters.</p>
+              ) : (
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {libraryArtists.map((artist) => {
+                    const artistPhoto = artist.previewTrackId ? coverUrl(artist.previewTrackId) : defaultCoverImage;
+                    return (
+                      <div
+                        key={artist.name}
+                        className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 px-3 py-2"
+                        title={artist.name}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <img
+                            className="h-11 w-11 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
+                            src={artistPhoto}
+                            alt={`Artwork for ${artist.name}`}
+                            onError={(event) => {
+                              event.currentTarget.src = defaultCoverImage;
+                            }}
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-flaque-ink">{artist.name}</p>
+                            <p className="text-xs text-flaque-steel">
+                              {artist.trackCount} track{artist.trackCount > 1 ? "s" : ""}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          ) : null}
+
+          {activeLibrarySection === "albums" ? (
+            <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+              <h2 className="font-display text-xl text-flaque-ink">Albums</h2>
+              <p className="mt-1 text-sm text-flaque-steel">Album list from `/api/albums` based on your current owner/artist/search filters.</p>
+
+              {libraryMetadataError ? (
+                <p className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{libraryMetadataError}</p>
+              ) : null}
+
+              {loadingLibraryAlbums ? (
+                <p className="mt-3 text-sm text-flaque-steel">Loading albums...</p>
+              ) : libraryAlbums.length === 0 ? (
+                <p className="mt-3 text-sm text-flaque-steel">No albums found for these filters.</p>
+              ) : (
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {libraryAlbums.map((album) => (
+                    <div
+                      key={`${album.artist ?? "unknown"}-${album.name}`}
+                      className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 px-3 py-2"
+                      title={album.artist ? `${album.artist} - ${album.name}` : album.name}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <img
+                          className="h-11 w-11 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
+                          src={album.previewTrackId ? coverUrl(album.previewTrackId) : defaultCoverImage}
+                          alt={album.artist ? `Cover for ${album.artist} - ${album.name}` : `Cover for ${album.name}`}
+                          onError={(event) => {
+                            event.currentTarget.src = defaultCoverImage;
+                          }}
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-flaque-ink">{album.name}</p>
+                          <p className="truncate text-xs text-flaque-steel">{album.artist ?? "Unknown artist"}</p>
+                          <p className="text-xs text-flaque-steel/90">
+                            {album.trackCount} track{album.trackCount > 1 ? "s" : ""}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           ) : null}
 
