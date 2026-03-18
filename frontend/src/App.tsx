@@ -36,6 +36,7 @@ import {
 } from "./utils/tracks";
 
 type ViewName = "library" | "upload" | "player" | "config";
+type LibrarySection = "music" | "playlist";
 
 type NoticeTone = "success" | "error" | "info";
 
@@ -233,6 +234,7 @@ export default function App(): JSX.Element {
   const [user, setUser] = useState<User | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [activeView, setActiveView] = useState<ViewName>(() => getViewFromLocation());
+  const [activeLibrarySection, setActiveLibrarySection] = useState<LibrarySection>("music");
 
   const [filters, setFilters] = useState<{
     owner?: string;
@@ -657,6 +659,7 @@ export default function App(): JSX.Element {
     const authenticatedUser = await login(username, password);
     setUser(authenticatedUser);
     setActiveView("library");
+    setActiveLibrarySection("music");
   }
 
   async function handleLogout(): Promise<void> {
@@ -666,6 +669,7 @@ export default function App(): JSX.Element {
     setPlayQueue([]);
     setRepeatMode("off");
     setShuffleEnabled(false);
+    setActiveLibrarySection("music");
     setFilters({});
     setAdminUsers([]);
     setAdminError(null);
@@ -1070,153 +1074,194 @@ export default function App(): JSX.Element {
       {activeView === "library" ? (
         <div className="space-y-4">
           <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-            <h2 className="font-display text-xl text-flaque-ink">Create Playlist</h2>
-            <p className="mt-1 text-sm text-flaque-steel">
-              Create a file-based playlist folder next to uploads with a `playlist.json` and symlinks.
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.28em] text-flaque-steel">Library</p>
+                <h2 className="mt-1 font-display text-2xl text-flaque-ink">Music & Playlists</h2>
+                <p className="mt-2 text-sm text-flaque-steel">Switch between track browsing and playlist management.</p>
+              </div>
 
-            <form
-              className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]"
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (playlistCreateSubmitting) {
-                  return;
-                }
-
-                setPlaylistCreateSubmitting(true);
-                setPlaylistCreateStatus(null);
-
-                handleCreatePlaylist({
-                  name: playlistCreateName,
-                  visibility: playlistCreateVisibility
-                })
-                  .then(() => {
-                    setPlaylistCreateName("");
-                    setPlaylistCreateStatus("Playlist created.");
-                  })
-                  .catch((error) => {
-                    setPlaylistCreateStatus(error instanceof Error ? error.message : "Unable to create playlist");
-                  })
-                  .finally(() => {
-                    setPlaylistCreateSubmitting(false);
-                  });
-              }}
-            >
-              <input
-                className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-                type="text"
-                placeholder="Playlist name"
-                value={playlistCreateName}
-                onChange={(event) => setPlaylistCreateName(event.target.value)}
-              />
-              <select
-                className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-                value={playlistCreateVisibility}
-                onChange={(event) => setPlaylistCreateVisibility(event.target.value as PlaylistVisibility)}
-              >
-                <option value="private">Private</option>
-                <option value="public">Public</option>
-              </select>
-              <button
-                className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
-                type="submit"
-                disabled={playlistCreateSubmitting}
-              >
-                {playlistCreateSubmitting ? "Creating..." : "Create"}
-              </button>
-            </form>
-
-            {playlistCreateStatus ? (
-              <p className="mt-2 text-sm text-flaque-steel">{playlistCreateStatus}</p>
-            ) : null}
-
-            <div className="mt-4">
-              <h3 className="font-display text-lg text-flaque-ink">Playlists</h3>
-              {availablePlaylists.length === 0 ? (
-                <p className="mt-2 text-sm text-flaque-steel">No playlists yet.</p>
-              ) : (
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {availablePlaylists.map((playlist) => {
-                    const playlistOwner = ownerNameById[playlist.authorId] ?? playlist.authorId;
-                    return (
-                      <button
-                        key={playlist.id}
-                        className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/40 px-3 py-2 text-left transition hover:bg-flaque-cream"
-                        type="button"
-                        onClick={() => handlePlayPlaylist(playlist)}
-                        title={`Play playlist ${playlist.name}`}
-                      >
-                        <p className="truncate text-sm font-medium text-flaque-ink">{playlist.name}</p>
-                        <p className="truncate text-xs text-flaque-steel">
-                          {playlist.trackIds.length} track{playlist.trackIds.length > 1 ? "s" : ""} - {playlist.visibility} - {playlistOwner}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
+                <button
+                  className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
+                    activeLibrarySection === "music"
+                      ? "bg-flaque-ink text-flaque-cream"
+                      : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
+                  }`}
+                  type="button"
+                  onClick={() => setActiveLibrarySection("music")}
+                >
+                  Music
+                </button>
+                <button
+                  className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
+                    activeLibrarySection === "playlist"
+                      ? "bg-flaque-ink text-flaque-cream"
+                      : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
+                  }`}
+                  type="button"
+                  onClick={() => setActiveLibrarySection("playlist")}
+                >
+                  Playlist
+                </button>
+              </div>
             </div>
           </section>
 
-          <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-            <h2 className="font-display text-xl text-flaque-ink">Played Recently</h2>
+          {activeLibrarySection === "playlist" ? (
+            <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+              <h2 className="font-display text-xl text-flaque-ink">Create Playlist</h2>
+              <p className="mt-1 text-sm text-flaque-steel">
+                Create a file-based playlist folder next to uploads with a `playlist.json` and symlinks.
+              </p>
 
-            {recentTracks.length === 0 ? (
-              <p className="mt-3 text-sm text-flaque-steel">No recently played tracks yet.</p>
-            ) : (
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {recentTracks.map((track) => {
-                  const title = getTrackDisplayTitle(track);
-                  const artist = getTrackDisplayArtist(track) ?? "Unknown artist";
-                  const albumWithYear = getTrackDisplayAlbumWithYear(track);
+              <form
+                className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (playlistCreateSubmitting) {
+                    return;
+                  }
 
-                  return (
-                    <button
-                      key={track.id}
-                      className="w-full justify-self-start rounded-xl border border-flaque-clay/60 bg-flaque-cream/50 px-2.5 py-2 text-left transition hover:bg-flaque-cream sm:max-w-[18.5rem]"
-                      type="button"
-                      onClick={() => handleReplayRecentTrack(track)}
-                      title={title}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <img
-                          className="h-10 w-10 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
-                          src={coverUrl(track.id, track.cover)}
-                          alt={albumWithYear ? `Cover for ${albumWithYear}` : `Cover for ${title}`}
-                          onError={(event) => {
-                            event.currentTarget.src = defaultCoverImage;
-                          }}
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-flaque-ink">{title}</p>
+                  setPlaylistCreateSubmitting(true);
+                  setPlaylistCreateStatus(null);
+
+                  handleCreatePlaylist({
+                    name: playlistCreateName,
+                    visibility: playlistCreateVisibility
+                  })
+                    .then(() => {
+                      setPlaylistCreateName("");
+                      setPlaylistCreateStatus("Playlist created.");
+                    })
+                    .catch((error) => {
+                      setPlaylistCreateStatus(error instanceof Error ? error.message : "Unable to create playlist");
+                    })
+                    .finally(() => {
+                      setPlaylistCreateSubmitting(false);
+                    });
+                }}
+              >
+                <input
+                  className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                  type="text"
+                  placeholder="Playlist name"
+                  value={playlistCreateName}
+                  onChange={(event) => setPlaylistCreateName(event.target.value)}
+                />
+                <select
+                  className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                  value={playlistCreateVisibility}
+                  onChange={(event) => setPlaylistCreateVisibility(event.target.value as PlaylistVisibility)}
+                >
+                  <option value="private">Private</option>
+                  <option value="public">Public</option>
+                </select>
+                <button
+                  className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                  type="submit"
+                  disabled={playlistCreateSubmitting}
+                >
+                  {playlistCreateSubmitting ? "Creating..." : "Create"}
+                </button>
+              </form>
+
+              {playlistCreateStatus ? (
+                <p className="mt-2 text-sm text-flaque-steel">{playlistCreateStatus}</p>
+              ) : null}
+
+              <div className="mt-4">
+                <h3 className="font-display text-lg text-flaque-ink">Playlists</h3>
+                {availablePlaylists.length === 0 ? (
+                  <p className="mt-2 text-sm text-flaque-steel">No playlists yet.</p>
+                ) : (
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {availablePlaylists.map((playlist) => {
+                      const playlistOwner = ownerNameById[playlist.authorId] ?? playlist.authorId;
+                      return (
+                        <button
+                          key={playlist.id}
+                          className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/40 px-3 py-2 text-left transition hover:bg-flaque-cream"
+                          type="button"
+                          onClick={() => handlePlayPlaylist(playlist)}
+                          title={`Play playlist ${playlist.name}`}
+                        >
+                          <p className="truncate text-sm font-medium text-flaque-ink">{playlist.name}</p>
                           <p className="truncate text-xs text-flaque-steel">
-                            {artist}
-                            {albumWithYear ? ` - ${albumWithYear}` : ""}
+                            {playlist.trackIds.length} track{playlist.trackIds.length > 1 ? "s" : ""} - {playlist.visibility} - {playlistOwner}
                           </p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
-          </section>
+            </section>
+          ) : null}
 
-          <LibraryView
-            generatedAt={library.generatedAt}
-            tracks={library.tracks}
-            owners={library.owners}
-            ownerNameById={ownerNameById}
-            artists={library.artists}
-            albums={library.albums}
-            filters={filters}
-            onFilterChange={setFilters}
-            currentTrackId={selectedTrackRefreshed?.id}
-            onTrackSelect={(track) => {
-              requestTrackPlayback(track, library.tracks);
-            }}
-            onOpenUpload={() => setActiveView("upload")}
-          />
+          {activeLibrarySection === "music" ? (
+            <>
+              <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+                <h2 className="font-display text-xl text-flaque-ink">Played Recently</h2>
+
+                {recentTracks.length === 0 ? (
+                  <p className="mt-3 text-sm text-flaque-steel">No recently played tracks yet.</p>
+                ) : (
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {recentTracks.map((track) => {
+                      const title = getTrackDisplayTitle(track);
+                      const artist = getTrackDisplayArtist(track) ?? "Unknown artist";
+                      const albumWithYear = getTrackDisplayAlbumWithYear(track);
+
+                      return (
+                        <button
+                          key={track.id}
+                          className="w-full justify-self-start rounded-xl border border-flaque-clay/60 bg-flaque-cream/50 px-2.5 py-2 text-left transition hover:bg-flaque-cream sm:max-w-[18.5rem]"
+                          type="button"
+                          onClick={() => handleReplayRecentTrack(track)}
+                          title={title}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              className="h-10 w-10 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
+                              src={coverUrl(track.id, track.cover)}
+                              alt={albumWithYear ? `Cover for ${albumWithYear}` : `Cover for ${title}`}
+                              onError={(event) => {
+                                event.currentTarget.src = defaultCoverImage;
+                              }}
+                            />
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-flaque-ink">{title}</p>
+                              <p className="truncate text-xs text-flaque-steel">
+                                {artist}
+                                {albumWithYear ? ` - ${albumWithYear}` : ""}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
+              <LibraryView
+                generatedAt={library.generatedAt}
+                tracks={library.tracks}
+                owners={library.owners}
+                ownerNameById={ownerNameById}
+                artists={library.artists}
+                albums={library.albums}
+                filters={filters}
+                onFilterChange={setFilters}
+                currentTrackId={selectedTrackRefreshed?.id}
+                onTrackSelect={(track) => {
+                  requestTrackPlayback(track, library.tracks);
+                }}
+                onOpenUpload={() => setActiveView("upload")}
+              />
+            </>
+          ) : null}
         </div>
       ) : null}
 
@@ -1281,6 +1326,7 @@ export default function App(): JSX.Element {
               onQueueTrackSelect={(queueTrack) => {
                 requestTrackPlayback(queueTrack, refreshedQueue.length > 0 ? refreshedQueue : undefined);
               }}
+              onArtworkClick={activeView === "player" ? undefined : () => setActiveView("player")}
             />
           </div>
         </div>

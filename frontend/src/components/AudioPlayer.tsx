@@ -36,6 +36,7 @@ type AudioPlayerProps = {
   queueTracks?: Track[];
   currentQueueTrackId?: string | null;
   onQueueTrackSelect?: (track: Track) => void;
+  onArtworkClick?: () => void;
 };
 
 function isFlacTrack(track: Track): boolean {
@@ -90,7 +91,8 @@ export function AudioPlayer({
   onAddTrackToPlaylist,
   queueTracks = [],
   currentQueueTrackId = null,
-  onQueueTrackSelect
+  onQueueTrackSelect,
+  onArtworkClick
 }: AudioPlayerProps): JSX.Element {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoplayOnTrackChangeRef = useRef(true);
@@ -421,14 +423,32 @@ export function AudioPlayer({
       />
 
       <div className={`flex min-w-0 ${expanded ? "flex-col items-center gap-7" : "flex-col gap-4 md:flex-row md:items-center"}`}>
-        <img
-          className={artworkClassName}
-          src={coverUrl(track.id, track.cover)}
-          alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
-          onError={(event) => {
-            event.currentTarget.src = defaultCoverImage;
-          }}
-        />
+        {onArtworkClick && !expanded ? (
+          <button
+            className="shrink-0 rounded-2xl"
+            type="button"
+            aria-label="Open player view"
+            onClick={onArtworkClick}
+          >
+            <img
+              className={`${artworkClassName} cursor-pointer`}
+              src={coverUrl(track.id, track.cover)}
+              alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
+              onError={(event) => {
+                event.currentTarget.src = defaultCoverImage;
+              }}
+            />
+          </button>
+        ) : (
+          <img
+            className={artworkClassName}
+            src={coverUrl(track.id, track.cover)}
+            alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
+            onError={(event) => {
+              event.currentTarget.src = defaultCoverImage;
+            }}
+          />
+        )}
 
         <div className={contentLayoutClass}>
           <div>

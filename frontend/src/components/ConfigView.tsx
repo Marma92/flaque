@@ -187,9 +187,9 @@ export function ConfigView({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
             <button
-              className={`rounded-xl px-3 py-2 text-xs font-medium uppercase tracking-[0.1em] transition ${
+              className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
                 activeSection === "index"
                   ? "bg-flaque-ink text-flaque-cream"
                   : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
@@ -200,7 +200,7 @@ export function ConfigView({
               Index
             </button>
             <button
-              className={`rounded-xl px-3 py-2 text-xs font-medium uppercase tracking-[0.1em] transition ${
+              className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
                 activeSection === "files"
                   ? "bg-flaque-ink text-flaque-cream"
                   : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
@@ -211,7 +211,7 @@ export function ConfigView({
               Files
             </button>
             <button
-              className={`rounded-xl px-3 py-2 text-xs font-medium uppercase tracking-[0.1em] transition ${
+              className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
                 activeSection === "users"
                   ? "bg-flaque-ink text-flaque-cream"
                   : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
