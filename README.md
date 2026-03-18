@@ -260,6 +260,8 @@ curl "http://localhost:4000/api/tracks/<trackId>/adjacent?direction=next&owner=<
 - Clicking a track in the library starts playback without switching to the dedicated `Player` page.
 - Recently played tracks are stored in browser `localStorage` and listed in a `Played Recently` panel; clicking an entry replays it.
 - The player includes a quality selector (`Original`, `Opus fallback`, `MP3 fallback`) that targets `?transcode=` on stream requests.
+- The frontend favicon uses the centered Flaque logo artwork.
+- Missing or unreachable album covers fall back to a bundled default Flaque cover image.
 - Switching quality mode keeps playback at the same timestamp; if audio was playing, it resumes after the source swap.
 - Long titles are truncated in both the track list and player UI.
 - After pausing playback, automatic playback on track change is disabled until a manual play/replay action occurs.
