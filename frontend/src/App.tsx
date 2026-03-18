@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import {
+  coverUrl,
   createUserAccount,
   deleteTrackFile,
   deleteUserAccount,
@@ -19,6 +20,7 @@ import {
   type UploadTrackPreview,
   type UploadTracksResult
 } from "./api";
+import defaultCoverImage from "./assets/default-cover.png";
 import { AudioPlayer, type TranscodeMode } from "./components/AudioPlayer";
 import { ConfigView } from "./components/ConfigView";
 import { LibraryView } from "./components/LibraryView";
@@ -26,7 +28,11 @@ import { LoginPage } from "./components/LoginPage";
 import { PlayerView } from "./components/PlayerView";
 import { UploadView } from "./components/UploadView";
 import type { LibraryResponse, Track, TrackMetadataPatch, User } from "./types";
-import { getTrackDisplayTitle } from "./utils/tracks";
+import {
+  getTrackDisplayAlbumWithYear,
+  getTrackDisplayArtist,
+  getTrackDisplayTitle
+} from "./utils/tracks";
 
 type ViewName = "library" | "upload" | "player" | "config";
 
@@ -538,11 +544,18 @@ export default function App(): JSX.Element {
       <header className="mb-4 rounded-3xl border border-flaque-clay/60 bg-white/80 px-5 py-4 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-4">
-            <img
-              className="h-20 w-20 shrink-0 object-contain md:h-24 md:w-24"
-              src="/favicon.png"
-              alt="Flaque logo"
-            />
+            <div className="relative h-20 w-20 shrink-0 md:h-24 md:w-24">
+              <img
+                className="header-logo-light h-full w-full object-contain"
+                src="/favicon.png"
+                alt="Flaque logo"
+              />
+              <img
+                className="header-logo-dark h-full w-full object-contain"
+                src="/logo-dark.png"
+                alt="Flaque logo (dark mode)"
+              />
+            </div>
             <h1 className="font-display text-base leading-tight text-flaque-ink sm:text-lg md:text-xl lg:text-2xl">
               File-based Library Audio Query Engine
             </h1>
@@ -620,31 +633,42 @@ export default function App(): JSX.Element {
       {activeView === "library" ? (
         <div className="space-y-4">
           <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="font-display text-xl text-flaque-ink">Played Recently</h2>
-              <p className="text-xs uppercase tracking-[0.2em] text-flaque-steel">local storage</p>
-            </div>
+            <h2 className="font-display text-xl text-flaque-ink">Played Recently</h2>
 
             {recentTracks.length === 0 ? (
               <p className="mt-3 text-sm text-flaque-steel">No recently played tracks yet.</p>
             ) : (
-              <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {recentTracks.map((track) => {
                   const title = getTrackDisplayTitle(track);
+                  const artist = getTrackDisplayArtist(track) ?? "Unknown artist";
+                  const albumWithYear = getTrackDisplayAlbumWithYear(track);
 
                   return (
                     <button
                       key={track.id}
-                      className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/50 px-3 py-2 text-left transition hover:bg-flaque-cream"
+                      className="w-full justify-self-start rounded-xl border border-flaque-clay/60 bg-flaque-cream/50 px-2.5 py-2 text-left transition hover:bg-flaque-cream sm:max-w-[18.5rem]"
                       type="button"
                       onClick={() => handleReplayRecentTrack(track)}
                       title={title}
                     >
-                      <p className="truncate text-sm font-medium text-flaque-ink">{title}</p>
-                      <p className="truncate text-xs text-flaque-steel">
-                        {track.tags.artist ?? "Unknown artist"}
-                        {track.tags.album ? ` - ${track.tags.album}` : ""}
-                      </p>
+                      <div className="flex items-center gap-2.5">
+                        <img
+                          className="h-10 w-10 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
+                          src={coverUrl(track.id, track.cover)}
+                          alt={albumWithYear ? `Cover for ${albumWithYear}` : `Cover for ${title}`}
+                          onError={(event) => {
+                            event.currentTarget.src = defaultCoverImage;
+                          }}
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-flaque-ink">{title}</p>
+                          <p className="truncate text-xs text-flaque-steel">
+                            {artist}
+                            {albumWithYear ? ` - ${albumWithYear}` : ""}
+                          </p>
+                        </div>
+                      </div>
                     </button>
                   );
                 })}
