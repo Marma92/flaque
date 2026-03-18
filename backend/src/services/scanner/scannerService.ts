@@ -14,8 +14,11 @@ import { ensureTrackCover } from "../storage/coverService";
 import { scanFilesystemPlaylists } from "../playlists/playlistStore";
 
 const ARTIST_METADATA_FILE = "artist.json";
+const ALBUM_METADATA_FILE = "album.json";
 const AUDIO_DB_SEARCH_URL = "https://www.theaudiodb.com/api/v1/json/2/search.php";
 const ARTIST_PHOTO_BASE_NAME = "artist-photo";
+const UNKNOWN_ARTIST = "Unknown Artist";
+const UNKNOWN_ALBUM = "Unknown Album";
 
 type ArtistMetadata = {
   name: string;
@@ -152,6 +155,69 @@ async function ensureArtistPhotoForTrack(ownerId: string, artistName: string): P
   });
 }
 
+async function ensureDirectoryMetadata(directoryPath: string, metadataFileName: string, name: string): Promise<void> {
+  if (!(await fileExists(directoryPath))) {
+    await fs.mkdir(directoryPath, { recursive: true });
+  }
+
+  const metadataPath = path.join(directoryPath, metadataFileName);
+  if (!(await fileExists(metadataPath))) {
+    await writeJsonAtomic(metadataPath, { name });
+  }
+}
+
+async function sortRootUploadFiles(
+  ownerId: string,
+  uploadsDir: string,
+  metadataOverrides: Record<string, { artist?: string; album?: string }>
+): Promise<void> {
+  let entries: Dirent[] = [];
+
+  try {
+    entries = await fs.readdir(uploadsDir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isFile() || entry.isSymbolicLink()) {
+      continue;
+    }
+
+    const sourcePath = path.join(uploadsDir, entry.name);
+    if (!isSupportedAudioFile(sourcePath)) {
+      continue;
+    }
+
+    const relativePath = toDataRelativePath(sourcePath);
+    const trackId = createTrackId(ownerId, relativePath);
+    const metadataOverride = metadataOverrides[trackId];
+    const metadata = await extractAudioMetadata(sourcePath);
+
+    const artistName =
+      metadataOverride?.artist ??
+      metadata.tags.artist ??
+      metadata.tags.albumArtist ??
+      metadata.tags.artists?.[0] ??
+      UNKNOWN_ARTIST;
+    const albumName = metadataOverride?.album ?? metadata.tags.album ?? UNKNOWN_ALBUM;
+
+    const artistDir = path.join(uploadsDir, normalizeDirectorySegment(artistName));
+    await ensureDirectoryMetadata(artistDir, ARTIST_METADATA_FILE, artistName);
+
+    const albumDir = path.join(artistDir, normalizeDirectorySegment(albumName));
+    await ensureDirectoryMetadata(albumDir, ALBUM_METADATA_FILE, albumName);
+
+    const targetPath = path.join(albumDir, entry.name);
+    if (await fileExists(targetPath)) {
+      await fs.unlink(sourcePath);
+      continue;
+    }
+
+    await fs.rename(sourcePath, targetPath);
+  }
+}
+
 async function collectAudioFiles(rootDir: string): Promise<string[]> {
   const queue = [rootDir];
   const files: string[] = [];
@@ -211,6 +277,7 @@ export async function scanFilesystemLibrary(): Promise<LibraryIndex> {
 
   for (const ownerId of ownerIds) {
     const uploadsDir = getOwnerUploadsDir(ownerId);
+    await sortRootUploadFiles(ownerId, uploadsDir, metadataOverrides);
     const files = await collectAudioFiles(uploadsDir);
 
     for (const filePath of files) {
