@@ -44,6 +44,8 @@ type EditTrackState = {
   album: string;
 };
 
+type ConfigSection = "index" | "files" | "users";
+
 function normalizeSearch(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -69,6 +71,7 @@ export function ConfigView({
   onResetUserPassword
 }: ConfigViewProps): JSX.Element {
   const [searchText, setSearchText] = useState("");
+  const [activeSection, setActiveSection] = useState<ConfigSection>("index");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [activeTrackActionId, setActiveTrackActionId] = useState<string | null>(null);
   const [deleteTrackCandidate, setDeleteTrackCandidate] = useState<Track | null>(null);
@@ -186,24 +189,37 @@ export function ConfigView({
 
           <div className="flex flex-wrap items-center gap-2">
             <button
-              className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              className={`rounded-xl px-3 py-2 text-xs font-medium uppercase tracking-[0.1em] transition ${
+                activeSection === "index"
+                  ? "bg-flaque-ink text-flaque-cream"
+                  : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
+              }`}
               type="button"
-              onClick={() => {
-                void onRefreshTracks();
-              }}
-              disabled={loadingTracks}
+              onClick={() => setActiveSection("index")}
             >
-              {loadingTracks ? "Refreshing tracks..." : "Refresh files"}
+              Index
             </button>
             <button
-              className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+              className={`rounded-xl px-3 py-2 text-xs font-medium uppercase tracking-[0.1em] transition ${
+                activeSection === "files"
+                  ? "bg-flaque-ink text-flaque-cream"
+                  : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
+              }`}
               type="button"
-              onClick={() => {
-                void onRebuildIndex();
-              }}
-              disabled={rebuilding}
+              onClick={() => setActiveSection("files")}
             >
-              {rebuilding ? "Rebuilding index..." : "Rebuild index"}
+              Files
+            </button>
+            <button
+              className={`rounded-xl px-3 py-2 text-xs font-medium uppercase tracking-[0.1em] transition ${
+                activeSection === "users"
+                  ? "bg-flaque-ink text-flaque-cream"
+                  : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
+              }`}
+              type="button"
+              onClick={() => setActiveSection("users")}
+            >
+              Users
             </button>
           </div>
         </div>
@@ -225,7 +241,40 @@ export function ConfigView({
         ) : null}
       </section>
 
-      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      {activeSection === "index" ? (
+        <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+          <h3 className="font-display text-xl text-flaque-ink">Index operations</h3>
+          <p className="mt-2 text-sm text-flaque-steel">
+            Keep the search index synchronized with the file system and refresh global file listings.
+          </p>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={() => {
+                void onRefreshTracks();
+              }}
+              disabled={loadingTracks}
+            >
+              {loadingTracks ? "Refreshing tracks..." : "Refresh files"}
+            </button>
+            <button
+              className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={() => {
+                void onRebuildIndex();
+              }}
+              disabled={rebuilding}
+            >
+              {rebuilding ? "Rebuilding index..." : "Rebuild index"}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {activeSection === "files" ? (
+        <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-display text-xl text-flaque-ink">Global file management</h3>
@@ -243,7 +292,50 @@ export function ConfigView({
           />
         </div>
 
-        <div className="mt-4 max-h-[48vh] overflow-auto rounded-2xl border border-flaque-clay/40">
+        <div className="mt-4 space-y-3 lg:hidden">
+          {filteredTracks.map((track) => {
+            const runningAction = activeTrackActionId === track.id;
+            const title = getTrackDisplayTitle(track);
+
+            return (
+              <article key={track.id} className="rounded-2xl border border-flaque-clay/60 bg-flaque-cream/45 p-3">
+                <p className="truncate text-sm font-medium text-flaque-ink" title={title}>
+                  {title}
+                </p>
+                <p className="mt-1 truncate text-xs text-flaque-steel">
+                  {getTrackDisplayArtist(track) ?? "Unknown"}
+                  {getTrackDisplayAlbumWithYear(track) ? ` - ${getTrackDisplayAlbumWithYear(track)}` : ""}
+                </p>
+                <p className="mt-1 truncate font-mono text-[11px] text-flaque-steel/80" title={track.path}>
+                  {track.path}
+                </p>
+
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    disabled={runningAction}
+                    onClick={() => openEditModal(track)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    disabled={runningAction}
+                    onClick={() => openDeleteTrackModal(track)}
+                  >
+                    Delete file
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+
+          {filteredTracks.length === 0 ? <p className="text-sm text-flaque-steel">No tracks match this search.</p> : null}
+        </div>
+
+        <div className="mt-4 hidden max-h-[48vh] overflow-auto rounded-2xl border border-flaque-clay/40 lg:block">
           <table className="w-full min-w-[980px] border-collapse text-left text-sm">
             <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
               <tr>
@@ -307,19 +399,22 @@ export function ConfigView({
             </tbody>
           </table>
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <AdminUsersView
-        currentUser={currentUser}
-        users={users}
-        loading={loadingUsers}
-        error={usersError}
-        onRefresh={onRefreshUsers}
-        onCreateUser={onCreateUser}
-        onPatchUser={onPatchUser}
-        onDeleteUser={onDeleteUser}
-        onResetPassword={onResetUserPassword}
-      />
+      {activeSection === "users" ? (
+        <AdminUsersView
+          currentUser={currentUser}
+          users={users}
+          loading={loadingUsers}
+          error={usersError}
+          onRefresh={onRefreshUsers}
+          onCreateUser={onCreateUser}
+          onPatchUser={onPatchUser}
+          onDeleteUser={onDeleteUser}
+          onResetPassword={onResetUserPassword}
+        />
+      ) : null}
 
       {editState ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
