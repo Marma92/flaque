@@ -334,6 +334,7 @@ export default function App(): JSX.Element {
   }
 
   const hasStickyPlayer = Boolean(selectedTrackRefreshed) && activeView !== "player";
+  const shouldRenderPlayer = Boolean(selectedTrackRefreshed) || activeView === "player";
 
   if (!sessionChecked) {
     return <main className="p-8 text-flaque-ink">Loading session...</main>;
@@ -472,15 +473,7 @@ export default function App(): JSX.Element {
           />
         </div>
       ) : activeView === "player" ? (
-        <PlayerView
-          track={selectedTrackRefreshed}
-          onNext={() => handleNavigateTrack("next")}
-          onPrevious={() => handleNavigateTrack("previous")}
-          onTrackPlayed={handleTrackPlayed}
-          transcodeMode={transcodeMode}
-          onTranscodeModeChange={setTranscodeMode}
-          playRequestNonce={playRequestNonce}
-        />
+        <PlayerView track={selectedTrackRefreshed} />
       ) : (
         <AdminUsersView
           currentUser={user}
@@ -495,11 +488,12 @@ export default function App(): JSX.Element {
         />
       )}
 
-      {hasStickyPlayer ? (
-        <div className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-3 pt-2">
+      {shouldRenderPlayer ? (
+        <div className={activeView === "player" ? "mt-4" : "fixed bottom-0 left-0 right-0 z-40 px-3 pb-3 pt-2"}>
           <div className="mx-auto max-w-7xl">
             <AudioPlayer
               track={selectedTrackRefreshed}
+              expanded={activeView === "player"}
               onNext={() => handleNavigateTrack("next")}
               onPrevious={() => handleNavigateTrack("previous")}
               onTrackPlayed={handleTrackPlayed}

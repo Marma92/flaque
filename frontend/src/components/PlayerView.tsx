@@ -6,8 +6,8 @@ type PlayerViewProps = {
   onPrevious?: () => Promise<void> | void;
   onNext?: () => Promise<void> | void;
   onTrackPlayed?: (track: Track) => void;
-  transcodeMode: TranscodeMode;
-  onTranscodeModeChange: (mode: TranscodeMode) => void;
+  transcodeMode?: TranscodeMode;
+  onTranscodeModeChange?: (mode: TranscodeMode) => void;
   playRequestNonce?: number;
 };
 
@@ -20,6 +20,10 @@ export function PlayerView({
   onTranscodeModeChange,
   playRequestNonce
 }: PlayerViewProps): JSX.Element {
+  const shouldRenderEmbeddedPlayer = Boolean(
+    onPrevious || onNext || onTrackPlayed || onTranscodeModeChange || transcodeMode !== undefined || playRequestNonce !== undefined
+  );
+
   return (
     <div className="space-y-4">
       <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
@@ -28,17 +32,25 @@ export function PlayerView({
         <p className="mt-3 text-sm text-flaque-steel">
           FLAC files are streamed without transcoding when possible, with byte-range seek support.
         </p>
+        <p className="mt-3 text-sm text-flaque-steel">
+          {track
+            ? "The current track keeps playing while you navigate between views."
+            : "Select a track in Library to start playback."}
+        </p>
       </section>
-      <AudioPlayer
-        track={track}
-        expanded
-        onPrevious={onPrevious}
-        onNext={onNext}
-        onTrackPlayed={onTrackPlayed}
-        transcodeMode={transcodeMode}
-        onTranscodeModeChange={onTranscodeModeChange}
-        playRequestNonce={playRequestNonce}
-      />
+
+      {shouldRenderEmbeddedPlayer ? (
+        <AudioPlayer
+          track={track}
+          expanded
+          onPrevious={onPrevious}
+          onNext={onNext}
+          onTrackPlayed={onTrackPlayed}
+          transcodeMode={transcodeMode}
+          onTranscodeModeChange={onTranscodeModeChange}
+          playRequestNonce={playRequestNonce}
+        />
+      ) : null}
     </div>
   );
 }
