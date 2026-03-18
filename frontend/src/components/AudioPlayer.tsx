@@ -382,61 +382,63 @@ export function AudioPlayer({
               {formatDuration(currentTime)} / {formatDuration(duration || track.duration)}
             </span>
 
-            <label className="flex items-center gap-2 text-xs text-flaque-steel">
-              <span>Quality</span>
-              <select
-                className={qualitySelectClassName}
-                value={transcodeMode}
-                onChange={(event) => {
-                  if (!onTranscodeModeChange) {
-                    return;
-                  }
-
-                  const nextMode = event.target.value as TranscodeMode;
-                  if (nextMode === transcodeMode) {
-                    return;
-                  }
-
-                  const nextRequestedTranscode = nextMode === "original" ? undefined : nextMode;
-                  const nextEffectiveTranscode = canTranscode ? nextRequestedTranscode : undefined;
-                  const sourceWillChange = nextEffectiveTranscode !== effectiveTranscode;
-
-                  if (sourceWillChange) {
-                    const audioElement = audioRef.current;
-                    const snapshotTime = audioElement && audioElement.currentTime > 0 ? audioElement.currentTime : currentTimeRef.current;
-                    const shouldResumePlayback = audioElement ? !audioElement.paused : isPlaying;
-
-                    qualitySwapSnapshotTimeRef.current = snapshotTime;
-                    qualitySwapShouldPlayRef.current = shouldResumePlayback;
-                  } else {
-                    qualitySwapSnapshotTimeRef.current = null;
-                    qualitySwapShouldPlayRef.current = null;
-                  }
-
-                  onTranscodeModeChange(nextMode);
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                className={playlistButtonClassName}
+                type="button"
+                aria-label="Ajouter a une playlist"
+                title="Ajouter a une playlist"
+                onClick={() => {
+                  setPlaylistSubmitStatus(null);
+                  setShowPlaylistPicker((current) => !current);
                 }}
+                disabled={!onAddTrackToPlaylist || !hasPlayablePlaylists}
               >
-                <option value="original">Original</option>
-                <option value="opus">Opus fallback</option>
-                <option value="mp3">MP3 fallback</option>
-              </select>
-            </label>
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
 
-            <button
-              className={playlistButtonClassName}
-              type="button"
-              aria-label="Ajouter a une playlist"
-              title="Ajouter a une playlist"
-              onClick={() => {
-                setPlaylistSubmitStatus(null);
-                setShowPlaylistPicker((current) => !current);
-              }}
-              disabled={!onAddTrackToPlaylist || !hasPlayablePlaylists}
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
+              <label className="flex items-center gap-2 text-xs text-flaque-steel">
+                <span>Quality</span>
+                <select
+                  className={qualitySelectClassName}
+                  value={transcodeMode}
+                  onChange={(event) => {
+                    if (!onTranscodeModeChange) {
+                      return;
+                    }
+
+                    const nextMode = event.target.value as TranscodeMode;
+                    if (nextMode === transcodeMode) {
+                      return;
+                    }
+
+                    const nextRequestedTranscode = nextMode === "original" ? undefined : nextMode;
+                    const nextEffectiveTranscode = canTranscode ? nextRequestedTranscode : undefined;
+                    const sourceWillChange = nextEffectiveTranscode !== effectiveTranscode;
+
+                    if (sourceWillChange) {
+                      const audioElement = audioRef.current;
+                      const snapshotTime = audioElement && audioElement.currentTime > 0 ? audioElement.currentTime : currentTimeRef.current;
+                      const shouldResumePlayback = audioElement ? !audioElement.paused : isPlaying;
+
+                      qualitySwapSnapshotTimeRef.current = snapshotTime;
+                      qualitySwapShouldPlayRef.current = shouldResumePlayback;
+                    } else {
+                      qualitySwapSnapshotTimeRef.current = null;
+                      qualitySwapShouldPlayRef.current = null;
+                    }
+
+                    onTranscodeModeChange(nextMode);
+                  }}
+                >
+                  <option value="original">Original</option>
+                  <option value="opus">Opus fallback</option>
+                  <option value="mp3">MP3 fallback</option>
+                </select>
+              </label>
+            </div>
           </div>
 
           {showPlaylistPicker ? (
