@@ -321,7 +321,7 @@ export function AudioPlayer({
   const contentLayoutClass = expanded ? "w-full max-w-4xl space-y-4" : "min-w-0 flex-1 space-y-3";
   const controlsLayoutClass = expanded
     ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3"
-    : "flex w-full items-center gap-2";
+    : "flex w-full items-end gap-2";
   const primaryControlsClassName = expanded
     ? "flex items-center gap-2"
     : "flex min-w-0 flex-1 items-center gap-2";
