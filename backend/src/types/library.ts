@@ -43,10 +43,21 @@ export type Track = {
   cover?: string;
 };
 
+export type PlaylistVisibility = "public" | "private";
+
+export type Playlist = {
+  id: string;
+  name: string;
+  authorId: string;
+  visibility: PlaylistVisibility;
+  trackIds: string[];
+};
+
 export type LibraryIndex = {
   generatedAt: string;
   totalTracks: number;
   tracks: Track[];
+  playlists?: Playlist[];
 };
 
 export type UserRole = "admin" | "user";

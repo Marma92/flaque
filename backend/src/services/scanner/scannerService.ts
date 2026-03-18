@@ -10,6 +10,7 @@ import { readTrackMetadataOverrides } from "../indexer/metadataOverrideStore";
 import { extractAudioMetadata } from "./audioProbe";
 import { listOwnerIds, toDataRelativePath } from "../storage/storageService";
 import { ensureTrackCover } from "../storage/coverService";
+import { scanFilesystemPlaylists } from "../playlists/playlistStore";
 
 function getTrackArtist(track: Track): string {
   return track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0] ?? "";
@@ -112,10 +113,12 @@ export async function scanFilesystemLibrary(): Promise<LibraryIndex> {
   }
 
   tracks.sort(compareTrackOrder);
+  const playlists = await scanFilesystemPlaylists(tracks);
 
   return {
     generatedAt: new Date().toISOString(),
     totalTracks: tracks.length,
-    tracks
+    tracks,
+    playlists
   };
 }

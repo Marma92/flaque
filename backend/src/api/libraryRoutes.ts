@@ -10,6 +10,7 @@ import {
   readTrackMetadataOverrides
 } from "../services/indexer/metadataOverrideStore";
 import { IndexStore } from "../services/indexer/indexStore";
+import { filterPlayablePlaylists } from "../services/playlists/playlistStore";
 import { deleteTrackCover } from "../services/storage/coverService";
 import { resolveTrackAbsolutePath } from "../services/storage/storageService";
 import {
@@ -346,14 +347,19 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
     const tracksWithOwnerNames = mapTrackOwners(snapshot.tracks, ownerNamesById);
     const filter = readFilter(req.query as Record<string, unknown>);
     const tracks = filterTracks(tracksWithOwnerNames, filter).map(mapTrackResponse);
+    const playlists = req.authUser
+      ? filterPlayablePlaylists(snapshot.playlists ?? [], req.authUser)
+      : [];
 
     res.json({
       generatedAt: snapshot.generatedAt,
       totalTracks: tracks.length,
+      totalPlaylists: playlists.length,
       owners: listOwners(tracksWithOwnerNames),
       artists: listArtists(tracks),
       albums: listAlbums(tracks),
-      tracks
+      tracks,
+      playlists
     });
   });
 

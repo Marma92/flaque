@@ -1,5 +1,44 @@
 {
-  "generatedAt": "",
-  "totalTracks": 0,
-  "tracks": []
+  "generatedAt": "2026-03-18T15:50:20.758Z",
+  "totalTracks": 3,
+  "tracks": [
+    {
+      "id": "9879c817b4e2eab90d9846e610119ca179821b41",
+      "owner": "cfafee9449e6e8e5484bd5e133359e20",
+      "path": "storage/users/cfafee9449e6e8e5484bd5e133359e20/uploads/5fbf258cad87b2c1028293183c379b3ba941789bdac86231859da6704c47d944.mp3",
+      "duration": 150.432,
+      "mimeType": "audio/mpeg",
+      "codec": "MPEG 1 Layer 3",
+      "bitrate": 320000,
+      "sampleRate": 48000,
+      "tags": {}
+    },
+    {
+      "id": "d7ecea2a3b985d06e7589149fd5457bb25e9f847",
+      "owner": "cfafee9449e6e8e5484bd5e133359e20",
+      "path": "storage/users/cfafee9449e6e8e5484bd5e133359e20/uploads/65c38b52b9ff3563a64bd2f2c81a6dd544a7464b66b3a6c3a0f502e5b380a5d1.mp3",
+      "duration": 208.104,
+      "mimeType": "audio/mpeg",
+      "codec": "MPEG 1 Layer 3",
+      "bitrate": 320000,
+      "sampleRate": 48000,
+      "tags": {}
+    },
+    {
+      "id": "87eaebf78ab33a988562a95ba0991023a99ada72",
+      "owner": "cfafee9449e6e8e5484bd5e133359e20",
+      "path": "storage/users/cfafee9449e6e8e5484bd5e133359e20/uploads/3071d3da6d08c45d5052d73158d66275c0eccbf11e985a8720c2d79076d137c5.mp3",
+      "duration": 176.09142857142857,
+      "mimeType": "audio/mpeg",
+      "codec": "MPEG 1 Layer 3",
+      "bitrate": 320000,
+      "sampleRate": 44100,
+      "tags": {
+        "title": "How It’s Done",
+        "artist": "EJAE",
+        "album": "KPop Demon Hunters (Soundtrack from the Netflix Film)"
+      },
+      "cover": "/api/covers/87eaebf78ab33a988562a95ba0991023a99ada72"
+    }
+  ]
 }

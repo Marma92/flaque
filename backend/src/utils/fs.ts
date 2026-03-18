@@ -59,7 +59,8 @@ export async function ensureBaseDirectories(): Promise<void> {
     await writeJsonAtomic(indexFilePath, {
       generatedAt: "",
       totalTracks: 0,
-      tracks: []
+      tracks: [],
+      playlists: []
     });
   }
 

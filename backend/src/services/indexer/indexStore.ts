@@ -7,7 +7,8 @@ import { scanFilesystemLibrary } from "../scanner/scannerService";
 const EMPTY_INDEX: LibraryIndex = {
   generatedAt: "",
   totalTracks: 0,
-  tracks: []
+  tracks: [],
+  playlists: []
 };
 
 export class IndexStore {
@@ -56,7 +57,8 @@ export class IndexStore {
     return {
       generatedAt: index.generatedAt ?? "",
       totalTracks: index.totalTracks ?? index.tracks.length,
-      tracks: index.tracks
+      tracks: index.tracks,
+      playlists: Array.isArray(index.playlists) ? index.playlists : []
     };
   }
 }
