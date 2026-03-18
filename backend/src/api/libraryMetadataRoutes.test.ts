@@ -517,4 +517,82 @@ describe("library metadata routes", () => {
       })
     );
   });
+
+  it("includes unknown album entries in album list", async () => {
+    const owner = "owner-1";
+    const artistSlug = "unknown_artist";
+    const albumSlug = "unknown_album";
+    const unknownAlbumId = "album-unknown";
+    const unknownAlbumName = "Unknown Album";
+
+    const unknownTrack = createNestedTrack(
+      "track-9",
+      "Mystery Track",
+      "Unknown Artist",
+      unknownAlbumName,
+      `storage/users/${owner}/uploads/${artistSlug}/${albumSlug}/mystery-track.flac`
+    );
+    unknownTrack.tags.album = undefined;
+
+    const snapshot: LibraryIndex = {
+      generatedAt: new Date().toISOString(),
+      totalTracks: 1,
+      tracks: [unknownTrack]
+    };
+
+    const albumDir = path.join(dataRoot, "storage", "users", owner, "uploads", artistSlug, albumSlug);
+    await fs.mkdir(albumDir, { recursive: true });
+    await fs.writeFile(
+      path.join(albumDir, "album.json"),
+      JSON.stringify({
+        id: unknownAlbumId,
+        name: unknownAlbumName
+      })
+    );
+
+    const indexStore = new FakeIndexStore({
+      initialSnapshot: snapshot,
+      rebuildSnapshot: snapshot
+    });
+
+    await bootstrapServer(indexStore);
+    const cookie = await login("admin", "admin-secret-123");
+
+    const albumsResponse = await apiRequest("/api/albums", {
+      headers: {
+        Cookie: cookie
+      }
+    });
+
+    expect(albumsResponse.status).toBe(200);
+    expect(albumsResponse.payload).toEqual(
+      expect.objectContaining({
+        albums: expect.arrayContaining([
+          expect.objectContaining({
+            id: unknownAlbumId,
+            name: unknownAlbumName,
+            trackCount: 1
+          })
+        ])
+      })
+    );
+
+    const albumResponse = await apiRequest(`/api/album/${encodeURIComponent(unknownAlbumId)}`, {
+      headers: {
+        Cookie: cookie
+      }
+    });
+
+    expect(albumResponse.status).toBe(200);
+    expect(albumResponse.payload).toEqual(
+      expect.objectContaining({
+        album: expect.objectContaining({
+          id: unknownAlbumId,
+          name: unknownAlbumName,
+          trackCount: 1
+        }),
+        tracks: [expect.objectContaining({ id: unknownTrack.id })]
+      })
+    );
+  });
 });

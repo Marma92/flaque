@@ -441,13 +441,13 @@ async function attachCollaborativeAlbumCovers(
   const metadataCache = new Map<string, ResolvedAlbumMetadata | undefined>();
 
   for (const track of tracks) {
-    const albumName = track.tags.album?.trim();
+    const metadata = await resolveAlbumMetadataForTrack(track, metadataCache);
+    const albumName = track.tags.album?.trim() ?? metadata?.name?.trim();
     if (!albumName) {
       continue;
     }
 
-    const metadata = await resolveAlbumMetadataForTrack(track, metadataCache);
-    const collaborative = isCollaborativeAlbumTrack(track);
+    const collaborative = Boolean(track.tags.album?.trim()) && isCollaborativeAlbumTrack(track);
     const albumKey = collaborative
       ? createCollaborativeAlbumId(track.owner, albumName)
       : metadata?.id ?? `${track.owner}:${metadata?.albumDir ?? normalizeAlbumName(albumName)}`;
