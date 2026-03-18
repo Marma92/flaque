@@ -130,7 +130,7 @@ input[type="range"]::-moz-range-thumb {
 
 :root[data-theme="dark"] .header-logo-dark {
   display: block;
-  transform: scale(1.14);
+  transform: translateY(1px) scale(1.18);
   transform-origin: center;
   filter:
     drop-shadow(0 0 10px rgb(114 230 255 / 0.65))
