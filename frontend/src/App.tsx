@@ -49,6 +49,7 @@ const VIEW_QUERY_PARAM = "view";
 const RECENT_TRACKS_STORAGE_KEY = "flaque_recent_tracks_v1";
 const TRANSCODE_MODE_STORAGE_KEY = "flaque_transcode_mode_v1";
 const CURRENT_QUEUE_STORAGE_KEY = "flaque_current_queue_v1";
+const SHUFFLE_MODE_STORAGE_KEY = "flaque_shuffle_mode_v1";
 const MAX_RECENT_TRACKS = 24;
 
 const EMPTY_LIBRARY: LibraryResponse = {
@@ -156,6 +157,14 @@ function readTranscodeMode(): TranscodeMode {
   return "original";
 }
 
+function readShuffleMode(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.localStorage.getItem(SHUFFLE_MODE_STORAGE_KEY) === "on";
+}
+
 function getAdjacentTrackInQueue(
   queue: Track[],
   currentTrackId: string,
@@ -244,6 +253,7 @@ export default function App(): JSX.Element {
   const [playRequestNonce, setPlayRequestNonce] = useState(0);
   const [transcodeMode, setTranscodeMode] = useState<TranscodeMode>(() => readTranscodeMode());
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");
+  const [shuffleEnabled, setShuffleEnabled] = useState<boolean>(() => readShuffleMode());
   const [queueRestoredFromStorage, setQueueRestoredFromStorage] = useState(false);
 
   const [rebuilding, setRebuilding] = useState(false);
@@ -441,6 +451,14 @@ export default function App(): JSX.Element {
   }, [transcodeMode]);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(SHUFFLE_MODE_STORAGE_KEY, shuffleEnabled ? "on" : "off");
+  }, [shuffleEnabled]);
+
+  useEffect(() => {
     if (!user) {
       setLibrary(EMPTY_LIBRARY);
       setAllTracksLibrary(EMPTY_LIBRARY);
@@ -629,6 +647,7 @@ export default function App(): JSX.Element {
     setSelectedTrack(null);
     setPlayQueue([]);
     setRepeatMode("off");
+    setShuffleEnabled(false);
     setFilters({});
     setAdminUsers([]);
     setAdminError(null);
@@ -808,6 +827,25 @@ export default function App(): JSX.Element {
     }
 
     setPlayerStatusMessage(null);
+
+    if (shuffleEnabled && direction === "next") {
+      const shufflePool = refreshedQueue.length > 0 ? refreshedQueue : allTracksLibrary.tracks;
+      const shuffleCandidates = shufflePool.filter((track) => track.id !== currentTrack.id);
+
+      if (shuffleCandidates.length > 0) {
+        const randomIndex = Math.floor(Math.random() * shuffleCandidates.length);
+        const randomTrack = shuffleCandidates[randomIndex] ?? null;
+        if (randomTrack) {
+          setSelectedTrack(randomTrack);
+          return;
+        }
+      }
+
+      if (!wrap) {
+        setPlayerStatusMessage("Shuffle has no additional track in the current queue.");
+      }
+      return;
+    }
 
     const nextTrackFromQueue = getAdjacentTrackInQueue(refreshedQueue, currentTrack.id, direction, wrap);
     if (nextTrackFromQueue && nextTrackFromQueue.id !== currentTrack.id) {
@@ -1209,6 +1247,8 @@ export default function App(): JSX.Element {
               onTranscodeModeChange={setTranscodeMode}
               repeatMode={repeatMode}
               onRepeatModeChange={setRepeatMode}
+              shuffleEnabled={shuffleEnabled}
+              onShuffleEnabledChange={setShuffleEnabled}
               playRequestNonce={playRequestNonce}
               playlists={manageablePlaylists}
               onAddTrackToPlaylist={handleAddTrackToPlaylist}

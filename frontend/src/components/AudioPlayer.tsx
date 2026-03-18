@@ -12,6 +12,9 @@ import {
 export type TranscodeMode = "original" | "opus" | "mp3";
 export type RepeatMode = "off" | "all" | "one";
 
+const PLAYER_VOLUME_STORAGE_KEY = "flaque_player_volume_v1";
+const PLAYER_RATE_STORAGE_KEY = "flaque_player_rate_v1";
+
 type NavigateOptions = {
   wrap?: boolean;
 };
@@ -26,6 +29,8 @@ type AudioPlayerProps = {
   onTranscodeModeChange?: (mode: TranscodeMode) => void;
   repeatMode?: RepeatMode;
   onRepeatModeChange?: (mode: RepeatMode) => void;
+  shuffleEnabled?: boolean;
+  onShuffleEnabledChange?: (enabled: boolean) => void;
   playRequestNonce?: number;
   playlists?: Playlist[];
   onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
@@ -52,6 +57,36 @@ function formatDuration(totalSeconds: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+function clampVolume(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 1;
+  }
+
+  return Math.min(1, Math.max(0, value));
+}
+
+function readStoredVolume(): number {
+  if (typeof window === "undefined") {
+    return 1;
+  }
+
+  const raw = Number(window.localStorage.getItem(PLAYER_VOLUME_STORAGE_KEY));
+  return clampVolume(raw);
+}
+
+function readStoredPlaybackRate(): number {
+  if (typeof window === "undefined") {
+    return 1;
+  }
+
+  const raw = Number(window.localStorage.getItem(PLAYER_RATE_STORAGE_KEY));
+  if (raw === 0.75 || raw === 1 || raw === 1.25 || raw === 1.5 || raw === 2) {
+    return raw;
+  }
+
+  return 1;
+}
+
 export function AudioPlayer({
   track,
   expanded = false,
@@ -62,6 +97,8 @@ export function AudioPlayer({
   onTranscodeModeChange,
   repeatMode = "off",
   onRepeatModeChange,
+  shuffleEnabled = false,
+  onShuffleEnabledChange,
   playRequestNonce = 0,
   playlists = [],
   onAddTrackToPlaylist,
@@ -87,6 +124,9 @@ export function AudioPlayer({
   const [playlistSubmitStatus, setPlaylistSubmitStatus] = useState<string | null>(null);
   const [playlistSubmitLoading, setPlaylistSubmitLoading] = useState(false);
   const [showQueuePanel, setShowQueuePanel] = useState(false);
+  const [volume, setVolume] = useState<number>(() => readStoredVolume());
+  const [muted, setMuted] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState<number>(() => readStoredPlaybackRate());
 
   const canTranscode = Boolean(track && isFlacTrack(track));
   const requestedTranscode = transcodeMode === "original" ? undefined : transcodeMode;
@@ -184,10 +224,45 @@ export function AudioPlayer({
       .then(() => {
         setIsPlaying(true);
       })
-      .catch(() => {
-        setIsPlaying(false);
-      });
+        .catch(() => {
+          setIsPlaying(false);
+        });
   }, [playRequestNonce, track?.id]);
+
+  useEffect(() => {
+    const audioElement = audioRef.current;
+    if (!audioElement) {
+      return;
+    }
+
+    audioElement.volume = volume;
+    audioElement.muted = muted;
+  }, [muted, track?.id, volume]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(PLAYER_VOLUME_STORAGE_KEY, String(volume));
+  }, [volume]);
+
+  useEffect(() => {
+    const audioElement = audioRef.current;
+    if (!audioElement) {
+      return;
+    }
+
+    audioElement.playbackRate = playbackRate;
+  }, [playbackRate, track?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(PLAYER_RATE_STORAGE_KEY, String(playbackRate));
+  }, [playbackRate]);
 
   function onTogglePlayback(): void {
     const audioElement = audioRef.current;
@@ -255,6 +330,14 @@ export function AudioPlayer({
     const nextMode: RepeatMode =
       repeatMode === "off" ? "all" : repeatMode === "all" ? "one" : "off";
     onRepeatModeChange(nextMode);
+  }
+
+  function onToggleShuffle(): void {
+    if (!onShuffleEnabledChange) {
+      return;
+    }
+
+    onShuffleEnabledChange(!shuffleEnabled);
   }
 
   if (!track) {
@@ -441,7 +524,7 @@ export function AudioPlayer({
               {formatDuration(currentTime)} / {formatDuration(duration || track.duration)}
             </span>
 
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               <button
                 className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
                   repeatMode === "off"
@@ -485,10 +568,72 @@ export function AudioPlayer({
               </button>
 
               <button
+                className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
+                  shuffleEnabled
+                    ? "bg-flaque-ink text-flaque-cream hover:bg-black"
+                    : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
+                }`}
+                type="button"
+                aria-label={shuffleEnabled ? "Disable shuffle" : "Enable shuffle"}
+                title={shuffleEnabled ? "Shuffle on" : "Shuffle off"}
+                onClick={onToggleShuffle}
+                disabled={!onShuffleEnabledChange}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M16 3h5v5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M4 20l8-8" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M21 3l-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M4 4l6 6" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M15 16l2 2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              <button
+                className={ghostControlButtonClassName}
+                type="button"
+                aria-label={muted || volume === 0 ? "Unmute" : "Mute"}
+                title={muted || volume === 0 ? "Unmute" : "Mute"}
+                onClick={() => setMuted((current) => !current)}
+              >
+                {muted || volume === 0 ? (
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <path d="M3 10v4h4l5 4V6L7 10H3z" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M16 9l5 6" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M21 9l-5 6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <path d="M3 10v4h4l5 4V6L7 10H3z" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M16 9a5 5 0 010 6" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M19 7a8 8 0 010 10" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
+
+              <label className="flex items-center gap-2 text-xs text-flaque-steel">
+                <span>Volume</span>
+                <input
+                  className="h-2 w-20 cursor-pointer appearance-none rounded-full bg-flaque-clay/60"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={volume}
+                  onChange={(event) => {
+                    const nextVolume = clampVolume(Number(event.target.value));
+                    setVolume(nextVolume);
+                    if (nextVolume > 0 && muted) {
+                      setMuted(false);
+                    }
+                  }}
+                />
+              </label>
+
+              <button
                 className={queueButtonClassName}
                 type="button"
-                aria-label={showQueuePanel ? "Masquer la file de lecture" : "Afficher la file de lecture"}
-                title={showQueuePanel ? "Masquer la file de lecture" : "Afficher la file de lecture"}
+                aria-label={showQueuePanel ? "Hide queue" : "Show queue"}
+                title={showQueuePanel ? "Hide queue" : "Show queue"}
                 onClick={() => setShowQueuePanel((current) => !current)}
               >
                 <svg
@@ -506,8 +651,8 @@ export function AudioPlayer({
               <button
                 className={playlistButtonClassName}
                 type="button"
-                aria-label="Ajouter a une playlist"
-                title="Ajouter a une playlist"
+                aria-label="Add to playlist"
+                title="Add to playlist"
                 onClick={() => {
                   setPlaylistSubmitStatus(null);
                   setShowPlaylistPicker((current) => !current);
@@ -558,6 +703,26 @@ export function AudioPlayer({
                   <option value="mp3">MP3 fallback</option>
                 </select>
               </label>
+
+              <label className="flex items-center gap-2 text-xs text-flaque-steel">
+                <span>Speed</span>
+                <select
+                  className={qualitySelectClassName}
+                  value={playbackRate}
+                  onChange={(event) => {
+                    const nextRate = Number(event.target.value);
+                    if (nextRate === 0.75 || nextRate === 1 || nextRate === 1.25 || nextRate === 1.5 || nextRate === 2) {
+                      setPlaybackRate(nextRate);
+                    }
+                  }}
+                >
+                  <option value={0.75}>0.75x</option>
+                  <option value={1}>1.0x</option>
+                  <option value={1.25}>1.25x</option>
+                  <option value={1.5}>1.5x</option>
+                  <option value={2}>2.0x</option>
+                </select>
+              </label>
             </div>
           </div>
 
@@ -603,7 +768,7 @@ export function AudioPlayer({
                     });
                 }}
               >
-                {playlistSubmitLoading ? "Adding..." : "Valider"}
+                {playlistSubmitLoading ? "Adding..." : "Add"}
               </button>
             </div>
           ) : null}
