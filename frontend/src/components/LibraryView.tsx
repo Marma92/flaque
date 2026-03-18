@@ -185,15 +185,14 @@ export function LibraryView({
             </label>
           </div>
         </div>
-      </section>
-
-      <section className="overflow-hidden rounded-3xl border border-flaque-clay/60 bg-white/85 shadow-panel backdrop-blur-sm">
-        <TrackList
-          tracks={tracks}
-          currentTrackId={currentTrackId}
-          ownerNameById={ownerNameById}
-          onTrackSelect={onTrackSelect}
-        />
+        <div className="mt-4 overflow-hidden rounded-2xl border border-flaque-clay/55 bg-white/75">
+          <TrackList
+            tracks={tracks}
+            currentTrackId={currentTrackId}
+            ownerNameById={ownerNameById}
+            onTrackSelect={onTrackSelect}
+          />
+        </div>
       </section>
     </div>
   );
