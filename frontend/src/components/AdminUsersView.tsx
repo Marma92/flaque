@@ -372,7 +372,69 @@ export function AdminUsersView({
       </section>
 
       <section className="overflow-hidden rounded-3xl border border-flaque-clay/60 bg-white/85 shadow-panel backdrop-blur-sm">
-        <div className="max-h-[50vh] overflow-auto">
+        <div className="space-y-3 p-4 lg:hidden">
+          {filteredUsers.map((entry) => {
+            const runningAction = activeUserActionId === entry.id;
+            const isCurrentUser = entry.id === currentUser.id;
+
+            return (
+              <article key={entry.id} className="rounded-2xl border border-flaque-clay/60 bg-flaque-cream/45 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-base font-medium text-flaque-ink">{entry.username}</p>
+                    <p className="font-mono text-[11px] text-flaque-steel">{entry.id}</p>
+                  </div>
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium uppercase tracking-[0.12em] ${
+                      entry.role === "admin" ? "bg-flaque-ink text-flaque-cream" : "bg-flaque-cream text-flaque-ink"
+                    }`}
+                  >
+                    {entry.role}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    className="rounded-lg border border-flaque-clay bg-white px-3 py-2 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    disabled={runningAction}
+                    onClick={() => openRenameModal(entry)}
+                  >
+                    Rename
+                  </button>
+                  <button
+                    className="rounded-lg border border-flaque-clay bg-white px-3 py-2 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    disabled={runningAction}
+                    onClick={() => openToggleRoleModal(entry)}
+                  >
+                    {entry.role === "admin" ? "Make user" : "Make admin"}
+                  </button>
+                  <button
+                    className="rounded-lg border border-flaque-clay bg-white px-3 py-2 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    disabled={runningAction}
+                    onClick={() => openResetPasswordModal(entry)}
+                  >
+                    Reset password
+                  </button>
+                  <button
+                    className="rounded-lg border border-red-300 bg-white px-3 py-2 text-xs text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    disabled={runningAction || isCurrentUser}
+                    onClick={() => openDeleteModal(entry)}
+                  >
+                    {isCurrentUser ? "Current session" : "Delete user"}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+
+          {filteredUsers.length === 0 ? <p className="text-sm text-flaque-steel">No users match this search/filter.</p> : null}
+        </div>
+
+        <div className="hidden max-h-[50vh] overflow-auto lg:block">
           <table className="w-full min-w-[900px] border-collapse text-left text-sm">
             <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
               <tr>
