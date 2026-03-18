@@ -18,6 +18,7 @@ type LibraryViewProps = {
   generatedAt: string;
   tracks: Track[];
   owners: string[];
+  ownerNameById?: Record<string, string>;
   artists: ArtistEntry[];
   albums: AlbumEntry[];
   filters: LibraryFilter;
@@ -41,6 +42,7 @@ export function LibraryView({
   generatedAt,
   tracks,
   owners,
+  ownerNameById,
   artists,
   albums,
   filters,
@@ -49,6 +51,8 @@ export function LibraryView({
   onTrackSelect,
   onOpenUpload
 }: LibraryViewProps): JSX.Element {
+  const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
+
   const generatedAtLabel = useMemo(() => {
     if (!generatedAt) {
       return "never";
@@ -92,7 +96,7 @@ export function LibraryView({
             <option value="">All owners</option>
             {owners.map((owner) => (
               <option key={owner} value={owner}>
-                {owner}
+                {resolveOwnerLabel(owner)}
               </option>
             ))}
           </select>
@@ -182,7 +186,7 @@ export function LibraryView({
                     </td>
                     <td className="px-4 py-3 text-flaque-steel">{trackArtist}</td>
                     <td className="px-4 py-3 text-flaque-steel">{trackAlbum}</td>
-                    <td className="px-4 py-3 text-flaque-steel">{track.owner}</td>
+                    <td className="px-4 py-3 text-flaque-steel">{resolveOwnerLabel(track.owner)}</td>
                     <td className="px-4 py-3 text-flaque-steel">{formatDuration(track.duration)}</td>
                     <td className="px-4 py-3 uppercase text-flaque-steel">{track.codec}</td>
                   </tr>

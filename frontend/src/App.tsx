@@ -162,6 +162,20 @@ export default function App(): JSX.Element {
     return playQueue.map((track) => allTracksById.get(track.id) ?? track);
   }, [allTracksById, playQueue]);
 
+  const ownerNameById = useMemo<Record<string, string>>(() => {
+    const entries: Array<[string, string]> = [];
+
+    if (user) {
+      entries.push([user.id, user.username]);
+    }
+
+    for (const adminUser of adminUsers) {
+      entries.push([adminUser.id, adminUser.username]);
+    }
+
+    return Object.fromEntries(entries);
+  }, [user, adminUsers]);
+
   useEffect(() => {
     getCurrentUser()
       .then((nextUser) => {
@@ -290,7 +304,7 @@ export default function App(): JSX.Element {
   }, [user]);
 
   useEffect(() => {
-    if (!user || user.role !== "admin" || activeView !== "config") {
+    if (!user || user.role !== "admin") {
       return;
     }
 
@@ -307,7 +321,7 @@ export default function App(): JSX.Element {
       .finally(() => {
         setLoadingAdminUsers(false);
       });
-  }, [user, activeView]);
+  }, [user]);
 
   useEffect(() => {
     if (!user || user.role === "admin") {
@@ -680,6 +694,7 @@ export default function App(): JSX.Element {
             generatedAt={library.generatedAt}
             tracks={library.tracks}
             owners={library.owners}
+            ownerNameById={ownerNameById}
             artists={library.artists}
             albums={library.albums}
             filters={filters}
@@ -703,6 +718,7 @@ export default function App(): JSX.Element {
         <ConfigView
           currentUser={user}
           tracks={allTracksLibrary.tracks}
+          ownerNameById={ownerNameById}
           loadingTracks={loadingAllTracks}
           trackError={allTracksError}
           rebuilding={rebuilding}

@@ -11,6 +11,7 @@ import { AdminUsersView } from "./AdminUsersView";
 type ConfigViewProps = {
   currentUser: User;
   tracks: Track[];
+  ownerNameById?: Record<string, string>;
   loadingTracks: boolean;
   trackError: string | null;
   rebuilding: boolean;
@@ -50,6 +51,7 @@ function normalizeSearch(value: string): string {
 export function ConfigView({
   currentUser,
   tracks,
+  ownerNameById,
   loadingTracks,
   trackError,
   rebuilding,
@@ -72,29 +74,32 @@ export function ConfigView({
   const [editState, setEditState] = useState<EditTrackState | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
+  const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
+
   const filteredTracks = useMemo(() => {
     const query = normalizeSearch(searchText);
     if (!query) {
       return tracks;
     }
 
-      return tracks.filter((track) => {
-        const searchable = [
-          getTrackDisplayTitle(track),
-          getTrackDisplayArtist(track),
-          getTrackDisplayAlbumWithYear(track),
-          track.tags.date,
-          track.tags.originalDate,
-          track.owner,
-          track.path,
-          track.codec
+    return tracks.filter((track) => {
+      const searchable = [
+        getTrackDisplayTitle(track),
+        getTrackDisplayArtist(track),
+        getTrackDisplayAlbumWithYear(track),
+        track.tags.date,
+        track.tags.originalDate,
+        track.owner,
+        resolveOwnerLabel(track.owner),
+        track.path,
+        track.codec
       ]
         .map((value) => normalizeSearch(value ?? ""))
         .join(" ");
 
       return searchable.includes(query);
     });
-  }, [tracks, searchText]);
+  }, [tracks, searchText, ownerNameById]);
 
   async function handleDeleteTrack(track: Track): Promise<void> {
     const confirmed = window.confirm(`Delete file for \"${getTrackDisplayTitle(track)}\"? This cannot be undone.`);
@@ -242,7 +247,7 @@ export function ConfigView({
                     </td>
                     <td className="px-4 py-3 text-flaque-steel">{getTrackDisplayArtist(track) ?? "Unknown"}</td>
                     <td className="px-4 py-3 text-flaque-steel">{getTrackDisplayAlbumWithYear(track) ?? "Unknown"}</td>
-                    <td className="px-4 py-3 text-flaque-steel">{track.owner}</td>
+                    <td className="px-4 py-3 text-flaque-steel">{resolveOwnerLabel(track.owner)}</td>
                     <td className="px-4 py-3 font-mono text-xs text-flaque-steel">{track.path}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
