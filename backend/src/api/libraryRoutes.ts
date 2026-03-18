@@ -396,6 +396,33 @@ function normalizeAlbumName(value?: string): string {
     .replace(/\s+/g, " ");
 }
 
+function isCollaborativeAlbumTrack(track: Track): boolean {
+  return Array.isArray(track.tags.artists) && track.tags.artists.length > 1;
+}
+
+function createCollaborativeAlbumId(owner: string, albumName: string): string {
+  return `collab:${owner}:${normalizeAlbumName(albumName)}`;
+}
+
+function parseCollaborativeAlbumId(albumId: string): { owner: string; normalizedAlbumName: string } | null {
+  if (!albumId.startsWith("collab:")) {
+    return null;
+  }
+
+  const parts = albumId.split(":");
+  if (parts.length < 3) {
+    return null;
+  }
+
+  const owner = parts[1]?.trim();
+  const normalizedAlbumName = parts.slice(2).join(":").trim();
+  if (!owner || !normalizedAlbumName) {
+    return null;
+  }
+
+  return { owner, normalizedAlbumName };
+}
+
 async function attachCollaborativeAlbumCovers(
   tracks: Track[]
 ): Promise<Array<{ id?: string; name: string; artist?: string; artists?: string[]; trackCount: number; cover?: string; previewTrackId?: string }>> {
@@ -420,14 +447,17 @@ async function attachCollaborativeAlbumCovers(
     }
 
     const metadata = await resolveAlbumMetadataForTrack(track, metadataCache);
-    const albumKey = metadata?.id ?? `${track.owner}:${metadata?.albumDir ?? normalizeAlbumName(albumName)}`;
+    const collaborative = isCollaborativeAlbumTrack(track);
+    const albumKey = collaborative
+      ? createCollaborativeAlbumId(track.owner, albumName)
+      : metadata?.id ?? `${track.owner}:${metadata?.albumDir ?? normalizeAlbumName(albumName)}`;
     const current = grouped.get(albumKey);
     const artistName = getTrackArtistName(track)?.trim();
     const displayName = metadata?.name?.trim() ? metadata.name : albumName;
 
     if (!current) {
       grouped.set(albumKey, {
-        id: metadata?.id,
+        id: collaborative ? albumKey : metadata?.id,
         name: displayName,
         artists: artistName ? new Set([artistName]) : new Set<string>(),
         trackCount: 1,
@@ -740,6 +770,45 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
 
       const snapshot = indexStore.getSnapshot();
       const tracksWithOwnerNames = mapTrackOwners(snapshot.tracks, getOwnerNamesById());
+      const collaborativeAlbum = parseCollaborativeAlbumId(albumId);
+
+      if (collaborativeAlbum) {
+        const collaborativeTracks = tracksWithOwnerNames.filter((track) => {
+          if (track.owner !== collaborativeAlbum.owner) {
+            return false;
+          }
+
+          return normalizeAlbumName(track.tags.album) === collaborativeAlbum.normalizedAlbumName;
+        });
+
+        if (collaborativeTracks.length === 0) {
+          res.status(404).json({ error: "Album not found" });
+          return;
+        }
+
+        collaborativeTracks.sort(compareAlbumTrackOrder);
+        const artists = new Set<string>();
+        for (const track of collaborativeTracks) {
+          const artistName = getTrackArtistName(track)?.trim();
+          if (artistName) {
+            artists.add(artistName);
+          }
+        }
+
+        const firstTrack = collaborativeTracks[0];
+        res.json({
+          album: {
+            id: albumId,
+            name: firstTrack?.tags.album,
+            artist: artists.size > 0 ? Array.from(artists).sort((a, b) => a.localeCompare(b)).join(", ") : undefined,
+            cover: firstTrack?.cover,
+            trackCount: collaborativeTracks.length
+          },
+          tracks: collaborativeTracks.map(mapTrackResponse)
+        });
+        return;
+      }
+
       const metadataCache = new Map<string, ResolvedAlbumMetadata | undefined>();
       const albumTracks: Track[] = [];
       const artists = new Set<string>();

@@ -446,4 +446,75 @@ describe("library metadata routes", () => {
       })
     );
   });
+
+  it("returns all artists tracks for collaborative albums", async () => {
+    const album = "KPop Demon Hunters";
+    const owner = "owner-1";
+    const collaborativeAlbumId = `collab:${owner}:${album.toLowerCase()}`;
+    const artistOneSlug = "ejae";
+    const artistTwoSlug = "rumi";
+    const albumSlug = "kpop_demon_hunters";
+
+    const trackOne = createNestedTrack(
+      "track-7",
+      "How It's Done",
+      "EJAE",
+      album,
+      `storage/users/${owner}/uploads/${artistOneSlug}/${albumSlug}/how-its-done.flac`
+    );
+    trackOne.tags.trackNumber = 2;
+    trackOne.tags.artists = ["EJAE", "Rumi"];
+
+    const trackTwo = createNestedTrack(
+      "track-8",
+      "Free",
+      "Rumi",
+      album,
+      `storage/users/${owner}/uploads/${artistTwoSlug}/${albumSlug}/free.flac`
+    );
+    trackTwo.tags.trackNumber = 8;
+    trackTwo.tags.artists = ["Rumi", "EJAE"];
+
+    const snapshot: LibraryIndex = {
+      generatedAt: new Date().toISOString(),
+      totalTracks: 2,
+      tracks: [trackOne, trackTwo]
+    };
+
+    const artistOneAlbumDir = path.join(dataRoot, "storage", "users", owner, "uploads", artistOneSlug, albumSlug);
+    const artistTwoAlbumDir = path.join(dataRoot, "storage", "users", owner, "uploads", artistTwoSlug, albumSlug);
+    await fs.mkdir(artistOneAlbumDir, { recursive: true });
+    await fs.mkdir(artistTwoAlbumDir, { recursive: true });
+    await fs.writeFile(path.join(artistOneAlbumDir, "album.json"), JSON.stringify({ name: album }));
+    await fs.writeFile(path.join(artistTwoAlbumDir, "album.json"), JSON.stringify({ name: album }));
+
+    const indexStore = new FakeIndexStore({
+      initialSnapshot: snapshot,
+      rebuildSnapshot: snapshot
+    });
+
+    await bootstrapServer(indexStore);
+    const cookie = await login("admin", "admin-secret-123");
+
+    const albumResponse = await apiRequest(`/api/album/${encodeURIComponent(collaborativeAlbumId)}`, {
+      headers: {
+        Cookie: cookie
+      }
+    });
+
+    expect(albumResponse.status).toBe(200);
+    expect(albumResponse.payload).toEqual(
+      expect.objectContaining({
+        album: expect.objectContaining({
+          id: collaborativeAlbumId,
+          trackCount: 2,
+          artist: "EJAE, Rumi"
+        }),
+        tracks: [
+          expect.objectContaining({ id: trackOne.id }),
+          expect.objectContaining({ id: trackTwo.id })
+        ]
+      })
+    );
+  });
 });

@@ -249,6 +249,24 @@ function getAlbumKey(album: Pick<AlbumEntry, "id" | "name" | "artist">): string 
   return `${normalizeText(album.artist)}::${normalizeText(album.name)}`;
 }
 
+function sortAlbumTracksByNumber(tracks: Track[]): Track[] {
+  return [...tracks].sort((a, b) => {
+    const discA = a.tags.discNumber ?? Number.MAX_SAFE_INTEGER;
+    const discB = b.tags.discNumber ?? Number.MAX_SAFE_INTEGER;
+    if (discA !== discB) {
+      return discA - discB;
+    }
+
+    const trackA = a.tags.trackNumber ?? Number.MAX_SAFE_INTEGER;
+    const trackB = b.tags.trackNumber ?? Number.MAX_SAFE_INTEGER;
+    if (trackA !== trackB) {
+      return trackA - trackB;
+    }
+
+    return getTrackDisplayTitle(a).localeCompare(getTrackDisplayTitle(b));
+  });
+}
+
 export default function App(): JSX.Element {
   const [user, setUser] = useState<User | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
@@ -663,7 +681,7 @@ export default function App(): JSX.Element {
     const fallbackTracks = getAlbumTracksFromLoadedLibraries(selectedAlbum);
 
     if (!selectedAlbum.id) {
-      setSelectedAlbumTracks(fallbackTracks);
+      setSelectedAlbumTracks(sortAlbumTracksByNumber(fallbackTracks));
       setSelectedAlbumTracksError(null);
       setLoadingSelectedAlbumTracks(false);
       return;
@@ -680,14 +698,14 @@ export default function App(): JSX.Element {
         if (selectedAlbumTracksRequestIdRef.current !== requestId) {
           return;
         }
-        setSelectedAlbumTracks(tracks);
+        setSelectedAlbumTracks(sortAlbumTracksByNumber(tracks));
       })
       .catch((error) => {
         if (selectedAlbumTracksRequestIdRef.current !== requestId) {
           return;
         }
 
-        setSelectedAlbumTracks(fallbackTracks);
+        setSelectedAlbumTracks(sortAlbumTracksByNumber(fallbackTracks));
         setSelectedAlbumTracksError(error instanceof Error ? error.message : "Failed to load album tracks");
       })
       .finally(() => {
