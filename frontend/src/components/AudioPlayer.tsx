@@ -322,10 +322,10 @@ export function AudioPlayer({
   const controlsLayoutClass = expanded
     ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3"
     : "flex flex-wrap items-center gap-2";
-  const primaryControlsClassName = "flex flex-wrap items-center gap-2";
+  const primaryControlsClassName = "flex items-center gap-2";
   const centerControlsClassName = expanded
     ? "flex items-center gap-2 rounded-xl border border-flaque-clay/50 bg-flaque-cream/40 px-2 py-1"
-    : "order-3 flex w-full items-center justify-center gap-2 rounded-xl border border-flaque-clay/55 bg-flaque-cream/35 px-2 py-1";
+    : "flex items-center gap-2 rounded-xl border border-flaque-clay/55 bg-flaque-cream/35 px-2 py-1";
   const trailingControlsClassName = expanded
     ? "flex items-center justify-end gap-2"
     : "ml-auto flex flex-wrap items-center justify-end gap-2";
