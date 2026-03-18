@@ -321,14 +321,14 @@ export function AudioPlayer({
   const contentLayoutClass = expanded ? "w-full max-w-4xl space-y-4" : "min-w-0 flex-1 space-y-3";
   const controlsLayoutClass = expanded
     ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3"
-    : "flex flex-wrap items-center gap-2";
-  const primaryControlsClassName = "flex items-center gap-2";
-  const centerControlsClassName = expanded
-    ? "flex items-center gap-2 rounded-xl border border-flaque-clay/50 bg-flaque-cream/40 px-2 py-1"
-    : "flex items-center gap-2 rounded-xl border border-flaque-clay/55 bg-flaque-cream/35 px-2 py-1";
+    : "flex w-full items-center gap-2";
+  const primaryControlsClassName = expanded
+    ? "flex items-center gap-2"
+    : "flex min-w-0 flex-1 items-center gap-2";
+  const centerControlsClassName = "flex shrink-0 items-center gap-2";
   const trailingControlsClassName = expanded
     ? "flex items-center justify-end gap-2"
-    : "ml-auto flex flex-wrap items-center justify-end gap-2";
+    : "flex min-w-0 flex-1 items-center justify-end gap-2";
   const sectionClassName = expanded
     ? "rounded-3xl border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
     : "rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6";
@@ -606,7 +606,7 @@ export function AudioPlayer({
             </div>
 
             <div className={trailingControlsClassName}>
-              <div className="ml-1 flex items-center gap-3">
+              <div className="flex items-center gap-3">
                 <label className="flex items-center gap-2 text-xs text-flaque-steel">
                   <span>Quality</span>
                   <select
