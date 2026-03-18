@@ -1409,12 +1409,10 @@ export default function App(): JSX.Element {
 
           {activeLibrarySection === "music" ? (
             <>
-              <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-                <h2 className="font-display text-xl text-flaque-ink">Played Recently</h2>
+              {recentTracks.length > 0 ? (
+                <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+                  <h2 className="font-display text-xl text-flaque-ink">Played Recently</h2>
 
-                {recentTracks.length === 0 ? (
-                  <p className="mt-3 text-sm text-flaque-steel">No recently played tracks yet.</p>
-                ) : (
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {recentTracks.map((track) => {
                       const title = getTrackDisplayTitle(track);
@@ -1450,8 +1448,8 @@ export default function App(): JSX.Element {
                       );
                     })}
                   </div>
-                )}
-              </section>
+                </section>
+              ) : null}
 
               <LibraryView
                 generatedAt={library.generatedAt}
