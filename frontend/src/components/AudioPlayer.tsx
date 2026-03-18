@@ -47,6 +47,11 @@ export function AudioPlayer({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoplayOnTrackChangeRef = useRef(true);
   const lastPlayRequestHandledRef = useRef(0);
+  const lastTrackIdRef = useRef<string | null>(null);
+  const lastStreamSourceRef = useRef("");
+  const pendingRestoreTimeRef = useRef<number | null>(null);
+  const pendingRestoreShouldPlayRef = useRef(false);
+  const currentTimeRef = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -68,6 +73,9 @@ export function AudioPlayer({
       return;
     }
 
+    pendingRestoreTimeRef.current = null;
+    pendingRestoreShouldPlayRef.current = false;
+    currentTimeRef.current = 0;
     setCurrentTime(0);
     setDuration(track.duration || 0);
     audioElement.load();
@@ -86,6 +94,34 @@ export function AudioPlayer({
         setIsPlaying(false);
       });
   }, [track?.id]);
+
+  useEffect(() => {
+    const audioElement = audioRef.current;
+
+    if (!track || !audioElement) {
+      lastTrackIdRef.current = track?.id ?? null;
+      lastStreamSourceRef.current = streamSource;
+      return;
+    }
+
+    const previousTrackId = lastTrackIdRef.current;
+    const previousSource = lastStreamSourceRef.current;
+    const sameTrack = previousTrackId === track.id;
+    const sourceChanged = Boolean(previousSource) && previousSource !== streamSource;
+
+    if (sameTrack && sourceChanged) {
+      const snapshotTime = audioElement.currentTime > 0 ? audioElement.currentTime : currentTimeRef.current;
+      pendingRestoreTimeRef.current = snapshotTime;
+      pendingRestoreShouldPlayRef.current = !audioElement.paused;
+      currentTimeRef.current = snapshotTime;
+      setCurrentTime(snapshotTime);
+      setIsPlaying(!audioElement.paused);
+      audioElement.load();
+    }
+
+    lastTrackIdRef.current = track.id;
+    lastStreamSourceRef.current = streamSource;
+  }, [streamSource, track?.id]);
 
   useEffect(() => {
     if (!track || !audioRef.current) {
@@ -137,6 +173,7 @@ export function AudioPlayer({
     }
 
     audioElement.currentTime = nextSeconds;
+    currentTimeRef.current = nextSeconds;
     setCurrentTime(nextSeconds);
   }
 
@@ -172,8 +209,44 @@ export function AudioPlayer({
         }}
         onPause={() => setIsPlaying(false)}
         onEnded={onEnded}
-        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-        onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || track.duration || 0)}
+        onTimeUpdate={(event) => {
+          const nextTime = event.currentTarget.currentTime;
+          currentTimeRef.current = nextTime;
+          setCurrentTime(nextTime);
+        }}
+        onLoadedMetadata={(event) => {
+          const nextDuration = event.currentTarget.duration || track.duration || 0;
+          setDuration(nextDuration);
+
+          const pendingTime = pendingRestoreTimeRef.current;
+          if (pendingTime === null) {
+            return;
+          }
+
+          const maxSeek = Math.max(0, nextDuration - 0.25);
+          const restoreTime = Math.min(Math.max(0, pendingTime), maxSeek || pendingTime);
+          event.currentTarget.currentTime = restoreTime;
+          currentTimeRef.current = restoreTime;
+          setCurrentTime(restoreTime);
+          pendingRestoreTimeRef.current = null;
+
+          const shouldResumePlayback = pendingRestoreShouldPlayRef.current;
+          pendingRestoreShouldPlayRef.current = false;
+
+          if (!shouldResumePlayback) {
+            setIsPlaying(false);
+            return;
+          }
+
+          event.currentTarget
+            .play()
+            .then(() => {
+              setIsPlaying(true);
+            })
+            .catch(() => {
+              setIsPlaying(false);
+            });
+        }}
       />
 
       <div className={`flex ${expanded ? "flex-col items-center gap-6" : "flex-col gap-4 md:flex-row md:items-center"}`}>
