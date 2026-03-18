@@ -291,8 +291,10 @@ export function AudioPlayer({
 
           <div className={controlsLayoutClass}>
             <button
-              className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
               type="button"
+              aria-label="Previous track"
+              title="Previous"
               onClick={() => {
                 if (onPrevious) {
                   void onPrevious();
@@ -300,18 +302,32 @@ export function AudioPlayer({
               }}
               disabled={!onPrevious}
             >
-              Prev
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M7 6h2v12H7zM19 6v12l-8.5-6L19 6z" />
+              </svg>
             </button>
             <button
-              className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-flaque-ink text-flaque-cream transition hover:bg-black"
               type="button"
+              aria-label={isPlaying ? "Pause playback" : "Play playback"}
+              title={isPlaying ? "Pause" : "Play"}
               onClick={onTogglePlayback}
             >
-              {isPlaying ? "Pause" : "Play"}
+              {isPlaying ? (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M8 6h3v12H8zM13 6h3v12h-3z" />
+                </svg>
+              ) : (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M8 6v12l10-6-10-6z" />
+                </svg>
+              )}
             </button>
             <button
-              className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
               type="button"
+              aria-label="Next track"
+              title="Next"
               onClick={() => {
                 if (onNext) {
                   void onNext();
@@ -319,7 +335,9 @@ export function AudioPlayer({
               }}
               disabled={!onNext}
             >
-              Next
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M15 6h2v12h-2zM5 6v12l8.5-6L5 6z" />
+              </svg>
             </button>
             <span className="whitespace-nowrap text-xs text-flaque-steel">
               {formatDuration(currentTime)} / {formatDuration(duration || track.duration)}
