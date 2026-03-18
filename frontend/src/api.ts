@@ -140,6 +140,11 @@ export async function getAlbums(filters: {
   return payload.albums;
 }
 
+export function coverPathUrl(relativePath: string): string {
+  const searchParams = new URLSearchParams({ path: relativePath });
+  return withApiBase(`/api/covers/from-path?${searchParams.toString()}`);
+}
+
 export type UploadTracksInput = {
   files: File[];
   artist?: string;

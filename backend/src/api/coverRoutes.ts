@@ -9,6 +9,7 @@ import { fileExists, readJsonFile } from "../utils/fs";
 import { resolveDataRelativePath } from "../utils/paths";
 
 const ALBUM_METADATA_FILE = "album.json";
+const ALLOWED_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"]);
 
 type AlbumMetadata = {
   cover?: {
@@ -38,6 +39,34 @@ async function resolveAlbumCoverByTrackId(indexStore: IndexStore, trackId: strin
 
 export function createCoverRouter(indexStore: IndexStore): Router {
   const router = Router();
+
+  router.get("/covers/from-path", requireAuth, async (req, res, next) => {
+    try {
+      const relativePath = typeof req.query.path === "string" ? req.query.path.trim() : "";
+      if (!relativePath) {
+        res.status(400).json({ error: "path query parameter is required" });
+        return;
+      }
+
+      const extension = path.extname(relativePath).toLowerCase();
+      if (!ALLOWED_IMAGE_EXTENSIONS.has(extension)) {
+        res.status(400).json({ error: "Unsupported image path" });
+        return;
+      }
+
+      const absolutePath = resolveDataRelativePath(relativePath);
+      const hasFile = await fileExists(absolutePath);
+      if (!hasFile) {
+        res.status(404).json({ error: "Cover not found" });
+        return;
+      }
+
+      res.setHeader("Cache-Control", "private, max-age=86400");
+      res.sendFile(absolutePath);
+    } catch (error) {
+      next(error);
+    }
+  });
 
   router.get("/covers/:id", requireAuth, async (req, res, next) => {
     try {

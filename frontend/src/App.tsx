@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  coverPathUrl,
   getAlbums,
   getArtists,
   coverUrl,
@@ -1320,7 +1321,11 @@ export default function App(): JSX.Element {
               ) : (
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {libraryArtists.map((artist) => {
-                    const artistPhoto = artist.previewTrackId ? coverUrl(artist.previewTrackId) : defaultCoverImage;
+                    const artistPhoto = artist.photo
+                      ? coverPathUrl(artist.photo)
+                      : artist.previewTrackId
+                        ? coverUrl(artist.previewTrackId)
+                        : defaultCoverImage;
                     return (
                       <div
                         key={artist.name}
@@ -1375,7 +1380,13 @@ export default function App(): JSX.Element {
                       <div className="flex items-center gap-2.5">
                         <img
                           className="h-11 w-11 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
-                          src={album.previewTrackId ? coverUrl(album.previewTrackId) : defaultCoverImage}
+                          src={
+                            album.cover
+                              ? coverPathUrl(album.cover)
+                              : album.previewTrackId
+                                ? coverUrl(album.previewTrackId)
+                                : defaultCoverImage
+                          }
                           alt={album.artist ? `Cover for ${album.artist} - ${album.name}` : `Cover for ${album.name}`}
                           onError={(event) => {
                             event.currentTarget.src = defaultCoverImage;
