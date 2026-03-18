@@ -11,12 +11,16 @@ import { extractAudioMetadata } from "../services/scanner/audioProbe";
 import { ensureTrackCover } from "../services/storage/coverService";
 import { ensureOwnerUploadDir, toDataRelativePath } from "../services/storage/storageService";
 import type { Track } from "../types/library";
-import { fileExists } from "../utils/fs";
+import { ensureDir, fileExists, writeJsonAtomic } from "../utils/fs";
 import { createTrackId, hashFile } from "../utils/hash";
 import { getAudioMimeType, getSupportedAudioExtensions, isSupportedAudioFile } from "../utils/mime";
 import { tmpUploadsRoot } from "../utils/paths";
 
 const DEFAULT_MAX_UPLOAD_FILES = 50;
+const UNKNOWN_ARTIST = "Unknown Artist";
+const UNKNOWN_ALBUM = "Unknown Album";
+const ARTIST_METADATA_FILE = "artist.json";
+const ALBUM_METADATA_FILE = "album.json";
 
 function sanitizeExtension(fileName: string): string {
   const ext = path.extname(fileName).toLowerCase();
@@ -33,6 +37,36 @@ function normalizeOptionalString(value: unknown): string | undefined {
 
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function normalizeDirectorySegment(value: string): string {
+  const normalized = value
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_+/g, "_");
+
+  return normalized || "unknown";
+}
+
+async function ensureDirectoryMetadata(
+  directoryPath: string,
+  metadataFileName: string,
+  name: string
+): Promise<void> {
+  const hasDirectory = await fileExists(directoryPath);
+  if (!hasDirectory) {
+    await ensureDir(directoryPath);
+  }
+
+  const metadataPath = path.join(directoryPath, metadataFileName);
+  const hasMetadata = await fileExists(metadataPath);
+  if (!hasMetadata) {
+    await writeJsonAtomic(metadataPath, { name });
+  }
 }
 
 type UploadMetadataOverride = {
@@ -208,10 +242,28 @@ export function createUploadRouter(indexStore: IndexStore): Router {
           }
 
           const metadata = await extractAudioMetadata(uploadedFile.path);
+          const metadataOverride = metadataOverrides[index] ?? {};
+          const pathArtistName =
+            metadataOverride.artist ??
+            manualArtist ??
+            metadata.tags.artist ??
+            metadata.tags.albumArtist ??
+            metadata.tags.artists?.[0] ??
+            UNKNOWN_ARTIST;
+          const pathAlbumName = metadataOverride.album ?? manualAlbum ?? metadata.tags.album ?? UNKNOWN_ALBUM;
+
+          const artistDirName = normalizeDirectorySegment(pathArtistName);
+          const albumDirName = normalizeDirectorySegment(pathAlbumName);
+          const artistDir = path.join(ownerUploadDir, artistDirName);
+          await ensureDirectoryMetadata(artistDir, ARTIST_METADATA_FILE, pathArtistName);
+
+          const albumDir = path.join(artistDir, albumDirName);
+          await ensureDirectoryMetadata(albumDir, ALBUM_METADATA_FILE, pathAlbumName);
+
           const hash = await hashFile(uploadedFile.path);
           const extension = sanitizeExtension(uploadedFile.originalname);
           const finalFileName = `${hash}${extension}`;
-          const finalPath = path.join(ownerUploadDir, finalFileName);
+          const finalPath = path.join(albumDir, finalFileName);
 
           const alreadyPresent = await fileExists(finalPath);
           if (alreadyPresent) {
@@ -226,7 +278,6 @@ export function createUploadRouter(indexStore: IndexStore): Router {
           await ensureTrackCover(trackId, metadata.cover);
           uploadedTrackIds.push(trackId);
 
-          const metadataOverride = metadataOverrides[index] ?? {};
           const effectiveTitle = metadataOverride.title;
           const effectiveArtist = metadataOverride.artist ?? manualArtist;
           const effectiveAlbum = metadataOverride.album ?? manualAlbum;
