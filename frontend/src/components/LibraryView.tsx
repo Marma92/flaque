@@ -189,7 +189,52 @@ export function LibraryView({
       </section>
 
       <section className="overflow-hidden rounded-3xl border border-flaque-clay/60 bg-white/85 shadow-panel backdrop-blur-sm">
-        <div className="max-h-[50vh] overflow-auto">
+        <div className="space-y-3 p-4 md:hidden">
+          {tracks.map((track) => {
+            const selected = track.id === currentTrackId;
+            const trackTitle = getTrackDisplayTitle(track);
+            const trackArtist = getTrackDisplayArtist(track) ?? "Unknown";
+            const trackAlbum = getTrackDisplayAlbumWithYear(track) ?? "Unknown";
+
+            return (
+              <button
+                key={track.id}
+                className={`w-full rounded-2xl border px-3 py-3 text-left transition ${
+                  selected
+                    ? "border-flaque-ink bg-flaque-ink text-flaque-cream"
+                    : "border-flaque-clay/60 bg-flaque-cream/45 text-flaque-ink hover:bg-flaque-cream"
+                }`}
+                type="button"
+                onClick={() => onTrackSelect(track)}
+              >
+                <p className="truncate text-sm font-medium" title={trackTitle}>
+                  {trackTitle}
+                </p>
+                <p className={`mt-1 truncate text-xs ${selected ? "text-flaque-cream/85" : "text-flaque-steel"}`}>
+                  {trackArtist}
+                </p>
+                <p className={`truncate text-xs ${selected ? "text-flaque-cream/75" : "text-flaque-steel/80"}`}>
+                  {trackAlbum}
+                </p>
+
+                <div
+                  className={`mt-2 flex items-center justify-between text-[11px] uppercase tracking-[0.12em] ${
+                    selected ? "text-flaque-cream/75" : "text-flaque-steel/85"
+                  }`}
+                >
+                  <span>{resolveOwnerLabel(track.owner)}</span>
+                  <span>
+                    {formatDuration(track.duration)} - {track.codec}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+
+          {tracks.length === 0 ? <p className="text-sm text-flaque-steel">No tracks match this filter yet.</p> : null}
+        </div>
+
+        <div className="hidden max-h-[50vh] overflow-auto md:block">
           <table className="w-full min-w-[780px] border-collapse text-left text-sm">
             <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
               <tr>
