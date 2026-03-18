@@ -1,9 +1,42 @@
+import path from "node:path";
+
 import { Router } from "express";
 
 import { requireAuth } from "../auth/middleware";
+import type { IndexStore } from "../services/indexer/indexStore";
 import { findCoverFileByTrackId } from "../services/storage/coverService";
+import { fileExists, readJsonFile } from "../utils/fs";
+import { resolveDataRelativePath } from "../utils/paths";
 
-export function createCoverRouter(): Router {
+const ALBUM_METADATA_FILE = "album.json";
+
+type AlbumMetadata = {
+  cover?: {
+    path: string;
+  };
+};
+
+async function resolveAlbumCoverByTrackId(indexStore: IndexStore, trackId: string): Promise<string | null> {
+  const track = indexStore.getTrackById(trackId);
+  if (!track) {
+    return null;
+  }
+
+  const trackAbsolutePath = resolveDataRelativePath(track.path);
+  const albumDir = path.dirname(trackAbsolutePath);
+  const metadataPath = path.join(albumDir, ALBUM_METADATA_FILE);
+  const metadata = await readJsonFile<AlbumMetadata | null>(metadataPath, null);
+  const relativeCoverPath = metadata?.cover?.path;
+  if (!relativeCoverPath) {
+    return null;
+  }
+
+  const absoluteCoverPath = resolveDataRelativePath(relativeCoverPath);
+  const hasCover = await fileExists(absoluteCoverPath);
+  return hasCover ? absoluteCoverPath : null;
+}
+
+export function createCoverRouter(indexStore: IndexStore): Router {
   const router = Router();
 
   router.get("/covers/:id", requireAuth, async (req, res, next) => {
@@ -14,7 +47,7 @@ export function createCoverRouter(): Router {
         return;
       }
 
-      const coverPath = await findCoverFileByTrackId(trackId);
+      const coverPath = (await resolveAlbumCoverByTrackId(indexStore, trackId)) ?? (await findCoverFileByTrackId(trackId));
       if (!coverPath) {
         res.status(404).json({ error: "Cover not found" });
         return;

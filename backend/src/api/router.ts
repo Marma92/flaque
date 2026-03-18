@@ -18,7 +18,7 @@ export function createApiRouter(indexStore: IndexStore): Router {
   router.use(createLibraryRouter(indexStore));
   router.use(createPlaylistRouter(indexStore));
   router.use(createStreamingRouter(indexStore));
-  router.use(createCoverRouter());
+  router.use(createCoverRouter(indexStore));
   router.use(createIndexRouter(indexStore));
   router.use(createUserRouter());
 
