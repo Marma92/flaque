@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 
 import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
@@ -13,6 +14,8 @@ import { IndexStore } from "../services/indexer/indexStore";
 import { filterPlayablePlaylists } from "../services/playlists/playlistStore";
 import { deleteTrackCover } from "../services/storage/coverService";
 import { resolveTrackAbsolutePath } from "../services/storage/storageService";
+import { fileExists, readJsonFile } from "../utils/fs";
+import { resolveDataRelativePath } from "../utils/paths";
 import {
   filterTracks,
   getAdjacentTrack,
@@ -31,6 +34,8 @@ import type { Track } from "../types/library";
 const DEFAULT_TRACKS_PAGE = 1;
 const DEFAULT_TRACKS_LIMIT = 100;
 const MAX_TRACKS_LIMIT = 500;
+const ARTIST_METADATA_FILE = "artist.json";
+const ALBUM_METADATA_FILE = "album.json";
 
 const SUPPORTED_TRACK_SORT_FIELDS = new Set<TrackSortBy>([
   "title",
@@ -253,6 +258,138 @@ function mapTrackOwners(tracks: Track[], ownerNamesById: Map<string, string>): T
   return tracks.map((track) => mapTrackOwner(track, ownerNamesById));
 }
 
+function getTrackArtistName(track: Track): string | undefined {
+  return track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0];
+}
+
+type ArtistMetadata = {
+  name: string;
+  photo?: {
+    path: string;
+  };
+};
+
+type AlbumMetadata = {
+  name: string;
+  cover?: {
+    path: string;
+  };
+};
+
+async function resolveArtistPhotoPath(
+  track: Track,
+  cache: Map<string, string | undefined>
+): Promise<string | undefined> {
+  try {
+    const trackAbsolutePath = resolveDataRelativePath(track.path);
+    const albumDir = path.dirname(trackAbsolutePath);
+    const artistDir = path.dirname(albumDir);
+
+    if (cache.has(artistDir)) {
+      return cache.get(artistDir);
+    }
+
+    const metadataPath = path.join(artistDir, ARTIST_METADATA_FILE);
+    const metadata = await readJsonFile<ArtistMetadata | null>(metadataPath, null);
+    const photoPath = metadata?.photo?.path;
+
+    if (!photoPath) {
+      cache.set(artistDir, undefined);
+      return undefined;
+    }
+
+    const absolutePhotoPath = resolveDataRelativePath(photoPath);
+    const hasPhoto = await fileExists(absolutePhotoPath);
+    const resolved = hasPhoto ? photoPath : undefined;
+    cache.set(artistDir, resolved);
+    return resolved;
+  } catch {
+    return undefined;
+  }
+}
+
+async function resolveAlbumCoverPath(track: Track, cache: Map<string, string | undefined>): Promise<string | undefined> {
+  try {
+    const trackAbsolutePath = resolveDataRelativePath(track.path);
+    const albumDir = path.dirname(trackAbsolutePath);
+
+    if (cache.has(albumDir)) {
+      return cache.get(albumDir);
+    }
+
+    const metadataPath = path.join(albumDir, ALBUM_METADATA_FILE);
+    const metadata = await readJsonFile<AlbumMetadata | null>(metadataPath, null);
+    const coverPath = metadata?.cover?.path;
+
+    if (!coverPath) {
+      cache.set(albumDir, undefined);
+      return undefined;
+    }
+
+    const absoluteCoverPath = resolveDataRelativePath(coverPath);
+    const hasCover = await fileExists(absoluteCoverPath);
+    const resolved = hasCover ? coverPath : undefined;
+    cache.set(albumDir, resolved);
+    return resolved;
+  } catch {
+    return undefined;
+  }
+}
+
+async function attachArtistPhotos(tracks: Track[]): Promise<Array<{ name: string; trackCount: number; photo?: string }>> {
+  const base = listArtists(tracks);
+  const photoByArtist = new Map<string, string>();
+  const cache = new Map<string, string | undefined>();
+
+  for (const track of tracks) {
+    const artistName = getTrackArtistName(track)?.trim();
+    if (!artistName || photoByArtist.has(artistName)) {
+      continue;
+    }
+
+    const photoPath = await resolveArtistPhotoPath(track, cache);
+    if (photoPath) {
+      photoByArtist.set(artistName, photoPath);
+    }
+  }
+
+  return base.map((artist) => ({
+    ...artist,
+    photo: photoByArtist.get(artist.name)
+  }));
+}
+
+async function attachAlbumCovers(
+  tracks: Track[]
+): Promise<Array<{ name: string; artist?: string; trackCount: number; cover?: string }>> {
+  const base = listAlbums(tracks);
+  const coverByAlbumKey = new Map<string, string>();
+  const cache = new Map<string, string | undefined>();
+
+  for (const track of tracks) {
+    const albumName = track.tags.album?.trim();
+    if (!albumName) {
+      continue;
+    }
+
+    const artistName = getTrackArtistName(track)?.trim();
+    const albumKey = `${artistName ?? ""}::${albumName}`;
+    if (coverByAlbumKey.has(albumKey)) {
+      continue;
+    }
+
+    const coverPath = await resolveAlbumCoverPath(track, cache);
+    if (coverPath) {
+      coverByAlbumKey.set(albumKey, coverPath);
+    }
+  }
+
+  return base.map((album) => ({
+    ...album,
+    cover: coverByAlbumKey.get(`${album.artist ?? ""}::${album.name}`)
+  }));
+}
+
 export function createLibraryRouter(indexStore: IndexStore): Router {
   const router = Router();
 
@@ -464,27 +601,37 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
     }
   });
 
-  router.get("/artists", requireAuth, (req, res) => {
-    const snapshot = indexStore.getSnapshot();
-    const tracksWithOwnerNames = mapTrackOwners(snapshot.tracks, getOwnerNamesById());
-    const filter = readFilter(req.query as Record<string, unknown>);
-    const tracks = filterTracks(tracksWithOwnerNames, {
-      owner: filter.owner,
-      q: filter.q
-    });
-    res.json({ total: tracks.length, artists: listArtists(tracks) });
+  router.get("/artists", requireAuth, async (req, res, next) => {
+    try {
+      const snapshot = indexStore.getSnapshot();
+      const tracksWithOwnerNames = mapTrackOwners(snapshot.tracks, getOwnerNamesById());
+      const filter = readFilter(req.query as Record<string, unknown>);
+      const tracks = filterTracks(tracksWithOwnerNames, {
+        owner: filter.owner,
+        q: filter.q
+      });
+      const artists = await attachArtistPhotos(tracks);
+      res.json({ total: tracks.length, artists });
+    } catch (error) {
+      next(error);
+    }
   });
 
-  router.get("/albums", requireAuth, (req, res) => {
-    const snapshot = indexStore.getSnapshot();
-    const tracksWithOwnerNames = mapTrackOwners(snapshot.tracks, getOwnerNamesById());
-    const filter = readFilter(req.query as Record<string, unknown>);
-    const tracks = filterTracks(tracksWithOwnerNames, {
-      owner: filter.owner,
-      artist: filter.artist,
-      q: filter.q
-    });
-    res.json({ total: tracks.length, albums: listAlbums(tracks) });
+  router.get("/albums", requireAuth, async (req, res, next) => {
+    try {
+      const snapshot = indexStore.getSnapshot();
+      const tracksWithOwnerNames = mapTrackOwners(snapshot.tracks, getOwnerNamesById());
+      const filter = readFilter(req.query as Record<string, unknown>);
+      const tracks = filterTracks(tracksWithOwnerNames, {
+        owner: filter.owner,
+        artist: filter.artist,
+        q: filter.q
+      });
+      const albums = await attachAlbumCovers(tracks);
+      res.json({ total: tracks.length, albums });
+    } catch (error) {
+      next(error);
+    }
   });
 
   return router;
