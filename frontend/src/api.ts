@@ -226,8 +226,14 @@ export async function getAdjacentTrack(input: {
   return payload.track;
 }
 
-export function streamUrl(trackId: string): string {
-  return withApiBase(`/api/tracks/${trackId}/stream`);
+export function streamUrl(trackId: string, options?: { transcode?: "opus" | "mp3" }): string {
+  const basePath = `/api/tracks/${trackId}/stream`;
+  if (!options?.transcode) {
+    return withApiBase(basePath);
+  }
+
+  const search = new URLSearchParams({ transcode: options.transcode });
+  return withApiBase(`${basePath}?${search.toString()}`);
 }
 
 export function coverUrl(trackId: string, coverPath?: string): string {

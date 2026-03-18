@@ -20,6 +20,19 @@ export type AlbumEntry = {
 
 export type AdjacentDirection = "next" | "previous";
 
+export type TrackSortBy =
+  | "title"
+  | "artist"
+  | "album"
+  | "owner"
+  | "duration"
+  | "codec"
+  | "bitrate"
+  | "sampleRate"
+  | "path";
+
+export type TrackSortDirection = "asc" | "desc";
+
 function normalize(value?: string): string {
   return (value ?? "").trim().toLowerCase();
 }
@@ -120,6 +133,95 @@ export function listAlbums(tracks: Track[]): AlbumEntry[] {
     }
     return a.name.localeCompare(b.name);
   });
+}
+
+function toComparableString(value?: string): string {
+  return normalize(value);
+}
+
+function toComparableNumber(value?: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return -1;
+  }
+  return value;
+}
+
+function getSortValue(track: Track, sortBy: TrackSortBy): string | number {
+  switch (sortBy) {
+    case "title":
+      return toComparableString(track.tags.title ?? track.path);
+    case "artist":
+      return toComparableString(track.tags.artist);
+    case "album":
+      return toComparableString(track.tags.album);
+    case "owner":
+      return toComparableString(track.owner);
+    case "duration":
+      return toComparableNumber(track.duration);
+    case "codec":
+      return toComparableString(track.codec);
+    case "bitrate":
+      return toComparableNumber(track.bitrate);
+    case "sampleRate":
+      return toComparableNumber(track.sampleRate);
+    case "path":
+      return toComparableString(track.path);
+    default:
+      return toComparableString(track.path);
+  }
+}
+
+export function sortTracks(
+  tracks: Track[],
+  sortBy: TrackSortBy,
+  direction: TrackSortDirection = "asc"
+): Track[] {
+  const factor = direction === "desc" ? -1 : 1;
+
+  return [...tracks].sort((a, b) => {
+    const aValue = getSortValue(a, sortBy);
+    const bValue = getSortValue(b, sortBy);
+
+    if (typeof aValue === "number" && typeof bValue === "number") {
+      if (aValue === bValue) {
+        return a.id.localeCompare(b.id) * factor;
+      }
+      return (aValue - bValue) * factor;
+    }
+
+    const stringComparison = String(aValue).localeCompare(String(bValue));
+    if (stringComparison === 0) {
+      return a.id.localeCompare(b.id) * factor;
+    }
+
+    return stringComparison * factor;
+  });
+}
+
+export function paginateTracks(
+  tracks: Track[],
+  page: number,
+  limit: number
+): {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  tracks: Track[];
+} {
+  const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : 100;
+  const total = tracks.length;
+  const totalPages = total === 0 ? 0 : Math.ceil(total / safeLimit);
+  const safePage = totalPages === 0 ? 1 : Math.max(1, Math.min(page, totalPages));
+  const offset = (safePage - 1) * safeLimit;
+
+  return {
+    total,
+    page: safePage,
+    limit: safeLimit,
+    totalPages,
+    tracks: tracks.slice(offset, offset + safeLimit)
+  };
 }
 
 export function getAdjacentTrack(

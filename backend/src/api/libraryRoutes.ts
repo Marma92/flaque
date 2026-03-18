@@ -1,7 +1,6 @@
 import { Router } from "express";
 
 import { requireAuth } from "../auth/middleware";
-import type { Track } from "../types/library";
 import { IndexStore } from "../services/indexer/indexStore";
 import {
   filterTracks,
@@ -9,16 +8,91 @@ import {
   listAlbums,
   listArtists,
   listOwners,
+  paginateTracks,
+  sortTracks,
   type AdjacentDirection,
-  type LibraryFilter
+  type LibraryFilter,
+  type TrackSortBy,
+  type TrackSortDirection
 } from "../services/indexer/libraryQuery";
+import type { Track } from "../types/library";
+
+const DEFAULT_TRACKS_PAGE = 1;
+const DEFAULT_TRACKS_LIMIT = 100;
+const MAX_TRACKS_LIMIT = 500;
+
+const SUPPORTED_TRACK_SORT_FIELDS = new Set<TrackSortBy>([
+  "title",
+  "artist",
+  "album",
+  "owner",
+  "duration",
+  "codec",
+  "bitrate",
+  "sampleRate",
+  "path"
+]);
 
 function normalizeQueryValue(value: unknown): string | undefined {
-  if (typeof value !== "string") {
+  const firstValue = Array.isArray(value) ? value[0] : value;
+  if (typeof firstValue !== "string") {
     return undefined;
   }
-  const trimmed = value.trim();
+
+  const trimmed = firstValue.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function parsePositiveInteger(
+  value: unknown,
+  fallback: number,
+  bounds?: { min?: number; max?: number }
+): number | null {
+  const normalized = normalizeQueryValue(value);
+  if (!normalized) {
+    return fallback;
+  }
+
+  const parsed = Number(normalized);
+  if (!Number.isInteger(parsed)) {
+    return null;
+  }
+
+  if (bounds?.min !== undefined && parsed < bounds.min) {
+    return null;
+  }
+
+  if (bounds?.max !== undefined && parsed > bounds.max) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function parseTrackSortBy(value: unknown): TrackSortBy | null | undefined {
+  const normalized = normalizeQueryValue(value);
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (SUPPORTED_TRACK_SORT_FIELDS.has(normalized as TrackSortBy)) {
+    return normalized as TrackSortBy;
+  }
+
+  return null;
+}
+
+function parseTrackSortDirection(value: unknown): TrackSortDirection | null {
+  const normalized = normalizeQueryValue(value);
+  if (!normalized) {
+    return "asc";
+  }
+
+  if (normalized === "asc" || normalized === "desc") {
+    return normalized;
+  }
+
+  return null;
 }
 
 function readFilter(query: Record<string, unknown>): LibraryFilter {
@@ -30,24 +104,67 @@ function readFilter(query: Record<string, unknown>): LibraryFilter {
   };
 }
 
+function readTracksQuery(query: Record<string, unknown>):
+  | {
+      page: number;
+      limit: number;
+      sortBy?: TrackSortBy;
+      sortDir: TrackSortDirection;
+      filter: LibraryFilter;
+    }
+  | {
+      error: string;
+    } {
+  const page = parsePositiveInteger(query.page, DEFAULT_TRACKS_PAGE, { min: 1 });
+  if (page === null) {
+    return { error: "page must be an integer >= 1" };
+  }
+
+  const limit = parsePositiveInteger(query.limit, DEFAULT_TRACKS_LIMIT, {
+    min: 1,
+    max: MAX_TRACKS_LIMIT
+  });
+  if (limit === null) {
+    return { error: `limit must be an integer between 1 and ${MAX_TRACKS_LIMIT}` };
+  }
+
+  const sortBy = parseTrackSortBy(query.sortBy);
+  if (sortBy === null) {
+    return {
+      error:
+        "sortBy must be one of: title, artist, album, owner, duration, codec, bitrate, sampleRate, path"
+    };
+  }
+
+  const sortDir = parseTrackSortDirection(query.sortDir);
+  if (!sortDir) {
+    return { error: "sortDir must be asc or desc" };
+  }
+
+  return {
+    page,
+    limit,
+    sortBy,
+    sortDir,
+    filter: readFilter(query)
+  };
+}
+
 function readDirection(value: unknown): AdjacentDirection | null {
-  if (value === undefined || value === null || value === "") {
+  const normalized = normalizeQueryValue(value);
+  if (!normalized) {
     return "next";
   }
 
-  if (value === "next" || value === "previous") {
-    return value;
+  if (normalized === "next" || normalized === "previous") {
+    return normalized;
   }
 
   return null;
 }
 
 function readWrap(value: unknown): boolean {
-  if (typeof value !== "string") {
-    return true;
-  }
-
-  const normalized = value.trim().toLowerCase();
+  const normalized = normalizeQueryValue(value);
   if (!normalized) {
     return true;
   }
@@ -85,10 +202,28 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
   });
 
   router.get("/tracks", requireAuth, (req, res) => {
+    const parsedQuery = readTracksQuery(req.query as Record<string, unknown>);
+    if ("error" in parsedQuery) {
+      res.status(400).json({ error: parsedQuery.error });
+      return;
+    }
+
     const snapshot = indexStore.getSnapshot();
-    const filter = readFilter(req.query as Record<string, unknown>);
-    const tracks = filterTracks(snapshot.tracks, filter).map(mapTrackResponse);
-    res.json({ total: tracks.length, tracks });
+    const filteredTracks = filterTracks(snapshot.tracks, parsedQuery.filter);
+    const sortedTracks = parsedQuery.sortBy
+      ? sortTracks(filteredTracks, parsedQuery.sortBy, parsedQuery.sortDir)
+      : filteredTracks;
+    const paginated = paginateTracks(sortedTracks, parsedQuery.page, parsedQuery.limit);
+
+    res.json({
+      total: paginated.total,
+      page: paginated.page,
+      limit: paginated.limit,
+      totalPages: paginated.totalPages,
+      sortBy: parsedQuery.sortBy ?? "index",
+      sortDir: parsedQuery.sortDir,
+      tracks: paginated.tracks.map(mapTrackResponse)
+    });
   });
 
   router.get("/tracks/:id/adjacent", requireAuth, (req, res) => {

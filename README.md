@@ -116,11 +116,29 @@ Multipart form fields:
 - `GET /api/artists`
 - `GET /api/albums`
 
+`GET /api/tracks` supports pagination and sorting query params:
+
+- `page` (default `1`)
+- `limit` (default `100`, max `500`)
+- `sortBy` (`title`, `artist`, `album`, `owner`, `duration`, `codec`, `bitrate`, `sampleRate`, `path`)
+- `sortDir` (`asc` or `desc`, default `asc`)
+- plus filters: `owner`, `artist`, `album`, `q`
+
 ### Streaming and covers
 
 - `GET /api/tracks/:id/stream`
 - `GET /api/tracks/:id/adjacent?direction=next|previous&wrap=true|false`
 - `GET /api/covers/:id`
+
+Optional fallback transcoding is available behind query param on stream route:
+
+- `GET /api/tracks/:id/stream?transcode=opus`
+- `GET /api/tracks/:id/stream?transcode=mp3`
+
+Notes:
+
+- Source streaming remains FLAC-first with byte range support.
+- Transcoding fallback currently targets FLAC sources and streams progressively (no byte-range seek on transcoded stream).
 
 ### Index management
 
@@ -252,6 +270,5 @@ curl "http://localhost:4000/api/tracks/<trackId>/adjacent?direction=next&owner=<
 
 ## Roadmap ideas
 
-- Optional adaptive fallback transcoding (FLAC -> Opus/MP3).
 - Playlist support.
 - Mobile-first player UX and queue management.

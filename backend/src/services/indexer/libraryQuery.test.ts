@@ -6,7 +6,9 @@ import {
   getAdjacentTrack,
   listAlbums,
   listArtists,
-  listOwners
+  listOwners,
+  paginateTracks,
+  sortTracks
 } from "./libraryQuery";
 
 const tracks: Track[] = [
@@ -78,5 +80,26 @@ describe("libraryQuery", () => {
     expect(getAdjacentTrack(tracks, "1", "previous", true)?.id).toBe("3");
     expect(getAdjacentTrack(tracks, "3", "next", true)?.id).toBe("1");
     expect(getAdjacentTrack(tracks, "missing", "next", true)).toBeNull();
+  });
+
+  it("sorts tracks by selected field and direction", () => {
+    expect(sortTracks(tracks, "duration", "desc").map((track) => track.id)).toEqual(["2", "1", "3"]);
+    expect(sortTracks(tracks, "title", "asc").map((track) => track.id)).toEqual(["1", "2", "3"]);
+    expect(sortTracks(tracks, "owner", "asc").map((track) => track.id)).toEqual(["1", "2", "3"]);
+  });
+
+  it("paginates tracks with metadata", () => {
+    const pageOne = paginateTracks(tracks, 1, 2);
+    expect(pageOne).toMatchObject({
+      total: 3,
+      page: 1,
+      limit: 2,
+      totalPages: 2
+    });
+    expect(pageOne.tracks.map((track) => track.id)).toEqual(["1", "2"]);
+
+    const pageTwo = paginateTracks(tracks, 2, 2);
+    expect(pageTwo.page).toBe(2);
+    expect(pageTwo.tracks.map((track) => track.id)).toEqual(["3"]);
   });
 });
