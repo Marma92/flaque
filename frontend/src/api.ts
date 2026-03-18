@@ -1,4 +1,4 @@
-import type { LibraryResponse, Track, TrackMetadataPatch, User } from "./types";
+import type { LibraryResponse, Track, TrackMetadataPatch, TrackTags, User } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
@@ -116,11 +116,7 @@ export type UploadTrackPreview = {
   codec: string;
   bitrate?: number;
   sampleRate?: number;
-  tags: {
-    title?: string;
-    artist?: string;
-    album?: string;
-  };
+  tags: TrackTags;
   coverDataUrl?: string;
 };
 

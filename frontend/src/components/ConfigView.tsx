@@ -1,7 +1,11 @@
 import { FormEvent, useMemo, useState } from "react";
 
 import type { Track, TrackMetadataPatch, User } from "../types";
-import { getTrackDisplayTitle } from "../utils/tracks";
+import {
+  getTrackDisplayAlbumWithYear,
+  getTrackDisplayArtist,
+  getTrackDisplayTitle
+} from "../utils/tracks";
 import { AdminUsersView } from "./AdminUsersView";
 
 type ConfigViewProps = {
@@ -74,14 +78,16 @@ export function ConfigView({
       return tracks;
     }
 
-    return tracks.filter((track) => {
-      const searchable = [
-        getTrackDisplayTitle(track),
-        track.tags.artist,
-        track.tags.album,
-        track.owner,
-        track.path,
-        track.codec
+      return tracks.filter((track) => {
+        const searchable = [
+          getTrackDisplayTitle(track),
+          getTrackDisplayArtist(track),
+          getTrackDisplayAlbumWithYear(track),
+          track.tags.date,
+          track.tags.originalDate,
+          track.owner,
+          track.path,
+          track.codec
       ]
         .map((value) => normalizeSearch(value ?? ""))
         .join(" ");
@@ -234,8 +240,8 @@ export function ConfigView({
                         {title}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-flaque-steel">{track.tags.artist ?? "Unknown"}</td>
-                    <td className="px-4 py-3 text-flaque-steel">{track.tags.album ?? "Unknown"}</td>
+                    <td className="px-4 py-3 text-flaque-steel">{getTrackDisplayArtist(track) ?? "Unknown"}</td>
+                    <td className="px-4 py-3 text-flaque-steel">{getTrackDisplayAlbumWithYear(track) ?? "Unknown"}</td>
                     <td className="px-4 py-3 text-flaque-steel">{track.owner}</td>
                     <td className="px-4 py-3 font-mono text-xs text-flaque-steel">{track.path}</td>
                     <td className="px-4 py-3">

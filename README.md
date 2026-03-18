@@ -9,7 +9,7 @@ Self-hosted, hi-fi oriented web audio player built on a strict file-based archit
 - Upload FLAC/MP3/WAV tracks.
 - Browse by owner, artist, album, and text search.
 - Stream original files with full HTTP range support for smooth seeking.
-- Display metadata and embedded covers.
+- Display rich embedded metadata (title, artist, album, year, track/disc info, etc.) and covers.
 
 ## Project structure
 
@@ -50,6 +50,7 @@ data/
 Upload supports one or multiple files in the same request (`files` form field).
 Optional `artist` and `album` form fields allow manual override for the whole upload batch.
 Overrides are persisted in `data/index/track-metadata-overrides.json`.
+Embedded tags are preserved from audio files (including year/date and additional metadata fields when available).
 
 ## API surface
 
@@ -101,6 +102,7 @@ Protections:
 
 ### Upload
 
+- `POST /api/upload/inspect`
 - `POST /api/upload`
 
 Multipart form fields:
@@ -262,6 +264,7 @@ curl "http://localhost:4000/api/tracks/<trackId>/adjacent?direction=next&owner=<
 - The player includes a quality selector (`Original`, `Opus fallback`, `MP3 fallback`) that targets `?transcode=` on stream requests.
 - The frontend favicon uses the centered Flaque logo artwork.
 - Missing or unreachable album covers fall back to a bundled default Flaque cover image.
+- Player and library views now surface album/year metadata when available.
 - Switching quality mode keeps playback at the same timestamp; if audio was playing, it resumes after the source swap.
 - Long titles are truncated in both the track list and player UI.
 - After pausing playback, automatic playback on track change is disabled until a manual play/replay action occurs.

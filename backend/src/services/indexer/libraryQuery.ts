@@ -37,6 +37,38 @@ function normalize(value?: string): string {
   return (value ?? "").trim().toLowerCase();
 }
 
+function getTrackArtist(track: Track): string | undefined {
+  return track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0];
+}
+
+function extractYearString(date?: string): string | undefined {
+  if (!date) {
+    return undefined;
+  }
+
+  const match = date.match(/(?:^|\D)(\d{4})(?:\D|$)/);
+  return match?.[1];
+}
+
+function getTrackYear(track: Track): string | undefined {
+  if (typeof track.tags.year === "number" && Number.isFinite(track.tags.year)) {
+    return String(Math.trunc(track.tags.year));
+  }
+
+  return extractYearString(track.tags.date) ?? extractYearString(track.tags.originalDate);
+}
+
+function serializeExtraTags(track: Track): string {
+  if (!track.tags.extra) {
+    return "";
+  }
+
+  return Object.values(track.tags.extra)
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .map((value) => String(value))
+    .join(" ");
+}
+
 export function filterTracks(tracks: Track[], filter: LibraryFilter): Track[] {
   const owner = normalize(filter.owner);
   const artist = normalize(filter.artist);
@@ -52,7 +84,7 @@ export function filterTracks(tracks: Track[], filter: LibraryFilter): Track[] {
       return false;
     }
 
-    if (artist && normalize(track.tags.artist) !== artist) {
+    if (artist && normalize(getTrackArtist(track)) !== artist) {
       return false;
     }
 
@@ -66,8 +98,20 @@ export function filterTracks(tracks: Track[], filter: LibraryFilter): Track[] {
 
     const searchable = [
       track.tags.title,
-      track.tags.artist,
+      getTrackArtist(track),
+      track.tags.artists?.join(" "),
       track.tags.album,
+      track.tags.albumArtist,
+      getTrackYear(track),
+      track.tags.date,
+      track.tags.originalDate,
+      track.tags.genre?.join(" "),
+      track.tags.composer?.join(" "),
+      track.tags.lyricist?.join(" "),
+      track.tags.comment?.join(" "),
+      track.tags.isrc?.join(" "),
+      track.tags.label?.join(" "),
+      serializeExtraTags(track),
       track.owner,
       track.path,
       track.codec
@@ -89,7 +133,7 @@ export function listArtists(tracks: Track[]): ArtistEntry[] {
   const map = new Map<string, number>();
 
   for (const track of tracks) {
-    const name = track.tags.artist?.trim();
+    const name = getTrackArtist(track)?.trim();
     if (!name) {
       continue;
     }
@@ -110,7 +154,7 @@ export function listAlbums(tracks: Track[]): AlbumEntry[] {
       continue;
     }
 
-    const artist = track.tags.artist?.trim();
+    const artist = getTrackArtist(track)?.trim();
     const key = `${artist ?? ""}::${album}`;
     const current = map.get(key);
 
@@ -151,7 +195,7 @@ function getSortValue(track: Track, sortBy: TrackSortBy): string | number {
     case "title":
       return toComparableString(track.tags.title ?? track.path);
     case "artist":
-      return toComparableString(track.tags.artist);
+      return toComparableString(getTrackArtist(track));
     case "album":
       return toComparableString(track.tags.album);
     case "owner":

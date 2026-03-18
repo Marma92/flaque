@@ -47,8 +47,9 @@ const tracks: Track[] = [
     codec: "mp3",
     tags: {
       title: "Song C",
-      artist: "Artist Two",
-      album: "Album Three"
+      album: "Album Three",
+      albumArtist: "Artist Two",
+      year: 2023
     }
   }
 ];
@@ -57,8 +58,10 @@ describe("libraryQuery", () => {
   it("filters tracks by owner, artist, album and text", () => {
     expect(filterTracks(tracks, { owner: "alice" })).toHaveLength(2);
     expect(filterTracks(tracks, { artist: "artist one" })).toHaveLength(2);
+    expect(filterTracks(tracks, { artist: "artist two" })).toHaveLength(1);
     expect(filterTracks(tracks, { album: "album three" })).toHaveLength(1);
     expect(filterTracks(tracks, { q: "song c" })).toHaveLength(1);
+    expect(filterTracks(tracks, { q: "2023" })).toHaveLength(1);
   });
 
   it("lists owners, artists and albums", () => {

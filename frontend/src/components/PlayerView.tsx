@@ -1,5 +1,9 @@
 import type { Track } from "../types";
-import { getTrackDisplayTitle } from "../utils/tracks";
+import {
+  getTrackDisplayAlbumWithYear,
+  getTrackDisplayArtist,
+  getTrackDisplayTitle
+} from "../utils/tracks";
 
 type PlayerViewProps = {
   track: Track | null;
@@ -20,8 +24,8 @@ export function PlayerView({ track }: PlayerViewProps): JSX.Element {
             {getTrackDisplayTitle(track)}
           </p>
           <p className="mt-1 text-sm text-flaque-steel">
-            {track.tags.artist ?? "Unknown artist"}
-            {track.tags.album ? ` - ${track.tags.album}` : ""}
+            {getTrackDisplayArtist(track) ?? "Unknown artist"}
+            {getTrackDisplayAlbumWithYear(track) ? ` - ${getTrackDisplayAlbumWithYear(track)}` : ""}
           </p>
         </div>
       ) : (

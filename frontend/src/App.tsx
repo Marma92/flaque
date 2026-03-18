@@ -537,9 +537,15 @@ export default function App(): JSX.Element {
     >
       <header className="mb-4 rounded-3xl border border-flaque-clay/60 bg-white/80 px-5 py-4 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.32em] text-flaque-steel">flaque</p>
-            <h1 className="font-display text-2xl text-flaque-ink">File-based Hi-Fi Library</h1>
+          <div className="flex min-w-0 items-center gap-4">
+            <img
+              className="h-20 w-20 shrink-0 object-contain md:h-24 md:w-24"
+              src="/favicon.png"
+              alt="Flaque logo"
+            />
+            <h1 className="font-display text-base leading-tight text-flaque-ink sm:text-lg md:text-xl lg:text-2xl">
+              File-based Library Audio Query Engine
+            </h1>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

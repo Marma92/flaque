@@ -11,6 +11,18 @@ import { extractAudioMetadata } from "./audioProbe";
 import { listOwnerIds, toDataRelativePath } from "../storage/storageService";
 import { ensureTrackCover } from "../storage/coverService";
 
+function getTrackArtist(track: Track): string {
+  return track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0] ?? "";
+}
+
+function getTrackAlbum(track: Track): string {
+  return track.tags.album ?? "";
+}
+
+function getTrackTitle(track: Track): string {
+  return track.tags.title ?? track.path;
+}
+
 async function collectAudioFiles(rootDir: string): Promise<string[]> {
   const queue = [rootDir];
   const files: string[] = [];
@@ -49,17 +61,17 @@ async function collectAudioFiles(rootDir: string): Promise<string[]> {
 }
 
 function compareTrackOrder(a: Track, b: Track): number {
-  const byArtist = (a.tags.artist ?? "").localeCompare(b.tags.artist ?? "");
+  const byArtist = getTrackArtist(a).localeCompare(getTrackArtist(b));
   if (byArtist !== 0) {
     return byArtist;
   }
 
-  const byAlbum = (a.tags.album ?? "").localeCompare(b.tags.album ?? "");
+  const byAlbum = getTrackAlbum(a).localeCompare(getTrackAlbum(b));
   if (byAlbum !== 0) {
     return byAlbum;
   }
 
-  return (a.tags.title ?? a.path).localeCompare(b.tags.title ?? b.path);
+  return getTrackTitle(a).localeCompare(getTrackTitle(b));
 }
 
 export async function scanFilesystemLibrary(): Promise<LibraryIndex> {

@@ -1,7 +1,11 @@
 import { useMemo } from "react";
 
 import type { AlbumEntry, ArtistEntry, Track } from "../types";
-import { getTrackDisplayTitle } from "../utils/tracks";
+import {
+  getTrackDisplayAlbumWithYear,
+  getTrackDisplayArtist,
+  getTrackDisplayTitle
+} from "../utils/tracks";
 
 type LibraryFilter = {
   owner?: string;
@@ -132,7 +136,7 @@ export function LibraryView({
           <input
             className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
             type="search"
-            placeholder="Search title, artist, album"
+            placeholder="Search title, artist, album, year"
             value={filters.q ?? ""}
             onChange={(event) =>
               onFilterChange({
@@ -161,6 +165,8 @@ export function LibraryView({
               {tracks.map((track) => {
                 const selected = track.id === currentTrackId;
                 const trackTitle = getTrackDisplayTitle(track);
+                const trackArtist = getTrackDisplayArtist(track) ?? "Unknown";
+                const trackAlbum = getTrackDisplayAlbumWithYear(track) ?? "Unknown";
                 return (
                   <tr
                     key={track.id}
@@ -174,8 +180,8 @@ export function LibraryView({
                         {trackTitle}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-flaque-steel">{track.tags.artist ?? "Unknown"}</td>
-                    <td className="px-4 py-3 text-flaque-steel">{track.tags.album ?? "Unknown"}</td>
+                    <td className="px-4 py-3 text-flaque-steel">{trackArtist}</td>
+                    <td className="px-4 py-3 text-flaque-steel">{trackAlbum}</td>
                     <td className="px-4 py-3 text-flaque-steel">{track.owner}</td>
                     <td className="px-4 py-3 text-flaque-steel">{formatDuration(track.duration)}</td>
                     <td className="px-4 py-3 uppercase text-flaque-steel">{track.codec}</td>

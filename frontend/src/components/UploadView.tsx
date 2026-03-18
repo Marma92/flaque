@@ -49,6 +49,30 @@ function formatFileSize(size: number): string {
   return `${value.toFixed(value >= 100 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
+function extractYearFromTags(tags?: UploadTrackPreview["tags"]): string | undefined {
+  if (!tags) {
+    return undefined;
+  }
+
+  if (typeof tags.year === "number" && Number.isFinite(tags.year)) {
+    return String(Math.trunc(tags.year));
+  }
+
+  const dateCandidates = [tags.date, tags.originalDate];
+  for (const candidate of dateCandidates) {
+    if (!candidate) {
+      continue;
+    }
+
+    const match = candidate.match(/(?:^|\D)(\d{4})(?:\D|$)/);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+
+  return undefined;
+}
+
 export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.Element {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inspectRequestRef = useRef(0);
@@ -237,8 +261,20 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
               const previewState = previewByFileKey[fileKey];
               const preview = previewState?.preview;
               const title = preview?.tags.title?.trim() || file.name;
-              const artist = preview?.tags.artist?.trim() || "Unknown artist";
-              const album = preview?.tags.album?.trim() || "Unknown album";
+              const artist =
+                preview?.tags.artist?.trim() ||
+                preview?.tags.albumArtist?.trim() ||
+                preview?.tags.artists?.find((entry) => entry.trim()) ||
+                "Unknown artist";
+              const year = extractYearFromTags(preview?.tags);
+              const albumBase = preview?.tags.album?.trim() || "Unknown album";
+              const album = year ? `${albumBase} (${year})` : albumBase;
+              const trackPosition =
+                typeof preview?.tags.trackNumber === "number"
+                  ? `${preview.tags.trackNumber}${
+                      typeof preview.tags.trackTotal === "number" ? `/${preview.tags.trackTotal}` : ""
+                    }`
+                  : undefined;
 
               return (
                 <article key={fileKey} className="rounded-2xl border border-flaque-clay/60 bg-flaque-cream/45 p-4">
@@ -286,9 +322,21 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                             />
                           </label>
 
+                          {year ? (
+                            <label className="text-flaque-steel">
+                              Year
+                              <input
+                                className="mt-1 w-full rounded-lg border border-flaque-clay bg-white px-2 py-1 text-flaque-ink"
+                                value={year}
+                                readOnly
+                              />
+                            </label>
+                          ) : null}
+
                           <p className="text-xs text-flaque-steel">
                             {preview?.codec?.toUpperCase() ?? "Unknown codec"}
                             {preview?.duration ? ` - ${formatDuration(preview.duration)}` : ""}
+                            {trackPosition ? ` - Track ${trackPosition}` : ""}
                           </p>
                         </div>
                       )}

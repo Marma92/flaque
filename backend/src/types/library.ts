@@ -1,3 +1,35 @@
+export type TrackTagExtraValue =
+  | string
+  | number
+  | boolean
+  | Array<string | number | boolean>;
+
+export type TrackTags = {
+  title?: string;
+  artist?: string;
+  artists?: string[];
+  album?: string;
+  albumArtist?: string;
+  year?: number;
+  date?: string;
+  originalDate?: string;
+  genre?: string[];
+  trackNumber?: number;
+  trackTotal?: number;
+  discNumber?: number;
+  discTotal?: number;
+  composer?: string[];
+  lyricist?: string[];
+  comment?: string[];
+  bpm?: number;
+  isrc?: string[];
+  label?: string[];
+  copyright?: string;
+  language?: string;
+  encodedBy?: string;
+  extra?: Record<string, TrackTagExtraValue>;
+};
+
 export type Track = {
   id: string;
   owner: string;
@@ -7,11 +39,7 @@ export type Track = {
   codec: string;
   bitrate?: number;
   sampleRate?: number;
-  tags: {
-    title?: string;
-    artist?: string;
-    album?: string;
-  };
+  tags: TrackTags;
   cover?: string;
 };
 

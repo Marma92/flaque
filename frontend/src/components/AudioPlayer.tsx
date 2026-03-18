@@ -3,7 +3,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { coverUrl, streamUrl } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
 import type { Track } from "../types";
-import { getTrackDisplayTitle } from "../utils/tracks";
+import {
+  getTrackDisplayAlbumWithYear,
+  getTrackDisplayArtist,
+  getTrackDisplayTitle
+} from "../utils/tracks";
 
 export type TranscodeMode = "original" | "opus" | "mp3";
 
@@ -212,6 +216,8 @@ export function AudioPlayer({
   const contentLayoutClass = expanded ? "w-full space-y-3" : "min-w-0 flex-1 space-y-3";
   const controlsLayoutClass = expanded ? "flex items-center gap-3" : "flex flex-wrap items-center gap-2";
   const displayTitle = getTrackDisplayTitle(track);
+  const displayArtist = getTrackDisplayArtist(track) ?? "Unknown artist";
+  const displayAlbumWithYear = getTrackDisplayAlbumWithYear(track);
 
   return (
     <section className="rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6">
@@ -271,7 +277,7 @@ export function AudioPlayer({
         <img
           className={`${artworkSize} shrink-0 rounded-2xl border border-flaque-clay/50 object-cover`}
           src={coverUrl(track.id, track.cover)}
-          alt={track.tags.album ? `Cover for ${track.tags.album}` : "Track cover"}
+          alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
           onError={(event) => {
             event.currentTarget.src = defaultCoverImage;
           }}
@@ -285,7 +291,10 @@ export function AudioPlayer({
             >
               {displayTitle}
             </p>
-            <p className="truncate text-sm text-flaque-steel">{track.tags.artist ?? "Unknown artist"}</p>
+            <p className="truncate text-sm text-flaque-steel">{displayArtist}</p>
+            {displayAlbumWithYear ? (
+              <p className="truncate text-xs text-flaque-steel/90">{displayAlbumWithYear}</p>
+            ) : null}
             <p className="text-xs uppercase tracking-[0.2em] text-flaque-steel/80">
               {track.codec} {track.sampleRate ? `- ${Math.round(track.sampleRate / 1000)} kHz` : ""}
             </p>
