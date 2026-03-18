@@ -320,14 +320,16 @@ export function AudioPlayer({
   }
 
   const artworkSize = expanded ? "h-64 w-64 md:h-72 md:w-72" : "h-16 w-16 md:h-20 md:w-20";
-  const contentLayoutClass = expanded ? "w-full max-w-4xl space-y-4" : "min-w-0 flex-1 space-y-3";
+  const contentLayoutClass = expanded ? "w-full max-w-4xl space-y-4" : "min-w-0 flex-1 space-y-1";
   const controlsLayoutClass = expanded
     ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-3"
-    : "flex w-full items-end gap-2";
+    : "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2";
   const primaryControlsClassName = expanded
     ? "flex items-center gap-2"
     : "flex min-w-0 flex-1 items-center gap-2";
-  const centerControlsClassName = "flex shrink-0 items-center gap-2";
+  const centerControlsClassName = expanded
+    ? "flex shrink-0 items-center gap-2"
+    : "flex shrink-0 items-center gap-2";
   const trailingControlsClassName = expanded
     ? "flex items-center justify-end gap-2"
     : "flex min-w-0 flex-1 items-center justify-end gap-2";
@@ -339,6 +341,7 @@ export function AudioPlayer({
     : `${artworkSize} shrink-0 rounded-2xl border border-flaque-clay/50 object-cover`;
   const secondaryTextClassName = expanded ? "truncate text-sm text-flaque-steel/90" : "truncate text-sm text-flaque-steel";
   const metaTextClassName = expanded ? "text-xs uppercase tracking-[0.2em] text-flaque-steel/70" : "text-xs uppercase tracking-[0.2em] text-flaque-steel/80";
+  const textBlockClassName = expanded ? "space-y-1" : "space-y-0.5";
   const ghostControlButtonClassName = expanded
     ? "flex h-9 w-9 items-center justify-center rounded-xl bg-flaque-cream/80 text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
     : "flex h-9 w-9 items-center justify-center rounded-xl border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60";
@@ -451,9 +454,9 @@ export function AudioPlayer({
         )}
 
         <div className={contentLayoutClass}>
-          <div>
+          <div className={textBlockClassName}>
             <p
-              className={`font-display text-flaque-ink truncate ${expanded ? "text-2xl" : "text-lg"}`}
+              className={`font-display text-flaque-ink truncate leading-tight ${expanded ? "text-2xl" : "text-lg"}`}
               title={displayTitle}
             >
               {displayTitle}
@@ -626,103 +629,102 @@ export function AudioPlayer({
             </div>
 
             <div className={trailingControlsClassName}>
-              <div className="grid min-w-[10.5rem] grid-rows-[auto_2.25rem] justify-items-end gap-1">
-                <label className="flex items-center gap-2 text-xs text-flaque-steel">
-                  <span>Quality</span>
-                  <select
-                    className={qualitySelectClassName}
-                    value={transcodeMode}
-                    onChange={(event) => {
-                      if (!onTranscodeModeChange) {
-                        return;
-                      }
-
-                      const nextMode = event.target.value as TranscodeMode;
-                      if (nextMode === transcodeMode) {
-                        return;
-                      }
-
-                      const nextRequestedTranscode = nextMode === "original" ? undefined : nextMode;
-                      const nextEffectiveTranscode = canTranscode ? nextRequestedTranscode : undefined;
-                      const sourceWillChange = nextEffectiveTranscode !== effectiveTranscode;
-
-                      if (sourceWillChange) {
-                        const audioElement = audioRef.current;
-                        const snapshotTime =
-                          audioElement && audioElement.currentTime > 0 ? audioElement.currentTime : currentTimeRef.current;
-                        const shouldResumePlayback = audioElement ? !audioElement.paused : isPlaying;
-
-                        qualitySwapSnapshotTimeRef.current = snapshotTime;
-                        qualitySwapShouldPlayRef.current = shouldResumePlayback;
-                      } else {
-                        qualitySwapSnapshotTimeRef.current = null;
-                        qualitySwapShouldPlayRef.current = null;
-                      }
-
-                      onTranscodeModeChange(nextMode);
-                    }}
-                  >
-                    <option value="original">Original</option>
-                    <option value="opus">Opus fallback</option>
-                    <option value="mp3">MP3 fallback</option>
-                  </select>
+              <div className="flex h-9 items-center justify-end gap-2">
+                <label className="sr-only" htmlFor="player-quality-select">
+                  Quality
                 </label>
+                <select
+                  id="player-quality-select"
+                  className={`${qualitySelectClassName} w-28`}
+                  value={transcodeMode}
+                  onChange={(event) => {
+                    if (!onTranscodeModeChange) {
+                      return;
+                    }
 
-                <div className="flex h-9 items-center justify-end gap-2">
-                  <button
-                    className={ghostControlButtonClassName}
-                    type="button"
-                    aria-label={muted || volume === 0 ? "Unmute" : "Mute"}
-                    title={muted || volume === 0 ? "Unmute" : "Mute"}
-                    onClick={() => setMuted((current) => !current)}
-                  >
-                    {muted || volume === 0 ? (
-                      <svg
-                        className="h-4 w-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        aria-hidden="true"
-                      >
-                        <path d="M3 10v4h4l5 4V6L7 10H3z" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M16 9l5 6" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M21 9l-5 6" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="h-4 w-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        aria-hidden="true"
-                      >
-                        <path d="M3 10v4h4l5 4V6L7 10H3z" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M16 9a5 5 0 010 6" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M19 7a8 8 0 010 10" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </button>
+                    const nextMode = event.target.value as TranscodeMode;
+                    if (nextMode === transcodeMode) {
+                      return;
+                    }
 
-                  <input
-                    className="h-2 w-20 cursor-pointer appearance-none rounded-full bg-flaque-clay/60"
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={volume}
-                    aria-label="Volume"
-                    title="Volume"
-                    onChange={(event) => {
-                      const nextVolume = clampVolume(Number(event.target.value));
-                      setVolume(nextVolume);
-                      if (nextVolume > 0 && muted) {
-                        setMuted(false);
-                      }
-                    }}
-                  />
-                </div>
+                    const nextRequestedTranscode = nextMode === "original" ? undefined : nextMode;
+                    const nextEffectiveTranscode = canTranscode ? nextRequestedTranscode : undefined;
+                    const sourceWillChange = nextEffectiveTranscode !== effectiveTranscode;
+
+                    if (sourceWillChange) {
+                      const audioElement = audioRef.current;
+                      const snapshotTime =
+                        audioElement && audioElement.currentTime > 0 ? audioElement.currentTime : currentTimeRef.current;
+                      const shouldResumePlayback = audioElement ? !audioElement.paused : isPlaying;
+
+                      qualitySwapSnapshotTimeRef.current = snapshotTime;
+                      qualitySwapShouldPlayRef.current = shouldResumePlayback;
+                    } else {
+                      qualitySwapSnapshotTimeRef.current = null;
+                      qualitySwapShouldPlayRef.current = null;
+                    }
+
+                    onTranscodeModeChange(nextMode);
+                  }}
+                >
+                  <option value="original">Original</option>
+                  <option value="opus">Opus fallback</option>
+                  <option value="mp3">MP3 fallback</option>
+                </select>
+
+                <button
+                  className={ghostControlButtonClassName}
+                  type="button"
+                  aria-label={muted || volume === 0 ? "Unmute" : "Mute"}
+                  title={muted || volume === 0 ? "Unmute" : "Mute"}
+                  onClick={() => setMuted((current) => !current)}
+                >
+                  {muted || volume === 0 ? (
+                    <svg
+                      className="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      aria-hidden="true"
+                    >
+                      <path d="M3 10v4h4l5 4V6L7 10H3z" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M16 9l5 6" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M21 9l-5 6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      aria-hidden="true"
+                    >
+                      <path d="M3 10v4h4l5 4V6L7 10H3z" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M16 9a5 5 0 010 6" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M19 7a8 8 0 010 10" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+
+                <input
+                  className="h-2 w-28 cursor-pointer appearance-none rounded-full bg-flaque-clay/60"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={volume}
+                  aria-label="Volume"
+                  title="Volume"
+                  onChange={(event) => {
+                    const nextVolume = clampVolume(Number(event.target.value));
+                    setVolume(nextVolume);
+                    if (nextVolume > 0 && muted) {
+                      setMuted(false);
+                    }
+                  }}
+                />
               </div>
             </div>
           </div>
