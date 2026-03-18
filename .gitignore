@@ -6,6 +6,7 @@ coverage/
 *.log
 
 data/config/users.db
+data/config/users.db-*
 data/storage/users/*/uploads/*
 !data/storage/users/.gitkeep
 data/cache/covers/*

@@ -8,6 +8,8 @@ type AudioPlayerProps = {
   expanded?: boolean;
   onPrevious?: () => Promise<void> | void;
   onNext?: () => Promise<void> | void;
+  onTrackPlayed?: (track: Track) => void;
+  playRequestNonce?: number;
 };
 
 function formatDuration(totalSeconds: number): string {
@@ -24,9 +26,13 @@ export function AudioPlayer({
   track,
   expanded = false,
   onPrevious,
-  onNext
+  onNext,
+  onTrackPlayed,
+  playRequestNonce = 0
 }: AudioPlayerProps): JSX.Element {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const autoplayOnTrackChangeRef = useRef(true);
+  const lastPlayRequestHandledRef = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -48,6 +54,11 @@ export function AudioPlayer({
     setDuration(track.duration || 0);
     audioElement.load();
 
+    if (!autoplayOnTrackChangeRef.current) {
+      setIsPlaying(false);
+      return;
+    }
+
     audioElement
       .play()
       .then(() => {
@@ -58,6 +69,29 @@ export function AudioPlayer({
       });
   }, [track?.id]);
 
+  useEffect(() => {
+    if (!track || !audioRef.current) {
+      return;
+    }
+
+    if (!playRequestNonce || playRequestNonce === lastPlayRequestHandledRef.current) {
+      return;
+    }
+
+    lastPlayRequestHandledRef.current = playRequestNonce;
+    autoplayOnTrackChangeRef.current = true;
+
+    audioRef.current.currentTime = 0;
+    audioRef.current
+      .play()
+      .then(() => {
+        setIsPlaying(true);
+      })
+      .catch(() => {
+        setIsPlaying(false);
+      });
+  }, [playRequestNonce, track?.id]);
+
   function onTogglePlayback(): void {
     const audioElement = audioRef.current;
     if (!audioElement || !track) {
@@ -65,6 +99,7 @@ export function AudioPlayer({
     }
 
     if (audioElement.paused) {
+      autoplayOnTrackChangeRef.current = true;
       audioElement
         .play()
         .then(() => setIsPlaying(true))
@@ -72,6 +107,7 @@ export function AudioPlayer({
       return;
     }
 
+    autoplayOnTrackChangeRef.current = false;
     audioElement.pause();
     setIsPlaying(false);
   }
@@ -88,7 +124,7 @@ export function AudioPlayer({
 
   function onEnded(): void {
     setIsPlaying(false);
-    if (onNext) {
+    if (onNext && autoplayOnTrackChangeRef.current) {
       void onNext();
     }
   }
@@ -110,7 +146,12 @@ export function AudioPlayer({
         ref={audioRef}
         src={streamSource}
         preload="metadata"
-        onPlay={() => setIsPlaying(true)}
+        onPlay={() => {
+          setIsPlaying(true);
+          if (track && onTrackPlayed) {
+            onTrackPlayed(track);
+          }
+        }}
         onPause={() => setIsPlaying(false)}
         onEnded={onEnded}
         onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
@@ -130,7 +171,9 @@ export function AudioPlayer({
 
         <div className="w-full space-y-3">
           <div>
-            <p className="font-display text-xl text-flaque-ink">{track.tags.title ?? track.path}</p>
+            <p className="font-display text-xl text-flaque-ink truncate" title={track.tags.title ?? track.path}>
+              {track.tags.title ?? track.path}
+            </p>
             <p className="text-sm text-flaque-steel">{track.tags.artist ?? "Unknown artist"}</p>
             <p className="text-xs uppercase tracking-[0.2em] text-flaque-steel/80">
               {track.codec} {track.sampleRate ? `- ${Math.round(track.sampleRate / 1000)} kHz` : ""}

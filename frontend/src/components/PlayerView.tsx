@@ -5,9 +5,17 @@ type PlayerViewProps = {
   track: Track | null;
   onPrevious?: () => Promise<void> | void;
   onNext?: () => Promise<void> | void;
+  onTrackPlayed?: (track: Track) => void;
+  playRequestNonce?: number;
 };
 
-export function PlayerView({ track, onPrevious, onNext }: PlayerViewProps): JSX.Element {
+export function PlayerView({
+  track,
+  onPrevious,
+  onNext,
+  onTrackPlayed,
+  playRequestNonce
+}: PlayerViewProps): JSX.Element {
   return (
     <div className="space-y-4">
       <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
@@ -17,7 +25,14 @@ export function PlayerView({ track, onPrevious, onNext }: PlayerViewProps): JSX.
           FLAC files are streamed without transcoding when possible, with byte-range seek support.
         </p>
       </section>
-      <AudioPlayer track={track} expanded onPrevious={onPrevious} onNext={onNext} />
+      <AudioPlayer
+        track={track}
+        expanded
+        onPrevious={onPrevious}
+        onNext={onNext}
+        onTrackPlayed={onTrackPlayed}
+        playRequestNonce={playRequestNonce}
+      />
     </div>
   );
 }

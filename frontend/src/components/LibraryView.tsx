@@ -272,7 +272,11 @@ export function LibraryView({
                     }`}
                     onClick={() => onTrackSelect(track)}
                   >
-                    <td className="px-4 py-3 text-flaque-ink">{track.tags.title ?? track.path}</td>
+                    <td className="px-4 py-3 text-flaque-ink">
+                      <span className="block max-w-[24rem] truncate" title={track.tags.title ?? track.path}>
+                        {track.tags.title ?? track.path}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-flaque-steel">{track.tags.artist ?? "Unknown"}</td>
                     <td className="px-4 py-3 text-flaque-steel">{track.tags.album ?? "Unknown"}</td>
                     <td className="px-4 py-3 text-flaque-steel">{track.owner}</td>

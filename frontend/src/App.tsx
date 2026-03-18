@@ -23,6 +23,8 @@ import { PlayerView } from "./components/PlayerView";
 import type { LibraryResponse, Track, User } from "./types";
 
 type ViewName = "library" | "player" | "admin";
+const RECENT_TRACKS_STORAGE_KEY = "flaque_recent_tracks_v1";
+const MAX_RECENT_TRACKS = 24;
 
 const EMPTY_LIBRARY: LibraryResponse = {
   generatedAt: "",
@@ -32,6 +34,33 @@ const EMPTY_LIBRARY: LibraryResponse = {
   albums: [],
   tracks: []
 };
+
+function isTrackLike(value: unknown): value is Track {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as {
+    id?: unknown;
+    owner?: unknown;
+    path?: unknown;
+    duration?: unknown;
+    mimeType?: unknown;
+    codec?: unknown;
+    tags?: unknown;
+  };
+
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.owner === "string" &&
+    typeof candidate.path === "string" &&
+    typeof candidate.duration === "number" &&
+    typeof candidate.mimeType === "string" &&
+    typeof candidate.codec === "string" &&
+    Boolean(candidate.tags) &&
+    typeof candidate.tags === "object"
+  );
+}
 
 export default function App(): JSX.Element {
   const [user, setUser] = useState<User | null>(null);
@@ -45,12 +74,14 @@ export default function App(): JSX.Element {
     q?: string;
   }>({});
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
+  const [playRequestNonce, setPlayRequestNonce] = useState(0);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [rebuilding, setRebuilding] = useState(false);
   const [adminUsers, setAdminUsers] = useState<User[]>([]);
   const [loadingAdminUsers, setLoadingAdminUsers] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
+  const [recentTracks, setRecentTracks] = useState<Track[]>([]);
 
   useEffect(() => {
     getCurrentUser()
@@ -59,6 +90,43 @@ export default function App(): JSX.Element {
       })
       .finally(() => setSessionChecked(true));
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(RECENT_TRACKS_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) {
+        return;
+      }
+
+      setRecentTracks(parsed.filter(isTrackLike).slice(0, MAX_RECENT_TRACKS));
+    } catch {
+      // ignore malformed local storage data
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        RECENT_TRACKS_STORAGE_KEY,
+        JSON.stringify(recentTracks.slice(0, MAX_RECENT_TRACKS))
+      );
+    } catch {
+      // ignore local storage write failures
+    }
+  }, [recentTracks]);
 
   useEffect(() => {
     if (!user) {
@@ -226,6 +294,24 @@ export default function App(): JSX.Element {
     }
   }
 
+  function handleTrackPlayed(track: Track): void {
+    setRecentTracks((current) => {
+      const withoutCurrent = current.filter((entry) => entry.id !== track.id);
+      return [track, ...withoutCurrent].slice(0, MAX_RECENT_TRACKS);
+    });
+  }
+
+  function requestTrackPlayback(track: Track): void {
+    setSelectedTrack(track);
+    setPlayRequestNonce((current) => current + 1);
+  }
+
+  function handleReplayRecentTrack(track: Track): void {
+    requestTrackPlayback(track);
+  }
+
+  const hasStickyPlayer = Boolean(selectedTrackRefreshed) && activeView !== "player";
+
   if (!sessionChecked) {
     return <main className="p-8 text-flaque-ink">Loading session...</main>;
   }
@@ -235,7 +321,11 @@ export default function App(): JSX.Element {
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-7xl px-4 pb-10 pt-6 md:px-6">
+    <main
+      className={`mx-auto min-h-screen w-full max-w-7xl px-4 pt-6 md:px-6 ${
+        hasStickyPlayer ? "pb-72" : "pb-10"
+      }`}
+    >
       <header className="mb-4 rounded-3xl border border-flaque-clay/60 bg-white/80 px-5 py-4 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -312,6 +402,37 @@ export default function App(): JSX.Element {
 
       {activeView === "library" ? (
         <div className="space-y-4">
+          <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-display text-xl text-flaque-ink">Played Recently</h2>
+              <p className="text-xs uppercase tracking-[0.2em] text-flaque-steel">local storage</p>
+            </div>
+
+            {recentTracks.length === 0 ? (
+              <p className="mt-3 text-sm text-flaque-steel">No recently played tracks yet.</p>
+            ) : (
+              <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+                {recentTracks.map((track) => (
+                  <button
+                    key={track.id}
+                    className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/50 px-3 py-2 text-left transition hover:bg-flaque-cream"
+                    type="button"
+                    onClick={() => handleReplayRecentTrack(track)}
+                    title={track.tags.title ?? track.path}
+                  >
+                    <p className="truncate text-sm font-medium text-flaque-ink">
+                      {track.tags.title ?? track.path}
+                    </p>
+                    <p className="truncate text-xs text-flaque-steel">
+                      {track.tags.artist ?? "Unknown artist"}
+                      {track.tags.album ? ` - ${track.tags.album}` : ""}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
           <LibraryView
             generatedAt={library.generatedAt}
             tracks={library.tracks}
@@ -322,15 +443,9 @@ export default function App(): JSX.Element {
             onFilterChange={setFilters}
             currentTrackId={selectedTrackRefreshed?.id}
             onTrackSelect={(track) => {
-              setSelectedTrack(track);
-              setActiveView("player");
+              requestTrackPlayback(track);
             }}
             onUpload={handleUpload}
-          />
-          <AudioPlayer
-            track={selectedTrackRefreshed}
-            onNext={() => handleNavigateTrack("next")}
-            onPrevious={() => handleNavigateTrack("previous")}
           />
         </div>
       ) : activeView === "player" ? (
@@ -338,6 +453,8 @@ export default function App(): JSX.Element {
           track={selectedTrackRefreshed}
           onNext={() => handleNavigateTrack("next")}
           onPrevious={() => handleNavigateTrack("previous")}
+          onTrackPlayed={handleTrackPlayed}
+          playRequestNonce={playRequestNonce}
         />
       ) : (
         <AdminUsersView
@@ -352,6 +469,20 @@ export default function App(): JSX.Element {
           onResetPassword={handleResetUserPassword}
         />
       )}
+
+      {hasStickyPlayer ? (
+        <div className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-3 pt-2">
+          <div className="mx-auto max-w-7xl">
+            <AudioPlayer
+              track={selectedTrackRefreshed}
+              onNext={() => handleNavigateTrack("next")}
+              onPrevious={() => handleNavigateTrack("previous")}
+              onTrackPlayed={handleTrackPlayed}
+              playRequestNonce={playRequestNonce}
+            />
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
