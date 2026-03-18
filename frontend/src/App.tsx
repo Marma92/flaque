@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   createUserAccount,
+  deleteUserAccount,
   getCurrentUser,
   getLibrary,
   getUsers,
   login,
   logout,
+  resetUserPassword,
   rebuildIndex,
   uploadTrack
 } from "./api";
@@ -160,6 +162,15 @@ export default function App(): JSX.Element {
     await refreshAdminUsers();
   }
 
+  async function handleDeleteUser(userId: string): Promise<void> {
+    await deleteUserAccount(userId);
+    await refreshAdminUsers();
+  }
+
+  async function handleResetUserPassword(userId: string, password: string): Promise<void> {
+    await resetUserPassword(userId, password);
+  }
+
   if (!sessionChecked) {
     return <main className="p-8 text-flaque-ink">Loading session...</main>;
   }
@@ -267,11 +278,14 @@ export default function App(): JSX.Element {
         <PlayerView track={selectedTrackRefreshed} />
       ) : (
         <AdminUsersView
+          currentUser={user}
           users={adminUsers}
           loading={loadingAdminUsers}
           error={adminError}
           onRefresh={refreshAdminUsers}
           onCreateUser={handleCreateUser}
+          onDeleteUser={handleDeleteUser}
+          onResetPassword={handleResetUserPassword}
         />
       )}
     </main>

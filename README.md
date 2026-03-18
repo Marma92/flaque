@@ -59,6 +59,8 @@ data/
 
 - `GET /api/users`
 - `POST /api/users`
+- `POST /api/users/:id/reset-password`
+- `DELETE /api/users/:id`
 
 `POST /api/users` request body:
 
@@ -75,6 +77,12 @@ Validation:
 - `username`: 3-32 chars, `[a-zA-Z0-9._-]`
 - `password`: 8-256 chars
 - `role`: `user` or `admin` (default: `user`)
+
+Protections:
+
+- Self-deletion is blocked (`DELETE /api/users/:id` cannot target current session user).
+- Deleting the last remaining admin account is blocked.
+- Password reset revokes existing sessions for the target user.
 
 ### Upload
 
@@ -170,6 +178,16 @@ Run backend tests:
 ```bash
 npm run test
 ```
+
+## Admin UI
+
+In the frontend `Admin` tab (admin users only), you can:
+
+- create users,
+- reset passwords,
+- delete users,
+- search users by username/id,
+- filter the table by role (`all`, `admin`, `user`).
 
 ## Operational notes
 

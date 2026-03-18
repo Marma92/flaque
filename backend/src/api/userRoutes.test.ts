@@ -88,6 +88,42 @@ async function login(username: string, password: string): Promise<string> {
   return cookie.split(";", 1)[0] ?? "";
 }
 
+async function currentUserId(cookie: string): Promise<string> {
+  const response = await apiRequest("/api/auth/me", {
+    method: "GET",
+    headers: {
+      Cookie: cookie
+    }
+  });
+
+  expect(response.status).toBe(200);
+  const payload = response.payload as { user: { id: string } };
+  return payload.user.id;
+}
+
+async function createUserAsAdmin(input: {
+  adminCookie: string;
+  username: string;
+  password: string;
+  role?: "user" | "admin";
+}): Promise<{ id: string; username: string; role: "user" | "admin" }> {
+  const response = await apiRequest("/api/users", {
+    method: "POST",
+    headers: {
+      Cookie: input.adminCookie
+    },
+    body: JSON.stringify({
+      username: input.username,
+      password: input.password,
+      role: input.role ?? "user"
+    })
+  });
+
+  expect(response.status).toBe(201);
+  const payload = response.payload as { id?: string; user: { id: string; username: string; role: "user" | "admin" } };
+  return payload.user;
+}
+
 beforeEach(async () => {
   dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "flaque-users-api-"));
   process.env.DATA_ROOT = dataRoot;
@@ -133,24 +169,17 @@ describe("userRoutes", () => {
   it("allows admin to create and list users", async () => {
     const adminCookie = await login("admin", "admin-secret-123");
 
-    const createResponse = await apiRequest("/api/users", {
-      method: "POST",
-      headers: {
-        Cookie: adminCookie
-      },
-      body: JSON.stringify({
-        username: "alice",
-        password: "strong-password",
-        role: "user"
-      })
+    const createdUser = await createUserAsAdmin({
+      adminCookie,
+      username: "alice",
+      password: "strong-password",
+      role: "user"
     });
 
-    expect(createResponse.status).toBe(201);
-    expect(createResponse.payload).toMatchObject({
-      user: {
-        username: "alice",
-        role: "user"
-      }
+    expect(createdUser).toMatchObject({
+      id: expect.any(String),
+      username: "alice",
+      role: "user"
     });
 
     const listResponse = await apiRequest("/api/users", {
@@ -174,18 +203,12 @@ describe("userRoutes", () => {
   it("rejects user listing for non-admin sessions", async () => {
     const adminCookie = await login("admin", "admin-secret-123");
 
-    const createResponse = await apiRequest("/api/users", {
-      method: "POST",
-      headers: {
-        Cookie: adminCookie
-      },
-      body: JSON.stringify({
-        username: "bob",
-        password: "another-strong-password",
-        role: "user"
-      })
+    await createUserAsAdmin({
+      adminCookie,
+      username: "bob",
+      password: "another-strong-password",
+      role: "user"
     });
-    expect(createResponse.status).toBe(201);
 
     const userCookie = await login("bob", "another-strong-password");
 
@@ -197,5 +220,121 @@ describe("userRoutes", () => {
     });
 
     expect(listResponse.status).toBe(403);
+  });
+
+  it("allows admin password reset and revokes existing sessions", async () => {
+    const adminCookie = await login("admin", "admin-secret-123");
+    const created = await createUserAsAdmin({
+      adminCookie,
+      username: "carol",
+      password: "carol-old-password",
+      role: "user"
+    });
+
+    const oldCookie = await login("carol", "carol-old-password");
+
+    const resetResponse = await apiRequest(`/api/users/${created.id}/reset-password`, {
+      method: "POST",
+      headers: {
+        Cookie: adminCookie
+      },
+      body: JSON.stringify({
+        password: "carol-new-password"
+      })
+    });
+    expect(resetResponse.status).toBe(200);
+
+    const oldLoginResponse = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        username: "carol",
+        password: "carol-old-password"
+      })
+    });
+    expect(oldLoginResponse.status).toBe(401);
+
+    const meWithOldCookie = await apiRequest("/api/auth/me", {
+      method: "GET",
+      headers: {
+        Cookie: oldCookie
+      }
+    });
+    expect(meWithOldCookie.status).toBe(401);
+
+    const newCookie = await login("carol", "carol-new-password");
+    expect(newCookie).toContain("flaque_session=");
+  });
+
+  it("prevents deleting own account and allows deleting another user", async () => {
+    const adminCookie = await login("admin", "admin-secret-123");
+    const adminId = await currentUserId(adminCookie);
+    const created = await createUserAsAdmin({
+      adminCookie,
+      username: "dave",
+      password: "dave-password",
+      role: "user"
+    });
+
+    const selfDeleteResponse = await apiRequest(`/api/users/${adminId}`, {
+      method: "DELETE",
+      headers: {
+        Cookie: adminCookie
+      }
+    });
+    expect(selfDeleteResponse.status).toBe(400);
+
+    const deleteResponse = await apiRequest(`/api/users/${created.id}`, {
+      method: "DELETE",
+      headers: {
+        Cookie: adminCookie
+      }
+    });
+    expect(deleteResponse.status).toBe(204);
+
+    const deletedLoginResponse = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        username: "dave",
+        password: "dave-password"
+      })
+    });
+    expect(deletedLoginResponse.status).toBe(401);
+  });
+
+  it("rejects delete and reset endpoints for non-admin users", async () => {
+    const adminCookie = await login("admin", "admin-secret-123");
+    const target = await createUserAsAdmin({
+      adminCookie,
+      username: "eve",
+      password: "eve-password",
+      role: "user"
+    });
+    await createUserAsAdmin({
+      adminCookie,
+      username: "frank",
+      password: "frank-password",
+      role: "user"
+    });
+
+    const userCookie = await login("frank", "frank-password");
+
+    const resetResponse = await apiRequest(`/api/users/${target.id}/reset-password`, {
+      method: "POST",
+      headers: {
+        Cookie: userCookie
+      },
+      body: JSON.stringify({
+        password: "eve-password-new"
+      })
+    });
+    expect(resetResponse.status).toBe(403);
+
+    const deleteResponse = await apiRequest(`/api/users/${target.id}`, {
+      method: "DELETE",
+      headers: {
+        Cookie: userCookie
+      }
+    });
+    expect(deleteResponse.status).toBe(403);
   });
 });

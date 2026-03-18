@@ -26,6 +26,10 @@ type PublicUserRow = {
   role: UserRole;
 };
 
+type CountRow = {
+  count: number;
+};
+
 let db: Database.Database | null = null;
 
 function requireDb(): Database.Database {
@@ -98,6 +102,40 @@ export function listUsers(): AuthUser[] {
   return database
     .prepare("SELECT id, username, role FROM users ORDER BY username ASC")
     .all() as PublicUserRow[];
+}
+
+export function countUsersByRole(role: UserRole): number {
+  const database = requireDb();
+  const row = database
+    .prepare("SELECT COUNT(*) AS count FROM users WHERE role = ?")
+    .get(role) as CountRow;
+  return row.count;
+}
+
+export function revokeSessionsByUserId(userId: string): void {
+  const database = requireDb();
+  database.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
+}
+
+export function updateUserPassword(userId: string, password: string): boolean {
+  const database = requireDb();
+  const passwordHash = hashPassword(password);
+  const result = database
+    .prepare("UPDATE users SET password_hash = ? WHERE id = ?")
+    .run(passwordHash, userId);
+
+  if (result.changes > 0) {
+    revokeSessionsByUserId(userId);
+    return true;
+  }
+
+  return false;
+}
+
+export function deleteUserById(userId: string): boolean {
+  const database = requireDb();
+  const result = database.prepare("DELETE FROM users WHERE id = ?").run(userId);
+  return result.changes > 0;
 }
 
 export function createSession(userId: string, ttlMs: number): { id: string; expiresAt: number } {

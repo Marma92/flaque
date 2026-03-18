@@ -128,6 +128,23 @@ export async function createUserAccount(input: {
   return payload.user;
 }
 
+export async function deleteUserAccount(userId: string): Promise<void> {
+  await requestJson<void>(`/api/users/${userId}`, {
+    method: "DELETE",
+    skipJson: true
+  });
+}
+
+export async function resetUserPassword(userId: string, password: string): Promise<void> {
+  await requestJson<{ ok: boolean }>(`/api/users/${userId}/reset-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ password })
+  });
+}
+
 export function streamUrl(trackId: string): string {
   return withApiBase(`/api/tracks/${trackId}/stream`);
 }

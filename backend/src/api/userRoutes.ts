@@ -1,10 +1,20 @@
 import { Router } from "express";
 
-import { createUser, findUserByUsername, listUsers } from "../auth/db";
+import {
+  countUsersByRole,
+  createUser,
+  deleteUserById,
+  findUserById,
+  findUserByUsername,
+  listUsers,
+  updateUserPassword
+} from "../auth/db";
 import { requireAdmin, requireAuth } from "../auth/middleware";
 import type { UserRole } from "../types/library";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 256;
 
 function parseRole(value: unknown): UserRole | null {
   if (value === undefined || value === null || value === "") {
@@ -46,8 +56,10 @@ export function createUserRouter(): Router {
         return;
       }
 
-      if (password.length < 8 || password.length > 256) {
-        res.status(400).json({ error: "Password must be between 8 and 256 characters" });
+      if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
+        res.status(400).json({
+          error: `Password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters`
+        });
         return;
       }
 
@@ -72,6 +84,77 @@ export function createUserRouter(): Router {
 
       next(error);
     }
+  });
+
+  router.post("/users/:id/reset-password", requireAuth, requireAdmin, (req, res) => {
+    const userId = req.params.id;
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+
+    if (!userId) {
+      res.status(400).json({ error: "User id is required" });
+      return;
+    }
+
+    if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
+      res.status(400).json({
+        error: `Password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters`
+      });
+      return;
+    }
+
+    const existingUser = findUserById(userId);
+    if (!existingUser) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const updated = updateUserPassword(userId, password);
+    if (!updated) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      user: {
+        id: existingUser.id,
+        username: existingUser.username,
+        role: existingUser.role
+      }
+    });
+  });
+
+  router.delete("/users/:id", requireAuth, requireAdmin, (req, res) => {
+    const userId = req.params.id;
+
+    if (!userId) {
+      res.status(400).json({ error: "User id is required" });
+      return;
+    }
+
+    if (req.authUser?.id === userId) {
+      res.status(400).json({ error: "You cannot delete your own account" });
+      return;
+    }
+
+    const existingUser = findUserById(userId);
+    if (!existingUser) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (existingUser.role === "admin" && countUsersByRole("admin") <= 1) {
+      res.status(400).json({ error: "Cannot delete the last admin account" });
+      return;
+    }
+
+    const deleted = deleteUserById(userId);
+    if (!deleted) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    res.status(204).send();
   });
 
   return router;
