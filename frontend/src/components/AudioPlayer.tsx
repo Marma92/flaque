@@ -51,6 +51,8 @@ export function AudioPlayer({
   const lastStreamSourceRef = useRef("");
   const pendingRestoreTimeRef = useRef<number | null>(null);
   const pendingRestoreShouldPlayRef = useRef(false);
+  const qualitySwapSnapshotTimeRef = useRef<number | null>(null);
+  const qualitySwapShouldPlayRef = useRef<boolean | null>(null);
   const currentTimeRef = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -75,6 +77,8 @@ export function AudioPlayer({
 
     pendingRestoreTimeRef.current = null;
     pendingRestoreShouldPlayRef.current = false;
+    qualitySwapSnapshotTimeRef.current = null;
+    qualitySwapShouldPlayRef.current = null;
     currentTimeRef.current = 0;
     setCurrentTime(0);
     setDuration(track.duration || 0);
@@ -110,12 +114,21 @@ export function AudioPlayer({
     const sourceChanged = Boolean(previousSource) && previousSource !== streamSource;
 
     if (sameTrack && sourceChanged) {
-      const snapshotTime = audioElement.currentTime > 0 ? audioElement.currentTime : currentTimeRef.current;
+      const snapshotTime =
+        qualitySwapSnapshotTimeRef.current ??
+        (audioElement.currentTime > 0 ? audioElement.currentTime : currentTimeRef.current);
+      const shouldResumePlayback = qualitySwapShouldPlayRef.current ?? !audioElement.paused;
+
       pendingRestoreTimeRef.current = snapshotTime;
-      pendingRestoreShouldPlayRef.current = !audioElement.paused;
+      pendingRestoreShouldPlayRef.current = shouldResumePlayback;
+
       currentTimeRef.current = snapshotTime;
       setCurrentTime(snapshotTime);
-      setIsPlaying(!audioElement.paused);
+      setIsPlaying(shouldResumePlayback);
+
+      qualitySwapSnapshotTimeRef.current = null;
+      qualitySwapShouldPlayRef.current = null;
+
       audioElement.load();
     }
 
@@ -193,7 +206,9 @@ export function AudioPlayer({
     );
   }
 
-  const artworkSize = expanded ? "h-52 w-52" : "h-20 w-20";
+  const artworkSize = expanded ? "h-52 w-52" : "h-16 w-16 md:h-20 md:w-20";
+  const contentLayoutClass = expanded ? "w-full space-y-3" : "min-w-0 flex-1 space-y-3";
+  const controlsLayoutClass = expanded ? "flex items-center gap-3" : "flex flex-wrap items-center gap-2";
 
   return (
     <section className="rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6">
@@ -249,9 +264,9 @@ export function AudioPlayer({
         }}
       />
 
-      <div className={`flex ${expanded ? "flex-col items-center gap-6" : "flex-col gap-4 md:flex-row md:items-center"}`}>
+      <div className={`flex min-w-0 ${expanded ? "flex-col items-center gap-6" : "flex-col gap-4 md:flex-row md:items-center"}`}>
         <img
-          className={`${artworkSize} rounded-2xl border border-flaque-clay/50 object-cover`}
+          className={`${artworkSize} shrink-0 rounded-2xl border border-flaque-clay/50 object-cover`}
           src={coverUrl(track.id, track.cover)}
           alt={track.tags.album ? `Cover for ${track.tags.album}` : "Track cover"}
           onError={(event) => {
@@ -260,18 +275,21 @@ export function AudioPlayer({
           }}
         />
 
-        <div className="w-full space-y-3">
+        <div className={contentLayoutClass}>
           <div>
-            <p className="font-display text-xl text-flaque-ink truncate" title={track.tags.title ?? track.path}>
+            <p
+              className={`font-display text-flaque-ink truncate ${expanded ? "text-xl" : "text-lg"}`}
+              title={track.tags.title ?? track.path}
+            >
               {track.tags.title ?? track.path}
             </p>
-            <p className="text-sm text-flaque-steel">{track.tags.artist ?? "Unknown artist"}</p>
+            <p className="truncate text-sm text-flaque-steel">{track.tags.artist ?? "Unknown artist"}</p>
             <p className="text-xs uppercase tracking-[0.2em] text-flaque-steel/80">
               {track.codec} {track.sampleRate ? `- ${Math.round(track.sampleRate / 1000)} kHz` : ""}
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className={controlsLayoutClass}>
             <button
               className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
               type="button"
@@ -303,7 +321,7 @@ export function AudioPlayer({
             >
               Next
             </button>
-            <span className="text-xs text-flaque-steel">
+            <span className="whitespace-nowrap text-xs text-flaque-steel">
               {formatDuration(currentTime)} / {formatDuration(duration || track.duration)}
             </span>
 
@@ -316,7 +334,29 @@ export function AudioPlayer({
                   if (!onTranscodeModeChange) {
                     return;
                   }
-                  onTranscodeModeChange(event.target.value as TranscodeMode);
+
+                  const nextMode = event.target.value as TranscodeMode;
+                  if (nextMode === transcodeMode) {
+                    return;
+                  }
+
+                  const nextRequestedTranscode = nextMode === "original" ? undefined : nextMode;
+                  const nextEffectiveTranscode = canTranscode ? nextRequestedTranscode : undefined;
+                  const sourceWillChange = nextEffectiveTranscode !== effectiveTranscode;
+
+                  if (sourceWillChange) {
+                    const audioElement = audioRef.current;
+                    const snapshotTime = audioElement && audioElement.currentTime > 0 ? audioElement.currentTime : currentTimeRef.current;
+                    const shouldResumePlayback = audioElement ? !audioElement.paused : isPlaying;
+
+                    qualitySwapSnapshotTimeRef.current = snapshotTime;
+                    qualitySwapShouldPlayRef.current = shouldResumePlayback;
+                  } else {
+                    qualitySwapSnapshotTimeRef.current = null;
+                    qualitySwapShouldPlayRef.current = null;
+                  }
+
+                  onTranscodeModeChange(nextMode);
                 }}
               >
                 <option value="original">Original</option>
