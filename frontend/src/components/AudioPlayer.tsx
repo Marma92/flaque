@@ -10,15 +10,22 @@ import {
 } from "../utils/tracks";
 
 export type TranscodeMode = "original" | "opus" | "mp3";
+export type RepeatMode = "off" | "all" | "one";
+
+type NavigateOptions = {
+  wrap?: boolean;
+};
 
 type AudioPlayerProps = {
   track: Track | null;
   expanded?: boolean;
-  onPrevious?: () => Promise<void> | void;
-  onNext?: () => Promise<void> | void;
+  onPrevious?: (options?: NavigateOptions) => Promise<void> | void;
+  onNext?: (options?: NavigateOptions) => Promise<void> | void;
   onTrackPlayed?: (track: Track) => void;
   transcodeMode?: TranscodeMode;
   onTranscodeModeChange?: (mode: TranscodeMode) => void;
+  repeatMode?: RepeatMode;
+  onRepeatModeChange?: (mode: RepeatMode) => void;
   playRequestNonce?: number;
   playlists?: Playlist[];
   onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
@@ -53,6 +60,8 @@ export function AudioPlayer({
   onTrackPlayed,
   transcodeMode = "original",
   onTranscodeModeChange,
+  repeatMode = "off",
+  onRepeatModeChange,
   playRequestNonce = 0,
   playlists = [],
   onAddTrackToPlaylist,
@@ -77,6 +86,7 @@ export function AudioPlayer({
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
   const [playlistSubmitStatus, setPlaylistSubmitStatus] = useState<string | null>(null);
   const [playlistSubmitLoading, setPlaylistSubmitLoading] = useState(false);
+  const [showQueuePanel, setShowQueuePanel] = useState(false);
 
   const canTranscode = Boolean(track && isFlacTrack(track));
   const requestedTranscode = transcodeMode === "original" ? undefined : transcodeMode;
@@ -179,6 +189,12 @@ export function AudioPlayer({
       });
   }, [playRequestNonce, track?.id]);
 
+  useEffect(() => {
+    if (!expanded) {
+      setShowQueuePanel(false);
+    }
+  }, [expanded]);
+
   function onTogglePlayback(): void {
     const audioElement = audioRef.current;
     if (!audioElement || !track) {
@@ -211,10 +227,40 @@ export function AudioPlayer({
   }
 
   function onEnded(): void {
+    const audioElement = audioRef.current;
+    if (!audioElement) {
+      return;
+    }
+
+    if (repeatMode === "one") {
+      audioElement.currentTime = 0;
+      currentTimeRef.current = 0;
+      setCurrentTime(0);
+      audioElement
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch(() => {
+          setIsPlaying(false);
+        });
+      return;
+    }
+
     setIsPlaying(false);
     if (onNext && autoplayOnTrackChangeRef.current) {
-      void onNext();
+      void onNext({ wrap: repeatMode === "all" });
     }
+  }
+
+  function onCycleRepeatMode(): void {
+    if (!onRepeatModeChange) {
+      return;
+    }
+
+    const nextMode: RepeatMode =
+      repeatMode === "off" ? "all" : repeatMode === "all" ? "one" : "off";
+    onRepeatModeChange(nextMode);
   }
 
   if (!track) {
@@ -245,6 +291,9 @@ export function AudioPlayer({
     : "rounded-lg border border-flaque-clay bg-white px-2 py-1 text-xs text-flaque-ink";
   const playlistButtonClassName = `${ghostControlButtonClassName} ${
     showPlaylistPicker ? "ring-2 ring-flaque-sand/55" : ""
+  }`;
+  const queueButtonClassName = `${ghostControlButtonClassName} ${
+    showQueuePanel ? "ring-2 ring-flaque-sand/55" : ""
   }`;
   const displayTitle = getTrackDisplayTitle(track);
   const displayArtist = getTrackDisplayArtist(track) ?? "Unknown artist";
@@ -346,7 +395,7 @@ export function AudioPlayer({
               title="Previous"
               onClick={() => {
                 if (onPrevious) {
-                  void onPrevious();
+                  void onPrevious({ wrap: true });
                 }
               }}
               disabled={!onPrevious}
@@ -354,6 +403,47 @@ export function AudioPlayer({
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M7 6h2v12H7zM19 6v12l-8.5-6L19 6z" />
               </svg>
+            </button>
+            <button
+              className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
+                repeatMode === "off"
+                  ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
+                  : "bg-flaque-ink text-flaque-cream hover:bg-black"
+              }`}
+              type="button"
+              aria-label={
+                repeatMode === "off"
+                  ? "Enable repeat all"
+                  : repeatMode === "all"
+                    ? "Enable repeat one"
+                    : "Disable repeat"
+              }
+              title={
+                repeatMode === "off"
+                  ? "Repeat off"
+                  : repeatMode === "all"
+                    ? "Repeat all"
+                    : "Repeat one"
+              }
+              onClick={onCycleRepeatMode}
+            >
+              {repeatMode === "one" ? (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M12 9v6" strokeLinecap="round" />
+                  <path d="M10.5 10.5L12 9l1.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
             </button>
             <button
               className="flex h-9 w-9 items-center justify-center rounded-xl bg-flaque-ink text-flaque-cream transition hover:bg-black"
@@ -379,7 +469,7 @@ export function AudioPlayer({
               title="Next"
               onClick={() => {
                 if (onNext) {
-                  void onNext();
+                  void onNext({ wrap: true });
                 }
               }}
               disabled={!onNext}
@@ -393,6 +483,27 @@ export function AudioPlayer({
             </span>
 
             <div className="ml-auto flex items-center gap-2">
+              {expanded ? (
+                <button
+                  className={queueButtonClassName}
+                  type="button"
+                  aria-label={showQueuePanel ? "Masquer la file de lecture" : "Afficher la file de lecture"}
+                  title={showQueuePanel ? "Masquer la file de lecture" : "Afficher la file de lecture"}
+                  onClick={() => setShowQueuePanel((current) => !current)}
+                >
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              ) : null}
+
               <button
                 className={playlistButtonClassName}
                 type="button"
@@ -518,7 +629,7 @@ export function AudioPlayer({
             onChange={(event) => onSeek(Number(event.target.value))}
           />
 
-          {expanded ? (
+          {expanded && showQueuePanel ? (
             <div className="rounded-2xl border border-flaque-clay/60 bg-flaque-cream/35 p-3">
               <p className="text-xs uppercase tracking-[0.2em] text-flaque-steel">Current queue</p>
               <div className="mt-2 max-h-56 space-y-1.5 overflow-auto pr-1">

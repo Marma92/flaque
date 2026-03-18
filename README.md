@@ -261,7 +261,7 @@ curl "http://localhost:4000/api/tracks/<trackId>/adjacent?direction=next&owner=<
 - The library page keeps playback controls in a sticky player at the bottom.
 - Clicking a track in the library starts playback without switching to the dedicated `Player` page.
 - Recently played tracks are stored in browser `localStorage` and listed in a `Played Recently` panel; clicking an entry replays it.
-- The current playback queue is persisted in browser `localStorage` and shown in the expanded player with `Played`, `Now`, and `Next` states.
+- The current playback queue is persisted in browser `localStorage`; a list icon in the expanded player toggles queue visibility with `Played`, `Now`, and `Next` states.
 - The player includes a quality selector (`Original`, `Opus fallback`, `MP3 fallback`) that targets `?transcode=` on stream requests.
 - The frontend favicon uses the centered Flaque logo artwork.
 - Missing or unreachable album covers fall back to a bundled default Flaque cover image.
