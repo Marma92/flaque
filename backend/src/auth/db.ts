@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 
-import type { AuthUser, PlaylistRecord, PlaylistVisibility, UserRole } from "../types/library";
+import type { AuthUser, UserRole } from "../types/library";
 import { createId } from "../utils/hash";
 import { usersDbPath } from "../utils/paths";
 import { hashPassword } from "./password";
@@ -28,20 +28,6 @@ type PublicUserRow = {
 
 type CountRow = {
   count: number;
-};
-
-type PlaylistRow = {
-  id: string;
-  owner_id: string;
-  name: string;
-  visibility: PlaylistVisibility;
-  created_at: number;
-  updated_at: number;
-};
-
-type PlaylistTrackRow = {
-  track_id: string;
-  position: number;
 };
 
 let db: Database.Database | null = null;
@@ -75,29 +61,8 @@ export function initializeAuthDatabase(): void {
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE IF NOT EXISTS playlists (
-      id TEXT PRIMARY KEY,
-      owner_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      visibility TEXT NOT NULL DEFAULT 'private' CHECK (visibility IN ('private', 'public')),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      FOREIGN KEY(owner_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS playlist_tracks (
-      playlist_id TEXT NOT NULL,
-      track_id TEXT NOT NULL,
-      position INTEGER NOT NULL,
-      PRIMARY KEY (playlist_id, position),
-      FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
-    );
-
     CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-    CREATE INDEX IF NOT EXISTS idx_playlists_owner_id ON playlists(owner_id);
-    CREATE INDEX IF NOT EXISTS idx_playlists_visibility ON playlists(visibility);
-    CREATE INDEX IF NOT EXISTS idx_playlist_tracks_playlist_id ON playlist_tracks(playlist_id);
   `);
 }
 
@@ -244,199 +209,6 @@ export function findSessionUser(sessionId: string): { user: AuthUser; sessionId:
     },
     sessionId: row.session_id
   };
-}
-
-function normalizePlaylistTrackIds(trackIds: string[]): string[] {
-  const deduplicated = new Set<string>();
-  const normalized: string[] = [];
-
-  for (const trackId of trackIds) {
-    if (typeof trackId !== "string") {
-      continue;
-    }
-
-    const trimmed = trackId.trim();
-    if (!trimmed || deduplicated.has(trimmed)) {
-      continue;
-    }
-
-    deduplicated.add(trimmed);
-    normalized.push(trimmed);
-  }
-
-  return normalized;
-}
-
-function readPlaylistTrackIds(database: Database.Database, playlistId: string): string[] {
-  const rows = database
-    .prepare(
-      "SELECT track_id, position FROM playlist_tracks WHERE playlist_id = ? ORDER BY position ASC"
-    )
-    .all(playlistId) as PlaylistTrackRow[];
-
-  return rows.map((row) => row.track_id);
-}
-
-function toPlaylistRecord(
-  database: Database.Database,
-  row: PlaylistRow | undefined
-): PlaylistRecord | null {
-  if (!row) {
-    return null;
-  }
-
-  return {
-    id: row.id,
-    ownerId: row.owner_id,
-    name: row.name,
-    visibility: row.visibility,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    trackIds: readPlaylistTrackIds(database, row.id)
-  };
-}
-
-export function getPlaylistById(playlistId: string): PlaylistRecord | null {
-  const database = requireDb();
-  const row = database
-    .prepare(
-      "SELECT id, owner_id, name, visibility, created_at, updated_at FROM playlists WHERE id = ? LIMIT 1"
-    )
-    .get(playlistId) as PlaylistRow | undefined;
-
-  return toPlaylistRecord(database, row);
-}
-
-export function getAccessiblePlaylistById(
-  playlistId: string,
-  viewerUserId: string
-): PlaylistRecord | null {
-  const database = requireDb();
-  const row = database
-    .prepare(
-      `
-      SELECT id, owner_id, name, visibility, created_at, updated_at
-      FROM playlists
-      WHERE id = ?
-        AND (owner_id = ? OR visibility = 'public')
-      LIMIT 1
-      `
-    )
-    .get(playlistId, viewerUserId) as PlaylistRow | undefined;
-
-  return toPlaylistRecord(database, row);
-}
-
-export function listAccessiblePlaylists(viewerUserId: string): PlaylistRecord[] {
-  const database = requireDb();
-  const rows = database
-    .prepare(
-      `
-      SELECT id, owner_id, name, visibility, created_at, updated_at
-      FROM playlists
-      WHERE owner_id = ? OR visibility = 'public'
-      ORDER BY updated_at DESC, created_at DESC, name ASC
-      `
-    )
-    .all(viewerUserId) as PlaylistRow[];
-
-  return rows
-    .map((row) => toPlaylistRecord(database, row))
-    .filter((playlist): playlist is PlaylistRecord => Boolean(playlist));
-}
-
-export function createPlaylist(input: {
-  ownerId: string;
-  name: string;
-  visibility: PlaylistVisibility;
-  trackIds: string[];
-}): PlaylistRecord {
-  const database = requireDb();
-  const playlistId = createId(20);
-  const now = Date.now();
-  const trackIds = normalizePlaylistTrackIds(input.trackIds);
-
-  const transaction = database.transaction(() => {
-    database
-      .prepare(
-        "INSERT INTO playlists (id, owner_id, name, visibility, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
-      )
-      .run(playlistId, input.ownerId, input.name, input.visibility, now, now);
-
-    const insertTrack = database.prepare(
-      "INSERT INTO playlist_tracks (playlist_id, track_id, position) VALUES (?, ?, ?)"
-    );
-
-    trackIds.forEach((trackId, index) => {
-      insertTrack.run(playlistId, trackId, index);
-    });
-  });
-
-  transaction();
-
-  const created = getPlaylistById(playlistId);
-  if (!created) {
-    throw new Error("Unable to create playlist");
-  }
-
-  return created;
-}
-
-export function updatePlaylist(
-  playlistId: string,
-  patch: {
-    name?: string;
-    visibility?: PlaylistVisibility;
-    trackIds?: string[];
-  }
-): PlaylistRecord | null {
-  const database = requireDb();
-
-  const transaction = database.transaction(() => {
-    const current = database
-      .prepare("SELECT id, owner_id, name, visibility, created_at, updated_at FROM playlists WHERE id = ?")
-      .get(playlistId) as PlaylistRow | undefined;
-
-    if (!current) {
-      return false;
-    }
-
-    const nextName = patch.name ?? current.name;
-    const nextVisibility = patch.visibility ?? current.visibility;
-    const updatedAt = Date.now();
-
-    database
-      .prepare("UPDATE playlists SET name = ?, visibility = ?, updated_at = ? WHERE id = ?")
-      .run(nextName, nextVisibility, updatedAt, playlistId);
-
-    if (patch.trackIds) {
-      const normalizedTrackIds = normalizePlaylistTrackIds(patch.trackIds);
-      database.prepare("DELETE FROM playlist_tracks WHERE playlist_id = ?").run(playlistId);
-
-      const insertTrack = database.prepare(
-        "INSERT INTO playlist_tracks (playlist_id, track_id, position) VALUES (?, ?, ?)"
-      );
-
-      normalizedTrackIds.forEach((trackId, index) => {
-        insertTrack.run(playlistId, trackId, index);
-      });
-    }
-
-    return true;
-  });
-
-  const updated = transaction();
-  if (!updated) {
-    return null;
-  }
-
-  return getPlaylistById(playlistId);
-}
-
-export function deletePlaylistById(playlistId: string): boolean {
-  const database = requireDb();
-  const result = database.prepare("DELETE FROM playlists WHERE id = ?").run(playlistId);
-  return result.changes > 0;
 }
 
 export function ensureDefaultAdmin(): AuthUser | null {

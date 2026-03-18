@@ -38,19 +38,6 @@ function formatDuration(totalSeconds: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-function formatDateTime(value?: string): string {
-  if (!value) {
-    return "-";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString();
-}
-
 export function LibraryView({
   generatedAt,
   tracks,
@@ -167,14 +154,13 @@ export function LibraryView({
 
       <section className="overflow-hidden rounded-3xl border border-flaque-clay/60 bg-white/85 shadow-panel backdrop-blur-sm">
         <div className="max-h-[50vh] overflow-auto">
-          <table className="w-full min-w-[940px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[780px] border-collapse text-left text-sm">
             <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
               <tr>
                 <th className="px-4 py-3 font-medium">Title</th>
                 <th className="px-4 py-3 font-medium">Artist</th>
                 <th className="px-4 py-3 font-medium">Album</th>
                 <th className="px-4 py-3 font-medium">Owner</th>
-                <th className="px-4 py-3 font-medium">Uploaded</th>
                 <th className="px-4 py-3 font-medium">Duration</th>
                 <th className="px-4 py-3 font-medium">Codec</th>
               </tr>
@@ -201,7 +187,6 @@ export function LibraryView({
                     <td className="px-4 py-3 text-flaque-steel">{trackArtist}</td>
                     <td className="px-4 py-3 text-flaque-steel">{trackAlbum}</td>
                     <td className="px-4 py-3 text-flaque-steel">{resolveOwnerLabel(track.owner)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-flaque-steel">{formatDateTime(track.uploadedAt)}</td>
                     <td className="px-4 py-3 text-flaque-steel">{formatDuration(track.duration)}</td>
                     <td className="px-4 py-3 uppercase text-flaque-steel">{track.codec}</td>
                   </tr>
@@ -209,7 +194,7 @@ export function LibraryView({
               })}
               {tracks.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-4 text-flaque-steel" colSpan={7}>
+                  <td className="px-4 py-4 text-flaque-steel" colSpan={6}>
                     No tracks match this filter yet.
                   </td>
                 </tr>

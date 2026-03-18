@@ -6,7 +6,6 @@ import {
   coversRoot,
   indexFilePath,
   metadataOverridesFilePath,
-  trackActivityLogFilePath,
   indexRoot,
   storageRoot,
   tmpUploadsRoot,
@@ -67,10 +66,5 @@ export async function ensureBaseDirectories(): Promise<void> {
   const hasOverrides = await fileExists(metadataOverridesFilePath);
   if (!hasOverrides) {
     await writeJsonAtomic(metadataOverridesFilePath, {});
-  }
-
-  const hasTrackActivityLog = await fileExists(trackActivityLogFilePath);
-  if (!hasTrackActivityLog) {
-    await writeJsonAtomic(trackActivityLogFilePath, []);
   }
 }

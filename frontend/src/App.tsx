@@ -2,17 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   coverUrl,
-  createPlaylist,
   createUserAccount,
-  deletePlaylist,
   deleteTrackFile,
   deleteUserAccount,
   getAdjacentTrack,
   getCurrentUser,
   getLibrary,
-  getRecentDeletions,
-  getRecentUploads,
-  getPlaylists,
   getUsers,
   inspectUploadFile,
   login,
@@ -20,7 +15,6 @@ import {
   patchUserAccount,
   resetUserPassword,
   rebuildIndex,
-  updatePlaylist,
   updateTrackMetadata,
   uploadTracks,
   type UploadTrackPreview,
@@ -31,19 +25,9 @@ import { AudioPlayer, type TranscodeMode } from "./components/AudioPlayer";
 import { ConfigView } from "./components/ConfigView";
 import { LibraryView } from "./components/LibraryView";
 import { LoginPage } from "./components/LoginPage";
-import { PlaylistsPanel } from "./components/PlaylistsPanel";
+import { PlayerView } from "./components/PlayerView";
 import { UploadView } from "./components/UploadView";
-import type {
-  ActivityWindow,
-  LibraryResponse,
-  Playlist,
-  PlaylistVisibility,
-  RecentDeletionEntry,
-  RecentUploadEntry,
-  Track,
-  TrackMetadataPatch,
-  User
-} from "./types";
+import type { LibraryResponse, Track, TrackMetadataPatch, User } from "./types";
 import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
@@ -156,17 +140,7 @@ export default function App(): JSX.Element {
   const [adminUsers, setAdminUsers] = useState<User[]>([]);
   const [loadingAdminUsers, setLoadingAdminUsers] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [loadingPlaylists, setLoadingPlaylists] = useState(false);
-  const [playlistsError, setPlaylistsError] = useState<string | null>(null);
   const [recentTracks, setRecentTracks] = useState<Track[]>([]);
-  const [activityWindow, setActivityWindow] = useState<ActivityWindow>("7d");
-  const [recentUploads, setRecentUploads] = useState<RecentUploadEntry[]>([]);
-  const [loadingRecentUploads, setLoadingRecentUploads] = useState(false);
-  const [recentUploadsError, setRecentUploadsError] = useState<string | null>(null);
-  const [recentDeletions, setRecentDeletions] = useState<RecentDeletionEntry[]>([]);
-  const [loadingRecentDeletions, setLoadingRecentDeletions] = useState(false);
-  const [recentDeletionsError, setRecentDeletionsError] = useState<string | null>(null);
 
   const allTracksById = useMemo(() => {
     return new Map(allTracksLibrary.tracks.map((track) => [track.id, track]));
@@ -261,11 +235,8 @@ export default function App(): JSX.Element {
       setAllTracksLibrary(EMPTY_LIBRARY);
       setLoadingLibrary(false);
       setLoadingAllTracks(false);
-      setPlaylists([]);
-      setLoadingPlaylists(false);
       setLibraryError(null);
       setAllTracksError(null);
-      setPlaylistsError(null);
       return;
     }
 
@@ -333,40 +304,6 @@ export default function App(): JSX.Element {
   }, [user]);
 
   useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    let cancelled = false;
-
-    setLoadingPlaylists(true);
-    setPlaylistsError(null);
-
-    getPlaylists()
-      .then((payload) => {
-        if (cancelled) {
-          return;
-        }
-        setPlaylists(payload);
-      })
-      .catch((error) => {
-        if (cancelled) {
-          return;
-        }
-        setPlaylistsError(error instanceof Error ? error.message : "Failed to load playlists");
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoadingPlaylists(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
-
-  useEffect(() => {
     if (!user || user.role !== "admin") {
       return;
     }
@@ -385,80 +322,6 @@ export default function App(): JSX.Element {
         setLoadingAdminUsers(false);
       });
   }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      setRecentUploads([]);
-      setLoadingRecentUploads(false);
-      setRecentUploadsError(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    setLoadingRecentUploads(true);
-    setRecentUploadsError(null);
-
-    getRecentUploads({ window: activityWindow, limit: 8 })
-      .then((items) => {
-        if (cancelled) {
-          return;
-        }
-        setRecentUploads(items);
-      })
-      .catch((error) => {
-        if (cancelled) {
-          return;
-        }
-        setRecentUploadsError(error instanceof Error ? error.message : "Failed to load recent uploads");
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoadingRecentUploads(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user, activityWindow]);
-
-  useEffect(() => {
-    if (!user || user.role !== "admin") {
-      setRecentDeletions([]);
-      setLoadingRecentDeletions(false);
-      setRecentDeletionsError(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    setLoadingRecentDeletions(true);
-    setRecentDeletionsError(null);
-
-    getRecentDeletions({ window: activityWindow, limit: 30 })
-      .then((items) => {
-        if (cancelled) {
-          return;
-        }
-        setRecentDeletions(items);
-      })
-      .catch((error) => {
-        if (cancelled) {
-          return;
-        }
-        setRecentDeletionsError(error instanceof Error ? error.message : "Failed to load recent deletions");
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoadingRecentDeletions(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user, activityWindow]);
 
   useEffect(() => {
     if (!user || user.role === "admin") {
@@ -498,81 +361,6 @@ export default function App(): JSX.Element {
     }
   }
 
-  async function refreshPlaylists(): Promise<void> {
-    setLoadingPlaylists(true);
-    setPlaylistsError(null);
-
-    try {
-      const payload = await getPlaylists();
-      setPlaylists(payload);
-    } catch (error) {
-      setPlaylistsError(error instanceof Error ? error.message : "Failed to load playlists");
-    } finally {
-      setLoadingPlaylists(false);
-    }
-  }
-
-  async function refreshRecentUploads(): Promise<void> {
-    setLoadingRecentUploads(true);
-    setRecentUploadsError(null);
-
-    try {
-      const items = await getRecentUploads({ window: activityWindow, limit: 8 });
-      setRecentUploads(items);
-    } catch (error) {
-      setRecentUploadsError(error instanceof Error ? error.message : "Failed to load recent uploads");
-    } finally {
-      setLoadingRecentUploads(false);
-    }
-  }
-
-  async function refreshRecentDeletions(): Promise<void> {
-    if (!user || user.role !== "admin") {
-      setRecentDeletions([]);
-      setRecentDeletionsError(null);
-      setLoadingRecentDeletions(false);
-      return;
-    }
-
-    setLoadingRecentDeletions(true);
-    setRecentDeletionsError(null);
-
-    try {
-      const items = await getRecentDeletions({ window: activityWindow, limit: 30 });
-      setRecentDeletions(items);
-    } catch (error) {
-      setRecentDeletionsError(error instanceof Error ? error.message : "Failed to load recent deletions");
-    } finally {
-      setLoadingRecentDeletions(false);
-    }
-  }
-
-  async function handleCreatePlaylist(input: {
-    name: string;
-    visibility: PlaylistVisibility;
-    trackIds: string[];
-  }): Promise<void> {
-    await createPlaylist(input);
-    await refreshPlaylists();
-  }
-
-  async function handleUpdatePlaylist(
-    playlistId: string,
-    patch: {
-      name?: string;
-      visibility?: PlaylistVisibility;
-      trackIds?: string[];
-    }
-  ): Promise<void> {
-    await updatePlaylist(playlistId, patch);
-    await refreshPlaylists();
-  }
-
-  async function handleDeletePlaylist(playlistId: string): Promise<void> {
-    await deletePlaylist(playlistId);
-    await refreshPlaylists();
-  }
-
   async function handleLogin(username: string, password: string): Promise<void> {
     const authenticatedUser = await login(username, password);
     setUser(authenticatedUser);
@@ -586,15 +374,9 @@ export default function App(): JSX.Element {
     setPlayQueue([]);
     setFilters({});
     setAdminUsers([]);
-    setPlaylists([]);
     setAdminError(null);
-    setRecentUploads([]);
-    setRecentUploadsError(null);
-    setRecentDeletions([]);
-    setRecentDeletionsError(null);
     setLibraryError(null);
     setAllTracksError(null);
-    setPlaylistsError(null);
   }
 
   async function handleUpload(input: {
@@ -603,12 +385,7 @@ export default function App(): JSX.Element {
     album?: string;
   }): Promise<UploadTracksResult> {
     const result = await uploadTracks(input);
-    await Promise.all([
-      refreshCurrentLibrary(),
-      refreshAllTracks(),
-      refreshRecentUploads(),
-      refreshRecentDeletions()
-    ]);
+    await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
     return result;
   }
 
@@ -623,7 +400,7 @@ export default function App(): JSX.Element {
 
     try {
       await rebuildIndex();
-      await Promise.all([refreshCurrentLibrary(), refreshAllTracks(), refreshRecentUploads()]);
+      await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Index rebuild failed";
       setLibraryError(message);
@@ -698,12 +475,7 @@ export default function App(): JSX.Element {
     setPlayQueue((current) => current.filter((track) => track.id !== trackId));
     setRecentTracks((current) => current.filter((track) => track.id !== trackId));
 
-    await Promise.all([
-      refreshCurrentLibrary(),
-      refreshAllTracks(),
-      refreshRecentUploads(),
-      refreshRecentDeletions()
-    ]);
+    await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
   }
 
   async function handleUpdateTrackMetadata(trackId: string, patch: TrackMetadataPatch): Promise<void> {
@@ -764,20 +536,6 @@ export default function App(): JSX.Element {
   function handleReplayRecentTrack(track: Track): void {
     const fullTrack = allTracksById.get(track.id) ?? track;
     requestTrackPlayback(fullTrack, allTracksLibrary.tracks.length > 0 ? allTracksLibrary.tracks : undefined);
-  }
-
-  function handlePlayPlaylist(playlist: Playlist): void {
-    const queue = playlist.trackIds
-      .map((trackId) => allTracksById.get(trackId))
-      .filter((track): track is Track => Boolean(track));
-
-    if (queue.length === 0) {
-      setLibraryError(`Playlist \"${playlist.name}\" has no available tracks in your current library.`);
-      return;
-    }
-
-    setLibraryError(null);
-    requestTrackPlayback(queue[0], queue);
   }
 
   const hasStickyPlayer = Boolean(selectedTrackRefreshed) && activeView !== "player";
@@ -932,97 +690,6 @@ export default function App(): JSX.Element {
             )}
           </section>
 
-          <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-display text-xl text-flaque-ink">Uploaded Recently</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  className={`rounded-lg px-3 py-1.5 text-xs transition ${
-                    activityWindow === "7d"
-                      ? "bg-flaque-ink text-flaque-cream"
-                      : "border border-flaque-clay bg-white text-flaque-ink"
-                  }`}
-                  type="button"
-                  onClick={() => setActivityWindow("7d")}
-                >
-                  7 jours
-                </button>
-                <button
-                  className={`rounded-lg px-3 py-1.5 text-xs transition ${
-                    activityWindow === "30d"
-                      ? "bg-flaque-ink text-flaque-cream"
-                      : "border border-flaque-clay bg-white text-flaque-ink"
-                  }`}
-                  type="button"
-                  onClick={() => setActivityWindow("30d")}
-                >
-                  30 jours
-                </button>
-              </div>
-            </div>
-
-            {recentUploadsError ? (
-              <p className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {recentUploadsError}
-              </p>
-            ) : null}
-
-            {loadingRecentUploads ? <p className="mt-3 text-sm text-flaque-steel">Loading recent uploads...</p> : null}
-
-            {!loadingRecentUploads && recentUploads.length === 0 ? (
-              <p className="mt-3 text-sm text-flaque-steel">No uploads logged yet.</p>
-            ) : (
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {recentUploads.map((entry) => {
-                  const track = entry.track;
-                  const title = getTrackDisplayTitle(track);
-                  const artist = getTrackDisplayArtist(track) ?? "Unknown artist";
-                  const albumWithYear = getTrackDisplayAlbumWithYear(track);
-
-                  return (
-                    <button
-                      key={`${track.id}-${entry.at}`}
-                      className="w-full justify-self-start rounded-xl border border-flaque-clay/60 bg-flaque-cream/50 px-2.5 py-2 text-left transition hover:bg-flaque-cream sm:max-w-[18.5rem]"
-                      type="button"
-                      onClick={() => requestTrackPlayback(track, allTracksLibrary.tracks)}
-                      title={title}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <img
-                          className="h-10 w-10 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
-                          src={coverUrl(track.id, track.cover)}
-                          alt={albumWithYear ? `Cover for ${albumWithYear}` : `Cover for ${title}`}
-                          onError={(event) => {
-                            event.currentTarget.src = defaultCoverImage;
-                          }}
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-flaque-ink">{title}</p>
-                          <p className="truncate text-xs text-flaque-steel">
-                            {artist}
-                            {albumWithYear ? ` - ${albumWithYear}` : ""}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <PlaylistsPanel
-            tracks={library.tracks}
-            playlists={playlists}
-            loadingPlaylists={loadingPlaylists}
-            playlistsError={playlistsError}
-            onRefreshPlaylists={refreshPlaylists}
-            onCreatePlaylist={handleCreatePlaylist}
-            onUpdatePlaylist={handleUpdatePlaylist}
-            onDeletePlaylist={handleDeletePlaylist}
-            onPlayPlaylist={handlePlayPlaylist}
-          />
-
           <LibraryView
             generatedAt={library.generatedAt}
             tracks={library.tracks}
@@ -1045,6 +712,8 @@ export default function App(): JSX.Element {
         <UploadView onUpload={handleUpload} onInspectFile={handleInspectUploadFile} />
       ) : null}
 
+      {activeView === "player" ? <PlayerView track={selectedTrackRefreshed} /> : null}
+
       {activeView === "config" && user.role === "admin" ? (
         <ConfigView
           currentUser={user}
@@ -1065,12 +734,6 @@ export default function App(): JSX.Element {
           onPatchUser={handlePatchUser}
           onDeleteUser={handleDeleteUser}
           onResetUserPassword={handleResetUserPassword}
-          activityWindow={activityWindow}
-          onActivityWindowChange={setActivityWindow}
-          recentDeletions={recentDeletions}
-          loadingRecentDeletions={loadingRecentDeletions}
-          recentDeletionsError={recentDeletionsError}
-          onRefreshRecentDeletions={refreshRecentDeletions}
         />
       ) : null}
 
@@ -1086,8 +749,6 @@ export default function App(): JSX.Element {
               transcodeMode={transcodeMode}
               onTranscodeModeChange={setTranscodeMode}
               playRequestNonce={playRequestNonce}
-              historyTracks={recentTracks}
-              onHistoryTrackSelect={handleReplayRecentTrack}
             />
           </div>
         </div>
