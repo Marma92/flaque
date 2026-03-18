@@ -60,13 +60,26 @@ export type AlbumEntry = {
   trackCount: number;
 };
 
+export type PlaylistVisibility = "public" | "private";
+
+export type Playlist = {
+  id: string;
+  name: string;
+  authorId: string;
+  visibility: PlaylistVisibility;
+  trackIds: string[];
+  trackCount?: number;
+};
+
 export type LibraryResponse = {
   generatedAt: string;
   totalTracks: number;
+  totalPlaylists?: number;
   owners: string[];
   artists: ArtistEntry[];
   albums: AlbumEntry[];
   tracks: Track[];
+  playlists?: Playlist[];
 };
 
 export type TrackMetadataPatch = {

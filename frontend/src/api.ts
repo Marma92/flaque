@@ -1,4 +1,12 @@
-import type { LibraryResponse, Track, TrackMetadataPatch, TrackTags, User } from "./types";
+import type {
+  LibraryResponse,
+  Playlist,
+  PlaylistVisibility,
+  Track,
+  TrackMetadataPatch,
+  TrackTags,
+  User
+} from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
@@ -155,6 +163,40 @@ export async function rebuildIndex(): Promise<{ generatedAt: string; totalTracks
   return requestJson<{ generatedAt: string; totalTracks: number }>("/api/index/rebuild", {
     method: "POST"
   });
+}
+
+export async function createPlaylist(input: {
+  name: string;
+  visibility: PlaylistVisibility;
+}): Promise<Playlist> {
+  const payload = await requestJson<{ playlist: Playlist }>("/api/playlists", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(input)
+  });
+
+  return payload.playlist;
+}
+
+export async function patchPlaylist(
+  playlistId: string,
+  patch: {
+    name?: string;
+    visibility?: PlaylistVisibility;
+    trackIds?: string[];
+  }
+): Promise<Playlist> {
+  const payload = await requestJson<{ playlist: Playlist }>(`/api/playlists/${encodeURIComponent(playlistId)}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(patch)
+  });
+
+  return payload.playlist;
 }
 
 export async function getUsers(): Promise<User[]> {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { coverUrl, streamUrl } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
-import type { Track } from "../types";
+import type { Playlist, Track } from "../types";
 import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
@@ -20,6 +20,8 @@ type AudioPlayerProps = {
   transcodeMode?: TranscodeMode;
   onTranscodeModeChange?: (mode: TranscodeMode) => void;
   playRequestNonce?: number;
+  playlists?: Playlist[];
+  onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
 };
 
 function isFlacTrack(track: Track): boolean {
@@ -48,7 +50,9 @@ export function AudioPlayer({
   onTrackPlayed,
   transcodeMode = "original",
   onTranscodeModeChange,
-  playRequestNonce = 0
+  playRequestNonce = 0,
+  playlists = [],
+  onAddTrackToPlaylist
 }: AudioPlayerProps): JSX.Element {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoplayOnTrackChangeRef = useRef(true);
@@ -63,6 +67,10 @@ export function AudioPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [showPlaylistPicker, setShowPlaylistPicker] = useState(false);
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
+  const [playlistSubmitStatus, setPlaylistSubmitStatus] = useState<string | null>(null);
+  const [playlistSubmitLoading, setPlaylistSubmitLoading] = useState(false);
 
   const canTranscode = Boolean(track && isFlacTrack(track));
   const requestedTranscode = transcodeMode === "original" ? undefined : transcodeMode;
@@ -218,6 +226,9 @@ export function AudioPlayer({
   const displayTitle = getTrackDisplayTitle(track);
   const displayArtist = getTrackDisplayArtist(track) ?? "Unknown artist";
   const displayAlbumWithYear = getTrackDisplayAlbumWithYear(track);
+
+  const hasPlayablePlaylists = playlists.length > 0;
+  const activePlaylistId = selectedPlaylistId || playlists[0]?.id || "";
 
   return (
     <section className="rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6">
@@ -393,7 +404,68 @@ export function AudioPlayer({
                 <option value="mp3">MP3 fallback</option>
               </select>
             </label>
+
+            <button
+              className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={() => {
+                setPlaylistSubmitStatus(null);
+                setShowPlaylistPicker((current) => !current);
+              }}
+              disabled={!onAddTrackToPlaylist || !hasPlayablePlaylists}
+            >
+              Ajouter a une playlist
+            </button>
           </div>
+
+          {showPlaylistPicker ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-flaque-clay/60 bg-flaque-cream/40 px-3 py-2">
+              <select
+                className="rounded-lg border border-flaque-clay bg-white px-2 py-1 text-xs text-flaque-ink"
+                value={activePlaylistId}
+                onChange={(event) => setSelectedPlaylistId(event.target.value)}
+              >
+                {playlists.map((playlist) => (
+                  <option key={playlist.id} value={playlist.id}>
+                    {playlist.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="rounded-lg border border-flaque-clay bg-white px-3 py-1 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                disabled={!activePlaylistId || !onAddTrackToPlaylist || playlistSubmitLoading}
+                onClick={() => {
+                  if (!track || !activePlaylistId || !onAddTrackToPlaylist) {
+                    return;
+                  }
+
+                  setPlaylistSubmitLoading(true);
+                  setPlaylistSubmitStatus(null);
+                  Promise.resolve(
+                    onAddTrackToPlaylist({
+                      trackId: track.id,
+                      playlistId: activePlaylistId
+                    })
+                  )
+                    .then(() => {
+                      setPlaylistSubmitStatus("Track added to playlist.");
+                      setShowPlaylistPicker(false);
+                    })
+                    .catch((error) => {
+                      setPlaylistSubmitStatus(error instanceof Error ? error.message : "Unable to add track");
+                    })
+                    .finally(() => {
+                      setPlaylistSubmitLoading(false);
+                    });
+                }}
+              >
+                {playlistSubmitLoading ? "Adding..." : "Valider"}
+              </button>
+            </div>
+          ) : null}
+
+          {playlistSubmitStatus ? <p className="text-xs text-flaque-steel">{playlistSubmitStatus}</p> : null}
 
           {transcodeMode !== "original" ? (
             <p className="text-xs text-flaque-steel">

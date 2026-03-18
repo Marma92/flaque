@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   coverUrl,
+  createPlaylist,
   createUserAccount,
   deleteTrackFile,
   deleteUserAccount,
@@ -13,6 +14,7 @@ import {
   login,
   logout,
   patchUserAccount,
+  patchPlaylist,
   resetUserPassword,
   rebuildIndex,
   updateTrackMetadata,
@@ -27,7 +29,7 @@ import { LibraryView } from "./components/LibraryView";
 import { LoginPage } from "./components/LoginPage";
 import { PlayerView } from "./components/PlayerView";
 import { UploadView } from "./components/UploadView";
-import type { LibraryResponse, Track, TrackMetadataPatch, User } from "./types";
+import type { LibraryResponse, Playlist, PlaylistVisibility, Track, TrackMetadataPatch, User } from "./types";
 import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
@@ -43,10 +45,12 @@ const MAX_RECENT_TRACKS = 24;
 const EMPTY_LIBRARY: LibraryResponse = {
   generatedAt: "",
   totalTracks: 0,
+  totalPlaylists: 0,
   owners: [],
   artists: [],
   albums: [],
-  tracks: []
+  tracks: [],
+  playlists: []
 };
 
 function isTrackLike(value: unknown): value is Track {
@@ -141,10 +145,24 @@ export default function App(): JSX.Element {
   const [loadingAdminUsers, setLoadingAdminUsers] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [recentTracks, setRecentTracks] = useState<Track[]>([]);
+  const [playlistCreateName, setPlaylistCreateName] = useState("");
+  const [playlistCreateVisibility, setPlaylistCreateVisibility] = useState<PlaylistVisibility>("private");
+  const [playlistCreateSubmitting, setPlaylistCreateSubmitting] = useState(false);
+  const [playlistCreateStatus, setPlaylistCreateStatus] = useState<string | null>(null);
 
   const allTracksById = useMemo(() => {
     return new Map(allTracksLibrary.tracks.map((track) => [track.id, track]));
   }, [allTracksLibrary.tracks]);
+
+  const availablePlaylists = library.playlists ?? [];
+
+  const manageablePlaylists = useMemo(() => {
+    if (!user) {
+      return [];
+    }
+
+    return availablePlaylists.filter((playlist) => playlist.authorId === user.id || user.role === "admin");
+  }, [availablePlaylists, user]);
 
   const selectedTrackRefreshed = useMemo(() => {
     if (!selectedTrack) {
@@ -483,6 +501,35 @@ export default function App(): JSX.Element {
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
   }
 
+  async function handleCreatePlaylist(input: {
+    name: string;
+    visibility: PlaylistVisibility;
+  }): Promise<void> {
+    await createPlaylist(input);
+    await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+  }
+
+  async function handleAddTrackToPlaylist(input: { trackId: string; playlistId: string }): Promise<void> {
+    const targetPlaylist = manageablePlaylists.find((playlist) => playlist.id === input.playlistId);
+    if (!targetPlaylist) {
+      throw new Error("Playlist not found or not writable");
+    }
+
+    const nextTrackIds = targetPlaylist.trackIds.includes(input.trackId)
+      ? targetPlaylist.trackIds
+      : [...targetPlaylist.trackIds, input.trackId];
+
+    if (nextTrackIds === targetPlaylist.trackIds) {
+      return;
+    }
+
+    await patchPlaylist(targetPlaylist.id, {
+      trackIds: nextTrackIds
+    });
+
+    await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+  }
+
   async function handleNavigateTrack(direction: "next" | "previous"): Promise<void> {
     const currentTrack = selectedTrackRefreshed;
     if (!currentTrack) {
@@ -536,6 +583,20 @@ export default function App(): JSX.Element {
   function handleReplayRecentTrack(track: Track): void {
     const fullTrack = allTracksById.get(track.id) ?? track;
     requestTrackPlayback(fullTrack, allTracksLibrary.tracks.length > 0 ? allTracksLibrary.tracks : undefined);
+  }
+
+  function handlePlayPlaylist(playlist: Playlist): void {
+    const playlistTracks = playlist.trackIds
+      .map((trackId) => allTracksById.get(trackId))
+      .filter((track): track is Track => Boolean(track));
+
+    if (playlistTracks.length === 0) {
+      setLibraryError("This playlist has no playable tracks in the current index.");
+      return;
+    }
+
+    setLibraryError(null);
+    requestTrackPlayback(playlistTracks[0], playlistTracks);
   }
 
   const hasStickyPlayer = Boolean(selectedTrackRefreshed) && activeView !== "player";
@@ -647,6 +708,95 @@ export default function App(): JSX.Element {
       {activeView === "library" ? (
         <div className="space-y-4">
           <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+            <h2 className="font-display text-xl text-flaque-ink">Create Playlist</h2>
+            <p className="mt-1 text-sm text-flaque-steel">
+              Create a file-based playlist folder next to uploads with a `playlist.json` and symlinks.
+            </p>
+
+            <form
+              className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (playlistCreateSubmitting) {
+                  return;
+                }
+
+                setPlaylistCreateSubmitting(true);
+                setPlaylistCreateStatus(null);
+
+                handleCreatePlaylist({
+                  name: playlistCreateName,
+                  visibility: playlistCreateVisibility
+                })
+                  .then(() => {
+                    setPlaylistCreateName("");
+                    setPlaylistCreateStatus("Playlist created.");
+                  })
+                  .catch((error) => {
+                    setPlaylistCreateStatus(error instanceof Error ? error.message : "Unable to create playlist");
+                  })
+                  .finally(() => {
+                    setPlaylistCreateSubmitting(false);
+                  });
+              }}
+            >
+              <input
+                className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                type="text"
+                placeholder="Playlist name"
+                value={playlistCreateName}
+                onChange={(event) => setPlaylistCreateName(event.target.value)}
+              />
+              <select
+                className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                value={playlistCreateVisibility}
+                onChange={(event) => setPlaylistCreateVisibility(event.target.value as PlaylistVisibility)}
+              >
+                <option value="private">Private</option>
+                <option value="public">Public</option>
+              </select>
+              <button
+                className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                type="submit"
+                disabled={playlistCreateSubmitting}
+              >
+                {playlistCreateSubmitting ? "Creating..." : "Create"}
+              </button>
+            </form>
+
+            {playlistCreateStatus ? (
+              <p className="mt-2 text-sm text-flaque-steel">{playlistCreateStatus}</p>
+            ) : null}
+
+            <div className="mt-4">
+              <h3 className="font-display text-lg text-flaque-ink">Playlists</h3>
+              {availablePlaylists.length === 0 ? (
+                <p className="mt-2 text-sm text-flaque-steel">No playlists yet.</p>
+              ) : (
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {availablePlaylists.map((playlist) => {
+                    const playlistOwner = ownerNameById[playlist.authorId] ?? playlist.authorId;
+                    return (
+                      <button
+                        key={playlist.id}
+                        className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/40 px-3 py-2 text-left transition hover:bg-flaque-cream"
+                        type="button"
+                        onClick={() => handlePlayPlaylist(playlist)}
+                        title={`Play playlist ${playlist.name}`}
+                      >
+                        <p className="truncate text-sm font-medium text-flaque-ink">{playlist.name}</p>
+                        <p className="truncate text-xs text-flaque-steel">
+                          {playlist.trackIds.length} track{playlist.trackIds.length > 1 ? "s" : ""} - {playlist.visibility} - {playlistOwner}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
             <h2 className="font-display text-xl text-flaque-ink">Played Recently</h2>
 
             {recentTracks.length === 0 ? (
@@ -749,6 +899,8 @@ export default function App(): JSX.Element {
               transcodeMode={transcodeMode}
               onTranscodeModeChange={setTranscodeMode}
               playRequestNonce={playRequestNonce}
+              playlists={manageablePlaylists}
+              onAddTrackToPlaylist={handleAddTrackToPlaylist}
             />
           </div>
         </div>
