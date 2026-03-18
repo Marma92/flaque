@@ -220,9 +220,26 @@ export function AudioPlayer({
     );
   }
 
-  const artworkSize = expanded ? "h-52 w-52" : "h-16 w-16 md:h-20 md:w-20";
-  const contentLayoutClass = expanded ? "w-full space-y-3" : "min-w-0 flex-1 space-y-3";
+  const artworkSize = expanded ? "h-64 w-64 md:h-72 md:w-72" : "h-16 w-16 md:h-20 md:w-20";
+  const contentLayoutClass = expanded ? "w-full max-w-4xl space-y-4" : "min-w-0 flex-1 space-y-3";
   const controlsLayoutClass = expanded ? "flex items-center gap-3" : "flex flex-wrap items-center gap-2";
+  const sectionClassName = expanded
+    ? "rounded-3xl border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
+    : "rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6";
+  const artworkClassName = expanded
+    ? `${artworkSize} shrink-0 rounded-2xl object-cover shadow-md`
+    : `${artworkSize} shrink-0 rounded-2xl border border-flaque-clay/50 object-cover`;
+  const secondaryTextClassName = expanded ? "truncate text-sm text-flaque-steel/90" : "truncate text-sm text-flaque-steel";
+  const metaTextClassName = expanded ? "text-xs uppercase tracking-[0.2em] text-flaque-steel/70" : "text-xs uppercase tracking-[0.2em] text-flaque-steel/80";
+  const ghostControlButtonClassName = expanded
+    ? "flex h-9 w-9 items-center justify-center rounded-xl bg-flaque-cream/80 text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+    : "flex h-9 w-9 items-center justify-center rounded-xl border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60";
+  const qualitySelectClassName = expanded
+    ? "rounded-lg bg-flaque-cream/90 px-2 py-1 text-xs text-flaque-ink"
+    : "rounded-lg border border-flaque-clay bg-white px-2 py-1 text-xs text-flaque-ink";
+  const playlistButtonClassName = `${ghostControlButtonClassName} ${
+    showPlaylistPicker ? "ring-2 ring-flaque-sand/55" : ""
+  }`;
   const displayTitle = getTrackDisplayTitle(track);
   const displayArtist = getTrackDisplayArtist(track) ?? "Unknown artist";
   const displayAlbumWithYear = getTrackDisplayAlbumWithYear(track);
@@ -231,7 +248,7 @@ export function AudioPlayer({
   const activePlaylistId = selectedPlaylistId || playlists[0]?.id || "";
 
   return (
-    <section className="rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6">
+    <section className={sectionClassName}>
       <audio
         ref={audioRef}
         src={streamSource}
@@ -284,9 +301,9 @@ export function AudioPlayer({
         }}
       />
 
-      <div className={`flex min-w-0 ${expanded ? "flex-col items-center gap-6" : "flex-col gap-4 md:flex-row md:items-center"}`}>
+      <div className={`flex min-w-0 ${expanded ? "flex-col items-center gap-7" : "flex-col gap-4 md:flex-row md:items-center"}`}>
         <img
-          className={`${artworkSize} shrink-0 rounded-2xl border border-flaque-clay/50 object-cover`}
+          className={artworkClassName}
           src={coverUrl(track.id, track.cover)}
           alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
           onError={(event) => {
@@ -297,23 +314,23 @@ export function AudioPlayer({
         <div className={contentLayoutClass}>
           <div>
             <p
-              className={`font-display text-flaque-ink truncate ${expanded ? "text-xl" : "text-lg"}`}
+              className={`font-display text-flaque-ink truncate ${expanded ? "text-2xl" : "text-lg"}`}
               title={displayTitle}
             >
               {displayTitle}
             </p>
-            <p className="truncate text-sm text-flaque-steel">{displayArtist}</p>
+            <p className={secondaryTextClassName}>{displayArtist}</p>
             {displayAlbumWithYear ? (
-              <p className="truncate text-xs text-flaque-steel/90">{displayAlbumWithYear}</p>
+              <p className="truncate text-xs text-flaque-steel/80">{displayAlbumWithYear}</p>
             ) : null}
-            <p className="text-xs uppercase tracking-[0.2em] text-flaque-steel/80">
+            <p className={metaTextClassName}>
               {track.codec} {track.sampleRate ? `- ${Math.round(track.sampleRate / 1000)} kHz` : ""}
             </p>
           </div>
 
           <div className={controlsLayoutClass}>
             <button
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              className={ghostControlButtonClassName}
               type="button"
               aria-label="Previous track"
               title="Previous"
@@ -346,7 +363,7 @@ export function AudioPlayer({
               )}
             </button>
             <button
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              className={ghostControlButtonClassName}
               type="button"
               aria-label="Next track"
               title="Next"
@@ -368,7 +385,7 @@ export function AudioPlayer({
             <label className="flex items-center gap-2 text-xs text-flaque-steel">
               <span>Quality</span>
               <select
-                className="rounded-lg border border-flaque-clay bg-white px-2 py-1 text-xs text-flaque-ink"
+                className={qualitySelectClassName}
                 value={transcodeMode}
                 onChange={(event) => {
                   if (!onTranscodeModeChange) {
@@ -406,15 +423,19 @@ export function AudioPlayer({
             </label>
 
             <button
-              className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              className={playlistButtonClassName}
               type="button"
+              aria-label="Ajouter a une playlist"
+              title="Ajouter a une playlist"
               onClick={() => {
                 setPlaylistSubmitStatus(null);
                 setShowPlaylistPicker((current) => !current);
               }}
               disabled={!onAddTrackToPlaylist || !hasPlayablePlaylists}
             >
-              Ajouter a une playlist
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
           </div>
 
