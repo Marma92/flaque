@@ -7,7 +7,7 @@ Self-hosted, hi-fi oriented web audio player built on a strict file-based archit
 `flaque` focuses on simple and durable music library management:
 
 - Upload FLAC/MP3/WAV tracks.
-- Browse by owner, artist, album, and text search.
+- Browse by owner username, artist, album, and text search.
 - Stream original files with full HTTP range support for smooth seeking.
 - Display rich embedded metadata (title, artist, album, year, track/disc info, etc.) and covers.
 
