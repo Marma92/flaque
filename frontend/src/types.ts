@@ -57,6 +57,7 @@ export type ArtistEntry = {
 };
 
 export type AlbumEntry = {
+  id?: string;
   name: string;
   artist?: string;
   artists?: string[];

@@ -140,6 +140,11 @@ export async function getAlbums(filters: {
   return payload.albums;
 }
 
+export async function getAlbumTracks(albumId: string): Promise<Track[]> {
+  const payload = await requestJson<{ tracks: Track[] }>(`/api/album/${encodeURIComponent(albumId)}`);
+  return payload.tracks;
+}
+
 export function coverPathUrl(relativePath: string): string {
   const searchParams = new URLSearchParams({ path: relativePath });
   return withApiBase(`/api/covers/from-path?${searchParams.toString()}`);
