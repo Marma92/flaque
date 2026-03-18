@@ -37,6 +37,13 @@ import {
 
 type ViewName = "library" | "upload" | "player" | "config";
 
+type NoticeTone = "success" | "error" | "info";
+
+type AppNotice = {
+  tone: NoticeTone;
+  message: string;
+};
+
 const RECENT_TRACKS_STORAGE_KEY = "flaque_recent_tracks_v1";
 const TRANSCODE_MODE_STORAGE_KEY = "flaque_transcode_mode_v1";
 const CURRENT_QUEUE_STORAGE_KEY = "flaque_current_queue_v1";
@@ -216,6 +223,7 @@ export default function App(): JSX.Element {
   const [playlistCreateSubmitting, setPlaylistCreateSubmitting] = useState(false);
   const [playlistCreateStatus, setPlaylistCreateStatus] = useState<string | null>(null);
   const [playerStatusMessage, setPlayerStatusMessage] = useState<string | null>(null);
+  const [appNotice, setAppNotice] = useState<AppNotice | null>(null);
 
   const allTracksById = useMemo(() => {
     return new Map(allTracksLibrary.tracks.map((track) => [track.id, track]));
@@ -503,6 +511,20 @@ export default function App(): JSX.Element {
     }
   }, [user, activeView]);
 
+  useEffect(() => {
+    if (!appNotice) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setAppNotice(null);
+    }, 4800);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [appNotice]);
+
   async function refreshCurrentLibrary(): Promise<void> {
     setLoadingLibrary(true);
     setLibraryError(null);
@@ -557,6 +579,12 @@ export default function App(): JSX.Element {
   }): Promise<UploadTracksResult> {
     const result = await uploadTracks(input);
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+
+    setAppNotice({
+      tone: "success",
+      message: `Upload complete: ${result.uploaded}/${result.processed} file${result.processed > 1 ? "s" : ""} stored.`
+    });
+
     return result;
   }
 
@@ -572,10 +600,18 @@ export default function App(): JSX.Element {
     try {
       await rebuildIndex();
       await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+      setAppNotice({
+        tone: "success",
+        message: "Library index rebuilt successfully."
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Index rebuild failed";
       setLibraryError(message);
       setAllTracksError(message);
+      setAppNotice({
+        tone: "error",
+        message
+      });
     } finally {
       setRebuilding(false);
     }
@@ -646,11 +682,20 @@ export default function App(): JSX.Element {
     setPlayQueue((current) => current.filter((track) => track.id !== trackId));
     setRecentTracks((current) => current.filter((track) => track.id !== trackId));
 
+    setAppNotice({
+      tone: "success",
+      message: "Track deleted from the library."
+    });
+
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
   }
 
   async function handleUpdateTrackMetadata(trackId: string, patch: TrackMetadataPatch): Promise<void> {
     await updateTrackMetadata(trackId, patch);
+    setAppNotice({
+      tone: "success",
+      message: "Track metadata updated."
+    });
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
   }
 
@@ -659,6 +704,10 @@ export default function App(): JSX.Element {
     visibility: PlaylistVisibility;
   }): Promise<void> {
     await createPlaylist(input);
+    setAppNotice({
+      tone: "success",
+      message: "Playlist created."
+    });
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
   }
 
@@ -678,6 +727,11 @@ export default function App(): JSX.Element {
 
     await patchPlaylist(targetPlaylist.id, {
       trackIds: nextTrackIds
+    });
+
+    setAppNotice({
+      tone: "success",
+      message: `Track added to playlist ${targetPlaylist.name}.`
     });
 
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
@@ -723,6 +777,10 @@ export default function App(): JSX.Element {
     } catch (error) {
       setPlayerStatusMessage("Unable to change track right now.");
       setLibraryError(error instanceof Error ? error.message : "Unable to navigate tracks");
+      setAppNotice({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Unable to navigate tracks"
+      });
     }
   }
 
@@ -856,6 +914,22 @@ export default function App(): JSX.Element {
           </div>
         </div>
       </header>
+
+      {appNotice ? (
+        <div
+          className={`mb-4 rounded-xl border px-3 py-2 text-sm ${
+            appNotice.tone === "success"
+              ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+              : appNotice.tone === "error"
+                ? "border-red-300 bg-red-50 text-red-700"
+                : "border-flaque-clay bg-flaque-cream/70 text-flaque-steel"
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {appNotice.message}
+        </div>
+      ) : null}
 
       {libraryError ? (
         <p className="mb-4 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
