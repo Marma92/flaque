@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 
+import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 
 import { requireAdmin, requireAuth } from "../auth/middleware";
@@ -201,6 +202,28 @@ function parseMetadataField(value: unknown): string | undefined | null {
   return trimmed ? trimmed : undefined;
 }
 
+function applyMetadataPatchToTrack(
+  track: Track,
+  patch: {
+    hasTitle: boolean;
+    title?: string;
+    hasArtist: boolean;
+    artist?: string;
+    hasAlbum: boolean;
+    album?: string;
+  }
+): Track {
+  return {
+    ...track,
+    tags: {
+      ...track.tags,
+      ...(patch.hasTitle ? { title: patch.title } : {}),
+      ...(patch.hasArtist ? { artist: patch.artist } : {}),
+      ...(patch.hasAlbum ? { album: patch.album } : {})
+    }
+  };
+}
+
 function mapTrackResponse(track: Track): Track {
   return {
     ...track,
@@ -210,6 +233,90 @@ function mapTrackResponse(track: Track): Track {
 
 export function createLibraryRouter(indexStore: IndexStore): Router {
   const router = Router();
+
+  const handlePatchTrackMetadata = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const trackId = req.params.id;
+      if (!trackId) {
+        res.status(400).json({ error: "Track id is required" });
+        return;
+      }
+
+      const hasTitle = hasOwnProperty(req.body, "title");
+      const hasArtist = hasOwnProperty(req.body, "artist");
+      const hasAlbum = hasOwnProperty(req.body, "album");
+
+      if (!hasTitle && !hasArtist && !hasAlbum) {
+        res.status(400).json({ error: "At least one metadata field is required: title, artist, album" });
+        return;
+      }
+
+      const currentTrack = indexStore.getTrackById(trackId);
+      if (!currentTrack) {
+        res.status(404).json({ error: "Track not found" });
+        return;
+      }
+
+      const parsedTitle = hasTitle ? parseMetadataField(req.body?.title) : undefined;
+      const parsedArtist = hasArtist ? parseMetadataField(req.body?.artist) : undefined;
+      const parsedAlbum = hasAlbum ? parseMetadataField(req.body?.album) : undefined;
+
+      if (parsedTitle === null) {
+        res.status(400).json({ error: "title must be a string or null" });
+        return;
+      }
+
+      if (parsedArtist === null) {
+        res.status(400).json({ error: "artist must be a string or null" });
+        return;
+      }
+
+      if (parsedAlbum === null) {
+        res.status(400).json({ error: "album must be a string or null" });
+        return;
+      }
+
+      const currentOverrides = await readTrackMetadataOverrides();
+      const currentOverride = currentOverrides[trackId] ?? {};
+
+      const nextOverride = {
+        title: hasTitle ? parsedTitle : currentOverride.title,
+        artist: hasArtist ? parsedArtist : currentOverride.artist,
+        album: hasAlbum ? parsedAlbum : currentOverride.album
+      };
+
+      await mergeTrackMetadataOverrides({
+        [trackId]: nextOverride
+      });
+
+      const rebuiltIndex = await indexStore.rebuild();
+      const updatedTrack = rebuiltIndex.tracks.find((track) => track.id === trackId);
+      if (updatedTrack) {
+        res.json({ track: mapTrackResponse(updatedTrack) });
+        return;
+      }
+
+      const fallbackTrack = applyMetadataPatchToTrack(currentTrack, {
+        hasTitle,
+        title: parsedTitle,
+        hasArtist,
+        artist: parsedArtist,
+        hasAlbum,
+        album: parsedAlbum
+      });
+
+      res.json({
+        track: mapTrackResponse(fallbackTrack),
+        warning: "Metadata override saved, but track is not present in rebuilt index"
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 
   router.get("/library", requireAuth, (req, res) => {
     const snapshot = indexStore.getSnapshot();
@@ -284,73 +391,8 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
     });
   });
 
-  router.patch("/tracks/:id/metadata", requireAuth, requireAdmin, async (req, res, next) => {
-    try {
-      const trackId = req.params.id;
-      if (!trackId) {
-        res.status(400).json({ error: "Track id is required" });
-        return;
-      }
-
-      const hasTitle = hasOwnProperty(req.body, "title");
-      const hasArtist = hasOwnProperty(req.body, "artist");
-      const hasAlbum = hasOwnProperty(req.body, "album");
-
-      if (!hasTitle && !hasArtist && !hasAlbum) {
-        res.status(400).json({ error: "At least one metadata field is required: title, artist, album" });
-        return;
-      }
-
-      const currentTrack = indexStore.getTrackById(trackId);
-      if (!currentTrack) {
-        res.status(404).json({ error: "Track not found" });
-        return;
-      }
-
-      const parsedTitle = hasTitle ? parseMetadataField(req.body?.title) : undefined;
-      const parsedArtist = hasArtist ? parseMetadataField(req.body?.artist) : undefined;
-      const parsedAlbum = hasAlbum ? parseMetadataField(req.body?.album) : undefined;
-
-      if (parsedTitle === null) {
-        res.status(400).json({ error: "title must be a string or null" });
-        return;
-      }
-
-      if (parsedArtist === null) {
-        res.status(400).json({ error: "artist must be a string or null" });
-        return;
-      }
-
-      if (parsedAlbum === null) {
-        res.status(400).json({ error: "album must be a string or null" });
-        return;
-      }
-
-      const currentOverrides = await readTrackMetadataOverrides();
-      const currentOverride = currentOverrides[trackId] ?? {};
-
-      const nextOverride = {
-        title: hasTitle ? parsedTitle : currentOverride.title,
-        artist: hasArtist ? parsedArtist : currentOverride.artist,
-        album: hasAlbum ? parsedAlbum : currentOverride.album
-      };
-
-      await mergeTrackMetadataOverrides({
-        [trackId]: nextOverride
-      });
-
-      const rebuiltIndex = await indexStore.rebuild();
-      const updatedTrack = rebuiltIndex.tracks.find((track) => track.id === trackId);
-      if (!updatedTrack) {
-        res.status(404).json({ error: "Track not found" });
-        return;
-      }
-
-      res.json({ track: mapTrackResponse(updatedTrack) });
-    } catch (error) {
-      next(error);
-    }
-  });
+  router.patch("/tracks/:id/metadata", requireAuth, requireAdmin, handlePatchTrackMetadata);
+  router.patch("/tracks/:id", requireAuth, requireAdmin, handlePatchTrackMetadata);
 
   router.delete("/tracks/:id", requireAuth, requireAdmin, async (req, res, next) => {
     try {
