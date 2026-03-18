@@ -343,7 +343,11 @@ async function attachArtistPhotos(tracks: Track[]): Promise<Array<{ name: string
 
   for (const track of tracks) {
     const artistName = getTrackArtistName(track)?.trim();
-    if (!artistName || photoByArtist.has(artistName)) {
+    if (!artistName) {
+      continue;
+    }
+
+    if (photoByArtist.has(artistName)) {
       continue;
     }
 
@@ -359,12 +363,25 @@ async function attachArtistPhotos(tracks: Track[]): Promise<Array<{ name: string
   }));
 }
 
-async function attachAlbumCovers(
+function normalizeAlbumName(value?: string): string {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+async function attachCollaborativeAlbumCovers(
   tracks: Track[]
-): Promise<Array<{ name: string; artist?: string; trackCount: number; cover?: string }>> {
-  const base = listAlbums(tracks);
-  const coverByAlbumKey = new Map<string, string>();
-  const cache = new Map<string, string | undefined>();
+): Promise<Array<{ name: string; artist?: string; artists?: string[]; trackCount: number; cover?: string }>> {
+  const grouped = new Map<
+    string,
+    {
+      name: string;
+      artists: Set<string>;
+      trackCount: number;
+      tracks: Track[];
+    }
+  >();
 
   for (const track of tracks) {
     const albumName = track.tags.album?.trim();
@@ -372,22 +389,51 @@ async function attachAlbumCovers(
       continue;
     }
 
+    const albumKey = normalizeAlbumName(albumName);
+    const current = grouped.get(albumKey);
     const artistName = getTrackArtistName(track)?.trim();
-    const albumKey = `${artistName ?? ""}::${albumName}`;
-    if (coverByAlbumKey.has(albumKey)) {
+
+    if (!current) {
+      grouped.set(albumKey, {
+        name: albumName,
+        artists: artistName ? new Set([artistName]) : new Set<string>(),
+        trackCount: 1,
+        tracks: [track]
+      });
       continue;
     }
 
-    const coverPath = await resolveAlbumCoverPath(track, cache);
-    if (coverPath) {
-      coverByAlbumKey.set(albumKey, coverPath);
+    current.trackCount += 1;
+    current.tracks.push(track);
+    if (artistName) {
+      current.artists.add(artistName);
     }
   }
 
-  return base.map((album) => ({
-    ...album,
-    cover: coverByAlbumKey.get(`${album.artist ?? ""}::${album.name}`)
-  }));
+  const cache = new Map<string, string | undefined>();
+  const entries: Array<{ name: string; artist?: string; artists?: string[]; trackCount: number; cover?: string }> = [];
+
+  for (const groupedAlbum of grouped.values()) {
+    const artists = Array.from(groupedAlbum.artists).sort((a, b) => a.localeCompare(b));
+    let cover: string | undefined;
+
+    for (const track of groupedAlbum.tracks) {
+      cover = await resolveAlbumCoverPath(track, cache);
+      if (cover) {
+        break;
+      }
+    }
+
+    entries.push({
+      name: groupedAlbum.name,
+      artist: artists.length > 0 ? artists.join(", ") : undefined,
+      artists: artists.length > 0 ? artists : undefined,
+      trackCount: groupedAlbum.trackCount,
+      cover
+    });
+  }
+
+  return entries.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function createLibraryRouter(indexStore: IndexStore): Router {
@@ -627,7 +673,7 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
         artist: filter.artist,
         q: filter.q
       });
-      const albums = await attachAlbumCovers(tracks);
+      const albums = await attachCollaborativeAlbumCovers(tracks);
       res.json({ total: tracks.length, albums });
     } catch (error) {
       next(error);
