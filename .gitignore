@@ -16,6 +16,7 @@ data/cache/transcodes/*
 data/cache/tmp-uploads/*
 !data/cache/tmp-uploads/.gitkeep
 data/index/library-index.json
+data/index/track-activity-log.json
 
 frontend/dist/
 backend/dist/

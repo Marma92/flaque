@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import type { Dirent } from "node:fs";
+import type { Dirent, Stats } from "node:fs";
 import path from "node:path";
 
 import type { LibraryIndex, Track } from "../../types/library";
@@ -7,6 +7,7 @@ import { createTrackId } from "../../utils/hash";
 import { getAudioMimeType, isSupportedAudioFile } from "../../utils/mime";
 import { getOwnerUploadsDir } from "../../utils/paths";
 import { readTrackMetadataOverrides } from "../indexer/metadataOverrideStore";
+import { readLatestTrackUploadsByTrackId } from "../indexer/trackActivityStore";
 import { extractAudioMetadata } from "./audioProbe";
 import { listOwnerIds, toDataRelativePath } from "../storage/storageService";
 import { ensureTrackCover } from "../storage/coverService";
@@ -74,9 +75,31 @@ function compareTrackOrder(a: Track, b: Track): number {
   return getTrackTitle(a).localeCompare(getTrackTitle(b));
 }
 
+function toIsoStringIfValid(value: Date): string | undefined {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+    return undefined;
+  }
+  return value.toISOString();
+}
+
+function resolveFallbackUploadDate(stats: Stats): string {
+  const birthtime = toIsoStringIfValid(stats.birthtime);
+  if (birthtime && stats.birthtimeMs > 0) {
+    return birthtime;
+  }
+
+  const mtime = toIsoStringIfValid(stats.mtime);
+  if (mtime) {
+    return mtime;
+  }
+
+  return new Date().toISOString();
+}
+
 export async function scanFilesystemLibrary(): Promise<LibraryIndex> {
   const ownerIds = await listOwnerIds();
   const metadataOverrides = await readTrackMetadataOverrides();
+  const latestUploadsByTrackId = await readLatestTrackUploadsByTrackId();
   const tracks: Track[] = [];
 
   for (const ownerId of ownerIds) {
@@ -87,6 +110,8 @@ export async function scanFilesystemLibrary(): Promise<LibraryIndex> {
       const relativePath = toDataRelativePath(filePath);
       const metadata = await extractAudioMetadata(filePath);
       const trackId = createTrackId(ownerId, relativePath);
+      const stats = await fs.stat(filePath);
+      const uploadedAt = latestUploadsByTrackId.get(trackId) ?? resolveFallbackUploadDate(stats);
       const cover = await ensureTrackCover(trackId, metadata.cover);
       const metadataOverride = metadataOverrides[trackId];
       const tags = {
@@ -105,6 +130,7 @@ export async function scanFilesystemLibrary(): Promise<LibraryIndex> {
         codec: metadata.codec,
         bitrate: metadata.bitrate,
         sampleRate: metadata.sampleRate,
+        uploadedAt,
         tags,
         cover
       });

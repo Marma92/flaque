@@ -7,6 +7,7 @@ import { Router } from "express";
 import { requireAuth } from "../auth/middleware";
 import { mergeTrackMetadataOverrides } from "../services/indexer/metadataOverrideStore";
 import { IndexStore } from "../services/indexer/indexStore";
+import { appendTrackActivityEvents } from "../services/indexer/trackActivityStore";
 import { extractAudioMetadata } from "../services/scanner/audioProbe";
 import { ensureTrackCover } from "../services/storage/coverService";
 import { ensureOwnerUploadDir, toDataRelativePath } from "../services/storage/storageService";
@@ -165,6 +166,15 @@ export function createUploadRouter(indexStore: IndexStore): Router {
 
         const ownerUploadDir = await ensureOwnerUploadDir(ownerId);
         const uploadedTrackIds: string[] = [];
+        const uploadActivityEvents: Array<{
+          type: "uploaded";
+          trackId: string;
+          ownerId: string;
+          path: string;
+          at: string;
+          byUserId?: string;
+          byUsername?: string;
+        }> = [];
         const metadataOverridePatch: Record<string, { artist?: string; album?: string }> = {};
         let deduplicated = 0;
 
@@ -192,6 +202,18 @@ export function createUploadRouter(indexStore: IndexStore): Router {
           await ensureTrackCover(trackId, metadata.cover);
           uploadedTrackIds.push(trackId);
 
+          if (!alreadyPresent) {
+            uploadActivityEvents.push({
+              type: "uploaded",
+              trackId,
+              ownerId,
+              path: relativePath,
+              at: new Date().toISOString(),
+              byUserId: req.authUser?.id,
+              byUsername: req.authUser?.username
+            });
+          }
+
           if (manualArtist || manualAlbum) {
             metadataOverridePatch[trackId] = {
               artist: manualArtist,
@@ -202,6 +224,10 @@ export function createUploadRouter(indexStore: IndexStore): Router {
 
         if (Object.keys(metadataOverridePatch).length > 0) {
           await mergeTrackMetadataOverrides(metadataOverridePatch);
+        }
+
+        if (uploadActivityEvents.length > 0) {
+          await appendTrackActivityEvents(uploadActivityEvents);
         }
 
         const updatedIndex = await indexStore.rebuild();

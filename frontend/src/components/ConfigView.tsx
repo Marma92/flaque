@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from "react";
 
-import type { Track, TrackMetadataPatch, User } from "../types";
+import type { ActivityWindow, RecentDeletionEntry, Track, TrackMetadataPatch, User } from "../types";
 import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
@@ -35,6 +35,12 @@ type ConfigViewProps = {
   }) => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
   onResetUserPassword: (userId: string, password: string) => Promise<void>;
+  activityWindow: ActivityWindow;
+  onActivityWindowChange: (next: ActivityWindow) => void;
+  recentDeletions: RecentDeletionEntry[];
+  loadingRecentDeletions: boolean;
+  recentDeletionsError: string | null;
+  onRefreshRecentDeletions: () => Promise<void>;
 };
 
 type EditTrackState = {
@@ -46,6 +52,15 @@ type EditTrackState = {
 
 function normalizeSearch(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function formatDateTime(value: string): string {
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) {
+    return value;
+  }
+
+  return new Date(parsed).toLocaleString();
 }
 
 export function ConfigView({
@@ -66,7 +81,13 @@ export function ConfigView({
   onCreateUser,
   onPatchUser,
   onDeleteUser,
-  onResetUserPassword
+  onResetUserPassword,
+  activityWindow,
+  onActivityWindowChange,
+  recentDeletions,
+  loadingRecentDeletions,
+  recentDeletionsError,
+  onRefreshRecentDeletions
 }: ConfigViewProps): JSX.Element {
   const [searchText, setSearchText] = useState("");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -279,6 +300,88 @@ export function ConfigView({
                 <tr>
                   <td className="px-4 py-4 text-flaque-steel" colSpan={6}>
                     No tracks match this search.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-display text-xl text-flaque-ink">Recently deleted</h3>
+            <p className="text-sm text-flaque-steel">{recentDeletions.length} deletion event(s)</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className={`rounded-lg px-3 py-1.5 text-xs transition ${
+                activityWindow === "7d"
+                  ? "bg-flaque-ink text-flaque-cream"
+                  : "border border-flaque-clay bg-white text-flaque-ink"
+              }`}
+              type="button"
+              onClick={() => onActivityWindowChange("7d")}
+            >
+              7 jours
+            </button>
+            <button
+              className={`rounded-lg px-3 py-1.5 text-xs transition ${
+                activityWindow === "30d"
+                  ? "bg-flaque-ink text-flaque-cream"
+                  : "border border-flaque-clay bg-white text-flaque-ink"
+              }`}
+              type="button"
+              onClick={() => onActivityWindowChange("30d")}
+            >
+              30 jours
+            </button>
+            <button
+              className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={() => {
+                void onRefreshRecentDeletions();
+              }}
+              disabled={loadingRecentDeletions}
+            >
+              {loadingRecentDeletions ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+        </div>
+
+        {recentDeletionsError ? (
+          <p className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {recentDeletionsError}
+          </p>
+        ) : null}
+
+        <div className="mt-4 max-h-[34vh] overflow-auto rounded-2xl border border-flaque-clay/40">
+          <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+            <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
+              <tr>
+                <th className="px-4 py-3 font-medium">Deleted at</th>
+                <th className="px-4 py-3 font-medium">Track id</th>
+                <th className="px-4 py-3 font-medium">Owner</th>
+                <th className="px-4 py-3 font-medium">Deleted by</th>
+                <th className="px-4 py-3 font-medium">Path</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentDeletions.map((event) => (
+                <tr key={`${event.trackId}-${event.at}`} className="border-t border-flaque-clay/40">
+                  <td className="whitespace-nowrap px-4 py-3 text-flaque-steel">{formatDateTime(event.at)}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-flaque-steel">{event.trackId}</td>
+                  <td className="px-4 py-3 text-flaque-steel">{resolveOwnerLabel(event.ownerId)}</td>
+                  <td className="px-4 py-3 text-flaque-steel">{event.byUsername ?? event.byUserId ?? "Unknown"}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-flaque-steel">{event.path}</td>
+                </tr>
+              ))}
+              {recentDeletions.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-4 text-flaque-steel" colSpan={5}>
+                    No deletion activity in this period.
                   </td>
                 </tr>
               ) : null}

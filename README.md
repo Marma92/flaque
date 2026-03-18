@@ -18,7 +18,7 @@ Self-hosted, hi-fi oriented web audio player built on a strict file-based archit
 - `data/` - file-based storage and generated index.
 
 No database is used for library business logic.
-SQLite is used only for users and sessions.
+SQLite is used for users, sessions, and playlists.
 
 ## Data layout
 
@@ -125,6 +125,22 @@ Multipart form fields:
 - `sortBy` (`title`, `artist`, `album`, `owner`, `duration`, `codec`, `bitrate`, `sampleRate`, `path`)
 - `sortDir` (`asc` or `desc`, default `asc`)
 - plus filters: `owner`, `artist`, `album`, `q`
+
+### Playlists
+
+- `GET /api/playlists`
+- `GET /api/playlists/:id`
+- `POST /api/playlists`
+- `PATCH /api/playlists/:id`
+- `DELETE /api/playlists/:id`
+
+Playlist behavior:
+
+- Playlists are attached to user accounts.
+- Visibility is `private` or `public`.
+- Private playlists are visible only to their owner.
+- Public playlists are visible to all authenticated users.
+- Update/delete operations are restricted to playlist owner (or admin).
 
 ### Streaming and covers
 
@@ -261,6 +277,7 @@ curl "http://localhost:4000/api/tracks/<trackId>/adjacent?direction=next&owner=<
 - The library page keeps playback controls in a sticky player at the bottom.
 - Clicking a track in the library starts playback without switching to the dedicated `Player` page.
 - Recently played tracks are stored in browser `localStorage` and listed in a `Played Recently` panel; clicking an entry replays it.
+- The player includes a `Playback history` button that opens the local history list from `localStorage`.
 - The player includes a quality selector (`Original`, `Opus fallback`, `MP3 fallback`) that targets `?transcode=` on stream requests.
 - The frontend favicon uses the centered Flaque logo artwork.
 - Missing or unreachable album covers fall back to a bundled default Flaque cover image.
@@ -277,5 +294,5 @@ curl "http://localhost:4000/api/tracks/<trackId>/adjacent?direction=next&owner=<
 
 ## Roadmap ideas
 
-- Playlist support.
+- Smart playlists (rule-based dynamic generation).
 - Mobile-first player UX and queue management.

@@ -39,6 +39,7 @@ export type Track = {
   codec: string;
   bitrate?: number;
   sampleRate?: number;
+  uploadedAt?: string;
   tags: TrackTags;
   cover?: string;
 };
@@ -50,6 +51,18 @@ export type LibraryIndex = {
 };
 
 export type UserRole = "admin" | "user";
+
+export type PlaylistVisibility = "private" | "public";
+
+export type PlaylistRecord = {
+  id: string;
+  ownerId: string;
+  name: string;
+  visibility: PlaylistVisibility;
+  trackIds: string[];
+  createdAt: number;
+  updatedAt: number;
+};
 
 export type AuthUser = {
   id: string;

@@ -4,6 +4,24 @@ export type User = {
   role: "admin" | "user";
 };
 
+export type ActivityWindow = "7d" | "30d";
+
+export type PlaylistVisibility = "private" | "public";
+
+export type Playlist = {
+  id: string;
+  name: string;
+  visibility: PlaylistVisibility;
+  owner: {
+    id: string;
+    username: string;
+  };
+  trackIds: string[];
+  createdAt: string;
+  updatedAt: string;
+  isOwner: boolean;
+};
+
 export type TrackTagExtraValue =
   | string
   | number
@@ -45,6 +63,7 @@ export type Track = {
   codec: string;
   bitrate?: number;
   sampleRate?: number;
+  uploadedAt?: string;
   tags: TrackTags;
   cover?: string;
 };
@@ -67,6 +86,23 @@ export type LibraryResponse = {
   artists: ArtistEntry[];
   albums: AlbumEntry[];
   tracks: Track[];
+};
+
+export type RecentUploadEntry = {
+  track: Track;
+  at: string;
+  ownerId: string;
+  byUserId?: string;
+  byUsername?: string;
+};
+
+export type RecentDeletionEntry = {
+  trackId: string;
+  ownerId: string;
+  path: string;
+  at: string;
+  byUserId?: string;
+  byUsername?: string;
 };
 
 export type TrackMetadataPatch = {

@@ -20,6 +20,8 @@ type AudioPlayerProps = {
   transcodeMode?: TranscodeMode;
   onTranscodeModeChange?: (mode: TranscodeMode) => void;
   playRequestNonce?: number;
+  historyTracks?: Track[];
+  onHistoryTrackSelect?: (track: Track) => void;
 };
 
 function isFlacTrack(track: Track): boolean {
@@ -48,7 +50,9 @@ export function AudioPlayer({
   onTrackPlayed,
   transcodeMode = "original",
   onTranscodeModeChange,
-  playRequestNonce = 0
+  playRequestNonce = 0,
+  historyTracks = [],
+  onHistoryTrackSelect
 }: AudioPlayerProps): JSX.Element {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoplayOnTrackChangeRef = useRef(true);
@@ -63,6 +67,7 @@ export function AudioPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const canTranscode = Boolean(track && isFlacTrack(track));
   const requestedTranscode = transcodeMode === "original" ? undefined : transcodeMode;
@@ -165,6 +170,14 @@ export function AudioPlayer({
       });
   }, [playRequestNonce, track?.id]);
 
+  useEffect(() => {
+    if (track) {
+      return;
+    }
+
+    setHistoryOpen(false);
+  }, [track]);
+
   function onTogglePlayback(): void {
     const audioElement = audioRef.current;
     if (!audioElement || !track) {
@@ -212,15 +225,25 @@ export function AudioPlayer({
     );
   }
 
-  const artworkSize = expanded ? "h-52 w-52" : "h-16 w-16 md:h-20 md:w-20";
-  const contentLayoutClass = expanded ? "w-full space-y-3" : "min-w-0 flex-1 space-y-3";
+  const artworkSize = expanded ? "h-64 w-64 md:h-72 md:w-72" : "h-16 w-16 md:h-20 md:w-20";
+  const contentLayoutClass = expanded ? "w-full max-w-4xl space-y-4" : "min-w-0 flex-1 space-y-3";
   const controlsLayoutClass = expanded ? "flex items-center gap-3" : "flex flex-wrap items-center gap-2";
+  const sectionClassName = expanded
+    ? "rounded-3xl bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
+    : "rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6";
+  const artworkClassName = expanded
+    ? `${artworkSize} shrink-0 rounded-2xl object-cover shadow-md`
+    : `${artworkSize} shrink-0 rounded-2xl border border-flaque-clay/50 object-cover`;
+  const secondaryTextClassName = expanded ? "truncate text-sm text-flaque-steel/90" : "truncate text-sm text-flaque-steel";
+  const metaTextClassName = expanded ? "text-xs uppercase tracking-[0.2em] text-flaque-steel/70" : "text-xs uppercase tracking-[0.2em] text-flaque-steel/80";
   const displayTitle = getTrackDisplayTitle(track);
   const displayArtist = getTrackDisplayArtist(track) ?? "Unknown artist";
   const displayAlbumWithYear = getTrackDisplayAlbumWithYear(track);
+  const historyPreview = historyTracks.slice(0, 24);
+  const canSelectHistoryTrack = Boolean(onHistoryTrackSelect);
 
   return (
-    <section className="rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6">
+    <section className={sectionClassName}>
       <audio
         ref={audioRef}
         src={streamSource}
@@ -273,9 +296,9 @@ export function AudioPlayer({
         }}
       />
 
-      <div className={`flex min-w-0 ${expanded ? "flex-col items-center gap-6" : "flex-col gap-4 md:flex-row md:items-center"}`}>
+      <div className={`flex min-w-0 ${expanded ? "flex-col items-center gap-7" : "flex-col gap-4 md:flex-row md:items-center"}`}>
         <img
-          className={`${artworkSize} shrink-0 rounded-2xl border border-flaque-clay/50 object-cover`}
+          className={artworkClassName}
           src={coverUrl(track.id, track.cover)}
           alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
           onError={(event) => {
@@ -286,16 +309,16 @@ export function AudioPlayer({
         <div className={contentLayoutClass}>
           <div>
             <p
-              className={`font-display text-flaque-ink truncate ${expanded ? "text-xl" : "text-lg"}`}
+              className={`font-display text-flaque-ink truncate ${expanded ? "text-2xl" : "text-lg"}`}
               title={displayTitle}
             >
               {displayTitle}
             </p>
-            <p className="truncate text-sm text-flaque-steel">{displayArtist}</p>
+            <p className={secondaryTextClassName}>{displayArtist}</p>
             {displayAlbumWithYear ? (
-              <p className="truncate text-xs text-flaque-steel/90">{displayAlbumWithYear}</p>
+              <p className="truncate text-xs text-flaque-steel/80">{displayAlbumWithYear}</p>
             ) : null}
-            <p className="text-xs uppercase tracking-[0.2em] text-flaque-steel/80">
+            <p className={metaTextClassName}>
               {track.codec} {track.sampleRate ? `- ${Math.round(track.sampleRate / 1000)} kHz` : ""}
             </p>
           </div>
@@ -350,6 +373,23 @@ export function AudioPlayer({
                 <path d="M15 6h2v12h-2zM5 6v12l8.5-6L5 6z" />
               </svg>
             </button>
+            <button
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-cream"
+              type="button"
+              aria-label="Playback history"
+              title="Playback history"
+              onClick={() => setHistoryOpen((open) => !open)}
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <path d="M12 7v6l4 2" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M3 12a9 9 0 1 0 2.64-6.36"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path d="M3 4v4h4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
             <span className="whitespace-nowrap text-xs text-flaque-steel">
               {formatDuration(currentTime)} / {formatDuration(duration || track.duration)}
             </span>
@@ -401,6 +441,67 @@ export function AudioPlayer({
                 ? `Streaming fallback via ${transcodeMode.toUpperCase()}.`
                 : "Fallback transcoding is available only for FLAC tracks. Streaming original source."}
             </p>
+          ) : null}
+
+          {historyOpen ? (
+            <div className="rounded-xl border border-flaque-clay/55 bg-white/90 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs uppercase tracking-[0.16em] text-flaque-steel">Playback history</p>
+                <button
+                  className="rounded-md border border-flaque-clay bg-white px-2 py-0.5 text-[11px] text-flaque-steel transition hover:bg-flaque-cream"
+                  type="button"
+                  onClick={() => setHistoryOpen(false)}
+                >
+                  Close
+                </button>
+              </div>
+
+              {historyPreview.length === 0 ? (
+                <p className="mt-2 text-xs text-flaque-steel">No played tracks yet.</p>
+              ) : (
+                <div className="mt-2 max-h-52 space-y-1 overflow-auto">
+                  {historyPreview.map((historyTrack) => {
+                    const historyTitle = getTrackDisplayTitle(historyTrack);
+                    const historyArtist = getTrackDisplayArtist(historyTrack) ?? "Unknown artist";
+                    const historyAlbum = getTrackDisplayAlbumWithYear(historyTrack);
+
+                    return (
+                      <button
+                        key={historyTrack.id}
+                        className="flex w-full items-center gap-2 rounded-lg border border-flaque-clay/45 bg-flaque-cream/45 px-2 py-1.5 text-left transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                        type="button"
+                        onClick={() => {
+                          if (!onHistoryTrackSelect) {
+                            return;
+                          }
+
+                          onHistoryTrackSelect(historyTrack);
+                          setHistoryOpen(false);
+                        }}
+                        disabled={!canSelectHistoryTrack}
+                        title={historyTitle}
+                      >
+                        <img
+                          className="h-8 w-8 shrink-0 rounded-md border border-flaque-clay/50 object-cover"
+                          src={coverUrl(historyTrack.id, historyTrack.cover)}
+                          alt={historyAlbum ? `Cover for ${historyAlbum}` : `Cover for ${historyTitle}`}
+                          onError={(event) => {
+                            event.currentTarget.src = defaultCoverImage;
+                          }}
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-medium text-flaque-ink">{historyTitle}</span>
+                          <span className="block truncate text-[11px] text-flaque-steel">
+                            {historyArtist}
+                            {historyAlbum ? ` - ${historyAlbum}` : ""}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           ) : null}
 
           <input

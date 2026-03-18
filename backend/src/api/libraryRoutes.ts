@@ -25,6 +25,7 @@ import {
   type TrackSortBy,
   type TrackSortDirection
 } from "../services/indexer/libraryQuery";
+import { appendTrackActivityEvents } from "../services/indexer/trackActivityStore";
 import type { Track } from "../types/library";
 
 const DEFAULT_TRACKS_PAGE = 1;
@@ -40,6 +41,7 @@ const SUPPORTED_TRACK_SORT_FIELDS = new Set<TrackSortBy>([
   "codec",
   "bitrate",
   "sampleRate",
+  "uploadedAt",
   "path"
 ]);
 
@@ -142,7 +144,7 @@ function readTracksQuery(query: Record<string, unknown>):
   if (sortBy === null) {
     return {
       error:
-        "sortBy must be one of: title, artist, album, owner, duration, codec, bitrate, sampleRate, path"
+        "sortBy must be one of: title, artist, album, owner, duration, codec, bitrate, sampleRate, uploadedAt, path"
     };
   }
 
@@ -447,6 +449,18 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       await mergeTrackMetadataOverrides({
         [trackId]: {}
       });
+
+      await appendTrackActivityEvents([
+        {
+          type: "deleted",
+          trackId,
+          ownerId: track.owner,
+          path: track.path,
+          at: new Date().toISOString(),
+          byUserId: req.authUser?.id,
+          byUsername: req.authUser?.username
+        }
+      ]);
 
       const rebuiltIndex = await indexStore.rebuild();
       res.json({

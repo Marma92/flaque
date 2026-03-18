@@ -1,4 +1,15 @@
-import type { LibraryResponse, Track, TrackMetadataPatch, TrackTags, User } from "./types";
+import type {
+  ActivityWindow,
+  LibraryResponse,
+  Playlist,
+  RecentDeletionEntry,
+  RecentUploadEntry,
+  PlaylistVisibility,
+  Track,
+  TrackMetadataPatch,
+  TrackTags,
+  User
+} from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
@@ -91,6 +102,46 @@ export async function getLibrary(filters: {
   return requestJson<LibraryResponse>(path);
 }
 
+export async function getRecentUploads(input?: {
+  window?: ActivityWindow;
+  limit?: number;
+}): Promise<RecentUploadEntry[]> {
+  const searchParams = new URLSearchParams();
+
+  if (input?.window) {
+    searchParams.set("window", input.window);
+  }
+
+  if (typeof input?.limit === "number") {
+    searchParams.set("limit", String(input.limit));
+  }
+
+  const query = searchParams.toString();
+  const path = query ? `/api/activity/recent-uploads?${query}` : "/api/activity/recent-uploads";
+  const payload = await requestJson<{ items: RecentUploadEntry[] }>(path);
+  return payload.items;
+}
+
+export async function getRecentDeletions(input?: {
+  window?: ActivityWindow;
+  limit?: number;
+}): Promise<RecentDeletionEntry[]> {
+  const searchParams = new URLSearchParams();
+
+  if (input?.window) {
+    searchParams.set("window", input.window);
+  }
+
+  if (typeof input?.limit === "number") {
+    searchParams.set("limit", String(input.limit));
+  }
+
+  const query = searchParams.toString();
+  const path = query ? `/api/activity/recent-deletions?${query}` : "/api/activity/recent-deletions";
+  const payload = await requestJson<{ items: RecentDeletionEntry[] }>(path);
+  return payload.items;
+}
+
 export type UploadTracksInput = {
   files: File[];
   artist?: string;
@@ -160,6 +211,57 @@ export async function rebuildIndex(): Promise<{ generatedAt: string; totalTracks
 export async function getUsers(): Promise<User[]> {
   const payload = await requestJson<{ users: User[] }>("/api/users");
   return payload.users;
+}
+
+export async function getPlaylists(): Promise<Playlist[]> {
+  const payload = await requestJson<{ playlists: Playlist[] }>("/api/playlists");
+  return payload.playlists;
+}
+
+export async function createPlaylist(input: {
+  name: string;
+  visibility?: PlaylistVisibility;
+  trackIds: string[];
+}): Promise<Playlist> {
+  const payload = await requestJson<{ playlist: Playlist }>("/api/playlists", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      name: input.name,
+      visibility: input.visibility,
+      trackIds: input.trackIds
+    })
+  });
+
+  return payload.playlist;
+}
+
+export async function updatePlaylist(
+  playlistId: string,
+  patch: {
+    name?: string;
+    visibility?: PlaylistVisibility;
+    trackIds?: string[];
+  }
+): Promise<Playlist> {
+  const payload = await requestJson<{ playlist: Playlist }>(`/api/playlists/${encodeURIComponent(playlistId)}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(patch)
+  });
+
+  return payload.playlist;
+}
+
+export async function deletePlaylist(playlistId: string): Promise<void> {
+  await requestJson<void>(`/api/playlists/${encodeURIComponent(playlistId)}`, {
+    method: "DELETE",
+    skipJson: true
+  });
 }
 
 export async function createUserAccount(input: {
