@@ -6,6 +6,32 @@
 
 :root {
   color-scheme: light;
+  --surface-rgb: 255 255 255;
+  --flaque-cream-rgb: 251 245 237;
+  --flaque-clay-rgb: 226 196 168;
+  --flaque-sand-rgb: 217 184 138;
+  --flaque-ink-rgb: 44 31 26;
+  --flaque-steel-rgb: 71 85 105;
+  --flaque-shadow-rgb: 44 31 26;
+  --body-background:
+    radial-gradient(circle at 15% 20%, rgb(217 184 138 / 0.45), transparent 46%),
+    radial-gradient(circle at 85% 10%, rgb(173 196 219 / 0.35), transparent 42%),
+    linear-gradient(135deg, #f6ebde 0%, #fcf8f2 50%, #f0e6da 100%);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-rgb: 33 40 51;
+  --flaque-cream-rgb: 27 33 43;
+  --flaque-clay-rgb: 78 92 112;
+  --flaque-sand-rgb: 123 144 174;
+  --flaque-ink-rgb: 236 242 250;
+  --flaque-steel-rgb: 168 183 208;
+  --flaque-shadow-rgb: 8 12 18;
+  --body-background:
+    radial-gradient(circle at 18% 18%, rgb(77 96 126 / 0.32), transparent 44%),
+    radial-gradient(circle at 82% 8%, rgb(37 66 98 / 0.28), transparent 46%),
+    linear-gradient(140deg, #151b24 0%, #1c2533 48%, #111822 100%);
 }
 
 * {
@@ -16,11 +42,8 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: "IBM Plex Sans", sans-serif;
-  color: #2c1f1a;
-  background:
-    radial-gradient(circle at 15% 20%, rgba(217, 184, 138, 0.45), transparent 46%),
-    radial-gradient(circle at 85% 10%, rgba(173, 196, 219, 0.35), transparent 42%),
-    linear-gradient(135deg, #f6ebde 0%, #fcf8f2 50%, #f0e6da 100%);
+  color: rgb(var(--flaque-ink-rgb));
+  background: var(--body-background);
 }
 
 h1,
@@ -38,7 +61,7 @@ input[type="range"]::-webkit-slider-thumb {
   width: 16px;
   height: 16px;
   border-radius: 9999px;
-  background: #2c1f1a;
+  background: rgb(var(--flaque-ink-rgb));
   cursor: pointer;
 }
 
@@ -47,6 +70,40 @@ input[type="range"]::-moz-range-thumb {
   height: 16px;
   border: none;
   border-radius: 9999px;
-  background: #2c1f1a;
+  background: rgb(var(--flaque-ink-rgb));
   cursor: pointer;
+}
+
+.theme-toggle {
+  position: fixed;
+  right: 1rem;
+  top: max(1rem, env(safe-area-inset-top));
+  z-index: 70;
+  border: 1px solid rgb(var(--flaque-clay-rgb) / 0.75);
+  border-radius: 9999px;
+  background: rgb(var(--surface-rgb) / 0.88);
+  color: rgb(var(--flaque-ink-rgb));
+  padding: 0.45rem 0.8rem;
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 10px 25px -20px rgb(var(--flaque-shadow-rgb) / 0.9);
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+}
+
+.theme-toggle:hover {
+  background: rgb(var(--flaque-cream-rgb) / 0.9);
+  border-color: rgb(var(--flaque-sand-rgb) / 0.85);
+}
+
+.theme-toggle:active {
+  transform: translateY(1px);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid rgb(var(--flaque-ink-rgb));
+  outline-offset: 2px;
 }

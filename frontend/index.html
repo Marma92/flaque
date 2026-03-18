@@ -6,9 +6,76 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <title>Flaque Hifi Player</title>
+    <script>
+      (function () {
+        var key = "flaque_theme_v1";
+        var storedTheme = window.localStorage.getItem(key);
+        var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        var theme = storedTheme === "dark" || storedTheme === "light" ? storedTheme : prefersDark ? "dark" : "light";
+
+        document.documentElement.setAttribute("data-theme", theme);
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
   </head>
   <body>
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Enable dark mode">
+      Dark mode
+    </button>
     <div id="root"></div>
+    <script>
+      (function () {
+        var key = "flaque_theme_v1";
+        var toggleButton = document.getElementById("theme-toggle");
+        var mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+        function getStoredTheme() {
+          var value = window.localStorage.getItem(key);
+          return value === "dark" || value === "light" ? value : null;
+        }
+
+        function getCurrentTheme() {
+          return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+        }
+
+        function applyTheme(theme) {
+          document.documentElement.setAttribute("data-theme", theme);
+          document.documentElement.style.colorScheme = theme;
+
+          if (!toggleButton) {
+            return;
+          }
+
+          if (theme === "dark") {
+            toggleButton.textContent = "Light mode";
+            toggleButton.setAttribute("aria-label", "Enable light mode");
+          } else {
+            toggleButton.textContent = "Dark mode";
+            toggleButton.setAttribute("aria-label", "Enable dark mode");
+          }
+        }
+
+        if (toggleButton) {
+          toggleButton.addEventListener("click", function () {
+            var nextTheme = getCurrentTheme() === "dark" ? "light" : "dark";
+            window.localStorage.setItem(key, nextTheme);
+            applyTheme(nextTheme);
+          });
+        }
+
+        if (typeof mediaQuery.addEventListener === "function") {
+          mediaQuery.addEventListener("change", function () {
+            if (getStoredTheme()) {
+              return;
+            }
+
+            applyTheme(mediaQuery.matches ? "dark" : "light");
+          });
+        }
+
+        applyTheme(getCurrentTheme());
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
