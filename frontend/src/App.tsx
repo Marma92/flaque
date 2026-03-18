@@ -44,6 +44,8 @@ type AppNotice = {
   message: string;
 };
 
+const VIEW_QUERY_PARAM = "view";
+
 const RECENT_TRACKS_STORAGE_KEY = "flaque_recent_tracks_v1";
 const TRANSCODE_MODE_STORAGE_KEY = "flaque_transcode_mode_v1";
 const CURRENT_QUEUE_STORAGE_KEY = "flaque_current_queue_v1";
@@ -187,10 +189,41 @@ function getAdjacentTrackInQueue(
   return queue[targetIndex] ?? null;
 }
 
+function parseViewParam(rawValue: string | null): ViewName | null {
+  if (rawValue === "library" || rawValue === "upload" || rawValue === "player" || rawValue === "config") {
+    return rawValue;
+  }
+
+  return null;
+}
+
+function getViewFromLocation(): ViewName {
+  if (typeof window === "undefined") {
+    return "library";
+  }
+
+  const view = parseViewParam(new URLSearchParams(window.location.search).get(VIEW_QUERY_PARAM));
+  return view ?? "library";
+}
+
+function syncViewToLocation(view: ViewName): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+  if (url.searchParams.get(VIEW_QUERY_PARAM) === view) {
+    return;
+  }
+
+  url.searchParams.set(VIEW_QUERY_PARAM, view);
+  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
 export default function App(): JSX.Element {
   const [user, setUser] = useState<User | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
-  const [activeView, setActiveView] = useState<ViewName>("library");
+  const [activeView, setActiveView] = useState<ViewName>(() => getViewFromLocation());
 
   const [filters, setFilters] = useState<{
     owner?: string;
@@ -510,6 +543,37 @@ export default function App(): JSX.Element {
       setActiveView("library");
     }
   }, [user, activeView]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const requestedView = getViewFromLocation();
+      if (requestedView === "config" && user?.role !== "admin") {
+        setActiveView("library");
+        return;
+      }
+
+      setActiveView(requestedView);
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, [user?.role]);
+
+  useEffect(() => {
+    if (!sessionChecked) {
+      return;
+    }
+
+    const resolvedView = activeView === "config" && user?.role !== "admin" ? "library" : activeView;
+    if (resolvedView !== activeView) {
+      setActiveView(resolvedView);
+      return;
+    }
+
+    syncViewToLocation(resolvedView);
+  }, [activeView, sessionChecked, user?.role]);
 
   useEffect(() => {
     if (!appNotice) {
