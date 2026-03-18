@@ -382,6 +382,7 @@ export function AudioPlayer({
   const queueCurrentId = currentQueueTrackId ?? track.id;
   const rawQueueCurrentIndex = effectiveQueue.findIndex((queueTrack) => queueTrack.id === queueCurrentId);
   const queueCurrentIndex = rawQueueCurrentIndex >= 0 ? rawQueueCurrentIndex : 0;
+  const upNextTracks = effectiveQueue.slice(queueCurrentIndex + 1);
   const queuePanelClassName = expanded
     ? "rounded-2xl border border-flaque-clay/60 bg-flaque-cream/35 p-3"
     : "rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 p-2.5";
@@ -792,6 +793,36 @@ export function AudioPlayer({
             value={Math.min(currentTime, duration || track.duration || 0)}
             onChange={(event) => onSeek(Number(event.target.value))}
           />
+
+          {upNextTracks.length > 0 ? (
+            <div className="rounded-xl border border-flaque-clay/50 bg-flaque-cream/35 px-3 py-2">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-flaque-steel">Up next ({upNextTracks.length})</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {upNextTracks.slice(0, 4).map((queueTrack, index) => {
+                  const title = getTrackDisplayTitle(queueTrack);
+                  return (
+                    <button
+                      key={`${queueTrack.id}-up-next-${index}`}
+                      className="rounded-lg border border-flaque-clay/50 bg-white/85 px-2 py-1 text-left text-[11px] text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-default"
+                      type="button"
+                      title={title}
+                      onClick={() => {
+                        if (onQueueTrackSelect) {
+                          onQueueTrackSelect(queueTrack);
+                        }
+                      }}
+                      disabled={!onQueueTrackSelect}
+                    >
+                      <span className="block max-w-[10rem] truncate">{title}</span>
+                    </button>
+                  );
+                })}
+                {upNextTracks.length > 4 ? (
+                  <span className="self-center text-[11px] text-flaque-steel">+{upNextTracks.length - 4} more</span>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           {showQueuePanel ? (
             <div className={queuePanelClassName}>
