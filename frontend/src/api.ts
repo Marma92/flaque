@@ -1,4 +1,4 @@
-import type { LibraryResponse, User } from "./types";
+import type { LibraryResponse, Track, User } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
@@ -91,11 +91,39 @@ export async function getLibrary(filters: {
   return requestJson<LibraryResponse>(path);
 }
 
-export async function uploadTrack(file: File): Promise<void> {
-  const formData = new FormData();
-  formData.append("file", file);
+export type UploadTracksInput = {
+  files: File[];
+  artist?: string;
+  album?: string;
+};
 
-  await requestJson<{ track?: unknown }>("/api/upload", {
+export type UploadTracksResult = {
+  processed: number;
+  uploaded: number;
+  deduplicated: number;
+  tracks: Track[];
+  overrides?: {
+    artist?: string;
+    album?: string;
+  };
+};
+
+export async function uploadTracks(input: UploadTracksInput): Promise<UploadTracksResult> {
+  const formData = new FormData();
+
+  for (const file of input.files) {
+    formData.append("files", file);
+  }
+
+  if (input.artist?.trim()) {
+    formData.append("artist", input.artist.trim());
+  }
+
+  if (input.album?.trim()) {
+    formData.append("album", input.album.trim());
+  }
+
+  return requestJson<UploadTracksResult>("/api/upload", {
     method: "POST",
     body: formData
   });
@@ -161,6 +189,41 @@ export async function resetUserPassword(userId: string, password: string): Promi
     },
     body: JSON.stringify({ password })
   });
+}
+
+export async function getAdjacentTrack(input: {
+  trackId: string;
+  direction: "next" | "previous";
+  wrap?: boolean;
+  owner?: string;
+  artist?: string;
+  album?: string;
+  q?: string;
+}): Promise<Track | null> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("direction", input.direction);
+
+  if (input.wrap === false) {
+    searchParams.set("wrap", "false");
+  }
+
+  for (const [key, value] of Object.entries({
+    owner: input.owner,
+    artist: input.artist,
+    album: input.album,
+    q: input.q
+  })) {
+    if (!value) {
+      continue;
+    }
+    searchParams.set(key, value);
+  }
+
+  const payload = await requestJson<{ track: Track | null }>(
+    `/api/tracks/${encodeURIComponent(input.trackId)}/adjacent?${searchParams.toString()}`
+  );
+
+  return payload.track;
 }
 
 export function streamUrl(trackId: string): string {

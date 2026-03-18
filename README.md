@@ -47,6 +47,10 @@ data/
 5. Extract embedded cover if available.
 6. Rebuild global index (`library-index.json`).
 
+Upload supports one or multiple files in the same request (`files` form field).
+Optional `artist` and `album` form fields allow manual override for the whole upload batch.
+Overrides are persisted in `data/index/track-metadata-overrides.json`.
+
 ## API surface
 
 ### Auth
@@ -99,6 +103,12 @@ Protections:
 
 - `POST /api/upload`
 
+Multipart form fields:
+
+- `files`: one or more audio files
+- `artist` (optional): forced artist tag for uploaded tracks
+- `album` (optional): forced album tag for uploaded tracks
+
 ### Library
 
 - `GET /api/library`
@@ -109,6 +119,7 @@ Protections:
 ### Streaming and covers
 
 - `GET /api/tracks/:id/stream`
+- `GET /api/tracks/:id/adjacent?direction=next|previous&wrap=true|false`
 - `GET /api/covers/:id`
 
 ### Index management
@@ -160,6 +171,14 @@ Change them immediately for any non-local usage.
 
 ### 4) Start applications (two terminals)
 
+Single command (recommended):
+
+```bash
+npm run dev
+```
+
+Separate commands:
+
 Backend:
 
 ```bash
@@ -200,6 +219,22 @@ In the frontend `Admin` tab (admin users only), you can:
 - delete users,
 - search users by username/id,
 - filter the table by role (`all`, `admin`, `user`).
+
+## Player navigation route
+
+`GET /api/tracks/:id/adjacent` returns the next or previous track from the current index order.
+
+Query params:
+
+- `direction`: `next` (default) or `previous`
+- `wrap`: `true` (default) or `false`
+- optional library filters: `owner`, `artist`, `album`, `q`
+
+Example:
+
+```bash
+curl "http://localhost:4000/api/tracks/<trackId>/adjacent?direction=next&owner=<ownerId>"
+```
 
 ## Operational notes
 

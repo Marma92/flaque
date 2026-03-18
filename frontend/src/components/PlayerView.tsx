@@ -3,9 +3,11 @@ import { AudioPlayer } from "./AudioPlayer";
 
 type PlayerViewProps = {
   track: Track | null;
+  onPrevious?: () => Promise<void> | void;
+  onNext?: () => Promise<void> | void;
 };
 
-export function PlayerView({ track }: PlayerViewProps): JSX.Element {
+export function PlayerView({ track, onPrevious, onNext }: PlayerViewProps): JSX.Element {
   return (
     <div className="space-y-4">
       <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
@@ -15,7 +17,7 @@ export function PlayerView({ track }: PlayerViewProps): JSX.Element {
           FLAC files are streamed without transcoding when possible, with byte-range seek support.
         </p>
       </section>
-      <AudioPlayer track={track} expanded />
+      <AudioPlayer track={track} expanded onPrevious={onPrevious} onNext={onNext} />
     </div>
   );
 }

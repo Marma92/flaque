@@ -6,6 +6,7 @@ import type { LibraryIndex, Track } from "../../types/library";
 import { createTrackId } from "../../utils/hash";
 import { getAudioMimeType, isSupportedAudioFile } from "../../utils/mime";
 import { getOwnerUploadsDir } from "../../utils/paths";
+import { readTrackMetadataOverrides } from "../indexer/metadataOverrideStore";
 import { extractAudioMetadata } from "./audioProbe";
 import { listOwnerIds, toDataRelativePath } from "../storage/storageService";
 import { ensureTrackCover } from "../storage/coverService";
@@ -63,6 +64,7 @@ function compareTrackOrder(a: Track, b: Track): number {
 
 export async function scanFilesystemLibrary(): Promise<LibraryIndex> {
   const ownerIds = await listOwnerIds();
+  const metadataOverrides = await readTrackMetadataOverrides();
   const tracks: Track[] = [];
 
   for (const ownerId of ownerIds) {
@@ -74,6 +76,12 @@ export async function scanFilesystemLibrary(): Promise<LibraryIndex> {
       const metadata = await extractAudioMetadata(filePath);
       const trackId = createTrackId(ownerId, relativePath);
       const cover = await ensureTrackCover(trackId, metadata.cover);
+      const metadataOverride = metadataOverrides[trackId];
+      const tags = {
+        ...metadata.tags,
+        artist: metadataOverride?.artist ?? metadata.tags.artist,
+        album: metadataOverride?.album ?? metadata.tags.album
+      };
 
       tracks.push({
         id: trackId,
@@ -84,7 +92,7 @@ export async function scanFilesystemLibrary(): Promise<LibraryIndex> {
         codec: metadata.codec,
         bitrate: metadata.bitrate,
         sampleRate: metadata.sampleRate,
-        tags: metadata.tags,
+        tags,
         cover
       });
     }

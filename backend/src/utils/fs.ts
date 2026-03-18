@@ -5,6 +5,7 @@ import {
   configRoot,
   coversRoot,
   indexFilePath,
+  metadataOverridesFilePath,
   indexRoot,
   storageRoot,
   tmpUploadsRoot,
@@ -60,5 +61,10 @@ export async function ensureBaseDirectories(): Promise<void> {
       totalTracks: 0,
       tracks: []
     });
+  }
+
+  const hasOverrides = await fileExists(metadataOverridesFilePath);
+  if (!hasOverrides) {
+    await writeJsonAtomic(metadataOverridesFilePath, {});
   }
 }

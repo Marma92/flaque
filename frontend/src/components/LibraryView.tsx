@@ -1,4 +1,4 @@
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useMemo, useRef, useState } from "react";
 
 import type { AlbumEntry, ArtistEntry, Track } from "../types";
 
@@ -19,7 +19,15 @@ type LibraryViewProps = {
   onFilterChange: (next: LibraryFilter) => void;
   currentTrackId?: string;
   onTrackSelect: (track: Track) => void;
-  onUpload: (file: File) => Promise<void>;
+  onUpload: (input: {
+    files: File[];
+    artist?: string;
+    album?: string;
+  }) => Promise<{
+    processed: number;
+    uploaded: number;
+    deduplicated: number;
+  }>;
 };
 
 function formatDuration(totalSeconds: number): string {
@@ -44,7 +52,11 @@ export function LibraryView({
   onTrackSelect,
   onUpload
 }: LibraryViewProps): JSX.Element {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploadArtist, setUploadArtist] = useState("");
+  const [uploadAlbum, setUploadAlbum] = useState("");
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
 
   const generatedAtLabel = useMemo(() => {
@@ -58,9 +70,15 @@ export function LibraryView({
     }
   }, [generatedAt]);
 
-  async function handleUploadInput(event: ChangeEvent<HTMLInputElement>): Promise<void> {
-    const nextFile = event.target.files?.[0];
-    if (!nextFile) {
+  function handleFileSelection(event: ChangeEvent<HTMLInputElement>): void {
+    setPendingFiles(Array.from(event.target.files ?? []));
+    setUploadMessage(null);
+  }
+
+  async function handleUploadSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (pendingFiles.length === 0) {
+      setUploadMessage("Select at least one file before uploading.");
       return;
     }
 
@@ -68,9 +86,22 @@ export function LibraryView({
     setUploadMessage(null);
 
     try {
-      await onUpload(nextFile);
-      setUploadMessage("Upload complete. Index updated.");
-      event.target.value = "";
+      const result = await onUpload({
+        files: pendingFiles,
+        artist: uploadArtist.trim() || undefined,
+        album: uploadAlbum.trim() || undefined
+      });
+
+      const dedupMessage =
+        result.deduplicated > 0 ? ` (${result.deduplicated} duplicate${result.deduplicated > 1 ? "s" : ""})` : "";
+      setUploadMessage(
+        `Upload complete: ${result.uploaded}/${result.processed} file${result.processed > 1 ? "s" : ""} stored${dedupMessage}. Index updated.`
+      );
+
+      setPendingFiles([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (error) {
       setUploadMessage(error instanceof Error ? error.message : "Upload failed");
     } finally {
@@ -86,18 +117,64 @@ export function LibraryView({
             <h2 className="font-display text-2xl text-flaque-ink">Library</h2>
             <p className="text-sm text-flaque-steel">Latest index rebuild: {generatedAtLabel}</p>
           </div>
+        </div>
 
-          <label className="rounded-xl border border-dashed border-flaque-sand bg-flaque-cream/90 px-4 py-2 text-sm text-flaque-ink">
-            {uploading ? "Uploading..." : "Upload track"}
+        <form className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-5" onSubmit={handleUploadSubmit}>
+          <label className="text-sm text-flaque-ink md:col-span-2">
+            Files
             <input
-              className="hidden"
+              ref={fileInputRef}
+              className="mt-1 block w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               type="file"
+              multiple
               accept=".flac,.mp3,.wav,.ogg,.opus,.m4a"
               disabled={uploading}
-              onChange={handleUploadInput}
+              onChange={handleFileSelection}
             />
           </label>
-        </div>
+
+          <label className="text-sm text-flaque-ink">
+            Artist (optional)
+            <input
+              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              type="text"
+              placeholder="Force artist tag"
+              value={uploadArtist}
+              onChange={(event) => setUploadArtist(event.target.value)}
+              disabled={uploading}
+            />
+          </label>
+
+          <label className="text-sm text-flaque-ink">
+            Album (optional)
+            <input
+              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              type="text"
+              placeholder="Force album tag"
+              value={uploadAlbum}
+              onChange={(event) => setUploadAlbum(event.target.value)}
+              disabled={uploading}
+            />
+          </label>
+
+          <div className="flex items-end">
+            <button
+              className="w-full rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+              type="submit"
+              disabled={uploading || pendingFiles.length === 0}
+            >
+              {uploading
+                ? "Uploading..."
+                : `Upload ${pendingFiles.length} file${pendingFiles.length > 1 ? "s" : ""}`}
+            </button>
+          </div>
+        </form>
+
+        {pendingFiles.length > 0 ? (
+          <p className="mt-2 text-sm text-flaque-steel">
+            {pendingFiles.length} file{pendingFiles.length > 1 ? "s" : ""} selected.
+          </p>
+        ) : null}
 
         {uploadMessage ? <p className="mt-3 text-sm text-flaque-steel">{uploadMessage}</p> : null}
 

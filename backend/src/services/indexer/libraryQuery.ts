@@ -18,6 +18,8 @@ export type AlbumEntry = {
   trackCount: number;
 };
 
+export type AdjacentDirection = "next" | "previous";
+
 function normalize(value?: string): string {
   return (value ?? "").trim().toLowerCase();
 }
@@ -118,4 +120,37 @@ export function listAlbums(tracks: Track[]): AlbumEntry[] {
     }
     return a.name.localeCompare(b.name);
   });
+}
+
+export function getAdjacentTrack(
+  tracks: Track[],
+  currentTrackId: string,
+  direction: AdjacentDirection,
+  wrap = true
+): Track | null {
+  if (tracks.length === 0) {
+    return null;
+  }
+
+  const currentIndex = tracks.findIndex((track) => track.id === currentTrackId);
+  if (currentIndex < 0) {
+    return null;
+  }
+
+  const offset = direction === "next" ? 1 : -1;
+  const targetIndex = currentIndex + offset;
+
+  if (targetIndex >= 0 && targetIndex < tracks.length) {
+    return tracks[targetIndex] ?? null;
+  }
+
+  if (!wrap) {
+    return null;
+  }
+
+  if (direction === "next") {
+    return tracks[0] ?? null;
+  }
+
+  return tracks[tracks.length - 1] ?? null;
 }

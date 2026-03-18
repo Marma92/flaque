@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { Track } from "../../types/library";
-import { filterTracks, listAlbums, listArtists, listOwners } from "./libraryQuery";
+import {
+  filterTracks,
+  getAdjacentTrack,
+  listAlbums,
+  listArtists,
+  listOwners
+} from "./libraryQuery";
 
 const tracks: Track[] = [
   {
@@ -64,5 +70,13 @@ describe("libraryQuery", () => {
       { artist: "Artist One", name: "Album Two", trackCount: 1 },
       { artist: "Artist Two", name: "Album Three", trackCount: 1 }
     ]);
+  });
+
+  it("returns adjacent tracks with and without wrap", () => {
+    expect(getAdjacentTrack(tracks, "1", "next", false)?.id).toBe("2");
+    expect(getAdjacentTrack(tracks, "1", "previous", false)).toBeNull();
+    expect(getAdjacentTrack(tracks, "1", "previous", true)?.id).toBe("3");
+    expect(getAdjacentTrack(tracks, "3", "next", true)?.id).toBe("1");
+    expect(getAdjacentTrack(tracks, "missing", "next", true)).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import type { LibraryIndex, Track } from "../../types/library";
 import { readJsonFile, writeJsonAtomic } from "../../utils/fs";
 import { indexFilePath } from "../../utils/paths";
+import { pruneTrackMetadataOverrides } from "./metadataOverrideStore";
 import { scanFilesystemLibrary } from "../scanner/scannerService";
 
 const EMPTY_INDEX: LibraryIndex = {
@@ -35,6 +36,7 @@ export class IndexStore {
     this.rebuildPromise = (async () => {
       const rebuilt = await scanFilesystemLibrary();
       await writeJsonAtomic(indexFilePath, rebuilt);
+      await pruneTrackMetadataOverrides(rebuilt.tracks.map((track) => track.id));
       this.snapshot = rebuilt;
       return rebuilt;
     })();

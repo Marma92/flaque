@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   createUserAccount,
   deleteUserAccount,
+  getAdjacentTrack,
   getCurrentUser,
   getLibrary,
   getUsers,
@@ -11,7 +12,8 @@ import {
   patchUserAccount,
   resetUserPassword,
   rebuildIndex,
-  uploadTrack
+  uploadTracks,
+  type UploadTracksResult
 } from "./api";
 import { AdminUsersView } from "./components/AdminUsersView";
 import { AudioPlayer } from "./components/AudioPlayer";
@@ -121,10 +123,15 @@ export default function App(): JSX.Element {
     setAdminError(null);
   }
 
-  async function handleUpload(file: File): Promise<void> {
-    await uploadTrack(file);
+  async function handleUpload(input: {
+    files: File[];
+    artist?: string;
+    album?: string;
+  }): Promise<UploadTracksResult> {
+    const result = await uploadTracks(input);
     const updatedLibrary = await getLibrary(filters);
     setLibrary(updatedLibrary);
+    return result;
   }
 
   async function handleRebuildIndex(): Promise<void> {
@@ -194,6 +201,29 @@ export default function App(): JSX.Element {
     }
 
     await refreshAdminUsers();
+  }
+
+  async function handleNavigateTrack(direction: "next" | "previous"): Promise<void> {
+    const currentTrack = selectedTrackRefreshed;
+    if (!currentTrack) {
+      return;
+    }
+
+    try {
+      const adjacentTrack = await getAdjacentTrack({
+        trackId: currentTrack.id,
+        direction,
+        wrap: true
+      });
+
+      if (!adjacentTrack || adjacentTrack.id === currentTrack.id) {
+        return;
+      }
+
+      setSelectedTrack(adjacentTrack);
+    } catch (error) {
+      setLibraryError(error instanceof Error ? error.message : "Unable to navigate tracks");
+    }
   }
 
   if (!sessionChecked) {
@@ -297,10 +327,18 @@ export default function App(): JSX.Element {
             }}
             onUpload={handleUpload}
           />
-          <AudioPlayer track={selectedTrackRefreshed} />
+          <AudioPlayer
+            track={selectedTrackRefreshed}
+            onNext={() => handleNavigateTrack("next")}
+            onPrevious={() => handleNavigateTrack("previous")}
+          />
         </div>
       ) : activeView === "player" ? (
-        <PlayerView track={selectedTrackRefreshed} />
+        <PlayerView
+          track={selectedTrackRefreshed}
+          onNext={() => handleNavigateTrack("next")}
+          onPrevious={() => handleNavigateTrack("previous")}
+        />
       ) : (
         <AdminUsersView
           currentUser={user}

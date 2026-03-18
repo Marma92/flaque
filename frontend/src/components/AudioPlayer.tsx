@@ -6,6 +6,8 @@ import type { Track } from "../types";
 type AudioPlayerProps = {
   track: Track | null;
   expanded?: boolean;
+  onPrevious?: () => Promise<void> | void;
+  onNext?: () => Promise<void> | void;
 };
 
 function formatDuration(totalSeconds: number): string {
@@ -18,7 +20,12 @@ function formatDuration(totalSeconds: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-export function AudioPlayer({ track, expanded = false }: AudioPlayerProps): JSX.Element {
+export function AudioPlayer({
+  track,
+  expanded = false,
+  onPrevious,
+  onNext
+}: AudioPlayerProps): JSX.Element {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -79,6 +86,13 @@ export function AudioPlayer({ track, expanded = false }: AudioPlayerProps): JSX.
     setCurrentTime(nextSeconds);
   }
 
+  function onEnded(): void {
+    setIsPlaying(false);
+    if (onNext) {
+      void onNext();
+    }
+  }
+
   if (!track) {
     return (
       <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-6 shadow-panel backdrop-blur-sm">
@@ -98,7 +112,7 @@ export function AudioPlayer({ track, expanded = false }: AudioPlayerProps): JSX.
         preload="metadata"
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
-        onEnded={() => setIsPlaying(false)}
+        onEnded={onEnded}
         onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
         onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || track.duration || 0)}
       />
@@ -125,11 +139,35 @@ export function AudioPlayer({ track, expanded = false }: AudioPlayerProps): JSX.
 
           <div className="flex items-center gap-3">
             <button
+              className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={() => {
+                if (onPrevious) {
+                  void onPrevious();
+                }
+              }}
+              disabled={!onPrevious}
+            >
+              Prev
+            </button>
+            <button
               className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black"
               type="button"
               onClick={onTogglePlayback}
             >
               {isPlaying ? "Pause" : "Play"}
+            </button>
+            <button
+              className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={() => {
+                if (onNext) {
+                  void onNext();
+                }
+              }}
+              disabled={!onNext}
+            >
+              Next
             </button>
             <span className="text-xs text-flaque-steel">
               {formatDuration(currentTime)} / {formatDuration(duration || track.duration)}
