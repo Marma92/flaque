@@ -659,6 +659,7 @@ export default function App(): JSX.Element {
     files: File[];
     artist?: string;
     album?: string;
+    onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
   }): Promise<UploadTracksResult> {
     const result = await uploadTracks(input);
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);

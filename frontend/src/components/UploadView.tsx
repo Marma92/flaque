@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useMemo, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, FormEvent, useMemo, useRef, useState } from "react";
 
 import type { UploadTrackPreview, UploadTracksResult } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
@@ -8,6 +8,7 @@ type UploadViewProps = {
     files: File[];
     artist?: string;
     album?: string;
+    onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
   }) => Promise<UploadTracksResult>;
   onInspectFile: (file: File) => Promise<UploadTrackPreview>;
 };
@@ -82,6 +83,8 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
   const [uploadArtist, setUploadArtist] = useState("");
   const [uploadAlbum, setUploadAlbum] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadProgressPercent, setUploadProgressPercent] = useState<number>(0);
+  const [draggingFiles, setDraggingFiles] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
 
   const selectedFileCountLabel = useMemo(() => {
@@ -136,8 +139,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
     );
   }
 
-  function handleFileSelection(event: ChangeEvent<HTMLInputElement>): void {
-    const files = Array.from(event.target.files ?? []);
+  function setFilesForUpload(files: File[]): void {
     setPendingFiles(files);
     setUploadMessage(null);
 
@@ -150,22 +152,50 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
     void inspectFiles(files);
   }
 
-  async function handleUploadSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
+  function handleFileSelection(event: ChangeEvent<HTMLInputElement>): void {
+    setFilesForUpload(Array.from(event.target.files ?? []));
+  }
 
+  function handleDropZoneDragOver(event: DragEvent<HTMLDivElement>): void {
+    event.preventDefault();
+    if (!uploading) {
+      setDraggingFiles(true);
+    }
+  }
+
+  function handleDropZoneDragLeave(event: DragEvent<HTMLDivElement>): void {
+    event.preventDefault();
+    setDraggingFiles(false);
+  }
+
+  function handleDropZoneDrop(event: DragEvent<HTMLDivElement>): void {
+    event.preventDefault();
+    setDraggingFiles(false);
+    if (uploading) {
+      return;
+    }
+
+    setFilesForUpload(Array.from(event.dataTransfer.files ?? []));
+  }
+
+  async function runUpload(): Promise<void> {
     if (pendingFiles.length === 0) {
       setUploadMessage("Select at least one file before uploading.");
       return;
     }
 
     setUploading(true);
+    setUploadProgressPercent(0);
     setUploadMessage(null);
 
     try {
       const result = await onUpload({
         files: pendingFiles,
         artist: uploadArtist.trim() || undefined,
-        album: uploadAlbum.trim() || undefined
+        album: uploadAlbum.trim() || undefined,
+        onProgress: (progress) => {
+          setUploadProgressPercent(progress.percent);
+        }
       });
 
       const dedupMessage =
@@ -173,6 +203,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
       setUploadMessage(
         `Upload complete: ${result.uploaded}/${result.processed} file${result.processed > 1 ? "s" : ""} stored${dedupMessage}.`
       );
+      setUploadProgressPercent(100);
 
       setPendingFiles([]);
       setPreviewByFileKey({});
@@ -180,10 +211,16 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
         fileInputRef.current.value = "";
       }
     } catch (error) {
+      setUploadProgressPercent(0);
       setUploadMessage(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setUploading(false);
     }
+  }
+
+  async function handleUploadSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    await runUpload();
   }
 
   return (
@@ -209,6 +246,37 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
             disabled={uploading}
             onChange={handleFileSelection}
           />
+
+          <div
+            className={`rounded-2xl border border-dashed px-4 py-5 text-center transition ${
+              draggingFiles
+                ? "border-flaque-ink bg-flaque-cream/75"
+                : "border-flaque-clay/70 bg-flaque-cream/35 hover:bg-flaque-cream/50"
+            } ${uploading ? "opacity-70" : "cursor-pointer"}`}
+            onDragOver={handleDropZoneDragOver}
+            onDragLeave={handleDropZoneDragLeave}
+            onDrop={handleDropZoneDrop}
+            onClick={() => {
+              if (!uploading) {
+                fileInputRef.current?.click();
+              }
+            }}
+            role="button"
+            tabIndex={uploading ? -1 : 0}
+            onKeyDown={(event) => {
+              if (uploading) {
+                return;
+              }
+
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+          >
+            <p className="text-sm font-medium text-flaque-ink">Drag and drop audio files here</p>
+            <p className="mt-1 text-xs text-flaque-steel">or click to browse your local files</p>
+          </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -274,12 +342,37 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
               </button>
             </div>
           </div>
+
+          {uploading ? (
+            <div className="space-y-1">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-flaque-clay/40">
+                <div
+                  className="h-full rounded-full bg-flaque-ink transition-[width] duration-200"
+                  style={{ width: `${uploadProgressPercent}%` }}
+                />
+              </div>
+              <p className="text-xs text-flaque-steel">Uploading... {uploadProgressPercent}%</p>
+            </div>
+          ) : null}
         </form>
 
         {uploadMessage ? (
-          <p className="mt-3 text-sm text-flaque-steel" role="status" aria-live="polite">
-            {uploadMessage}
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <p className="text-sm text-flaque-steel" role="status" aria-live="polite">
+              {uploadMessage}
+            </p>
+            {pendingFiles.length > 0 && !uploading ? (
+              <button
+                className="rounded-lg border border-flaque-clay bg-white px-3 py-1 text-xs text-flaque-ink transition hover:bg-flaque-cream"
+                type="button"
+                onClick={() => {
+                  void runUpload();
+                }}
+              >
+                Retry upload
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </section>
 

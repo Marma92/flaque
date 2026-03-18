@@ -103,6 +103,7 @@ export type UploadTracksInput = {
   files: File[];
   artist?: string;
   album?: string;
+  onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
 };
 
 export type UploadTracksResult = {
@@ -143,9 +144,45 @@ export async function uploadTracks(input: UploadTracksInput): Promise<UploadTrac
     formData.append("album", input.album.trim());
   }
 
-  return requestJson<UploadTracksResult>("/api/upload", {
-    method: "POST",
-    body: formData
+  return new Promise<UploadTracksResult>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", withApiBase("/api/upload"));
+    request.withCredentials = true;
+    request.responseType = "json";
+
+    request.upload.onprogress = (event) => {
+      if (!input.onProgress || !event.lengthComputable) {
+        return;
+      }
+
+      const percent = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)));
+      input.onProgress({
+        loaded: event.loaded,
+        total: event.total,
+        percent
+      });
+    };
+
+    request.onload = () => {
+      const payload = request.response as { error?: string } | UploadTracksResult | null;
+      if (request.status >= 200 && request.status < 300 && payload) {
+        resolve(payload as UploadTracksResult);
+        return;
+      }
+
+      const message =
+        (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+          ? payload.error
+          : null) ?? `Request failed (${request.status})`;
+
+      reject(new Error(message));
+    };
+
+    request.onerror = () => {
+      reject(new Error("Upload failed due to a network error"));
+    };
+
+    request.send(formData);
   });
 }
 
