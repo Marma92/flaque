@@ -20,6 +20,12 @@ type SessionUserRow = {
   expires_at: number;
 };
 
+type PublicUserRow = {
+  id: string;
+  username: string;
+  role: UserRole;
+};
+
 let db: Database.Database | null = null;
 
 function requireDb(): Database.Database {
@@ -85,6 +91,13 @@ export function findUserById(userId: string): AuthUser | null {
     .prepare("SELECT id, username, role FROM users WHERE id = ?")
     .get(userId) as AuthUser | undefined;
   return row ?? null;
+}
+
+export function listUsers(): AuthUser[] {
+  const database = requireDb();
+  return database
+    .prepare("SELECT id, username, role FROM users ORDER BY username ASC")
+    .all() as PublicUserRow[];
 }
 
 export function createSession(userId: string, ttlMs: number): { id: string; expiresAt: number } {

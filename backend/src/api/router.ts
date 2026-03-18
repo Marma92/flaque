@@ -7,6 +7,7 @@ import { createIndexRouter } from "./indexRoutes";
 import { createLibraryRouter } from "./libraryRoutes";
 import { createStreamingRouter } from "./streamingRoutes";
 import { createUploadRouter } from "./uploadRoutes";
+import { createUserRouter } from "./userRoutes";
 
 export function createApiRouter(indexStore: IndexStore): Router {
   const router = Router();
@@ -17,6 +18,7 @@ export function createApiRouter(indexStore: IndexStore): Router {
   router.use(createStreamingRouter(indexStore));
   router.use(createCoverRouter());
   router.use(createIndexRouter(indexStore));
+  router.use(createUserRouter());
 
   return router;
 }

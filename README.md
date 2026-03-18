@@ -53,6 +53,27 @@ data/
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 
+### User management (admin)
+
+- `GET /api/users`
+- `POST /api/users`
+
+`POST /api/users` body:
+
+```json
+{
+  "username": "alice",
+  "password": "strong-password",
+  "role": "user"
+}
+```
+
+Validation rules:
+
+- username: 3-32 chars, `[a-zA-Z0-9._-]`
+- password: 8-256 chars
+- role: `user` or `admin` (default: `user`)
+
 ### Upload
 
 - `POST /api/upload`
