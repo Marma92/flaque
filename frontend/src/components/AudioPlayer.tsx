@@ -3,14 +3,26 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { coverUrl, streamUrl } from "../api";
 import type { Track } from "../types";
 
+export type TranscodeMode = "original" | "opus" | "mp3";
+
 type AudioPlayerProps = {
   track: Track | null;
   expanded?: boolean;
   onPrevious?: () => Promise<void> | void;
   onNext?: () => Promise<void> | void;
   onTrackPlayed?: (track: Track) => void;
+  transcodeMode?: TranscodeMode;
+  onTranscodeModeChange?: (mode: TranscodeMode) => void;
   playRequestNonce?: number;
 };
+
+function isFlacTrack(track: Track): boolean {
+  return (
+    track.mimeType.toLowerCase() === "audio/flac" ||
+    track.codec.toLowerCase() === "flac" ||
+    track.path.toLowerCase().endsWith(".flac")
+  );
+}
 
 function formatDuration(totalSeconds: number): string {
   if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
@@ -28,6 +40,8 @@ export function AudioPlayer({
   onPrevious,
   onNext,
   onTrackPlayed,
+  transcodeMode = "original",
+  onTranscodeModeChange,
   playRequestNonce = 0
 }: AudioPlayerProps): JSX.Element {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -37,12 +51,16 @@ export function AudioPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
+  const canTranscode = Boolean(track && isFlacTrack(track));
+  const requestedTranscode = transcodeMode === "original" ? undefined : transcodeMode;
+  const effectiveTranscode = canTranscode ? requestedTranscode : undefined;
+
   const streamSource = useMemo(() => {
     if (!track) {
       return "";
     }
-    return streamUrl(track.id);
-  }, [track]);
+    return streamUrl(track.id, effectiveTranscode ? { transcode: effectiveTranscode } : undefined);
+  }, [track?.id, effectiveTranscode]);
 
   useEffect(() => {
     const audioElement = audioRef.current;
@@ -215,7 +233,33 @@ export function AudioPlayer({
             <span className="text-xs text-flaque-steel">
               {formatDuration(currentTime)} / {formatDuration(duration || track.duration)}
             </span>
+
+            <label className="flex items-center gap-2 text-xs text-flaque-steel">
+              <span>Quality</span>
+              <select
+                className="rounded-lg border border-flaque-clay bg-white px-2 py-1 text-xs text-flaque-ink"
+                value={transcodeMode}
+                onChange={(event) => {
+                  if (!onTranscodeModeChange) {
+                    return;
+                  }
+                  onTranscodeModeChange(event.target.value as TranscodeMode);
+                }}
+              >
+                <option value="original">Original</option>
+                <option value="opus">Opus fallback</option>
+                <option value="mp3">MP3 fallback</option>
+              </select>
+            </label>
           </div>
+
+          {transcodeMode !== "original" ? (
+            <p className="text-xs text-flaque-steel">
+              {canTranscode
+                ? `Streaming fallback via ${transcodeMode.toUpperCase()}.`
+                : "Fallback transcoding is available only for FLAC tracks. Streaming original source."}
+            </p>
+          ) : null}
 
           <input
             className="h-2 w-full cursor-pointer appearance-none rounded-full bg-flaque-clay/60"

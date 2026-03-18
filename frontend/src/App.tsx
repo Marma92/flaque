@@ -16,7 +16,7 @@ import {
   type UploadTracksResult
 } from "./api";
 import { AdminUsersView } from "./components/AdminUsersView";
-import { AudioPlayer } from "./components/AudioPlayer";
+import { AudioPlayer, type TranscodeMode } from "./components/AudioPlayer";
 import { LibraryView } from "./components/LibraryView";
 import { LoginPage } from "./components/LoginPage";
 import { PlayerView } from "./components/PlayerView";
@@ -24,6 +24,7 @@ import type { LibraryResponse, Track, User } from "./types";
 
 type ViewName = "library" | "player" | "admin";
 const RECENT_TRACKS_STORAGE_KEY = "flaque_recent_tracks_v1";
+const TRANSCODE_MODE_STORAGE_KEY = "flaque_transcode_mode_v1";
 const MAX_RECENT_TRACKS = 24;
 
 const EMPTY_LIBRARY: LibraryResponse = {
@@ -62,6 +63,19 @@ function isTrackLike(value: unknown): value is Track {
   );
 }
 
+function readTranscodeMode(): TranscodeMode {
+  if (typeof window === "undefined") {
+    return "original";
+  }
+
+  const stored = window.localStorage.getItem(TRANSCODE_MODE_STORAGE_KEY);
+  if (stored === "opus" || stored === "mp3" || stored === "original") {
+    return stored;
+  }
+
+  return "original";
+}
+
 export default function App(): JSX.Element {
   const [user, setUser] = useState<User | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
@@ -75,6 +89,7 @@ export default function App(): JSX.Element {
   }>({});
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [playRequestNonce, setPlayRequestNonce] = useState(0);
+  const [transcodeMode, setTranscodeMode] = useState<TranscodeMode>(() => readTranscodeMode());
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [rebuilding, setRebuilding] = useState(false);
@@ -127,6 +142,14 @@ export default function App(): JSX.Element {
       // ignore local storage write failures
     }
   }, [recentTracks]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(TRANSCODE_MODE_STORAGE_KEY, transcodeMode);
+  }, [transcodeMode]);
 
   useEffect(() => {
     if (!user) {
@@ -454,6 +477,8 @@ export default function App(): JSX.Element {
           onNext={() => handleNavigateTrack("next")}
           onPrevious={() => handleNavigateTrack("previous")}
           onTrackPlayed={handleTrackPlayed}
+          transcodeMode={transcodeMode}
+          onTranscodeModeChange={setTranscodeMode}
           playRequestNonce={playRequestNonce}
         />
       ) : (
@@ -478,6 +503,8 @@ export default function App(): JSX.Element {
               onNext={() => handleNavigateTrack("next")}
               onPrevious={() => handleNavigateTrack("previous")}
               onTrackPlayed={handleTrackPlayed}
+              transcodeMode={transcodeMode}
+              onTranscodeModeChange={setTranscodeMode}
               playRequestNonce={playRequestNonce}
             />
           </div>

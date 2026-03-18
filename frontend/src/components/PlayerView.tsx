@@ -1,11 +1,13 @@
 import type { Track } from "../types";
-import { AudioPlayer } from "./AudioPlayer";
+import { AudioPlayer, type TranscodeMode } from "./AudioPlayer";
 
 type PlayerViewProps = {
   track: Track | null;
   onPrevious?: () => Promise<void> | void;
   onNext?: () => Promise<void> | void;
   onTrackPlayed?: (track: Track) => void;
+  transcodeMode: TranscodeMode;
+  onTranscodeModeChange: (mode: TranscodeMode) => void;
   playRequestNonce?: number;
 };
 
@@ -14,6 +16,8 @@ export function PlayerView({
   onPrevious,
   onNext,
   onTrackPlayed,
+  transcodeMode,
+  onTranscodeModeChange,
   playRequestNonce
 }: PlayerViewProps): JSX.Element {
   return (
@@ -31,6 +35,8 @@ export function PlayerView({
         onPrevious={onPrevious}
         onNext={onNext}
         onTrackPlayed={onTrackPlayed}
+        transcodeMode={transcodeMode}
+        onTranscodeModeChange={onTranscodeModeChange}
         playRequestNonce={playRequestNonce}
       />
     </div>
