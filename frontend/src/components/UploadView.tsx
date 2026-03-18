@@ -249,7 +249,11 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
           </div>
         </form>
 
-        {uploadMessage ? <p className="mt-3 text-sm text-flaque-steel">{uploadMessage}</p> : null}
+        {uploadMessage ? (
+          <p className="mt-3 text-sm text-flaque-steel" role="status" aria-live="polite">
+            {uploadMessage}
+          </p>
+        ) : null}
       </section>
 
       {pendingFiles.length > 0 ? (

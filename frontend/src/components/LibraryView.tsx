@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { KeyboardEvent, useMemo } from "react";
 
 import type { AlbumEntry, ArtistEntry, Track } from "../types";
 import {
@@ -52,6 +52,15 @@ export function LibraryView({
   onOpenUpload
 }: LibraryViewProps): JSX.Element {
   const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
+
+  function handleTrackRowKeyDown(event: KeyboardEvent<HTMLTableRowElement>, track: Track): void {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    onTrackSelect(track);
+  }
 
   const generatedAtLabel = useMemo(() => {
     if (!generatedAt) {
@@ -174,10 +183,14 @@ export function LibraryView({
                 return (
                   <tr
                     key={track.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Play ${trackTitle}`}
                     className={`cursor-pointer border-t border-flaque-clay/40 transition ${
                       selected ? "bg-flaque-sand/20" : "hover:bg-flaque-cream/60"
                     }`}
                     onClick={() => onTrackSelect(track)}
+                    onKeyDown={(event) => handleTrackRowKeyDown(event, track)}
                   >
                     <td className="px-4 py-3 text-flaque-ink">
                       <span className="block max-w-[24rem] truncate" title={trackTitle}>

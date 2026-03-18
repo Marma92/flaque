@@ -209,10 +209,20 @@ export function ConfigView({
         </div>
 
         {trackError ? (
-          <p className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{trackError}</p>
+          <p
+            className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"
+            role="status"
+            aria-live="polite"
+          >
+            {trackError}
+          </p>
         ) : null}
 
-        {actionMessage ? <p className="mt-3 text-sm text-flaque-steel">{actionMessage}</p> : null}
+        {actionMessage ? (
+          <p className="mt-3 text-sm text-flaque-steel" role="status" aria-live="polite">
+            {actionMessage}
+          </p>
+        ) : null}
       </section>
 
       <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">

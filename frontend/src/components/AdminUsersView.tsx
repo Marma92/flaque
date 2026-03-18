@@ -356,8 +356,16 @@ export function AdminUsersView({
           Showing {filteredUsers.length} / {users.length} users.
         </p>
 
-        {formMessage ? <p className="mt-3 text-sm text-flaque-steel">{formMessage}</p> : null}
-        {actionMessage ? <p className="mt-2 text-sm text-flaque-steel">{actionMessage}</p> : null}
+        {formMessage ? (
+          <p className="mt-3 text-sm text-flaque-steel" role="status" aria-live="polite">
+            {formMessage}
+          </p>
+        ) : null}
+        {actionMessage ? (
+          <p className="mt-2 text-sm text-flaque-steel" role="status" aria-live="polite">
+            {actionMessage}
+          </p>
+        ) : null}
         {error ? (
           <p className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
         ) : null}
