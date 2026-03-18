@@ -21,6 +21,15 @@ const UNKNOWN_ARTIST = "Unknown Artist";
 const UNKNOWN_ALBUM = "Unknown Album";
 const ARTIST_METADATA_FILE = "artist.json";
 const ALBUM_METADATA_FILE = "album.json";
+const AUDIO_DB_SEARCH_URL = "https://www.theaudiodb.com/api/v1/json/2/search.php";
+const ARTIST_PHOTO_BASE_NAME = "artist-photo";
+
+type ArtistMetadata = {
+  name: string;
+  photo?: {
+    path: string;
+  };
+};
 
 function sanitizeExtension(fileName: string): string {
   const ext = path.extname(fileName).toLowerCase();
@@ -56,7 +65,7 @@ async function ensureDirectoryMetadata(
   directoryPath: string,
   metadataFileName: string,
   name: string
-): Promise<void> {
+): Promise<{ createdDirectory: boolean; metadataPath: string }> {
   const hasDirectory = await fileExists(directoryPath);
   if (!hasDirectory) {
     await ensureDir(directoryPath);
@@ -66,6 +75,72 @@ async function ensureDirectoryMetadata(
   const hasMetadata = await fileExists(metadataPath);
   if (!hasMetadata) {
     await writeJsonAtomic(metadataPath, { name });
+  }
+
+  return {
+    createdDirectory: !hasDirectory,
+    metadataPath
+  };
+}
+
+function pickImageExtension(contentType: string | null, sourceUrl: string): string {
+  const normalizedContentType = contentType?.toLowerCase().trim();
+  if (normalizedContentType === "image/png") {
+    return ".png";
+  }
+  if (normalizedContentType === "image/webp") {
+    return ".webp";
+  }
+
+  if (normalizedContentType === "image/jpeg" || normalizedContentType === "image/jpg") {
+    return ".jpg";
+  }
+
+  try {
+    const extension = path.extname(new URL(sourceUrl).pathname).toLowerCase();
+    if (extension === ".png" || extension === ".jpg" || extension === ".jpeg" || extension === ".webp") {
+      return extension === ".jpeg" ? ".jpg" : extension;
+    }
+  } catch {
+    return ".jpg";
+  }
+
+  return ".jpg";
+}
+
+async function fetchArtistPhotoPath(artistName: string, artistDir: string): Promise<string | undefined> {
+  try {
+    const searchUrl = new URL(AUDIO_DB_SEARCH_URL);
+    searchUrl.searchParams.set("s", artistName);
+    const searchResponse = await fetch(searchUrl);
+    if (!searchResponse.ok) {
+      return undefined;
+    }
+
+    const payload = (await searchResponse.json()) as {
+      artists?: Array<{ strArtistThumb?: string | null }>;
+    };
+    const thumbUrl = payload.artists?.[0]?.strArtistThumb?.trim();
+    if (!thumbUrl) {
+      return undefined;
+    }
+
+    const photoResponse = await fetch(thumbUrl);
+    if (!photoResponse.ok) {
+      return undefined;
+    }
+
+    const photoBuffer = Buffer.from(await photoResponse.arrayBuffer());
+    if (photoBuffer.length === 0) {
+      return undefined;
+    }
+
+    const extension = pickImageExtension(photoResponse.headers.get("content-type"), thumbUrl);
+    const artistPhotoPath = path.join(artistDir, `${ARTIST_PHOTO_BASE_NAME}${extension}`);
+    await fs.writeFile(artistPhotoPath, photoBuffer);
+    return toDataRelativePath(artistPhotoPath);
+  } catch {
+    return undefined;
   }
 }
 
@@ -255,7 +330,24 @@ export function createUploadRouter(indexStore: IndexStore): Router {
           const artistDirName = normalizeDirectorySegment(pathArtistName);
           const albumDirName = normalizeDirectorySegment(pathAlbumName);
           const artistDir = path.join(ownerUploadDir, artistDirName);
-          await ensureDirectoryMetadata(artistDir, ARTIST_METADATA_FILE, pathArtistName);
+          const artistDirectoryState = await ensureDirectoryMetadata(
+            artistDir,
+            ARTIST_METADATA_FILE,
+            pathArtistName
+          );
+
+          if (artistDirectoryState.createdDirectory) {
+            const artistPhotoPath = await fetchArtistPhotoPath(pathArtistName, artistDir);
+            if (artistPhotoPath) {
+              const artistMetadata: ArtistMetadata = {
+                name: pathArtistName,
+                photo: {
+                  path: artistPhotoPath
+                }
+              };
+              await writeJsonAtomic(artistDirectoryState.metadataPath, artistMetadata);
+            }
+          }
 
           const albumDir = path.join(artistDir, albumDirName);
           await ensureDirectoryMetadata(albumDir, ALBUM_METADATA_FILE, pathAlbumName);
