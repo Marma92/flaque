@@ -23,7 +23,7 @@ import {
   type UploadTracksResult
 } from "./api";
 import defaultCoverImage from "./assets/default-cover.png";
-import { AudioPlayer, type TranscodeMode } from "./components/AudioPlayer";
+import { AudioPlayer, type RepeatMode, type TranscodeMode } from "./components/AudioPlayer";
 import { ConfigView } from "./components/ConfigView";
 import { LibraryView } from "./components/LibraryView";
 import { LoginPage } from "./components/LoginPage";
@@ -150,7 +150,8 @@ function readTranscodeMode(): TranscodeMode {
 function getAdjacentTrackInQueue(
   queue: Track[],
   currentTrackId: string,
-  direction: "next" | "previous"
+  direction: "next" | "previous",
+  wrap = true
 ): Track | null {
   if (queue.length === 0) {
     return null;
@@ -162,11 +163,20 @@ function getAdjacentTrackInQueue(
   }
 
   if (queue.length === 1) {
-    return null;
+    return wrap ? queue[0] ?? null : null;
   }
 
   const offset = direction === "next" ? 1 : -1;
-  const targetIndex = (currentIndex + offset + queue.length) % queue.length;
+  const targetIndex = currentIndex + offset;
+
+  if (targetIndex < 0 || targetIndex >= queue.length) {
+    if (!wrap) {
+      return null;
+    }
+
+    return direction === "next" ? queue[0] ?? null : queue[queue.length - 1] ?? null;
+  }
+
   return queue[targetIndex] ?? null;
 }
 
@@ -193,6 +203,7 @@ export default function App(): JSX.Element {
   const [playQueue, setPlayQueue] = useState<Track[]>([]);
   const [playRequestNonce, setPlayRequestNonce] = useState(0);
   const [transcodeMode, setTranscodeMode] = useState<TranscodeMode>(() => readTranscodeMode());
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");
   const [queueRestoredFromStorage, setQueueRestoredFromStorage] = useState(false);
 
   const [rebuilding, setRebuilding] = useState(false);
@@ -204,6 +215,7 @@ export default function App(): JSX.Element {
   const [playlistCreateVisibility, setPlaylistCreateVisibility] = useState<PlaylistVisibility>("private");
   const [playlistCreateSubmitting, setPlaylistCreateSubmitting] = useState(false);
   const [playlistCreateStatus, setPlaylistCreateStatus] = useState<string | null>(null);
+  const [playerStatusMessage, setPlayerStatusMessage] = useState<string | null>(null);
 
   const allTracksById = useMemo(() => {
     return new Map(allTracksLibrary.tracks.map((track) => [track.id, track]));
@@ -530,6 +542,7 @@ export default function App(): JSX.Element {
     setUser(null);
     setSelectedTrack(null);
     setPlayQueue([]);
+    setRepeatMode("off");
     setFilters({});
     setAdminUsers([]);
     setAdminError(null);
@@ -670,13 +683,15 @@ export default function App(): JSX.Element {
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
   }
 
-  async function handleNavigateTrack(direction: "next" | "previous"): Promise<void> {
+  async function handleNavigateTrack(direction: "next" | "previous", wrap = true): Promise<void> {
     const currentTrack = selectedTrackRefreshed;
     if (!currentTrack) {
       return;
     }
 
-    const nextTrackFromQueue = getAdjacentTrackInQueue(refreshedQueue, currentTrack.id, direction);
+    setPlayerStatusMessage(null);
+
+    const nextTrackFromQueue = getAdjacentTrackInQueue(refreshedQueue, currentTrack.id, direction, wrap);
     if (nextTrackFromQueue && nextTrackFromQueue.id !== currentTrack.id) {
       setSelectedTrack(nextTrackFromQueue);
       return;
@@ -686,7 +701,7 @@ export default function App(): JSX.Element {
       const adjacentTrack = await getAdjacentTrack({
         trackId: currentTrack.id,
         direction,
-        wrap: true,
+        wrap,
         owner: filters.owner,
         artist: filters.artist,
         album: filters.album,
@@ -694,11 +709,19 @@ export default function App(): JSX.Element {
       });
 
       if (!adjacentTrack || adjacentTrack.id === currentTrack.id) {
+        if (!wrap) {
+          setPlayerStatusMessage(
+            direction === "next"
+              ? "You reached the end of the current queue."
+              : "You are already at the start of the current queue."
+          );
+        }
         return;
       }
 
       setSelectedTrack(adjacentTrack);
     } catch (error) {
+      setPlayerStatusMessage("Unable to change track right now.");
       setLibraryError(error instanceof Error ? error.message : "Unable to navigate tracks");
     }
   }
@@ -714,6 +737,7 @@ export default function App(): JSX.Element {
     const source = queueSource && queueSource.length > 0 ? queueSource : allTracksLibrary.tracks;
     setPlayQueue(source.length > 0 ? source : [track]);
 
+    setPlayerStatusMessage(null);
     setSelectedTrack(track);
     setPlayRequestNonce((current) => current + 1);
   }
@@ -1026,14 +1050,21 @@ export default function App(): JSX.Element {
       {shouldRenderPlayer ? (
         <div className={activeView === "player" ? "mt-4" : "fixed bottom-0 left-0 right-0 z-40 px-3 pb-3 pt-2"}>
           <div className="mx-auto max-w-7xl">
+            {playerStatusMessage ? (
+              <p className="mb-2 rounded-xl border border-flaque-clay/60 bg-white/85 px-3 py-2 text-sm text-flaque-steel" role="status">
+                {playerStatusMessage}
+              </p>
+            ) : null}
             <AudioPlayer
               track={selectedTrackRefreshed}
               expanded={activeView === "player"}
-              onNext={() => handleNavigateTrack("next")}
-              onPrevious={() => handleNavigateTrack("previous")}
+              onNext={(options) => handleNavigateTrack("next", options?.wrap ?? true)}
+              onPrevious={(options) => handleNavigateTrack("previous", options?.wrap ?? true)}
               onTrackPlayed={handleTrackPlayed}
               transcodeMode={transcodeMode}
               onTranscodeModeChange={setTranscodeMode}
+              repeatMode={repeatMode}
+              onRepeatModeChange={setRepeatMode}
               playRequestNonce={playRequestNonce}
               playlists={manageablePlaylists}
               onAddTrackToPlaylist={handleAddTrackToPlaylist}

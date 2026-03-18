@@ -189,12 +189,6 @@ export function AudioPlayer({
       });
   }, [playRequestNonce, track?.id]);
 
-  useEffect(() => {
-    if (!expanded) {
-      setShowQueuePanel(false);
-    }
-  }, [expanded]);
-
   function onTogglePlayback(): void {
     const audioElement = audioRef.current;
     if (!audioElement || !track) {
@@ -305,6 +299,12 @@ export function AudioPlayer({
   const queueCurrentId = currentQueueTrackId ?? track.id;
   const rawQueueCurrentIndex = effectiveQueue.findIndex((queueTrack) => queueTrack.id === queueCurrentId);
   const queueCurrentIndex = rawQueueCurrentIndex >= 0 ? rawQueueCurrentIndex : 0;
+  const queuePanelClassName = expanded
+    ? "rounded-2xl border border-flaque-clay/60 bg-flaque-cream/35 p-3"
+    : "rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 p-2.5";
+  const queueListClassName = expanded
+    ? "mt-2 max-h-56 space-y-1.5 overflow-auto pr-1"
+    : "mt-2 max-h-36 space-y-1 overflow-auto pr-1";
 
   return (
     <section className={sectionClassName}>
@@ -395,7 +395,7 @@ export function AudioPlayer({
               title="Previous"
               onClick={() => {
                 if (onPrevious) {
-                  void onPrevious({ wrap: true });
+                  void onPrevious({ wrap: false });
                 }
               }}
               disabled={!onPrevious}
@@ -403,47 +403,6 @@ export function AudioPlayer({
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M7 6h2v12H7zM19 6v12l-8.5-6L19 6z" />
               </svg>
-            </button>
-            <button
-              className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
-                repeatMode === "off"
-                  ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
-                  : "bg-flaque-ink text-flaque-cream hover:bg-black"
-              }`}
-              type="button"
-              aria-label={
-                repeatMode === "off"
-                  ? "Enable repeat all"
-                  : repeatMode === "all"
-                    ? "Enable repeat one"
-                    : "Disable repeat"
-              }
-              title={
-                repeatMode === "off"
-                  ? "Repeat off"
-                  : repeatMode === "all"
-                    ? "Repeat all"
-                    : "Repeat one"
-              }
-              onClick={onCycleRepeatMode}
-            >
-              {repeatMode === "one" ? (
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                  <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M12 9v6" strokeLinecap="round" />
-                  <path d="M10.5 10.5L12 9l1.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              ) : (
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                  <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              )}
             </button>
             <button
               className="flex h-9 w-9 items-center justify-center rounded-xl bg-flaque-ink text-flaque-cream transition hover:bg-black"
@@ -469,7 +428,7 @@ export function AudioPlayer({
               title="Next"
               onClick={() => {
                 if (onNext) {
-                  void onNext({ wrap: true });
+                  void onNext({ wrap: false });
                 }
               }}
               disabled={!onNext}
@@ -483,26 +442,66 @@ export function AudioPlayer({
             </span>
 
             <div className="ml-auto flex items-center gap-2">
-              {expanded ? (
-                <button
-                  className={queueButtonClassName}
-                  type="button"
-                  aria-label={showQueuePanel ? "Masquer la file de lecture" : "Afficher la file de lecture"}
-                  title={showQueuePanel ? "Masquer la file de lecture" : "Afficher la file de lecture"}
-                  onClick={() => setShowQueuePanel((current) => !current)}
-                >
-                  <svg
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    aria-hidden="true"
-                  >
-                    <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
+              <button
+                className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
+                  repeatMode === "off"
+                    ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
+                    : "bg-flaque-ink text-flaque-cream hover:bg-black"
+                }`}
+                type="button"
+                aria-label={
+                  repeatMode === "off"
+                    ? "Enable repeat all"
+                    : repeatMode === "all"
+                      ? "Enable repeat one"
+                      : "Disable repeat"
+                }
+                title={
+                  repeatMode === "off"
+                    ? "Repeat off"
+                    : repeatMode === "all"
+                      ? "Repeat all"
+                      : "Repeat one"
+                }
+                onClick={onCycleRepeatMode}
+              >
+                {repeatMode === "one" ? (
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M12 9v6" strokeLinecap="round" />
+                    <path d="M10.5 10.5L12 9l1.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                </button>
-              ) : null}
+                ) : (
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
+
+              <button
+                className={queueButtonClassName}
+                type="button"
+                aria-label={showQueuePanel ? "Masquer la file de lecture" : "Afficher la file de lecture"}
+                title={showQueuePanel ? "Masquer la file de lecture" : "Afficher la file de lecture"}
+                onClick={() => setShowQueuePanel((current) => !current)}
+              >
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden="true"
+                >
+                  <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
 
               <button
                 className={playlistButtonClassName}
@@ -629,10 +628,10 @@ export function AudioPlayer({
             onChange={(event) => onSeek(Number(event.target.value))}
           />
 
-          {expanded && showQueuePanel ? (
-            <div className="rounded-2xl border border-flaque-clay/60 bg-flaque-cream/35 p-3">
+          {showQueuePanel ? (
+            <div className={queuePanelClassName}>
               <p className="text-xs uppercase tracking-[0.2em] text-flaque-steel">Current queue</p>
-              <div className="mt-2 max-h-56 space-y-1.5 overflow-auto pr-1">
+              <div className={queueListClassName}>
                 {effectiveQueue.map((queueTrack, index) => {
                   const isCurrent = index === queueCurrentIndex;
                   const isPlayed = index < queueCurrentIndex;
@@ -649,7 +648,9 @@ export function AudioPlayer({
                   return (
                     <button
                       key={`${queueTrack.id}-${index}`}
-                      className={`flex w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition ${rowClassName} ${
+                      className={`flex w-full items-center gap-2 rounded-xl border ${
+                        expanded ? "px-2.5 py-2" : "px-2 py-1.5"
+                      } text-left transition ${rowClassName} ${
                         onQueueTrackSelect ? "hover:bg-flaque-cream" : "cursor-default"
                       }`}
                       type="button"
@@ -663,12 +664,18 @@ export function AudioPlayer({
                       disabled={!onQueueTrackSelect}
                       title={title}
                     >
-                      <span className="w-12 shrink-0 text-[10px] uppercase tracking-[0.16em] text-flaque-steel/80">
+                      <span
+                        className={`${expanded ? "w-12" : "w-10"} shrink-0 text-[10px] uppercase tracking-[0.16em] text-flaque-steel/80`}
+                      >
                         {stateLabel}
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium">{title}</span>
-                        <span className="block truncate text-xs text-flaque-steel/85">{artist}</span>
+                        <span className={`block truncate font-medium ${expanded ? "text-sm" : "text-xs"}`}>{title}</span>
+                        <span
+                          className={`block truncate ${expanded ? "text-xs text-flaque-steel/85" : "text-[11px] text-flaque-steel/80"}`}
+                        >
+                          {artist}
+                        </span>
                       </span>
                     </button>
                   );
