@@ -22,6 +22,9 @@ type AudioPlayerProps = {
   playRequestNonce?: number;
   playlists?: Playlist[];
   onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
+  queueTracks?: Track[];
+  currentQueueTrackId?: string | null;
+  onQueueTrackSelect?: (track: Track) => void;
 };
 
 function isFlacTrack(track: Track): boolean {
@@ -52,7 +55,10 @@ export function AudioPlayer({
   onTranscodeModeChange,
   playRequestNonce = 0,
   playlists = [],
-  onAddTrackToPlaylist
+  onAddTrackToPlaylist,
+  queueTracks = [],
+  currentQueueTrackId = null,
+  onQueueTrackSelect
 }: AudioPlayerProps): JSX.Element {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoplayOnTrackChangeRef = useRef(true);
@@ -246,6 +252,10 @@ export function AudioPlayer({
 
   const hasPlayablePlaylists = playlists.length > 0;
   const activePlaylistId = selectedPlaylistId || playlists[0]?.id || "";
+  const effectiveQueue = queueTracks.length > 0 ? queueTracks : [track];
+  const queueCurrentId = currentQueueTrackId ?? track.id;
+  const rawQueueCurrentIndex = effectiveQueue.findIndex((queueTrack) => queueTrack.id === queueCurrentId);
+  const queueCurrentIndex = rawQueueCurrentIndex >= 0 ? rawQueueCurrentIndex : 0;
 
   return (
     <section className={sectionClassName}>
@@ -507,6 +517,54 @@ export function AudioPlayer({
             value={Math.min(currentTime, duration || track.duration || 0)}
             onChange={(event) => onSeek(Number(event.target.value))}
           />
+
+          {expanded ? (
+            <div className="rounded-2xl border border-flaque-clay/60 bg-flaque-cream/35 p-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-flaque-steel">Current queue</p>
+              <div className="mt-2 max-h-56 space-y-1.5 overflow-auto pr-1">
+                {effectiveQueue.map((queueTrack, index) => {
+                  const isCurrent = index === queueCurrentIndex;
+                  const isPlayed = index < queueCurrentIndex;
+                  const title = getTrackDisplayTitle(queueTrack);
+                  const artist = getTrackDisplayArtist(queueTrack) ?? "Unknown artist";
+
+                  const stateLabel = isCurrent ? "Now" : isPlayed ? "Played" : "Next";
+                  const rowClassName = isCurrent
+                    ? "border-flaque-sand/80 bg-white text-flaque-ink shadow-sm"
+                    : isPlayed
+                      ? "border-flaque-clay/40 bg-flaque-cream/60 text-flaque-steel/70 opacity-70"
+                      : "border-flaque-clay/50 bg-white/80 text-flaque-ink";
+
+                  return (
+                    <button
+                      key={`${queueTrack.id}-${index}`}
+                      className={`flex w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition ${rowClassName} ${
+                        onQueueTrackSelect ? "hover:bg-flaque-cream" : "cursor-default"
+                      }`}
+                      type="button"
+                      onClick={() => {
+                        if (!onQueueTrackSelect) {
+                          return;
+                        }
+
+                        onQueueTrackSelect(queueTrack);
+                      }}
+                      disabled={!onQueueTrackSelect}
+                      title={title}
+                    >
+                      <span className="w-12 shrink-0 text-[10px] uppercase tracking-[0.16em] text-flaque-steel/80">
+                        {stateLabel}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium">{title}</span>
+                        <span className="block truncate text-xs text-flaque-steel/85">{artist}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

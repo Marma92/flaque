@@ -27,7 +27,6 @@ import { AudioPlayer, type TranscodeMode } from "./components/AudioPlayer";
 import { ConfigView } from "./components/ConfigView";
 import { LibraryView } from "./components/LibraryView";
 import { LoginPage } from "./components/LoginPage";
-import { PlayerView } from "./components/PlayerView";
 import { UploadView } from "./components/UploadView";
 import type { LibraryResponse, Playlist, PlaylistVisibility, Track, TrackMetadataPatch, User } from "./types";
 import {
@@ -40,6 +39,7 @@ type ViewName = "library" | "upload" | "player" | "config";
 
 const RECENT_TRACKS_STORAGE_KEY = "flaque_recent_tracks_v1";
 const TRANSCODE_MODE_STORAGE_KEY = "flaque_transcode_mode_v1";
+const CURRENT_QUEUE_STORAGE_KEY = "flaque_current_queue_v1";
 const MAX_RECENT_TRACKS = 24;
 
 const EMPTY_LIBRARY: LibraryResponse = {
@@ -78,6 +78,60 @@ function isTrackLike(value: unknown): value is Track {
     Boolean(candidate.tags) &&
     typeof candidate.tags === "object"
   );
+}
+
+type StoredQueueSnapshot = {
+  userId: string;
+  trackIds: string[];
+  currentTrackId: string | null;
+};
+
+function parseStoredQueueSnapshot(value: unknown): StoredQueueSnapshot | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as {
+    userId?: unknown;
+    trackIds?: unknown;
+    currentTrackId?: unknown;
+  };
+
+  if (typeof candidate.userId !== "string" || !candidate.userId.trim()) {
+    return null;
+  }
+
+  if (!Array.isArray(candidate.trackIds)) {
+    return null;
+  }
+
+  const deduplicated = new Set<string>();
+  const trackIds: string[] = [];
+
+  for (const entry of candidate.trackIds) {
+    if (typeof entry !== "string") {
+      continue;
+    }
+
+    const trimmed = entry.trim();
+    if (!trimmed || deduplicated.has(trimmed)) {
+      continue;
+    }
+
+    deduplicated.add(trimmed);
+    trackIds.push(trimmed);
+  }
+
+  const currentTrackId =
+    typeof candidate.currentTrackId === "string" && candidate.currentTrackId.trim()
+      ? candidate.currentTrackId.trim()
+      : null;
+
+  return {
+    userId: candidate.userId.trim(),
+    trackIds,
+    currentTrackId
+  };
 }
 
 function readTranscodeMode(): TranscodeMode {
@@ -139,6 +193,7 @@ export default function App(): JSX.Element {
   const [playQueue, setPlayQueue] = useState<Track[]>([]);
   const [playRequestNonce, setPlayRequestNonce] = useState(0);
   const [transcodeMode, setTranscodeMode] = useState<TranscodeMode>(() => readTranscodeMode());
+  const [queueRestoredFromStorage, setQueueRestoredFromStorage] = useState(false);
 
   const [rebuilding, setRebuilding] = useState(false);
   const [adminUsers, setAdminUsers] = useState<User[]>([]);
@@ -203,6 +258,10 @@ export default function App(): JSX.Element {
   }, []);
 
   useEffect(() => {
+    setQueueRestoredFromStorage(false);
+  }, [user?.id]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -238,6 +297,87 @@ export default function App(): JSX.Element {
       // ignore local storage write failures
     }
   }, [recentTracks]);
+
+  useEffect(() => {
+    if (!user || queueRestoredFromStorage) {
+      return;
+    }
+
+    if (loadingAllTracks) {
+      return;
+    }
+
+    if (selectedTrack || playQueue.length > 0) {
+      setQueueRestoredFromStorage(true);
+      return;
+    }
+
+    if (typeof window === "undefined") {
+      setQueueRestoredFromStorage(true);
+      return;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(CURRENT_QUEUE_STORAGE_KEY);
+      if (!raw) {
+        setQueueRestoredFromStorage(true);
+        return;
+      }
+
+      const parsed = parseStoredQueueSnapshot(JSON.parse(raw));
+      if (!parsed || parsed.userId !== user.id) {
+        setQueueRestoredFromStorage(true);
+        return;
+      }
+
+      const restoredQueue = parsed.trackIds
+        .map((trackId) => allTracksById.get(trackId))
+        .filter((track): track is Track => Boolean(track));
+
+      if (restoredQueue.length > 0) {
+        setPlayQueue(restoredQueue);
+      }
+
+      if (parsed.currentTrackId) {
+        const restoredCurrentTrack =
+          restoredQueue.find((track) => track.id === parsed.currentTrackId) ??
+          allTracksById.get(parsed.currentTrackId);
+
+        if (restoredCurrentTrack) {
+          setSelectedTrack(restoredCurrentTrack);
+        }
+      }
+    } catch {
+      // ignore malformed local storage queue
+    } finally {
+      setQueueRestoredFromStorage(true);
+    }
+  }, [allTracksById, loadingAllTracks, playQueue.length, queueRestoredFromStorage, selectedTrack, user]);
+
+  useEffect(() => {
+    if (!user || typeof window === "undefined") {
+      return;
+    }
+
+    const queueSource = refreshedQueue.length > 0 ? refreshedQueue : selectedTrackRefreshed ? [selectedTrackRefreshed] : [];
+
+    if (queueSource.length === 0) {
+      window.localStorage.removeItem(CURRENT_QUEUE_STORAGE_KEY);
+      return;
+    }
+
+    try {
+      const payload: StoredQueueSnapshot = {
+        userId: user.id,
+        trackIds: queueSource.map((track) => track.id),
+        currentTrackId: selectedTrackRefreshed?.id ?? null
+      };
+
+      window.localStorage.setItem(CURRENT_QUEUE_STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // ignore local storage write failures
+    }
+  }, [refreshedQueue, selectedTrackRefreshed, user]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -572,9 +712,7 @@ export default function App(): JSX.Element {
 
   function requestTrackPlayback(track: Track, queueSource?: Track[]): void {
     const source = queueSource && queueSource.length > 0 ? queueSource : allTracksLibrary.tracks;
-    if (source.length > 0) {
-      setPlayQueue(source);
-    }
+    setPlayQueue(source.length > 0 ? source : [track]);
 
     setSelectedTrack(track);
     setPlayRequestNonce((current) => current + 1);
@@ -862,8 +1000,6 @@ export default function App(): JSX.Element {
         <UploadView onUpload={handleUpload} onInspectFile={handleInspectUploadFile} />
       ) : null}
 
-      {activeView === "player" ? <PlayerView track={selectedTrackRefreshed} /> : null}
-
       {activeView === "config" && user.role === "admin" ? (
         <ConfigView
           currentUser={user}
@@ -901,6 +1037,11 @@ export default function App(): JSX.Element {
               playRequestNonce={playRequestNonce}
               playlists={manageablePlaylists}
               onAddTrackToPlaylist={handleAddTrackToPlaylist}
+              queueTracks={refreshedQueue}
+              currentQueueTrackId={selectedTrackRefreshed?.id ?? null}
+              onQueueTrackSelect={(queueTrack) => {
+                requestTrackPlayback(queueTrack, refreshedQueue.length > 0 ? refreshedQueue : undefined);
+              }}
             />
           </div>
         </div>
