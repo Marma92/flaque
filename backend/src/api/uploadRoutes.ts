@@ -22,11 +22,20 @@ const UNKNOWN_ALBUM = "Unknown Album";
 const ARTIST_METADATA_FILE = "artist.json";
 const ALBUM_METADATA_FILE = "album.json";
 const AUDIO_DB_SEARCH_URL = "https://www.theaudiodb.com/api/v1/json/2/search.php";
+const AUDIO_DB_ALBUM_SEARCH_URL = "https://www.theaudiodb.com/api/v1/json/2/searchalbum.php";
 const ARTIST_PHOTO_BASE_NAME = "artist-photo";
+const ALBUM_COVER_BASE_NAME = "album-cover";
 
 type ArtistMetadata = {
   name: string;
   photo?: {
+    path: string;
+  };
+};
+
+type AlbumMetadata = {
+  name: string;
+  cover?: {
     path: string;
   };
 };
@@ -108,6 +117,61 @@ function pickImageExtension(contentType: string | null, sourceUrl: string): stri
   return ".jpg";
 }
 
+function pickImageExtensionFromCoverFormat(format?: string): string {
+  const normalizedFormat = format?.toLowerCase().trim();
+  if (!normalizedFormat) {
+    return ".jpg";
+  }
+
+  if (normalizedFormat.includes("png")) {
+    return ".png";
+  }
+  if (normalizedFormat.includes("webp")) {
+    return ".webp";
+  }
+  if (normalizedFormat.includes("jpeg") || normalizedFormat.includes("jpg")) {
+    return ".jpg";
+  }
+
+  return ".jpg";
+}
+
+async function downloadImageToDirectory(
+  imageUrl: string,
+  targetDir: string,
+  fileBaseName: string
+): Promise<string | undefined> {
+  const response = await fetch(imageUrl);
+  if (!response.ok) {
+    return undefined;
+  }
+
+  const imageBuffer = Buffer.from(await response.arrayBuffer());
+  if (imageBuffer.length === 0) {
+    return undefined;
+  }
+
+  const extension = pickImageExtension(response.headers.get("content-type"), imageUrl);
+  const filePath = path.join(targetDir, `${fileBaseName}${extension}`);
+  await fs.writeFile(filePath, imageBuffer);
+  return toDataRelativePath(filePath);
+}
+
+async function writeEmbeddedCoverToDirectory(
+  cover: { data: Buffer; format?: string } | undefined,
+  targetDir: string,
+  fileBaseName: string
+): Promise<string | undefined> {
+  if (!cover?.data || cover.data.length === 0) {
+    return undefined;
+  }
+
+  const extension = pickImageExtensionFromCoverFormat(cover.format);
+  const filePath = path.join(targetDir, `${fileBaseName}${extension}`);
+  await fs.writeFile(filePath, cover.data);
+  return toDataRelativePath(filePath);
+}
+
 async function fetchArtistPhotoPath(artistName: string, artistDir: string): Promise<string | undefined> {
   try {
     const searchUrl = new URL(AUDIO_DB_SEARCH_URL);
@@ -125,20 +189,35 @@ async function fetchArtistPhotoPath(artistName: string, artistDir: string): Prom
       return undefined;
     }
 
-    const photoResponse = await fetch(thumbUrl);
-    if (!photoResponse.ok) {
+    return await downloadImageToDirectory(thumbUrl, artistDir, ARTIST_PHOTO_BASE_NAME);
+  } catch {
+    return undefined;
+  }
+}
+
+async function fetchAlbumCoverPath(
+  artistName: string,
+  albumName: string,
+  albumDir: string
+): Promise<string | undefined> {
+  try {
+    const searchUrl = new URL(AUDIO_DB_ALBUM_SEARCH_URL);
+    searchUrl.searchParams.set("s", artistName);
+    searchUrl.searchParams.set("a", albumName);
+    const searchResponse = await fetch(searchUrl);
+    if (!searchResponse.ok) {
       return undefined;
     }
 
-    const photoBuffer = Buffer.from(await photoResponse.arrayBuffer());
-    if (photoBuffer.length === 0) {
+    const payload = (await searchResponse.json()) as {
+      album?: Array<{ strAlbumThumb?: string | null }>;
+    };
+    const thumbUrl = payload.album?.[0]?.strAlbumThumb?.trim();
+    if (!thumbUrl) {
       return undefined;
     }
 
-    const extension = pickImageExtension(photoResponse.headers.get("content-type"), thumbUrl);
-    const artistPhotoPath = path.join(artistDir, `${ARTIST_PHOTO_BASE_NAME}${extension}`);
-    await fs.writeFile(artistPhotoPath, photoBuffer);
-    return toDataRelativePath(artistPhotoPath);
+    return await downloadImageToDirectory(thumbUrl, albumDir, ALBUM_COVER_BASE_NAME);
   } catch {
     return undefined;
   }
@@ -350,7 +429,26 @@ export function createUploadRouter(indexStore: IndexStore): Router {
           }
 
           const albumDir = path.join(artistDir, albumDirName);
-          await ensureDirectoryMetadata(albumDir, ALBUM_METADATA_FILE, pathAlbumName);
+          const albumDirectoryState = await ensureDirectoryMetadata(albumDir, ALBUM_METADATA_FILE, pathAlbumName);
+
+          if (albumDirectoryState.createdDirectory) {
+            const embeddedCoverPath = await writeEmbeddedCoverToDirectory(
+              metadata.cover,
+              albumDir,
+              ALBUM_COVER_BASE_NAME
+            );
+            const albumCoverPath =
+              embeddedCoverPath ?? (await fetchAlbumCoverPath(pathArtistName, pathAlbumName, albumDir));
+            if (albumCoverPath) {
+              const albumMetadata: AlbumMetadata = {
+                name: pathAlbumName,
+                cover: {
+                  path: albumCoverPath
+                }
+              };
+              await writeJsonAtomic(albumDirectoryState.metadataPath, albumMetadata);
+            }
+          }
 
           const hash = await hashFile(uploadedFile.path);
           const extension = sanitizeExtension(uploadedFile.originalname);
