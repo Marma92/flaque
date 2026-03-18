@@ -1,4 +1,4 @@
-import { KeyboardEvent, useMemo } from "react";
+import { KeyboardEvent, useEffect, useMemo, useState } from "react";
 
 import type { AlbumEntry, ArtistEntry, Track } from "../types";
 import {
@@ -53,6 +53,7 @@ export function LibraryView({
 }: LibraryViewProps): JSX.Element {
   const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
   const hasActiveFilters = Boolean(filters.owner || filters.artist || filters.album || filters.q);
+  const [searchDraft, setSearchDraft] = useState(filters.q ?? "");
 
   function handleTrackRowKeyDown(event: KeyboardEvent<HTMLTableRowElement>, track: Track): void {
     if (event.key !== "Enter" && event.key !== " ") {
@@ -73,6 +74,29 @@ export function LibraryView({
       return generatedAt;
     }
   }, [generatedAt]);
+
+  useEffect(() => {
+    setSearchDraft(filters.q ?? "");
+  }, [filters.q]);
+
+  useEffect(() => {
+    const trimmedDraft = searchDraft.trim();
+    const currentQuery = (filters.q ?? "").trim();
+    if (trimmedDraft === currentQuery) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      onFilterChange({
+        ...filters,
+        q: trimmedDraft || undefined
+      });
+    }, 260);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [filters, onFilterChange, searchDraft]);
 
   return (
     <div className="space-y-4">
@@ -98,7 +122,10 @@ export function LibraryView({
             <button
               className="rounded-lg border border-flaque-clay bg-white px-2.5 py-1 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-55"
               type="button"
-              onClick={() => onFilterChange({})}
+              onClick={() => {
+                setSearchDraft("");
+                onFilterChange({});
+              }}
               disabled={!hasActiveFilters}
             >
               Reset filters
@@ -175,13 +202,8 @@ export function LibraryView({
                 className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
                 type="search"
                 placeholder="Search title, artist, album, year"
-                value={filters.q ?? ""}
-                onChange={(event) =>
-                  onFilterChange({
-                    ...filters,
-                    q: event.target.value || undefined
-                  })
-                }
+                value={searchDraft}
+                onChange={(event) => setSearchDraft(event.target.value)}
               />
             </label>
           </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   coverUrl,
@@ -267,6 +267,8 @@ export default function App(): JSX.Element {
   const [playlistCreateStatus, setPlaylistCreateStatus] = useState<string | null>(null);
   const [playerStatusMessage, setPlayerStatusMessage] = useState<string | null>(null);
   const [appNotice, setAppNotice] = useState<AppNotice | null>(null);
+  const libraryRequestIdRef = useRef(0);
+  const allTracksRequestIdRef = useRef(0);
 
   const allTracksById = useMemo(() => {
     return new Map(allTracksLibrary.tracks.map((track) => [track.id, track]));
@@ -469,33 +471,30 @@ export default function App(): JSX.Element {
       return;
     }
 
-    let cancelled = false;
+    const requestId = libraryRequestIdRef.current + 1;
+    libraryRequestIdRef.current = requestId;
 
     setLoadingLibrary(true);
     setLibraryError(null);
 
     getLibrary(filters)
       .then((payload) => {
-        if (cancelled) {
+        if (libraryRequestIdRef.current !== requestId) {
           return;
         }
         setLibrary(payload);
       })
       .catch((error) => {
-        if (cancelled) {
+        if (libraryRequestIdRef.current !== requestId) {
           return;
         }
         setLibraryError(error instanceof Error ? error.message : "Failed to load library");
       })
       .finally(() => {
-        if (!cancelled) {
+        if (libraryRequestIdRef.current === requestId) {
           setLoadingLibrary(false);
         }
       });
-
-    return () => {
-      cancelled = true;
-    };
   }, [user, filters]);
 
   useEffect(() => {
@@ -503,33 +502,30 @@ export default function App(): JSX.Element {
       return;
     }
 
-    let cancelled = false;
+    const requestId = allTracksRequestIdRef.current + 1;
+    allTracksRequestIdRef.current = requestId;
 
     setLoadingAllTracks(true);
     setAllTracksError(null);
 
     getLibrary({})
       .then((payload) => {
-        if (cancelled) {
+        if (allTracksRequestIdRef.current !== requestId) {
           return;
         }
         setAllTracksLibrary(payload);
       })
       .catch((error) => {
-        if (cancelled) {
+        if (allTracksRequestIdRef.current !== requestId) {
           return;
         }
         setAllTracksError(error instanceof Error ? error.message : "Failed to load tracks");
       })
       .finally(() => {
-        if (!cancelled) {
+        if (allTracksRequestIdRef.current === requestId) {
           setLoadingAllTracks(false);
         }
       });
-
-    return () => {
-      cancelled = true;
-    };
   }, [user]);
 
   useEffect(() => {
@@ -608,30 +604,52 @@ export default function App(): JSX.Element {
   }, [appNotice]);
 
   async function refreshCurrentLibrary(): Promise<void> {
+    const requestId = libraryRequestIdRef.current + 1;
+    libraryRequestIdRef.current = requestId;
+
     setLoadingLibrary(true);
     setLibraryError(null);
 
     try {
       const payload = await getLibrary(filters);
+      if (libraryRequestIdRef.current !== requestId) {
+        return;
+      }
       setLibrary(payload);
     } catch (error) {
+      if (libraryRequestIdRef.current !== requestId) {
+        return;
+      }
       setLibraryError(error instanceof Error ? error.message : "Failed to load library");
     } finally {
-      setLoadingLibrary(false);
+      if (libraryRequestIdRef.current === requestId) {
+        setLoadingLibrary(false);
+      }
     }
   }
 
   async function refreshAllTracks(): Promise<void> {
+    const requestId = allTracksRequestIdRef.current + 1;
+    allTracksRequestIdRef.current = requestId;
+
     setLoadingAllTracks(true);
     setAllTracksError(null);
 
     try {
       const payload = await getLibrary({});
+      if (allTracksRequestIdRef.current !== requestId) {
+        return;
+      }
       setAllTracksLibrary(payload);
     } catch (error) {
+      if (allTracksRequestIdRef.current !== requestId) {
+        return;
+      }
       setAllTracksError(error instanceof Error ? error.message : "Failed to load tracks");
     } finally {
-      setLoadingAllTracks(false);
+      if (allTracksRequestIdRef.current === requestId) {
+        setLoadingAllTracks(false);
+      }
     }
   }
 
