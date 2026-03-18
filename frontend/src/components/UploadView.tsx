@@ -195,20 +195,47 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
         </p>
 
         <form className="mt-4 space-y-4" onSubmit={handleUploadSubmit}>
-          <label className="block text-sm text-flaque-ink">
+          <label className="block text-sm text-flaque-ink" htmlFor="upload-audio-files">
             Files
-            <input
-              ref={fileInputRef}
-              className="mt-1 block w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-              type="file"
-              multiple
-              accept=".flac,.mp3,.wav,.ogg,.opus,.m4a"
-              disabled={uploading}
-              onChange={handleFileSelection}
-            />
           </label>
 
-          <p className="text-sm text-flaque-steel">{selectedFileCountLabel}</p>
+          <input
+            id="upload-audio-files"
+            ref={fileInputRef}
+            className="sr-only"
+            type="file"
+            multiple
+            accept=".flac,.mp3,.wav,.ogg,.opus,.m4a"
+            disabled={uploading}
+            onChange={handleFileSelection}
+          />
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border border-flaque-clay bg-flaque-cream/65 px-4 py-2 text-sm font-medium text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              <svg
+                className="h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                aria-hidden="true"
+              >
+                <path d="M4 6.5A2.5 2.5 0 016.5 4H10l2 2h5.5A2.5 2.5 0 0120 8.5v9A2.5 2.5 0 0117.5 20h-11A2.5 2.5 0 014 17.5v-11z" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M12 10.5v6" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M9 13.5h6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Browse files
+            </button>
+
+            <p className="text-sm text-flaque-steel">{selectedFileCountLabel}</p>
+          </div>
+
+          <p className="text-xs text-flaque-steel/90">Supported formats: FLAC, MP3, WAV, OGG, Opus, M4A.</p>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <label className="text-sm text-flaque-ink">
