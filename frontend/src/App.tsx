@@ -897,7 +897,7 @@ export default function App(): JSX.Element {
   return (
     <main
       className={`mx-auto min-h-screen w-full max-w-7xl px-4 pt-6 md:px-6 ${
-        hasStickyPlayer ? "pb-72" : "pb-10"
+        hasStickyPlayer ? "pb-[calc(18rem+env(safe-area-inset-bottom))]" : "pb-[calc(2.5rem+env(safe-area-inset-bottom))]"
       }`}
     >
       <header className="mb-4 rounded-3xl border border-flaque-clay/60 bg-white/80 px-5 py-4 shadow-panel backdrop-blur-sm">
@@ -920,7 +920,7 @@ export default function App(): JSX.Element {
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full items-center gap-2 overflow-x-auto pb-1 pr-10 sm:w-auto sm:flex-wrap sm:overflow-visible sm:pb-0 sm:pr-0">
             <button
               className={`rounded-xl px-4 py-2 text-sm transition ${
                 activeView === "library"
@@ -1186,7 +1186,13 @@ export default function App(): JSX.Element {
       ) : null}
 
       {shouldRenderPlayer ? (
-        <div className={activeView === "player" ? "mt-4" : "fixed bottom-0 left-0 right-0 z-40 px-3 pb-3 pt-2"}>
+        <div
+          className={
+            activeView === "player"
+              ? "mt-4"
+              : "fixed bottom-0 left-0 right-0 z-40 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2"
+          }
+        >
           <div className="mx-auto max-w-7xl">
             {playerStatusMessage ? (
               <p className="mb-2 rounded-xl border border-flaque-clay/60 bg-white/85 px-3 py-2 text-sm text-flaque-steel" role="status">

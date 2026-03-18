@@ -120,6 +120,15 @@ input[type="range"]::-moz-range-thumb {
   outline-offset: 2px;
 }
 
+@media (max-width: 640px) {
+  .theme-toggle {
+    right: 0.75rem;
+    top: max(0.75rem, env(safe-area-inset-top));
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+}
+
 .header-logo-dark {
   display: none;
 }
