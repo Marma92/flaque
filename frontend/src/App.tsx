@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { getCurrentUser, getLibrary, login, logout, rebuildIndex, uploadTrack } from "./api";
+import {
+  createUserAccount,
+  getCurrentUser,
+  getLibrary,
+  getUsers,
+  login,
+  logout,
+  rebuildIndex,
+  uploadTrack
+} from "./api";
+import { AdminUsersView } from "./components/AdminUsersView";
 import { AudioPlayer } from "./components/AudioPlayer";
 import { LibraryView } from "./components/LibraryView";
 import { LoginPage } from "./components/LoginPage";
 import { PlayerView } from "./components/PlayerView";
 import type { LibraryResponse, Track, User } from "./types";
 
-type ViewName = "library" | "player";
+type ViewName = "library" | "player" | "admin";
 
 const EMPTY_LIBRARY: LibraryResponse = {
   generatedAt: "",
@@ -33,6 +43,9 @@ export default function App(): JSX.Element {
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [rebuilding, setRebuilding] = useState(false);
+  const [adminUsers, setAdminUsers] = useState<User[]>([]);
+  const [loadingAdminUsers, setLoadingAdminUsers] = useState(false);
+  const [adminError, setAdminError] = useState<string | null>(null);
 
   useEffect(() => {
     getCurrentUser()
@@ -63,6 +76,26 @@ export default function App(): JSX.Element {
       });
   }, [user, filters]);
 
+  useEffect(() => {
+    if (!user || user.role !== "admin" || activeView !== "admin") {
+      return;
+    }
+
+    setLoadingAdminUsers(true);
+    setAdminError(null);
+
+    getUsers()
+      .then((users) => {
+        setAdminUsers(users);
+      })
+      .catch((error) => {
+        setAdminError(error instanceof Error ? error.message : "Failed to load users");
+      })
+      .finally(() => {
+        setLoadingAdminUsers(false);
+      });
+  }, [user, activeView]);
+
   const selectedTrackRefreshed = useMemo(() => {
     if (!selectedTrack) {
       return null;
@@ -81,6 +114,8 @@ export default function App(): JSX.Element {
     setUser(null);
     setSelectedTrack(null);
     setFilters({});
+    setAdminUsers([]);
+    setAdminError(null);
   }
 
   async function handleUpload(file: File): Promise<void> {
@@ -101,6 +136,28 @@ export default function App(): JSX.Element {
     } finally {
       setRebuilding(false);
     }
+  }
+
+  async function refreshAdminUsers(): Promise<void> {
+    setLoadingAdminUsers(true);
+    setAdminError(null);
+    try {
+      const users = await getUsers();
+      setAdminUsers(users);
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : "Failed to load users");
+    } finally {
+      setLoadingAdminUsers(false);
+    }
+  }
+
+  async function handleCreateUser(input: {
+    username: string;
+    password: string;
+    role: "user" | "admin";
+  }): Promise<void> {
+    await createUserAccount(input);
+    await refreshAdminUsers();
   }
 
   if (!sessionChecked) {
@@ -143,6 +200,19 @@ export default function App(): JSX.Element {
             >
               Player
             </button>
+            {user.role === "admin" ? (
+              <button
+                className={`rounded-xl px-4 py-2 text-sm transition ${
+                  activeView === "admin"
+                    ? "bg-flaque-ink text-flaque-cream"
+                    : "border border-flaque-clay bg-white text-flaque-ink"
+                }`}
+                type="button"
+                onClick={() => setActiveView("admin")}
+              >
+                Admin
+              </button>
+            ) : null}
             <button
               className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream"
               type="button"
@@ -170,7 +240,9 @@ export default function App(): JSX.Element {
         </p>
       ) : null}
 
-      {loadingLibrary ? <p className="mb-4 text-sm text-flaque-steel">Refreshing library index...</p> : null}
+      {activeView === "library" && loadingLibrary ? (
+        <p className="mb-4 text-sm text-flaque-steel">Refreshing library index...</p>
+      ) : null}
 
       {activeView === "library" ? (
         <div className="space-y-4">
@@ -191,8 +263,16 @@ export default function App(): JSX.Element {
           />
           <AudioPlayer track={selectedTrackRefreshed} />
         </div>
-      ) : (
+      ) : activeView === "player" ? (
         <PlayerView track={selectedTrackRefreshed} />
+      ) : (
+        <AdminUsersView
+          users={adminUsers}
+          loading={loadingAdminUsers}
+          error={adminError}
+          onRefresh={refreshAdminUsers}
+          onCreateUser={handleCreateUser}
+        />
       )}
     </main>
   );

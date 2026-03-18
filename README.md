@@ -1,26 +1,28 @@
 # flaque
 
-Self-hosted web audio player oriented hi-fi with strict file-based architecture.
+Self-hosted, hi-fi oriented web audio player built on a strict file-based architecture.
 
-## Product goals
+## Overview
+
+`flaque` focuses on simple and durable music library management:
 
 - Upload FLAC/MP3/WAV tracks.
-- Share and browse music by owner, artist, album, and text search.
-- Stream original audio files with HTTP range support for smooth seek.
-- Show metadata and embedded covers.
+- Browse by owner, artist, album, and text search.
+- Stream original files with full HTTP range support for smooth seeking.
+- Display metadata and embedded covers.
 
-## Architecture
+## Project structure
 
-- `backend/`: independent Node.js + Express + TypeScript API.
-- `frontend/`: independent React SPA (Vite + Tailwind).
-- `data/`: file-based storage and generated index.
+- `backend/` - Node.js + Express + TypeScript API.
+- `frontend/` - React SPA (Vite + Tailwind).
+- `data/` - file-based storage and generated index.
 
-No database is used for track/library business logic.
+No database is used for library business logic.
 SQLite is used only for users and sessions.
 
-## Backend data layout
+## Data layout
 
-```
+```text
 data/
   config/
     users.db
@@ -36,16 +38,16 @@ data/
     library-index.json
 ```
 
-## Main pipeline
+## Upload pipeline
 
-1. Upload audio file to `POST /api/upload`.
+1. Receive audio file via `POST /api/upload`.
 2. Validate extension and parse metadata.
-3. Compute file hash.
-4. Store file under user uploads folder.
-5. Extract embedded cover when available.
-6. Rebuild global library index (`library-index.json`).
+3. Compute content hash.
+4. Store file in the uploader's folder.
+5. Extract embedded cover if available.
+6. Rebuild global index (`library-index.json`).
 
-## API endpoints
+## API surface
 
 ### Auth
 
@@ -53,12 +55,12 @@ data/
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 
-### User management (admin)
+### Users (admin)
 
 - `GET /api/users`
 - `POST /api/users`
 
-`POST /api/users` body:
+`POST /api/users` request body:
 
 ```json
 {
@@ -68,11 +70,11 @@ data/
 }
 ```
 
-Validation rules:
+Validation:
 
-- username: 3-32 chars, `[a-zA-Z0-9._-]`
-- password: 8-256 chars
-- role: `user` or `admin` (default: `user`)
+- `username`: 3-32 chars, `[a-zA-Z0-9._-]`
+- `password`: 8-256 chars
+- `role`: `user` or `admin` (default: `user`)
 
 ### Upload
 
@@ -94,35 +96,35 @@ Validation rules:
 
 - `POST /api/index/rebuild` (admin only)
 
-## Streaming behavior (hi-fi first)
+## Streaming model (hi-fi first)
 
-- FLAC files are streamed as-is by default.
-- Range requests are fully supported (`Accept-Ranges: bytes`, `206 Partial Content`).
+- FLAC is streamed as-is by default.
+- Byte ranges are fully supported (`Accept-Ranges: bytes`, `206 Partial Content`).
 - No mandatory transcoding in MVP.
-- Streaming uses `fs.createReadStream` and never loads full files in memory.
+- Streaming uses `fs.createReadStream` (no full-file memory loading).
 
-## Local setup
+## Local development
 
-## 1) Requirements
+### 1) Requirements
 
 - Node.js 20+
 - npm 10+
 - `ffprobe` available in `PATH`
 
-On Debian/Ubuntu:
+Debian/Ubuntu:
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y ffmpeg
 ```
 
-## 2) Install dependencies
+### 2) Install dependencies
 
 ```bash
 npm install
 ```
 
-## 3) Configure backend env
+### 3) Configure backend environment
 
 ```bash
 cp backend/.env.example backend/.env
@@ -137,7 +139,7 @@ On first run, this admin account is seeded into SQLite.
 If no env is set, default bootstrap credentials are `admin` / `admin1234`.
 Change them immediately for any non-local usage.
 
-## 4) Start apps (separate terminals)
+### 4) Start applications (two terminals)
 
 Backend:
 
@@ -151,14 +153,13 @@ Frontend:
 npm run dev --workspace frontend
 ```
 
-Frontend default URL: `http://localhost:5173`
-Backend default URL: `http://localhost:4000`
+- Frontend default URL: `http://localhost:5173`
+- Backend default URL: `http://localhost:4000`
+- In dev mode, Vite proxies `/api` to the backend.
 
-Vite proxies `/api` to backend in dev mode.
+## Build and test
 
-## Build and tests
-
-Build all:
+Build all workspaces:
 
 ```bash
 npm run build
@@ -170,14 +171,14 @@ Run backend tests:
 npm run test
 ```
 
-## Notes
+## Operational notes
 
-- `POST /api/index/rebuild` is protected and does not require server restart.
-- Index rebuild is lock-safe: readers keep using current in-memory snapshot while rebuild is in progress.
-- Symlinks are ignored during filesystem scan.
+- `POST /api/index/rebuild` is protected and does not require a server restart.
+- Rebuild is lock-safe: readers continue using the current in-memory snapshot during rebuild.
+- Symlinks are ignored during filesystem scans.
 
-## Next extensions
+## Roadmap ideas
 
-- Optional adaptive transcoding fallback (FLAC to Opus/MP3).
+- Optional adaptive fallback transcoding (FLAC -> Opus/MP3).
 - Playlist support.
 - Mobile-first player UX and queue management.

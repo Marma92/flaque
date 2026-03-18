@@ -107,6 +107,27 @@ export async function rebuildIndex(): Promise<{ generatedAt: string; totalTracks
   });
 }
 
+export async function getUsers(): Promise<User[]> {
+  const payload = await requestJson<{ users: User[] }>("/api/users");
+  return payload.users;
+}
+
+export async function createUserAccount(input: {
+  username: string;
+  password: string;
+  role?: "user" | "admin";
+}): Promise<User> {
+  const payload = await requestJson<{ user: User }>("/api/users", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(input)
+  });
+
+  return payload.user;
+}
+
 export function streamUrl(trackId: string): string {
   return withApiBase(`/api/tracks/${trackId}/stream`);
 }
