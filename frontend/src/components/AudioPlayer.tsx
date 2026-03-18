@@ -322,7 +322,7 @@ export function AudioPlayer({
   const artworkSize = expanded ? "h-64 w-64 md:h-72 md:w-72" : "h-16 w-16 md:h-20 md:w-20";
   const contentLayoutClass = expanded ? "w-full max-w-4xl space-y-4" : "min-w-0 flex-1 space-y-3";
   const controlsLayoutClass = expanded
-    ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3"
+    ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-3"
     : "flex w-full items-end gap-2";
   const primaryControlsClassName = expanded
     ? "flex items-center gap-2"
