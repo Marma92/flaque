@@ -321,7 +321,10 @@ describe("library metadata routes", () => {
     const albumDir = path.join(artistDir, albumSlug);
     await fs.mkdir(albumDir, { recursive: true });
     await fs.writeFile(path.join(artistDir, "artist.json"), JSON.stringify({ name: artist, photo: { path: artistPhotoPath } }));
-    await fs.writeFile(path.join(albumDir, "album.json"), JSON.stringify({ name: album, cover: { path: albumCoverPath } }));
+    await fs.writeFile(
+      path.join(albumDir, "album.json"),
+      JSON.stringify({ id: "album-abbey-road", name: album, cover: { path: albumCoverPath } })
+    );
     await fs.writeFile(path.join(artistDir, "artist-photo.jpg"), "artist-photo");
     await fs.writeFile(path.join(albumDir, "album-cover.jpg"), "album-cover");
 
@@ -362,10 +365,83 @@ describe("library metadata routes", () => {
       expect.objectContaining({
         albums: expect.arrayContaining([
           expect.objectContaining({
+            id: "album-abbey-road",
             name: album,
             artist,
             cover: albumCoverPath
           })
+        ])
+      })
+    );
+  });
+
+  it("returns album track list by album id", async () => {
+    const artist = "Daft Punk";
+    const album = "Discovery";
+    const artistSlug = "daft_punk";
+    const albumSlug = "discovery";
+    const albumId = "album-discovery";
+    const albumCoverPath = `storage/users/owner-1/uploads/${artistSlug}/${albumSlug}/album-cover.jpg`;
+
+    const trackOne = createNestedTrack(
+      "track-5",
+      "One More Time",
+      artist,
+      album,
+      `storage/users/owner-1/uploads/${artistSlug}/${albumSlug}/one-more-time.flac`
+    );
+    const trackTwo = createNestedTrack(
+      "track-6",
+      "Aerodynamic",
+      artist,
+      album,
+      `storage/users/owner-1/uploads/${artistSlug}/${albumSlug}/aerodynamic.flac`
+    );
+
+    const snapshot: LibraryIndex = {
+      generatedAt: new Date().toISOString(),
+      totalTracks: 2,
+      tracks: [trackOne, trackTwo]
+    };
+
+    const albumDir = path.join(dataRoot, "storage", "users", "owner-1", "uploads", artistSlug, albumSlug);
+    await fs.mkdir(albumDir, { recursive: true });
+    await fs.writeFile(
+      path.join(albumDir, "album.json"),
+      JSON.stringify({
+        id: albumId,
+        name: album,
+        cover: { path: albumCoverPath }
+      })
+    );
+    await fs.writeFile(path.join(albumDir, "album-cover.jpg"), "album-cover");
+
+    const indexStore = new FakeIndexStore({
+      initialSnapshot: snapshot,
+      rebuildSnapshot: snapshot
+    });
+
+    await bootstrapServer(indexStore);
+    const cookie = await login("admin", "admin-secret-123");
+
+    const albumResponse = await apiRequest(`/api/album/${encodeURIComponent(albumId)}`, {
+      headers: {
+        Cookie: cookie
+      }
+    });
+
+    expect(albumResponse.status).toBe(200);
+    expect(albumResponse.payload).toEqual(
+      expect.objectContaining({
+        album: expect.objectContaining({
+          id: albumId,
+          name: album,
+          cover: albumCoverPath,
+          trackCount: 2
+        }),
+        tracks: expect.arrayContaining([
+          expect.objectContaining({ id: trackOne.id }),
+          expect.objectContaining({ id: trackTwo.id })
         ])
       })
     );
