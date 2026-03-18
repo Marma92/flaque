@@ -346,7 +346,17 @@ export default function App(): JSX.Element {
     const selectedAlbumArtist = normalizeText(selectedAlbum.artist);
     const ownerFilter = normalizeText(filters.owner);
 
-    return allTracksLibrary.tracks.filter((track) => {
+    const trackMap = new Map<string, Track>();
+    for (const track of allTracksLibrary.tracks) {
+      trackMap.set(track.id, track);
+    }
+    for (const track of library.tracks) {
+      trackMap.set(track.id, track);
+    }
+
+    const sourceTracks = Array.from(trackMap.values());
+
+    return sourceTracks.filter((track) => {
       if (normalizeText(getTrackDisplayAlbum(track)) !== selectedAlbumName) {
         return false;
       }
@@ -361,7 +371,7 @@ export default function App(): JSX.Element {
 
       return normalizeText(getTrackDisplayArtist(track)) === selectedAlbumArtist;
     });
-  }, [allTracksLibrary.tracks, filters.owner, selectedAlbum]);
+  }, [allTracksLibrary.tracks, filters.owner, library.tracks, selectedAlbum]);
 
   useEffect(() => {
     getCurrentUser()
