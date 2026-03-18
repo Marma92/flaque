@@ -37,3 +37,16 @@ export async function ensureTrackCover(trackId: string, cover?: EmbeddedCover): 
   await fs.writeFile(targetPath, cover.data);
   return `/api/covers/${trackId}`;
 }
+
+export async function deleteTrackCover(trackId: string): Promise<void> {
+  const existing = await findCoverFileByTrackId(trackId);
+  if (!existing) {
+    return;
+  }
+
+  try {
+    await fs.unlink(existing);
+  } catch {
+    // ignore cache cleanup errors
+  }
+}

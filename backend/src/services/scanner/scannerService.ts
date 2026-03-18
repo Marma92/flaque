@@ -79,6 +79,7 @@ export async function scanFilesystemLibrary(): Promise<LibraryIndex> {
       const metadataOverride = metadataOverrides[trackId];
       const tags = {
         ...metadata.tags,
+        title: metadataOverride?.title ?? metadata.tags.title,
         artist: metadataOverride?.artist ?? metadata.tags.artist,
         album: metadataOverride?.album ?? metadata.tags.album
       };

@@ -40,3 +40,9 @@ export type LibraryResponse = {
   albums: AlbumEntry[];
   tracks: Track[];
 };
+
+export type TrackMetadataPatch = {
+  title?: string | null;
+  artist?: string | null;
+  album?: string | null;
+};

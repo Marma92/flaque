@@ -2,6 +2,7 @@ import { readJsonFile, writeJsonAtomic } from "../../utils/fs";
 import { metadataOverridesFilePath } from "../../utils/paths";
 
 export type TrackMetadataOverride = {
+  title?: string;
   artist?: string;
   album?: string;
 };
@@ -24,12 +25,14 @@ function normalizeOverride(override: unknown): TrackMetadataOverride | undefined
 
   const artist = normalizeField((override as { artist?: unknown }).artist);
   const album = normalizeField((override as { album?: unknown }).album);
+  const title = normalizeField((override as { title?: unknown }).title);
 
-  if (!artist && !album) {
+  if (!title && !artist && !album) {
     return undefined;
   }
 
   return {
+    title,
     artist,
     album
   };
@@ -87,7 +90,11 @@ export async function mergeTrackMetadataOverrides(
       continue;
     }
 
-    if (existing?.artist === cleanOverride.artist && existing?.album === cleanOverride.album) {
+    if (
+      existing?.title === cleanOverride.title &&
+      existing?.artist === cleanOverride.artist &&
+      existing?.album === cleanOverride.album
+    ) {
       continue;
     }
 

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { coverUrl, streamUrl } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
 import type { Track } from "../types";
+import { getTrackDisplayTitle } from "../utils/tracks";
 
 export type TranscodeMode = "original" | "opus" | "mp3";
 
@@ -210,6 +211,7 @@ export function AudioPlayer({
   const artworkSize = expanded ? "h-52 w-52" : "h-16 w-16 md:h-20 md:w-20";
   const contentLayoutClass = expanded ? "w-full space-y-3" : "min-w-0 flex-1 space-y-3";
   const controlsLayoutClass = expanded ? "flex items-center gap-3" : "flex flex-wrap items-center gap-2";
+  const displayTitle = getTrackDisplayTitle(track);
 
   return (
     <section className="rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6">
@@ -279,9 +281,9 @@ export function AudioPlayer({
           <div>
             <p
               className={`font-display text-flaque-ink truncate ${expanded ? "text-xl" : "text-lg"}`}
-              title={track.tags.title ?? track.path}
+              title={displayTitle}
             >
-              {track.tags.title ?? track.path}
+              {displayTitle}
             </p>
             <p className="truncate text-sm text-flaque-steel">{track.tags.artist ?? "Unknown artist"}</p>
             <p className="text-xs uppercase tracking-[0.2em] text-flaque-steel/80">

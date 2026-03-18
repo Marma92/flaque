@@ -13,7 +13,7 @@ import { ensureOwnerUploadDir, toDataRelativePath } from "../services/storage/st
 import type { Track } from "../types/library";
 import { fileExists } from "../utils/fs";
 import { createTrackId, hashFile } from "../utils/hash";
-import { getSupportedAudioExtensions, isSupportedAudioFile } from "../utils/mime";
+import { getAudioMimeType, getSupportedAudioExtensions, isSupportedAudioFile } from "../utils/mime";
 import { tmpUploadsRoot } from "../utils/paths";
 
 const DEFAULT_MAX_UPLOAD_FILES = 50;
@@ -60,6 +60,16 @@ async function cleanupTemporaryFiles(filePaths: string[]): Promise<void> {
   );
 }
 
+function toCoverDataUrl(cover?: { data: Buffer; format?: string }): string | undefined {
+  if (!cover || !cover.data) {
+    return undefined;
+  }
+
+  const mimeType =
+    typeof cover.format === "string" && cover.format.trim() ? cover.format.trim() : "image/jpeg";
+  return `data:${mimeType};base64,${cover.data.toString("base64")}`;
+}
+
 export function createUploadRouter(indexStore: IndexStore): Router {
   const router = Router();
   const maxUploadFiles = Number(process.env.MAX_UPLOAD_FILES ?? DEFAULT_MAX_UPLOAD_FILES);
@@ -88,6 +98,42 @@ export function createUploadRouter(indexStore: IndexStore): Router {
         return;
       }
       callback(new Error("Unsupported audio format"));
+    }
+  });
+
+  router.post("/upload/inspect", requireAuth, upload.single("file"), async (req, res, next) => {
+    const temporaryPath = req.file?.path;
+
+    try {
+      const uploadedFile = req.file;
+      if (!uploadedFile) {
+        res.status(400).json({ error: "A file is required" });
+        return;
+      }
+
+      if (!isSupportedAudioFile(uploadedFile.originalname)) {
+        res.status(400).json({ error: `Unsupported audio format: ${uploadedFile.originalname}` });
+        return;
+      }
+
+      const metadata = await extractAudioMetadata(uploadedFile.path);
+      res.json({
+        fileName: uploadedFile.originalname,
+        size: uploadedFile.size,
+        mimeType: getAudioMimeType(uploadedFile.originalname),
+        duration: metadata.duration,
+        codec: metadata.codec,
+        bitrate: metadata.bitrate,
+        sampleRate: metadata.sampleRate,
+        tags: metadata.tags,
+        coverDataUrl: toCoverDataUrl(metadata.cover)
+      });
+    } catch (error) {
+      next(error);
+    } finally {
+      if (temporaryPath) {
+        await cleanupTemporaryFiles([temporaryPath]);
+      }
     }
   });
 

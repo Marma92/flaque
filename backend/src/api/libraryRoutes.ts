@@ -1,7 +1,15 @@
+import fs from "node:fs/promises";
+
 import { Router } from "express";
 
-import { requireAuth } from "../auth/middleware";
+import { requireAdmin, requireAuth } from "../auth/middleware";
+import {
+  mergeTrackMetadataOverrides,
+  readTrackMetadataOverrides
+} from "../services/indexer/metadataOverrideStore";
 import { IndexStore } from "../services/indexer/indexStore";
+import { deleteTrackCover } from "../services/storage/coverService";
+import { resolveTrackAbsolutePath } from "../services/storage/storageService";
 import {
   filterTracks,
   getAdjacentTrack,
@@ -176,6 +184,23 @@ function readWrap(value: unknown): boolean {
   return true;
 }
 
+function hasOwnProperty(value: unknown, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(value ?? {}, key);
+}
+
+function parseMetadataField(value: unknown): string | undefined | null {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 function mapTrackResponse(track: Track): Track {
   return {
     ...track,
@@ -257,6 +282,112 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       sourceTrackId: trackId,
       track: adjacentTrack ? mapTrackResponse(adjacentTrack) : null
     });
+  });
+
+  router.patch("/tracks/:id/metadata", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const trackId = req.params.id;
+      if (!trackId) {
+        res.status(400).json({ error: "Track id is required" });
+        return;
+      }
+
+      const hasTitle = hasOwnProperty(req.body, "title");
+      const hasArtist = hasOwnProperty(req.body, "artist");
+      const hasAlbum = hasOwnProperty(req.body, "album");
+
+      if (!hasTitle && !hasArtist && !hasAlbum) {
+        res.status(400).json({ error: "At least one metadata field is required: title, artist, album" });
+        return;
+      }
+
+      const currentTrack = indexStore.getTrackById(trackId);
+      if (!currentTrack) {
+        res.status(404).json({ error: "Track not found" });
+        return;
+      }
+
+      const parsedTitle = hasTitle ? parseMetadataField(req.body?.title) : undefined;
+      const parsedArtist = hasArtist ? parseMetadataField(req.body?.artist) : undefined;
+      const parsedAlbum = hasAlbum ? parseMetadataField(req.body?.album) : undefined;
+
+      if (parsedTitle === null) {
+        res.status(400).json({ error: "title must be a string or null" });
+        return;
+      }
+
+      if (parsedArtist === null) {
+        res.status(400).json({ error: "artist must be a string or null" });
+        return;
+      }
+
+      if (parsedAlbum === null) {
+        res.status(400).json({ error: "album must be a string or null" });
+        return;
+      }
+
+      const currentOverrides = await readTrackMetadataOverrides();
+      const currentOverride = currentOverrides[trackId] ?? {};
+
+      const nextOverride = {
+        title: hasTitle ? parsedTitle : currentOverride.title,
+        artist: hasArtist ? parsedArtist : currentOverride.artist,
+        album: hasAlbum ? parsedAlbum : currentOverride.album
+      };
+
+      await mergeTrackMetadataOverrides({
+        [trackId]: nextOverride
+      });
+
+      const rebuiltIndex = await indexStore.rebuild();
+      const updatedTrack = rebuiltIndex.tracks.find((track) => track.id === trackId);
+      if (!updatedTrack) {
+        res.status(404).json({ error: "Track not found" });
+        return;
+      }
+
+      res.json({ track: mapTrackResponse(updatedTrack) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.delete("/tracks/:id", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const trackId = req.params.id;
+      if (!trackId) {
+        res.status(400).json({ error: "Track id is required" });
+        return;
+      }
+
+      const track = indexStore.getTrackById(trackId);
+      if (!track) {
+        res.status(404).json({ error: "Track not found" });
+        return;
+      }
+
+      const absolutePath = resolveTrackAbsolutePath(track.path);
+      try {
+        await fs.unlink(absolutePath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          throw error;
+        }
+      }
+
+      await deleteTrackCover(trackId);
+      await mergeTrackMetadataOverrides({
+        [trackId]: {}
+      });
+
+      const rebuiltIndex = await indexStore.rebuild();
+      res.json({
+        deletedTrackId: trackId,
+        totalTracks: rebuiltIndex.totalTracks
+      });
+    } catch (error) {
+      next(error);
+    }
   });
 
   router.get("/artists", requireAuth, (req, res) => {

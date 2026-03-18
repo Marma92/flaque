@@ -1,4 +1,4 @@
-import type { LibraryResponse, Track, User } from "./types";
+import type { LibraryResponse, Track, TrackMetadataPatch, User } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
@@ -108,6 +108,22 @@ export type UploadTracksResult = {
   };
 };
 
+export type UploadTrackPreview = {
+  fileName: string;
+  size: number;
+  mimeType: string;
+  duration: number;
+  codec: string;
+  bitrate?: number;
+  sampleRate?: number;
+  tags: {
+    title?: string;
+    artist?: string;
+    album?: string;
+  };
+  coverDataUrl?: string;
+};
+
 export async function uploadTracks(input: UploadTracksInput): Promise<UploadTracksResult> {
   const formData = new FormData();
 
@@ -124,6 +140,16 @@ export async function uploadTracks(input: UploadTracksInput): Promise<UploadTrac
   }
 
   return requestJson<UploadTracksResult>("/api/upload", {
+    method: "POST",
+    body: formData
+  });
+}
+
+export async function inspectUploadFile(file: File): Promise<UploadTrackPreview> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return requestJson<UploadTrackPreview>("/api/upload/inspect", {
     method: "POST",
     body: formData
   });
@@ -224,6 +250,30 @@ export async function getAdjacentTrack(input: {
   );
 
   return payload.track;
+}
+
+export async function updateTrackMetadata(trackId: string, patch: TrackMetadataPatch): Promise<Track> {
+  const payload = await requestJson<{ track: Track }>(`/api/tracks/${encodeURIComponent(trackId)}/metadata`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(patch)
+  });
+
+  return payload.track;
+}
+
+export async function deleteTrackFile(trackId: string): Promise<{
+  deletedTrackId: string;
+  totalTracks: number;
+}> {
+  return requestJson<{ deletedTrackId: string; totalTracks: number }>(
+    `/api/tracks/${encodeURIComponent(trackId)}`,
+    {
+      method: "DELETE"
+    }
+  );
 }
 
 export function streamUrl(trackId: string, options?: { transcode?: "opus" | "mp3" }): string {

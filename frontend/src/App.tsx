@@ -2,27 +2,34 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   createUserAccount,
+  deleteTrackFile,
   deleteUserAccount,
   getAdjacentTrack,
   getCurrentUser,
   getLibrary,
   getUsers,
+  inspectUploadFile,
   login,
   logout,
   patchUserAccount,
   resetUserPassword,
   rebuildIndex,
+  updateTrackMetadata,
   uploadTracks,
+  type UploadTrackPreview,
   type UploadTracksResult
 } from "./api";
-import { AdminUsersView } from "./components/AdminUsersView";
 import { AudioPlayer, type TranscodeMode } from "./components/AudioPlayer";
+import { ConfigView } from "./components/ConfigView";
 import { LibraryView } from "./components/LibraryView";
 import { LoginPage } from "./components/LoginPage";
 import { PlayerView } from "./components/PlayerView";
-import type { LibraryResponse, Track, User } from "./types";
+import { UploadView } from "./components/UploadView";
+import type { LibraryResponse, Track, TrackMetadataPatch, User } from "./types";
+import { getTrackDisplayTitle } from "./utils/tracks";
 
-type ViewName = "library" | "player" | "admin";
+type ViewName = "library" | "upload" | "player" | "config";
+
 const RECENT_TRACKS_STORAGE_KEY = "flaque_recent_tracks_v1";
 const TRANSCODE_MODE_STORAGE_KEY = "flaque_transcode_mode_v1";
 const MAX_RECENT_TRACKS = 24;
@@ -76,27 +83,78 @@ function readTranscodeMode(): TranscodeMode {
   return "original";
 }
 
+function getAdjacentTrackInQueue(
+  queue: Track[],
+  currentTrackId: string,
+  direction: "next" | "previous"
+): Track | null {
+  if (queue.length === 0) {
+    return null;
+  }
+
+  const currentIndex = queue.findIndex((track) => track.id === currentTrackId);
+  if (currentIndex < 0) {
+    return null;
+  }
+
+  if (queue.length === 1) {
+    return null;
+  }
+
+  const offset = direction === "next" ? 1 : -1;
+  const targetIndex = (currentIndex + offset + queue.length) % queue.length;
+  return queue[targetIndex] ?? null;
+}
+
 export default function App(): JSX.Element {
   const [user, setUser] = useState<User | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [activeView, setActiveView] = useState<ViewName>("library");
-  const [library, setLibrary] = useState<LibraryResponse>(EMPTY_LIBRARY);
+
   const [filters, setFilters] = useState<{
     owner?: string;
     artist?: string;
     album?: string;
     q?: string;
   }>({});
+
+  const [library, setLibrary] = useState<LibraryResponse>(EMPTY_LIBRARY);
+  const [allTracksLibrary, setAllTracksLibrary] = useState<LibraryResponse>(EMPTY_LIBRARY);
+  const [loadingLibrary, setLoadingLibrary] = useState(false);
+  const [loadingAllTracks, setLoadingAllTracks] = useState(false);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [allTracksError, setAllTracksError] = useState<string | null>(null);
+
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
+  const [playQueue, setPlayQueue] = useState<Track[]>([]);
   const [playRequestNonce, setPlayRequestNonce] = useState(0);
   const [transcodeMode, setTranscodeMode] = useState<TranscodeMode>(() => readTranscodeMode());
-  const [loadingLibrary, setLoadingLibrary] = useState(false);
-  const [libraryError, setLibraryError] = useState<string | null>(null);
+
   const [rebuilding, setRebuilding] = useState(false);
   const [adminUsers, setAdminUsers] = useState<User[]>([]);
   const [loadingAdminUsers, setLoadingAdminUsers] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [recentTracks, setRecentTracks] = useState<Track[]>([]);
+
+  const allTracksById = useMemo(() => {
+    return new Map(allTracksLibrary.tracks.map((track) => [track.id, track]));
+  }, [allTracksLibrary.tracks]);
+
+  const selectedTrackRefreshed = useMemo(() => {
+    if (!selectedTrack) {
+      return null;
+    }
+
+    return allTracksById.get(selectedTrack.id) ?? selectedTrack;
+  }, [allTracksById, selectedTrack]);
+
+  const refreshedQueue = useMemo(() => {
+    if (playQueue.length === 0) {
+      return [] as Track[];
+    }
+
+    return playQueue.map((track) => allTracksById.get(track.id) ?? track);
+  }, [allTracksById, playQueue]);
 
   useEffect(() => {
     getCurrentUser()
@@ -154,26 +212,79 @@ export default function App(): JSX.Element {
   useEffect(() => {
     if (!user) {
       setLibrary(EMPTY_LIBRARY);
+      setAllTracksLibrary(EMPTY_LIBRARY);
+      setLoadingLibrary(false);
+      setLoadingAllTracks(false);
+      setLibraryError(null);
+      setAllTracksError(null);
       return;
     }
+
+    let cancelled = false;
 
     setLoadingLibrary(true);
     setLibraryError(null);
 
     getLibrary(filters)
       .then((payload) => {
+        if (cancelled) {
+          return;
+        }
         setLibrary(payload);
       })
       .catch((error) => {
+        if (cancelled) {
+          return;
+        }
         setLibraryError(error instanceof Error ? error.message : "Failed to load library");
       })
       .finally(() => {
-        setLoadingLibrary(false);
+        if (!cancelled) {
+          setLoadingLibrary(false);
+        }
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [user, filters]);
 
   useEffect(() => {
-    if (!user || user.role !== "admin" || activeView !== "admin") {
+    if (!user) {
+      return;
+    }
+
+    let cancelled = false;
+
+    setLoadingAllTracks(true);
+    setAllTracksError(null);
+
+    getLibrary({})
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+        setAllTracksLibrary(payload);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        setAllTracksError(error instanceof Error ? error.message : "Failed to load tracks");
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingAllTracks(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || user.role !== "admin" || activeView !== "config") {
       return;
     }
 
@@ -192,12 +303,43 @@ export default function App(): JSX.Element {
       });
   }, [user, activeView]);
 
-  const selectedTrackRefreshed = useMemo(() => {
-    if (!selectedTrack) {
-      return null;
+  useEffect(() => {
+    if (!user || user.role === "admin") {
+      return;
     }
-    return library.tracks.find((track) => track.id === selectedTrack.id) ?? selectedTrack;
-  }, [library.tracks, selectedTrack]);
+
+    if (activeView === "config") {
+      setActiveView("library");
+    }
+  }, [user, activeView]);
+
+  async function refreshCurrentLibrary(): Promise<void> {
+    setLoadingLibrary(true);
+    setLibraryError(null);
+
+    try {
+      const payload = await getLibrary(filters);
+      setLibrary(payload);
+    } catch (error) {
+      setLibraryError(error instanceof Error ? error.message : "Failed to load library");
+    } finally {
+      setLoadingLibrary(false);
+    }
+  }
+
+  async function refreshAllTracks(): Promise<void> {
+    setLoadingAllTracks(true);
+    setAllTracksError(null);
+
+    try {
+      const payload = await getLibrary({});
+      setAllTracksLibrary(payload);
+    } catch (error) {
+      setAllTracksError(error instanceof Error ? error.message : "Failed to load tracks");
+    } finally {
+      setLoadingAllTracks(false);
+    }
+  }
 
   async function handleLogin(username: string, password: string): Promise<void> {
     const authenticatedUser = await login(username, password);
@@ -209,9 +351,12 @@ export default function App(): JSX.Element {
     await logout();
     setUser(null);
     setSelectedTrack(null);
+    setPlayQueue([]);
     setFilters({});
     setAdminUsers([]);
     setAdminError(null);
+    setLibraryError(null);
+    setAllTracksError(null);
   }
 
   async function handleUpload(input: {
@@ -220,20 +365,26 @@ export default function App(): JSX.Element {
     album?: string;
   }): Promise<UploadTracksResult> {
     const result = await uploadTracks(input);
-    const updatedLibrary = await getLibrary(filters);
-    setLibrary(updatedLibrary);
+    await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
     return result;
+  }
+
+  async function handleInspectUploadFile(file: File): Promise<UploadTrackPreview> {
+    return inspectUploadFile(file);
   }
 
   async function handleRebuildIndex(): Promise<void> {
     setRebuilding(true);
     setLibraryError(null);
+    setAllTracksError(null);
+
     try {
       await rebuildIndex();
-      const updatedLibrary = await getLibrary(filters);
-      setLibrary(updatedLibrary);
+      await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
     } catch (error) {
-      setLibraryError(error instanceof Error ? error.message : "Index rebuild failed");
+      const message = error instanceof Error ? error.message : "Index rebuild failed";
+      setLibraryError(message);
+      setAllTracksError(message);
     } finally {
       setRebuilding(false);
     }
@@ -294,9 +445,33 @@ export default function App(): JSX.Element {
     await refreshAdminUsers();
   }
 
+  async function handleDeleteTrack(trackId: string): Promise<void> {
+    await deleteTrackFile(trackId);
+
+    if (selectedTrackRefreshed?.id === trackId) {
+      setSelectedTrack(null);
+    }
+
+    setPlayQueue((current) => current.filter((track) => track.id !== trackId));
+    setRecentTracks((current) => current.filter((track) => track.id !== trackId));
+
+    await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+  }
+
+  async function handleUpdateTrackMetadata(trackId: string, patch: TrackMetadataPatch): Promise<void> {
+    await updateTrackMetadata(trackId, patch);
+    await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+  }
+
   async function handleNavigateTrack(direction: "next" | "previous"): Promise<void> {
     const currentTrack = selectedTrackRefreshed;
     if (!currentTrack) {
+      return;
+    }
+
+    const nextTrackFromQueue = getAdjacentTrackInQueue(refreshedQueue, currentTrack.id, direction);
+    if (nextTrackFromQueue && nextTrackFromQueue.id !== currentTrack.id) {
+      setSelectedTrack(nextTrackFromQueue);
       return;
     }
 
@@ -304,7 +479,11 @@ export default function App(): JSX.Element {
       const adjacentTrack = await getAdjacentTrack({
         trackId: currentTrack.id,
         direction,
-        wrap: true
+        wrap: true,
+        owner: filters.owner,
+        artist: filters.artist,
+        album: filters.album,
+        q: filters.q
       });
 
       if (!adjacentTrack || adjacentTrack.id === currentTrack.id) {
@@ -324,13 +503,19 @@ export default function App(): JSX.Element {
     });
   }
 
-  function requestTrackPlayback(track: Track): void {
+  function requestTrackPlayback(track: Track, queueSource?: Track[]): void {
+    const source = queueSource && queueSource.length > 0 ? queueSource : allTracksLibrary.tracks;
+    if (source.length > 0) {
+      setPlayQueue(source);
+    }
+
     setSelectedTrack(track);
     setPlayRequestNonce((current) => current + 1);
   }
 
   function handleReplayRecentTrack(track: Track): void {
-    requestTrackPlayback(track);
+    const fullTrack = allTracksById.get(track.id) ?? track;
+    requestTrackPlayback(fullTrack, allTracksLibrary.tracks.length > 0 ? allTracksLibrary.tracks : undefined);
   }
 
   const hasStickyPlayer = Boolean(selectedTrackRefreshed) && activeView !== "player";
@@ -357,7 +542,7 @@ export default function App(): JSX.Element {
             <h1 className="font-display text-2xl text-flaque-ink">File-based Hi-Fi Library</h1>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               className={`rounded-xl px-4 py-2 text-sm transition ${
                 activeView === "library"
@@ -368,6 +553,17 @@ export default function App(): JSX.Element {
               onClick={() => setActiveView("library")}
             >
               Library
+            </button>
+            <button
+              className={`rounded-xl px-4 py-2 text-sm transition ${
+                activeView === "upload"
+                  ? "bg-flaque-ink text-flaque-cream"
+                  : "border border-flaque-clay bg-white text-flaque-ink"
+              }`}
+              type="button"
+              onClick={() => setActiveView("upload")}
+            >
+              Upload
             </button>
             <button
               className={`rounded-xl px-4 py-2 text-sm transition ${
@@ -383,16 +579,17 @@ export default function App(): JSX.Element {
             {user.role === "admin" ? (
               <button
                 className={`rounded-xl px-4 py-2 text-sm transition ${
-                  activeView === "admin"
+                  activeView === "config"
                     ? "bg-flaque-ink text-flaque-cream"
                     : "border border-flaque-clay bg-white text-flaque-ink"
                 }`}
                 type="button"
-                onClick={() => setActiveView("admin")}
+                onClick={() => setActiveView("config")}
               >
-                Admin
+                Config
               </button>
             ) : null}
+
             <button
               className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream"
               type="button"
@@ -400,16 +597,6 @@ export default function App(): JSX.Element {
             >
               Logout ({user.username})
             </button>
-            {user.role === "admin" ? (
-              <button
-                className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
-                type="button"
-                onClick={handleRebuildIndex}
-                disabled={rebuilding}
-              >
-                {rebuilding ? "Rebuilding index..." : "Rebuild index"}
-              </button>
-            ) : null}
           </div>
         </div>
       </header>
@@ -436,23 +623,25 @@ export default function App(): JSX.Element {
               <p className="mt-3 text-sm text-flaque-steel">No recently played tracks yet.</p>
             ) : (
               <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
-                {recentTracks.map((track) => (
-                  <button
-                    key={track.id}
-                    className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/50 px-3 py-2 text-left transition hover:bg-flaque-cream"
-                    type="button"
-                    onClick={() => handleReplayRecentTrack(track)}
-                    title={track.tags.title ?? track.path}
-                  >
-                    <p className="truncate text-sm font-medium text-flaque-ink">
-                      {track.tags.title ?? track.path}
-                    </p>
-                    <p className="truncate text-xs text-flaque-steel">
-                      {track.tags.artist ?? "Unknown artist"}
-                      {track.tags.album ? ` - ${track.tags.album}` : ""}
-                    </p>
-                  </button>
-                ))}
+                {recentTracks.map((track) => {
+                  const title = getTrackDisplayTitle(track);
+
+                  return (
+                    <button
+                      key={track.id}
+                      className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/50 px-3 py-2 text-left transition hover:bg-flaque-cream"
+                      type="button"
+                      onClick={() => handleReplayRecentTrack(track)}
+                      title={title}
+                    >
+                      <p className="truncate text-sm font-medium text-flaque-ink">{title}</p>
+                      <p className="truncate text-xs text-flaque-steel">
+                        {track.tags.artist ?? "Unknown artist"}
+                        {track.tags.album ? ` - ${track.tags.album}` : ""}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -467,26 +656,40 @@ export default function App(): JSX.Element {
             onFilterChange={setFilters}
             currentTrackId={selectedTrackRefreshed?.id}
             onTrackSelect={(track) => {
-              requestTrackPlayback(track);
+              requestTrackPlayback(track, library.tracks);
             }}
-            onUpload={handleUpload}
+            onOpenUpload={() => setActiveView("upload")}
           />
         </div>
-      ) : activeView === "player" ? (
-        <PlayerView track={selectedTrackRefreshed} />
-      ) : (
-        <AdminUsersView
+      ) : null}
+
+      {activeView === "upload" ? (
+        <UploadView onUpload={handleUpload} onInspectFile={handleInspectUploadFile} />
+      ) : null}
+
+      {activeView === "player" ? <PlayerView track={selectedTrackRefreshed} /> : null}
+
+      {activeView === "config" && user.role === "admin" ? (
+        <ConfigView
           currentUser={user}
+          tracks={allTracksLibrary.tracks}
+          loadingTracks={loadingAllTracks}
+          trackError={allTracksError}
+          rebuilding={rebuilding}
+          onRebuildIndex={handleRebuildIndex}
+          onRefreshTracks={refreshAllTracks}
+          onDeleteTrack={handleDeleteTrack}
+          onUpdateTrackMetadata={handleUpdateTrackMetadata}
           users={adminUsers}
-          loading={loadingAdminUsers}
-          error={adminError}
-          onRefresh={refreshAdminUsers}
+          loadingUsers={loadingAdminUsers}
+          usersError={adminError}
+          onRefreshUsers={refreshAdminUsers}
           onCreateUser={handleCreateUser}
-          onDeleteUser={handleDeleteUser}
           onPatchUser={handlePatchUser}
-          onResetPassword={handleResetUserPassword}
+          onDeleteUser={handleDeleteUser}
+          onResetUserPassword={handleResetUserPassword}
         />
-      )}
+      ) : null}
 
       {shouldRenderPlayer ? (
         <div className={activeView === "player" ? "mt-4" : "fixed bottom-0 left-0 right-0 z-40 px-3 pb-3 pt-2"}>
