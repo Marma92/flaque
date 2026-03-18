@@ -336,15 +336,22 @@ async function resolveAlbumCoverPath(track: Track, cache: Map<string, string | u
   }
 }
 
-async function attachArtistPhotos(tracks: Track[]): Promise<Array<{ name: string; trackCount: number; photo?: string }>> {
+async function attachArtistPhotos(
+  tracks: Track[]
+): Promise<Array<{ name: string; trackCount: number; photo?: string; previewTrackId?: string }>> {
   const base = listArtists(tracks);
   const photoByArtist = new Map<string, string>();
+  const previewTrackIdByArtist = new Map<string, string>();
   const cache = new Map<string, string | undefined>();
 
   for (const track of tracks) {
     const artistName = getTrackArtistName(track)?.trim();
     if (!artistName) {
       continue;
+    }
+
+    if (!previewTrackIdByArtist.has(artistName)) {
+      previewTrackIdByArtist.set(artistName, track.id);
     }
 
     if (photoByArtist.has(artistName)) {
@@ -359,7 +366,8 @@ async function attachArtistPhotos(tracks: Track[]): Promise<Array<{ name: string
 
   return base.map((artist) => ({
     ...artist,
-    photo: photoByArtist.get(artist.name)
+    photo: photoByArtist.get(artist.name),
+    previewTrackId: previewTrackIdByArtist.get(artist.name)
   }));
 }
 
@@ -372,7 +380,7 @@ function normalizeAlbumName(value?: string): string {
 
 async function attachCollaborativeAlbumCovers(
   tracks: Track[]
-): Promise<Array<{ name: string; artist?: string; artists?: string[]; trackCount: number; cover?: string }>> {
+): Promise<Array<{ name: string; artist?: string; artists?: string[]; trackCount: number; cover?: string; previewTrackId?: string }>> {
   const grouped = new Map<
     string,
     {
@@ -380,6 +388,7 @@ async function attachCollaborativeAlbumCovers(
       artists: Set<string>;
       trackCount: number;
       tracks: Track[];
+      previewTrackId?: string;
     }
   >();
 
@@ -398,7 +407,8 @@ async function attachCollaborativeAlbumCovers(
         name: albumName,
         artists: artistName ? new Set([artistName]) : new Set<string>(),
         trackCount: 1,
-        tracks: [track]
+        tracks: [track],
+        previewTrackId: track.id
       });
       continue;
     }
@@ -408,10 +418,13 @@ async function attachCollaborativeAlbumCovers(
     if (artistName) {
       current.artists.add(artistName);
     }
+    if (!current.previewTrackId) {
+      current.previewTrackId = track.id;
+    }
   }
 
   const cache = new Map<string, string | undefined>();
-  const entries: Array<{ name: string; artist?: string; artists?: string[]; trackCount: number; cover?: string }> = [];
+  const entries: Array<{ name: string; artist?: string; artists?: string[]; trackCount: number; cover?: string; previewTrackId?: string }> = [];
 
   for (const groupedAlbum of grouped.values()) {
     const artists = Array.from(groupedAlbum.artists).sort((a, b) => a.localeCompare(b));
@@ -429,7 +442,8 @@ async function attachCollaborativeAlbumCovers(
       artist: artists.length > 0 ? artists.join(", ") : undefined,
       artists: artists.length > 0 ? artists : undefined,
       trackCount: groupedAlbum.trackCount,
-      cover
+      cover,
+      previewTrackId: groupedAlbum.previewTrackId
     });
   }
 

@@ -52,12 +52,17 @@ export type Track = {
 export type ArtistEntry = {
   name: string;
   trackCount: number;
+  photo?: string;
+  previewTrackId?: string;
 };
 
 export type AlbumEntry = {
   name: string;
   artist?: string;
+  artists?: string[];
   trackCount: number;
+  cover?: string;
+  previewTrackId?: string;
 };
 
 export type PlaylistVisibility = "public" | "private";
