@@ -21,7 +21,6 @@ type LibraryViewProps = {
   onFilterChange: (next: LibraryFilter) => void;
   currentTrackId?: string;
   onTrackSelect: (track: Track) => void;
-  onOpenUpload: () => void;
 };
 
 export function LibraryView({
@@ -34,8 +33,7 @@ export function LibraryView({
   filters,
   onFilterChange,
   currentTrackId,
-  onTrackSelect,
-  onOpenUpload
+  onTrackSelect
 }: LibraryViewProps): JSX.Element {
   const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
   const hasActiveFilters = Boolean(filters.owner || filters.artist || filters.album || filters.q);
@@ -78,19 +76,11 @@ export function LibraryView({
   return (
     <div className="space-y-4">
       <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
           <div>
             <h2 className="font-display text-2xl text-flaque-ink">Library</h2>
             <p className="text-sm text-flaque-steel">Latest index rebuild: {generatedAtLabel}</p>
           </div>
-
-          <button
-            className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream"
-            type="button"
-            onClick={onOpenUpload}
-          >
-            Open Upload page
-          </button>
         </div>
 
         <div className="mt-4 rounded-2xl border border-flaque-clay/55 bg-flaque-cream/45 p-3">

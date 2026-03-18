@@ -1464,7 +1464,6 @@ export default function App(): JSX.Element {
                 onTrackSelect={(track) => {
                   requestTrackPlayback(track, library.tracks);
                 }}
-                onOpenUpload={() => setActiveView("upload")}
               />
             </>
           ) : null}
