@@ -6,6 +6,7 @@ import type { Playlist, Track } from "../types";
 import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
+  getTrackDisplayLyrics,
   getTrackDisplayTitle
 } from "../utils/tracks";
 
@@ -112,6 +113,7 @@ export function AudioPlayer({
   const [playlistSubmitStatus, setPlaylistSubmitStatus] = useState<string | null>(null);
   const [playlistSubmitLoading, setPlaylistSubmitLoading] = useState(false);
   const [showQueuePanel, setShowQueuePanel] = useState(false);
+  const [showLyricsOverlay, setShowLyricsOverlay] = useState(false);
   const [volume, setVolume] = useState<number>(() => readStoredVolume());
   const [muted, setMuted] = useState(false);
 
@@ -234,6 +236,16 @@ export function AudioPlayer({
     window.localStorage.setItem(PLAYER_VOLUME_STORAGE_KEY, String(volume));
   }, [volume]);
 
+  useEffect(() => {
+    setShowLyricsOverlay(false);
+  }, [track?.id]);
+
+  useEffect(() => {
+    if (!expanded) {
+      setShowLyricsOverlay(false);
+    }
+  }, [expanded]);
+
   function onTogglePlayback(): void {
     const audioElement = audioRef.current;
     if (!audioElement || !track) {
@@ -334,7 +346,7 @@ export function AudioPlayer({
     ? "flex items-center justify-end gap-2"
     : "flex min-w-0 flex-1 items-center justify-end gap-2";
   const sectionClassName = expanded
-    ? "rounded-3xl border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
+    ? "flex h-full min-h-0 flex-col rounded-3xl border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
     : "rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6";
   const artworkClassName = expanded
     ? `${artworkSize} shrink-0 rounded-2xl object-cover shadow-md`
@@ -357,6 +369,8 @@ export function AudioPlayer({
   const displayTitle = getTrackDisplayTitle(track);
   const displayArtist = getTrackDisplayArtist(track) ?? "Unknown artist";
   const displayAlbumWithYear = getTrackDisplayAlbumWithYear(track);
+  const displayLyrics = getTrackDisplayLyrics(track);
+  const hasLyrics = Boolean(displayLyrics);
 
   const hasPlayablePlaylists = playlists.length > 0;
   const activePlaylistId = selectedPlaylistId || playlists[0]?.id || "";
@@ -425,8 +439,47 @@ export function AudioPlayer({
         }}
       />
 
-      <div className={`flex min-w-0 ${expanded ? "flex-col items-center gap-7" : "flex-col gap-4 md:flex-row md:items-center"}`}>
-        {onArtworkClick && !expanded ? (
+      <div
+        className={`flex min-w-0 ${
+          expanded ? "min-h-0 flex-1 flex-col items-center justify-between gap-6" : "flex-col gap-4 md:flex-row md:items-center"
+        }`}
+      >
+        {expanded ? (
+          <div className="flex w-full items-start justify-center gap-3">
+            {hasLyrics ? (
+              <button
+                className={`rounded-xl border px-3 py-2 text-xs font-medium uppercase tracking-[0.12em] transition ${
+                  showLyricsOverlay
+                    ? "border-flaque-ink bg-flaque-ink text-flaque-cream"
+                    : "border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
+                }`}
+                type="button"
+                onClick={() => setShowLyricsOverlay((current) => !current)}
+                aria-pressed={showLyricsOverlay}
+                aria-label={showLyricsOverlay ? "Hide lyrics" : "Show lyrics"}
+              >
+                Lyrics
+              </button>
+            ) : null}
+
+            <div className="relative shrink-0 overflow-hidden rounded-2xl">
+              <img
+                className={artworkClassName}
+                src={coverUrl(track.id, track.cover)}
+                alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
+                onError={(event) => {
+                  event.currentTarget.src = defaultCoverImage;
+                }}
+              />
+
+              {showLyricsOverlay && displayLyrics ? (
+                <div className="absolute inset-0 bg-black/60 p-4 text-left text-sm leading-relaxed text-flaque-cream">
+                  <div className="h-full overflow-auto whitespace-pre-wrap">{displayLyrics}</div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : onArtworkClick ? (
           <button
             className="shrink-0 rounded-2xl"
             type="button"
