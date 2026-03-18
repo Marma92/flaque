@@ -118,6 +118,8 @@ input[type="range"]::-moz-range-thumb {
 
 :root[data-theme="dark"] .header-logo-dark {
   display: block;
+  transform: scale(1.14);
+  transform-origin: center;
   filter:
     drop-shadow(0 0 10px rgb(114 230 255 / 0.65))
     drop-shadow(0 0 24px rgb(40 168 255 / 0.55));
