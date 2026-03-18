@@ -71,6 +71,8 @@ export function ConfigView({
   const [searchText, setSearchText] = useState("");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [activeTrackActionId, setActiveTrackActionId] = useState<string | null>(null);
+  const [deleteTrackCandidate, setDeleteTrackCandidate] = useState<Track | null>(null);
+  const [deletingTrack, setDeletingTrack] = useState(false);
   const [editState, setEditState] = useState<EditTrackState | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -101,22 +103,32 @@ export function ConfigView({
     });
   }, [tracks, searchText, ownerNameById]);
 
-  async function handleDeleteTrack(track: Track): Promise<void> {
-    const confirmed = window.confirm(`Delete file for \"${getTrackDisplayTitle(track)}\"? This cannot be undone.`);
-    if (!confirmed) {
+  function openDeleteTrackModal(track: Track): void {
+    setDeleteTrackCandidate(track);
+  }
+
+  function closeDeleteTrackModal(): void {
+    if (deletingTrack) {
       return;
     }
 
+    setDeleteTrackCandidate(null);
+  }
+
+  async function handleDeleteTrack(track: Track): Promise<void> {
     setActiveTrackActionId(track.id);
     setActionMessage(null);
+    setDeletingTrack(true);
 
     try {
       await onDeleteTrack(track.id);
       setActionMessage(`Deleted ${getTrackDisplayTitle(track)}.`);
+      setDeleteTrackCandidate(null);
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : "Track deletion failed");
     } finally {
       setActiveTrackActionId(null);
+      setDeletingTrack(false);
     }
   }
 
@@ -264,7 +276,7 @@ export function ConfigView({
                           type="button"
                           disabled={runningAction}
                           onClick={() => {
-                            void handleDeleteTrack(track);
+                            openDeleteTrackModal(track);
                           }}
                         >
                           Delete file
@@ -387,6 +399,39 @@ export function ConfigView({
               </button>
             </div>
           </form>
+        </div>
+      ) : null}
+
+      {deleteTrackCandidate ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-flaque-clay/60 bg-white p-5 shadow-panel">
+            <h3 className="font-display text-xl text-flaque-ink">Delete track file</h3>
+            <p className="mt-2 text-sm text-red-700">
+              This action cannot be undone. The file for <strong>{getTrackDisplayTitle(deleteTrackCandidate)}</strong>
+              will be removed from storage.
+            </p>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                onClick={closeDeleteTrackModal}
+                disabled={deletingTrack}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-xl bg-red-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                disabled={deletingTrack}
+                onClick={() => {
+                  void handleDeleteTrack(deleteTrackCandidate);
+                }}
+              >
+                {deletingTrack ? "Deleting..." : "Delete file"}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>
