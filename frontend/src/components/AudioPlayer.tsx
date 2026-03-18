@@ -606,7 +606,7 @@ export function AudioPlayer({
             </div>
 
             <div className={trailingControlsClassName}>
-              <div className="flex items-center gap-3">
+              <div className="grid min-w-[10.5rem] grid-rows-[auto_2.25rem] justify-items-end gap-1">
                 <label className="flex items-center gap-2 text-xs text-flaque-steel">
                   <span>Quality</span>
                   <select
