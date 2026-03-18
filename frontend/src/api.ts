@@ -128,6 +128,24 @@ export async function createUserAccount(input: {
   return payload.user;
 }
 
+export async function patchUserAccount(
+  userId: string,
+  patch: {
+    username?: string;
+    role?: "user" | "admin";
+  }
+): Promise<User> {
+  const payload = await requestJson<{ user: User }>(`/api/users/${userId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(patch)
+  });
+
+  return payload.user;
+}
+
 export async function deleteUserAccount(userId: string): Promise<void> {
   await requestJson<void>(`/api/users/${userId}`, {
     method: "DELETE",

@@ -8,6 +8,7 @@ import {
   getUsers,
   login,
   logout,
+  patchUserAccount,
   resetUserPassword,
   rebuildIndex,
   uploadTrack
@@ -171,6 +172,30 @@ export default function App(): JSX.Element {
     await resetUserPassword(userId, password);
   }
 
+  async function handlePatchUser(input: {
+    userId: string;
+    username?: string;
+    role?: "user" | "admin";
+  }): Promise<void> {
+    const patchedUser = await patchUserAccount(input.userId, {
+      username: input.username,
+      role: input.role
+    });
+
+    if (user && patchedUser.id === user.id) {
+      setUser(patchedUser);
+
+      if (patchedUser.role !== "admin") {
+        setActiveView("library");
+        setAdminUsers([]);
+        setAdminError(null);
+        return;
+      }
+    }
+
+    await refreshAdminUsers();
+  }
+
   if (!sessionChecked) {
     return <main className="p-8 text-flaque-ink">Loading session...</main>;
   }
@@ -285,6 +310,7 @@ export default function App(): JSX.Element {
           onRefresh={refreshAdminUsers}
           onCreateUser={handleCreateUser}
           onDeleteUser={handleDeleteUser}
+          onPatchUser={handlePatchUser}
           onResetPassword={handleResetUserPassword}
         />
       )}

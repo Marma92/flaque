@@ -124,6 +124,27 @@ async function createUserAsAdmin(input: {
   return payload.user;
 }
 
+async function patchUserAsAdmin(input: {
+  adminCookie: string;
+  userId: string;
+  payload: {
+    username?: string;
+    role?: "user" | "admin";
+  };
+}): Promise<{ id: string; username: string; role: "user" | "admin" }> {
+  const response = await apiRequest(`/api/users/${input.userId}`, {
+    method: "PATCH",
+    headers: {
+      Cookie: input.adminCookie
+    },
+    body: JSON.stringify(input.payload)
+  });
+
+  expect(response.status).toBe(200);
+  const payload = response.payload as { user: { id: string; username: string; role: "user" | "admin" } };
+  return payload.user;
+}
+
 beforeEach(async () => {
   dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "flaque-users-api-"));
   process.env.DATA_ROOT = dataRoot;
@@ -222,6 +243,94 @@ describe("userRoutes", () => {
     expect(listResponse.status).toBe(403);
   });
 
+  it("allows admin to patch username and role", async () => {
+    const adminCookie = await login("admin", "admin-secret-123");
+    const created = await createUserAsAdmin({
+      adminCookie,
+      username: "grace",
+      password: "grace-password",
+      role: "user"
+    });
+
+    const patched = await patchUserAsAdmin({
+      adminCookie,
+      userId: created.id,
+      payload: {
+        username: "grace-renamed",
+        role: "admin"
+      }
+    });
+
+    expect(patched).toMatchObject({
+      id: created.id,
+      username: "grace-renamed",
+      role: "admin"
+    });
+
+    const oldLoginResponse = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        username: "grace",
+        password: "grace-password"
+      })
+    });
+    expect(oldLoginResponse.status).toBe(401);
+
+    const newLoginResponse = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        username: "grace-renamed",
+        password: "grace-password"
+      })
+    });
+    expect(newLoginResponse.status).toBe(200);
+  });
+
+  it("rejects patch when trying to demote the last admin", async () => {
+    const adminCookie = await login("admin", "admin-secret-123");
+    const adminId = await currentUserId(adminCookie);
+
+    const patchResponse = await apiRequest(`/api/users/${adminId}`, {
+      method: "PATCH",
+      headers: {
+        Cookie: adminCookie
+      },
+      body: JSON.stringify({
+        role: "user"
+      })
+    });
+
+    expect(patchResponse.status).toBe(400);
+  });
+
+  it("rejects patch when username already exists", async () => {
+    const adminCookie = await login("admin", "admin-secret-123");
+    const first = await createUserAsAdmin({
+      adminCookie,
+      username: "hannah",
+      password: "hannah-password",
+      role: "user"
+    });
+    const second = await createUserAsAdmin({
+      adminCookie,
+      username: "ivan",
+      password: "ivan-password",
+      role: "user"
+    });
+
+    const patchResponse = await apiRequest(`/api/users/${second.id}`, {
+      method: "PATCH",
+      headers: {
+        Cookie: adminCookie
+      },
+      body: JSON.stringify({
+        username: first.username
+      })
+    });
+
+    expect(patchResponse.status).toBe(409);
+  });
+
   it("allows admin password reset and revokes existing sessions", async () => {
     const adminCookie = await login("admin", "admin-secret-123");
     const created = await createUserAsAdmin({
@@ -301,7 +410,7 @@ describe("userRoutes", () => {
     expect(deletedLoginResponse.status).toBe(401);
   });
 
-  it("rejects delete and reset endpoints for non-admin users", async () => {
+  it("rejects patch, delete and reset endpoints for non-admin users", async () => {
     const adminCookie = await login("admin", "admin-secret-123");
     const target = await createUserAsAdmin({
       adminCookie,
@@ -317,6 +426,17 @@ describe("userRoutes", () => {
     });
 
     const userCookie = await login("frank", "frank-password");
+
+    const patchResponse = await apiRequest(`/api/users/${target.id}`, {
+      method: "PATCH",
+      headers: {
+        Cookie: userCookie
+      },
+      body: JSON.stringify({
+        role: "admin"
+      })
+    });
+    expect(patchResponse.status).toBe(403);
 
     const resetResponse = await apiRequest(`/api/users/${target.id}/reset-password`, {
       method: "POST",

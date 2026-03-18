@@ -59,6 +59,7 @@ data/
 
 - `GET /api/users`
 - `POST /api/users`
+- `PATCH /api/users/:id`
 - `POST /api/users/:id/reset-password`
 - `DELETE /api/users/:id`
 
@@ -78,10 +79,20 @@ Validation:
 - `password`: 8-256 chars
 - `role`: `user` or `admin` (default: `user`)
 
+`PATCH /api/users/:id` request body (partial update):
+
+```json
+{
+  "username": "alice-renamed",
+  "role": "admin"
+}
+```
+
 Protections:
 
 - Self-deletion is blocked (`DELETE /api/users/:id` cannot target current session user).
 - Deleting the last remaining admin account is blocked.
+- Demoting the last remaining admin account is blocked (`PATCH /api/users/:id`).
 - Password reset revokes existing sessions for the target user.
 
 ### Upload
@@ -184,6 +195,7 @@ npm run test
 In the frontend `Admin` tab (admin users only), you can:
 
 - create users,
+- patch username/role,
 - reset passwords,
 - delete users,
 - search users by username/id,

@@ -138,6 +138,18 @@ export function deleteUserById(userId: string): boolean {
   return result.changes > 0;
 }
 
+export function updateUserUsername(userId: string, username: string): boolean {
+  const database = requireDb();
+  const result = database.prepare("UPDATE users SET username = ? WHERE id = ?").run(username, userId);
+  return result.changes > 0;
+}
+
+export function updateUserRole(userId: string, role: UserRole): boolean {
+  const database = requireDb();
+  const result = database.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, userId);
+  return result.changes > 0;
+}
+
 export function createSession(userId: string, ttlMs: number): { id: string; expiresAt: number } {
   const database = requireDb();
   const id = createId(24);

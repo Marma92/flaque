@@ -17,6 +17,11 @@ type AdminUsersViewProps = {
   error: string | null;
   onRefresh: () => Promise<void>;
   onCreateUser: (input: NewUserInput) => Promise<void>;
+  onPatchUser: (input: {
+    userId: string;
+    username?: string;
+    role?: "user" | "admin";
+  }) => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
   onResetPassword: (userId: string, password: string) => Promise<void>;
 };
@@ -32,6 +37,7 @@ export function AdminUsersView({
   error,
   onRefresh,
   onCreateUser,
+  onPatchUser,
   onDeleteUser,
   onResetPassword
 }: AdminUsersViewProps): JSX.Element {
@@ -115,6 +121,61 @@ export function AdminUsersView({
       setActionMessage(`Password reset for ${user.username}.`);
     } catch (actionError) {
       setActionMessage(actionError instanceof Error ? actionError.message : "Password reset failed");
+    } finally {
+      setActiveUserActionId(null);
+    }
+  }
+
+  async function handleRenameUser(user: User): Promise<void> {
+    const usernamePrompt = window.prompt(`New username for ${user.username}:`, user.username);
+    if (usernamePrompt === null) {
+      return;
+    }
+
+    const nextUsername = usernamePrompt.trim();
+    if (!nextUsername) {
+      setActionMessage("Username update canceled: username cannot be empty.");
+      return;
+    }
+
+    if (nextUsername === user.username) {
+      return;
+    }
+
+    setActionMessage(null);
+    setActiveUserActionId(user.id);
+
+    try {
+      await onPatchUser({
+        userId: user.id,
+        username: nextUsername
+      });
+      setActionMessage(`Username updated for ${user.username}.`);
+    } catch (actionError) {
+      setActionMessage(actionError instanceof Error ? actionError.message : "Username update failed");
+    } finally {
+      setActiveUserActionId(null);
+    }
+  }
+
+  async function handleToggleRole(user: User): Promise<void> {
+    const nextRole: "user" | "admin" = user.role === "admin" ? "user" : "admin";
+    const confirmed = window.confirm(`Change ${user.username} role to ${nextRole}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setActionMessage(null);
+    setActiveUserActionId(user.id);
+
+    try {
+      await onPatchUser({
+        userId: user.id,
+        role: nextRole
+      });
+      setActionMessage(`Role updated for ${user.username}: ${nextRole}.`);
+    } catch (actionError) {
+      setActionMessage(actionError instanceof Error ? actionError.message : "Role update failed");
     } finally {
       setActiveUserActionId(null);
     }
@@ -257,7 +318,7 @@ export function AdminUsersView({
 
       <section className="overflow-hidden rounded-3xl border border-flaque-clay/60 bg-white/85 shadow-panel backdrop-blur-sm">
         <div className="max-h-[50vh] overflow-auto">
-          <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[900px] border-collapse text-left text-sm">
             <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
               <tr>
                 <th className="px-4 py-3 font-medium">Username</th>
@@ -288,6 +349,26 @@ export function AdminUsersView({
                     <td className="px-4 py-3 font-mono text-xs text-flaque-steel">{entry.id}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
+                        <button
+                          className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                          type="button"
+                          disabled={runningAction}
+                          onClick={() => {
+                            void handleRenameUser(entry);
+                          }}
+                        >
+                          Rename
+                        </button>
+                        <button
+                          className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                          type="button"
+                          disabled={runningAction}
+                          onClick={() => {
+                            void handleToggleRole(entry);
+                          }}
+                        >
+                          {entry.role === "admin" ? "Make user" : "Make admin"}
+                        </button>
                         <button
                           className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
                           type="button"
