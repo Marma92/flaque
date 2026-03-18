@@ -107,3 +107,15 @@ input[type="range"]::-moz-range-thumb {
   outline: 2px solid rgb(var(--flaque-ink-rgb));
   outline-offset: 2px;
 }
+
+.header-logo-dark {
+  display: none;
+}
+
+:root[data-theme="dark"] .header-logo-light {
+  display: none;
+}
+
+:root[data-theme="dark"] .header-logo-dark {
+  display: block;
+}

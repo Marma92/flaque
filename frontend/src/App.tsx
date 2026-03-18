@@ -546,12 +546,12 @@ export default function App(): JSX.Element {
           <div className="flex min-w-0 items-center gap-4">
             <div className="relative h-20 w-20 shrink-0 md:h-24 md:w-24">
               <img
-                className="header-logo-light h-full w-full object-contain"
+                className="header-logo-light absolute inset-0 h-full w-full object-contain"
                 src="/favicon.png"
                 alt="Flaque logo"
               />
               <img
-                className="header-logo-dark h-full w-full object-contain"
+                className="header-logo-dark absolute inset-0 h-full w-full object-contain"
                 src="/logo-dark.png"
                 alt="Flaque logo (dark mode)"
               />
