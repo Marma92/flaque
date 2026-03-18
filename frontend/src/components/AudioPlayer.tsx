@@ -13,7 +13,6 @@ export type TranscodeMode = "original" | "opus" | "mp3";
 export type RepeatMode = "off" | "all" | "one";
 
 const PLAYER_VOLUME_STORAGE_KEY = "flaque_player_volume_v1";
-const PLAYER_RATE_STORAGE_KEY = "flaque_player_rate_v1";
 
 type NavigateOptions = {
   wrap?: boolean;
@@ -74,19 +73,6 @@ function readStoredVolume(): number {
   return clampVolume(raw);
 }
 
-function readStoredPlaybackRate(): number {
-  if (typeof window === "undefined") {
-    return 1;
-  }
-
-  const raw = Number(window.localStorage.getItem(PLAYER_RATE_STORAGE_KEY));
-  if (raw === 0.75 || raw === 1 || raw === 1.25 || raw === 1.5 || raw === 2) {
-    return raw;
-  }
-
-  return 1;
-}
-
 export function AudioPlayer({
   track,
   expanded = false,
@@ -126,7 +112,6 @@ export function AudioPlayer({
   const [showQueuePanel, setShowQueuePanel] = useState(false);
   const [volume, setVolume] = useState<number>(() => readStoredVolume());
   const [muted, setMuted] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState<number>(() => readStoredPlaybackRate());
 
   const canTranscode = Boolean(track && isFlacTrack(track));
   const requestedTranscode = transcodeMode === "original" ? undefined : transcodeMode;
@@ -247,23 +232,6 @@ export function AudioPlayer({
     window.localStorage.setItem(PLAYER_VOLUME_STORAGE_KEY, String(volume));
   }, [volume]);
 
-  useEffect(() => {
-    const audioElement = audioRef.current;
-    if (!audioElement) {
-      return;
-    }
-
-    audioElement.playbackRate = playbackRate;
-  }, [playbackRate, track?.id]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.localStorage.setItem(PLAYER_RATE_STORAGE_KEY, String(playbackRate));
-  }, [playbackRate]);
-
   function onTogglePlayback(): void {
     const audioElement = audioRef.current;
     if (!audioElement || !track) {
@@ -351,7 +319,16 @@ export function AudioPlayer({
 
   const artworkSize = expanded ? "h-64 w-64 md:h-72 md:w-72" : "h-16 w-16 md:h-20 md:w-20";
   const contentLayoutClass = expanded ? "w-full max-w-4xl space-y-4" : "min-w-0 flex-1 space-y-3";
-  const controlsLayoutClass = expanded ? "flex items-center gap-3" : "flex flex-wrap items-center gap-2";
+  const controlsLayoutClass = expanded
+    ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3"
+    : "flex flex-wrap items-center gap-2";
+  const primaryControlsClassName = "flex flex-wrap items-center gap-2";
+  const centerControlsClassName = expanded
+    ? "flex items-center gap-2 rounded-xl border border-flaque-clay/50 bg-flaque-cream/40 px-2 py-1"
+    : "order-3 flex w-full items-center justify-center gap-2 rounded-xl border border-flaque-clay/55 bg-flaque-cream/35 px-2 py-1";
+  const trailingControlsClassName = expanded
+    ? "flex flex-wrap items-center justify-end gap-2"
+    : "ml-auto flex flex-wrap items-center justify-end gap-2";
   const sectionClassName = expanded
     ? "rounded-3xl border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
     : "rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6";
@@ -382,7 +359,6 @@ export function AudioPlayer({
   const queueCurrentId = currentQueueTrackId ?? track.id;
   const rawQueueCurrentIndex = effectiveQueue.findIndex((queueTrack) => queueTrack.id === queueCurrentId);
   const queueCurrentIndex = rawQueueCurrentIndex >= 0 ? rawQueueCurrentIndex : 0;
-  const upNextTracks = effectiveQueue.slice(queueCurrentIndex + 1);
   const queuePanelClassName = expanded
     ? "rounded-2xl border border-flaque-clay/60 bg-flaque-cream/35 p-3"
     : "rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 p-2.5";
@@ -472,6 +448,7 @@ export function AudioPlayer({
           </div>
 
           <div className={controlsLayoutClass}>
+            <div className={primaryControlsClassName}>
             <button
               className={ghostControlButtonClassName}
               type="button"
@@ -525,7 +502,9 @@ export function AudioPlayer({
               {formatDuration(currentTime)} / {formatDuration(duration || track.duration)}
             </span>
 
-            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            </div>
+
+            <div className={centerControlsClassName}>
               <button
                 className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
                   repeatMode === "off"
@@ -590,47 +569,6 @@ export function AudioPlayer({
               </button>
 
               <button
-                className={ghostControlButtonClassName}
-                type="button"
-                aria-label={muted || volume === 0 ? "Unmute" : "Mute"}
-                title={muted || volume === 0 ? "Unmute" : "Mute"}
-                onClick={() => setMuted((current) => !current)}
-              >
-                {muted || volume === 0 ? (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                    <path d="M3 10v4h4l5 4V6L7 10H3z" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M16 9l5 6" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M21 9l-5 6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                ) : (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                    <path d="M3 10v4h4l5 4V6L7 10H3z" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M16 9a5 5 0 010 6" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M19 7a8 8 0 010 10" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </button>
-
-              <label className="flex items-center gap-2 text-xs text-flaque-steel">
-                <span>Volume</span>
-                <input
-                  className="h-2 w-20 cursor-pointer appearance-none rounded-full bg-flaque-clay/60"
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={volume}
-                  onChange={(event) => {
-                    const nextVolume = clampVolume(Number(event.target.value));
-                    setVolume(nextVolume);
-                    if (nextVolume > 0 && muted) {
-                      setMuted(false);
-                    }
-                  }}
-                />
-              </label>
-
-              <button
                 className={queueButtonClassName}
                 type="button"
                 aria-label={showQueuePanel ? "Hide queue" : "Show queue"}
@@ -665,65 +603,109 @@ export function AudioPlayer({
                 </svg>
               </button>
 
-              <label className="flex items-center gap-2 text-xs text-flaque-steel">
-                <span>Quality</span>
-                <select
-                  className={qualitySelectClassName}
-                  value={transcodeMode}
-                  onChange={(event) => {
-                    if (!onTranscodeModeChange) {
-                      return;
-                    }
+            </div>
 
-                    const nextMode = event.target.value as TranscodeMode;
-                    if (nextMode === transcodeMode) {
-                      return;
-                    }
+            <div className={trailingControlsClassName}>
 
-                    const nextRequestedTranscode = nextMode === "original" ? undefined : nextMode;
-                    const nextEffectiveTranscode = canTranscode ? nextRequestedTranscode : undefined;
-                    const sourceWillChange = nextEffectiveTranscode !== effectiveTranscode;
+              <div className="ml-1 grid min-w-[10.5rem] grid-rows-[auto_2.25rem] justify-items-end gap-1">
+                <label className="flex items-center gap-2 text-xs text-flaque-steel">
+                  <span>Quality</span>
+                  <select
+                    className={qualitySelectClassName}
+                    value={transcodeMode}
+                    onChange={(event) => {
+                      if (!onTranscodeModeChange) {
+                        return;
+                      }
 
-                    if (sourceWillChange) {
-                      const audioElement = audioRef.current;
-                      const snapshotTime = audioElement && audioElement.currentTime > 0 ? audioElement.currentTime : currentTimeRef.current;
-                      const shouldResumePlayback = audioElement ? !audioElement.paused : isPlaying;
+                      const nextMode = event.target.value as TranscodeMode;
+                      if (nextMode === transcodeMode) {
+                        return;
+                      }
 
-                      qualitySwapSnapshotTimeRef.current = snapshotTime;
-                      qualitySwapShouldPlayRef.current = shouldResumePlayback;
-                    } else {
-                      qualitySwapSnapshotTimeRef.current = null;
-                      qualitySwapShouldPlayRef.current = null;
-                    }
+                      const nextRequestedTranscode = nextMode === "original" ? undefined : nextMode;
+                      const nextEffectiveTranscode = canTranscode ? nextRequestedTranscode : undefined;
+                      const sourceWillChange = nextEffectiveTranscode !== effectiveTranscode;
 
-                    onTranscodeModeChange(nextMode);
-                  }}
-                >
-                  <option value="original">Original</option>
-                  <option value="opus">Opus fallback</option>
-                  <option value="mp3">MP3 fallback</option>
-                </select>
-              </label>
+                      if (sourceWillChange) {
+                        const audioElement = audioRef.current;
+                        const snapshotTime =
+                          audioElement && audioElement.currentTime > 0 ? audioElement.currentTime : currentTimeRef.current;
+                        const shouldResumePlayback = audioElement ? !audioElement.paused : isPlaying;
 
-              <label className="flex items-center gap-2 text-xs text-flaque-steel">
-                <span>Speed</span>
-                <select
-                  className={qualitySelectClassName}
-                  value={playbackRate}
-                  onChange={(event) => {
-                    const nextRate = Number(event.target.value);
-                    if (nextRate === 0.75 || nextRate === 1 || nextRate === 1.25 || nextRate === 1.5 || nextRate === 2) {
-                      setPlaybackRate(nextRate);
-                    }
-                  }}
-                >
-                  <option value={0.75}>0.75x</option>
-                  <option value={1}>1.0x</option>
-                  <option value={1.25}>1.25x</option>
-                  <option value={1.5}>1.5x</option>
-                  <option value={2}>2.0x</option>
-                </select>
-              </label>
+                        qualitySwapSnapshotTimeRef.current = snapshotTime;
+                        qualitySwapShouldPlayRef.current = shouldResumePlayback;
+                      } else {
+                        qualitySwapSnapshotTimeRef.current = null;
+                        qualitySwapShouldPlayRef.current = null;
+                      }
+
+                      onTranscodeModeChange(nextMode);
+                    }}
+                  >
+                    <option value="original">Original</option>
+                    <option value="opus">Opus fallback</option>
+                    <option value="mp3">MP3 fallback</option>
+                  </select>
+                </label>
+
+                <div className="flex h-9 items-center justify-end gap-2">
+                  <button
+                    className={ghostControlButtonClassName}
+                    type="button"
+                    aria-label={muted || volume === 0 ? "Unmute" : "Mute"}
+                    title={muted || volume === 0 ? "Unmute" : "Mute"}
+                    onClick={() => setMuted((current) => !current)}
+                  >
+                    {muted || volume === 0 ? (
+                      <svg
+                        className="h-4 w-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 10v4h4l5 4V6L7 10H3z" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M16 9l5 6" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M21 9l-5 6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="h-4 w-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 10v4h4l5 4V6L7 10H3z" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M16 9a5 5 0 010 6" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M19 7a8 8 0 010 10" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+
+                  <input
+                    className="h-2 w-20 cursor-pointer appearance-none rounded-full bg-flaque-clay/60"
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={volume}
+                    aria-label="Volume"
+                    title="Volume"
+                    onChange={(event) => {
+                      const nextVolume = clampVolume(Number(event.target.value));
+                      setVolume(nextVolume);
+                      if (nextVolume > 0 && muted) {
+                        setMuted(false);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -793,36 +775,6 @@ export function AudioPlayer({
             value={Math.min(currentTime, duration || track.duration || 0)}
             onChange={(event) => onSeek(Number(event.target.value))}
           />
-
-          {upNextTracks.length > 0 ? (
-            <div className="rounded-xl border border-flaque-clay/50 bg-flaque-cream/35 px-3 py-2">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-flaque-steel">Up next ({upNextTracks.length})</p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {upNextTracks.slice(0, 4).map((queueTrack, index) => {
-                  const title = getTrackDisplayTitle(queueTrack);
-                  return (
-                    <button
-                      key={`${queueTrack.id}-up-next-${index}`}
-                      className="rounded-lg border border-flaque-clay/50 bg-white/85 px-2 py-1 text-left text-[11px] text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-default"
-                      type="button"
-                      title={title}
-                      onClick={() => {
-                        if (onQueueTrackSelect) {
-                          onQueueTrackSelect(queueTrack);
-                        }
-                      }}
-                      disabled={!onQueueTrackSelect}
-                    >
-                      <span className="block max-w-[10rem] truncate">{title}</span>
-                    </button>
-                  );
-                })}
-                {upNextTracks.length > 4 ? (
-                  <span className="self-center text-[11px] text-flaque-steel">+{upNextTracks.length - 4} more</span>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
 
           {showQueuePanel ? (
             <div className={queuePanelClassName}>
