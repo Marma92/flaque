@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { coverUrl, streamUrl } from "../api";
+import defaultCoverImage from "../assets/default-cover.png";
 import type { Track } from "../types";
 
 export type TranscodeMode = "original" | "opus" | "mp3";
@@ -270,8 +271,7 @@ export function AudioPlayer({
           src={coverUrl(track.id, track.cover)}
           alt={track.tags.album ? `Cover for ${track.tags.album}` : "Track cover"}
           onError={(event) => {
-            event.currentTarget.src =
-              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Crect width='100%25' height='100%25' fill='%23d9b88a'/%3E%3Ctext x='50%25' y='52%25' text-anchor='middle' fill='%232c1f1a' font-size='24' font-family='sans-serif'%3ENo Cover%3C/text%3E%3C/svg%3E";
+            event.currentTarget.src = defaultCoverImage;
           }}
         />
 
