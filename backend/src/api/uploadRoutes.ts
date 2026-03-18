@@ -35,6 +35,39 @@ function normalizeOptionalString(value: unknown): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+type UploadMetadataOverride = {
+  title?: string;
+  artist?: string;
+  album?: string;
+};
+
+function parseUploadMetadataOverrides(value: unknown): UploadMetadataOverride[] {
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return {};
+      }
+
+      return {
+        title: normalizeOptionalString((entry as { title?: unknown }).title),
+        artist: normalizeOptionalString((entry as { artist?: unknown }).artist),
+        album: normalizeOptionalString((entry as { album?: unknown }).album)
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
 function collectUploadedFiles(files: unknown): Express.Multer.File[] {
   if (!files) {
     return [];
@@ -162,13 +195,14 @@ export function createUploadRouter(indexStore: IndexStore): Router {
 
         const manualArtist = normalizeOptionalString(req.body?.artist);
         const manualAlbum = normalizeOptionalString(req.body?.album);
+        const metadataOverrides = parseUploadMetadataOverrides(req.body?.metadataOverrides);
 
         const ownerUploadDir = await ensureOwnerUploadDir(ownerId);
         const uploadedTrackIds: string[] = [];
-        const metadataOverridePatch: Record<string, { artist?: string; album?: string }> = {};
+        const metadataOverridePatch: Record<string, { title?: string; artist?: string; album?: string }> = {};
         let deduplicated = 0;
 
-        for (const uploadedFile of uploadedFiles) {
+        for (const [index, uploadedFile] of uploadedFiles.entries()) {
           if (!isSupportedAudioFile(uploadedFile.originalname)) {
             throw new Error(`Unsupported audio format: ${uploadedFile.originalname}`);
           }
@@ -192,10 +226,16 @@ export function createUploadRouter(indexStore: IndexStore): Router {
           await ensureTrackCover(trackId, metadata.cover);
           uploadedTrackIds.push(trackId);
 
-          if (manualArtist || manualAlbum) {
+          const metadataOverride = metadataOverrides[index] ?? {};
+          const effectiveTitle = metadataOverride.title;
+          const effectiveArtist = metadataOverride.artist ?? manualArtist;
+          const effectiveAlbum = metadataOverride.album ?? manualAlbum;
+
+          if (effectiveTitle || effectiveArtist || effectiveAlbum) {
             metadataOverridePatch[trackId] = {
-              artist: manualArtist,
-              album: manualAlbum
+              title: effectiveTitle,
+              artist: effectiveArtist,
+              album: effectiveAlbum
             };
           }
         }

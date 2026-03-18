@@ -659,6 +659,11 @@ export default function App(): JSX.Element {
     files: File[];
     artist?: string;
     album?: string;
+    metadataOverrides?: Array<{
+      title?: string;
+      artist?: string;
+      album?: string;
+    } | null>;
     onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
   }): Promise<UploadTracksResult> {
     const result = await uploadTracks(input);

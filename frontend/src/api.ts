@@ -103,6 +103,11 @@ export type UploadTracksInput = {
   files: File[];
   artist?: string;
   album?: string;
+  metadataOverrides?: Array<{
+    title?: string;
+    artist?: string;
+    album?: string;
+  } | null>;
   onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
 };
 
@@ -142,6 +147,10 @@ export async function uploadTracks(input: UploadTracksInput): Promise<UploadTrac
 
   if (input.album?.trim()) {
     formData.append("album", input.album.trim());
+  }
+
+  if (input.metadataOverrides && input.metadataOverrides.length > 0) {
+    formData.append("metadataOverrides", JSON.stringify(input.metadataOverrides));
   }
 
   return new Promise<UploadTracksResult>((resolve, reject) => {

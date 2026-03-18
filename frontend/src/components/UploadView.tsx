@@ -8,6 +8,11 @@ type UploadViewProps = {
     files: File[];
     artist?: string;
     album?: string;
+    metadataOverrides?: Array<{
+      title?: string;
+      artist?: string;
+      album?: string;
+    } | null>;
     onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
   }) => Promise<UploadTracksResult>;
   onInspectFile: (file: File) => Promise<UploadTrackPreview>;
@@ -80,6 +85,9 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
 
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [previewByFileKey, setPreviewByFileKey] = useState<Record<string, PreviewState>>({});
+  const [editableMetadataByFileKey, setEditableMetadataByFileKey] = useState<
+    Record<string, { title: string; artist: string; album: string }>
+  >({});
   const [uploadArtist, setUploadArtist] = useState("");
   const [uploadAlbum, setUploadAlbum] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -142,6 +150,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
   function setFilesForUpload(files: File[]): void {
     setPendingFiles(files);
     setUploadMessage(null);
+    setEditableMetadataByFileKey({});
 
     if (files.length === 0) {
       inspectRequestRef.current += 1;
@@ -188,11 +197,33 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
     setUploadProgressPercent(0);
     setUploadMessage(null);
 
+    const metadataOverrides = pendingFiles.map((file) => {
+      const fileKey = getFileKey(file);
+      const editedMetadata = editableMetadataByFileKey[fileKey];
+      if (!editedMetadata) {
+        return null;
+      }
+
+      const title = editedMetadata.title.trim();
+      const artist = editedMetadata.artist.trim();
+      const album = editedMetadata.album.trim();
+      if (!title && !artist && !album) {
+        return null;
+      }
+
+      return {
+        title: title || undefined,
+        artist: artist || undefined,
+        album: album || undefined
+      };
+    });
+
     try {
       const result = await onUpload({
         files: pendingFiles,
         artist: uploadArtist.trim() || undefined,
         album: uploadAlbum.trim() || undefined,
+        metadataOverrides,
         onProgress: (progress) => {
           setUploadProgressPercent(progress.percent);
         }
@@ -207,6 +238,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
 
       setPendingFiles([]);
       setPreviewByFileKey({});
+      setEditableMetadataByFileKey({});
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -393,6 +425,10 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
               const year = extractYearFromTags(preview?.tags);
               const albumBase = preview?.tags.album?.trim() || "Unknown album";
               const album = year ? `${albumBase} (${year})` : albumBase;
+              const editableMetadata = editableMetadataByFileKey[fileKey];
+              const editableTitle = editableMetadata?.title ?? title;
+              const editableArtist = editableMetadata?.artist ?? artist;
+              const editableAlbum = editableMetadata?.album ?? albumBase;
               const trackPosition =
                 typeof preview?.tags.trackNumber === "number"
                   ? `${preview.tags.trackNumber}${
@@ -425,24 +461,57 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                             Title
                             <input
                               className="mt-1 w-full rounded-lg border border-flaque-clay bg-white px-2 py-1 text-flaque-ink"
-                              value={title}
-                              readOnly
+                              value={editableTitle}
+                              disabled={uploading}
+                              onChange={(event) => {
+                                const nextTitle = event.target.value;
+                                setEditableMetadataByFileKey((current) => ({
+                                  ...current,
+                                  [fileKey]: {
+                                    title: nextTitle,
+                                    artist: current[fileKey]?.artist ?? editableArtist,
+                                    album: current[fileKey]?.album ?? editableAlbum
+                                  }
+                                }));
+                              }}
                             />
                           </label>
                           <label className="text-flaque-steel">
                             Artist
                             <input
                               className="mt-1 w-full rounded-lg border border-flaque-clay bg-white px-2 py-1 text-flaque-ink"
-                              value={artist}
-                              readOnly
+                              value={editableArtist}
+                              disabled={uploading}
+                              onChange={(event) => {
+                                const nextArtist = event.target.value;
+                                setEditableMetadataByFileKey((current) => ({
+                                  ...current,
+                                  [fileKey]: {
+                                    title: current[fileKey]?.title ?? editableTitle,
+                                    artist: nextArtist,
+                                    album: current[fileKey]?.album ?? editableAlbum
+                                  }
+                                }));
+                              }}
                             />
                           </label>
                           <label className="text-flaque-steel">
                             Album
                             <input
                               className="mt-1 w-full rounded-lg border border-flaque-clay bg-white px-2 py-1 text-flaque-ink"
-                              value={album}
-                              readOnly
+                              value={editableAlbum}
+                              disabled={uploading}
+                              onChange={(event) => {
+                                const nextAlbum = event.target.value;
+                                setEditableMetadataByFileKey((current) => ({
+                                  ...current,
+                                  [fileKey]: {
+                                    title: current[fileKey]?.title ?? editableTitle,
+                                    artist: current[fileKey]?.artist ?? editableArtist,
+                                    album: nextAlbum
+                                  }
+                                }));
+                              }}
                             />
                           </label>
 
