@@ -3,11 +3,14 @@ dist/
 coverage/
 .DS_Store
 .env
+.env.production
 *.log
+
+runtime/
 
 data/config/users.db
 data/config/users.db-*
-data/storage/users/*/uploads/*
+data/storage/users/*
 !data/storage/users/.gitkeep
 data/cache/covers/*
 !data/cache/covers/.gitkeep
@@ -15,7 +18,8 @@ data/cache/transcodes/*
 !data/cache/transcodes/.gitkeep
 data/cache/tmp-uploads/*
 !data/cache/tmp-uploads/.gitkeep
-data/index/library-index.json
+data/index/*
+!data/index/.gitkeep
 
 frontend/dist/
 backend/dist/

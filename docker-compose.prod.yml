@@ -1,0 +1,38 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: flaque-backend
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      DATA_ROOT: /app/data
+    ports:
+      - "${FLAQUE_BACKEND_PORT:-4000}:4000"
+    volumes:
+      - type: bind
+        source: ${FLAQUE_STORAGE_DIR}
+        target: /app/data/storage
+      - type: bind
+        source: ${FLAQUE_STATE_DIR}/config
+        target: /app/data/config
+      - type: bind
+        source: ${FLAQUE_STATE_DIR}/index
+        target: /app/data/index
+      - type: bind
+        source: ${FLAQUE_STATE_DIR}/cache
+        target: /app/data/cache
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: flaque-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FLAQUE_FRONTEND_PORT:-8080}:80"

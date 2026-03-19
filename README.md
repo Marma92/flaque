@@ -1,26 +1,104 @@
-# flaque
+# Flaque
 
-Self-hosted, hi-fi oriented web audio player built on a strict file-based architecture.
+<p align="center">
+  <img src="frontend/public/favicon.png" alt="Flaque logo" width="220" />
+</p>
 
-## Overview
+<p align="center"><strong>F</strong>ile-based <strong>L</strong>ibrary <strong>A</strong>udio <strong>QU</strong>ery <strong>E</strong>ngine</p>
 
-`flaque` focuses on simple and durable music library management:
+Flaque is a self-hosted web audio player focused on local-first music libraries, hi-fi playback, and practical operations.
+The core principle is simple: your files stay the source of truth, and the app builds a modern listening experience around them.
 
-- Upload FLAC/MP3/WAV tracks.
-- Browse by owner username, artist, album, and text search.
-- Stream original files with full HTTP range support for smooth seeking.
-- Display rich embedded metadata (title, artist, album, year, track/disc info, etc.) and covers.
+## Description and Definitions
 
-## Project structure
+| Term | Definition |
+| --- | --- |
+| **Self-hosted** | The app runs on your own machine, NAS, VM, or server. You keep control of data and operations. |
+| **File-based library** | Audio tracks are stored as regular files in the filesystem, not in an opaque media blob. |
+| **Library index** | A generated JSON index used to speed up filtering, browsing, and playback discovery. |
+| **FLAC-first** | Original quality is preferred whenever possible, with optional fallback transcoding when needed. |
+| **DATA_ROOT** | Runtime data root used for config DB, uploads, cache, and generated indexes. |
 
-- `backend/` - Node.js + Express + TypeScript API.
-- `frontend/` - React SPA (Vite + Tailwind).
-- `data/` - file-based storage and generated index.
+## Screenshot
 
-No database is used for library business logic.
-SQLite is used only for users and sessions.
+Current Player view with active playback:
 
-## Data layout
+![Flaque Player Screenshot](docs/screenshots/player-view.png)
+
+## Key Challenges
+
+- **Data ownership**: keep full control over music files and metadata.
+- **Audio quality + UX**: combine hi-fi streaming with a clean, responsive interface.
+- **Operational simplicity**: keep runtime structure explicit, inspectable, and easy to backup.
+- **Multi-user access**: provide admin/user roles and durable sessions without heavyweight infrastructure.
+- **Long-term maintainability**: keep a codebase that can evolve safely with product and UX needs.
+
+## How to Build
+
+### Prerequisites
+
+- Node.js 20+
+- npm 10+
+- `ffmpeg` / `ffprobe` available in `PATH`
+
+Debian/Ubuntu:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ffmpeg
+```
+
+### Installation
+
+```bash
+npm install
+cp backend/.env.example backend/.env
+```
+
+Set at least the following values in `backend/.env`:
+
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+
+### Run in development
+
+```bash
+npm run dev
+```
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:4000`
+
+### Build and test
+
+```bash
+npm run test
+npm run build
+```
+
+### Production build/deployment (Docker)
+
+```bash
+npm run prod:setup
+```
+
+Then use the manual lifecycle commands:
+
+```bash
+npm run prod:up
+npm run prod:down
+```
+
+## Technical Choices
+
+- **npm workspaces monorepo** (`backend`, `frontend`) to keep product/API/UI changes aligned.
+- **Backend: Node.js + Express + TypeScript** for clear HTTP services with strong typing.
+- **SQLite (`better-sqlite3`)** for auth/session persistence with zero external infra.
+- **Frontend: React + Vite + Tailwind** for fast UX iteration and lightweight builds.
+- **Audio metadata extraction via `music-metadata` + `ffprobe`** for tags, codec info, and covers.
+- **Filesystem runtime storage** (`data/`) for portability, inspectability, and straightforward backups.
+
+Default runtime layout:
 
 ```text
 data/
@@ -38,245 +116,24 @@ data/
     library-index.json
 ```
 
-## Upload pipeline
+## How to Contribute
 
-1. Receive audio file via `POST /api/upload`.
-2. Validate extension and parse metadata.
-3. Compute content hash.
-4. Store file in the uploader's folder.
-5. Extract embedded cover if available.
-6. Rebuild global index (`library-index.json`).
-
-Upload supports one or multiple files in the same request (`files` form field).
-Optional `artist` and `album` form fields allow manual override for the whole upload batch.
-Overrides are persisted in `data/index/track-metadata-overrides.json`.
-Embedded tags are preserved from audio files (including year/date and additional metadata fields when available).
-
-## API surface
-
-### Auth
-
-- `POST /api/auth/login`
-- `POST /api/auth/logout`
-- `GET /api/auth/me`
-
-### Users (admin)
-
-- `GET /api/users`
-- `POST /api/users`
-- `PATCH /api/users/:id`
-- `POST /api/users/:id/reset-password`
-- `DELETE /api/users/:id`
-
-`POST /api/users` request body:
-
-```json
-{
-  "username": "alice",
-  "password": "strong-password",
-  "role": "user"
-}
-```
-
-Validation:
-
-- `username`: 3-32 chars, `[a-zA-Z0-9._-]`
-- `password`: 8-256 chars
-- `role`: `user` or `admin` (default: `user`)
-
-`PATCH /api/users/:id` request body (partial update):
-
-```json
-{
-  "username": "alice-renamed",
-  "role": "admin"
-}
-```
-
-Protections:
-
-- Self-deletion is blocked (`DELETE /api/users/:id` cannot target current session user).
-- Deleting the last remaining admin account is blocked.
-- Demoting the last remaining admin account is blocked (`PATCH /api/users/:id`).
-- Password reset revokes existing sessions for the target user.
-
-### Upload
-
-- `POST /api/upload/inspect`
-- `POST /api/upload`
-
-Multipart form fields:
-
-- `files`: one or more audio files
-- `artist` (optional): forced artist tag for uploaded tracks
-- `album` (optional): forced album tag for uploaded tracks
-
-### Library
-
-- `GET /api/library`
-- `GET /api/tracks`
-- `GET /api/artists`
-- `GET /api/albums`
-
-`GET /api/tracks` supports pagination and sorting query params:
-
-- `page` (default `1`)
-- `limit` (default `100`, max `500`)
-- `sortBy` (`title`, `artist`, `album`, `owner`, `duration`, `codec`, `bitrate`, `sampleRate`, `path`)
-- `sortDir` (`asc` or `desc`, default `asc`)
-- plus filters: `owner`, `artist`, `album`, `q`
-
-### Streaming and covers
-
-- `GET /api/tracks/:id/stream`
-- `GET /api/tracks/:id/adjacent?direction=next|previous&wrap=true|false`
-- `GET /api/covers/:id`
-
-Optional fallback transcoding is available behind query param on stream route:
-
-- `GET /api/tracks/:id/stream?transcode=opus`
-- `GET /api/tracks/:id/stream?transcode=mp3`
-
-Notes:
-
-- Source streaming remains FLAC-first with byte range support.
-- Transcoding fallback currently targets FLAC sources and streams progressively (no byte-range seek on transcoded stream).
-
-### Index management
-
-- `POST /api/index/rebuild` (admin only)
-
-## Streaming model (hi-fi first)
-
-- FLAC is streamed as-is by default.
-- Byte ranges are fully supported (`Accept-Ranges: bytes`, `206 Partial Content`).
-- No mandatory transcoding in MVP.
-- Streaming uses `fs.createReadStream` (no full-file memory loading).
-
-## Local development
-
-### 1) Requirements
-
-- Node.js 20+
-- npm 10+
-- `ffprobe` available in `PATH`
-
-Debian/Ubuntu:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y ffmpeg
-```
-
-### 2) Install dependencies
-
-```bash
-npm install
-```
-
-### 3) Configure backend environment
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-Set at least:
-
-- `ADMIN_USERNAME`
-- `ADMIN_PASSWORD`
-
-On first run, this admin account is seeded into SQLite.
-If no env is set, default bootstrap credentials are `admin` / `admin1234`.
-Change them immediately for any non-local usage.
-
-### 4) Start applications (two terminals)
-
-Single command (recommended):
-
-```bash
-npm run dev
-```
-
-Separate commands:
-
-Backend:
-
-```bash
-npm run dev --workspace backend
-```
-
-Frontend:
-
-```bash
-npm run dev --workspace frontend
-```
-
-- Frontend default URL: `http://localhost:5173`
-- Backend default URL: `http://localhost:4000`
-- In dev mode, Vite proxies `/api` to the backend.
-
-## Build and test
-
-Build all workspaces:
-
-```bash
-npm run build
-```
-
-Run backend tests:
+1. **Create a branch** from `master` (`feature/...`, `fix/...`, `ux-...`).
+2. **Work in small increments** with focused, readable commits.
+3. **Validate locally** before opening a PR:
 
 ```bash
 npm run test
+npm run build
 ```
 
-## Admin UI
+4. **Open a Pull Request** including:
+   - problem/context
+   - proposed solution
+   - UX/technical impact
+   - screenshots for UI changes
+5. **Do not commit `data/` runtime artifacts** unless explicitly required and justified.
 
-In the frontend `Admin` tab (admin users only), you can:
+## API Documentation
 
-- create users,
-- patch username/role,
-- reset passwords,
-- delete users,
-- search users by username/id,
-- filter the table by role (`all`, `admin`, `user`).
-
-## Player navigation route
-
-`GET /api/tracks/:id/adjacent` returns the next or previous track from the current index order.
-
-Query params:
-
-- `direction`: `next` (default) or `previous`
-- `wrap`: `true` (default) or `false`
-- optional library filters: `owner`, `artist`, `album`, `q`
-
-Example:
-
-```bash
-curl "http://localhost:4000/api/tracks/<trackId>/adjacent?direction=next&owner=<ownerId>"
-```
-
-## Player UX behavior
-
-- The library page keeps playback controls in a sticky player at the bottom.
-- Clicking a track in the library starts playback without switching to the dedicated `Player` page.
-- Recently played tracks are stored in browser `localStorage` and listed in a `Played Recently` panel; clicking an entry replays it.
-- The current playback queue is persisted in browser `localStorage`; a list icon in the expanded player toggles queue visibility with `Played`, `Now`, and `Next` states.
-- The player includes a quality selector (`Original`, `Opus fallback`, `MP3 fallback`) that targets `?transcode=` on stream requests.
-- The frontend favicon uses the centered Flaque logo artwork.
-- Missing or unreachable album covers fall back to a bundled default Flaque cover image.
-- Player and library views now surface album/year metadata when available.
-- Switching quality mode keeps playback at the same timestamp; if audio was playing, it resumes after the source swap.
-- Long titles are truncated in both the track list and player UI.
-- After pausing playback, automatic playback on track change is disabled until a manual play/replay action occurs.
-
-## Operational notes
-
-- `POST /api/index/rebuild` is protected and does not require a server restart.
-- Rebuild is lock-safe: readers continue using the current in-memory snapshot during rebuild.
-- Symlinks are ignored during filesystem scans.
-
-## Roadmap ideas
-
-- Playlist support.
-- Mobile-first player UX and queue management.
+Detailed API reference will be moved out of this README and published as an OpenAPI specification in a follow-up step.
