@@ -1,26 +1,30 @@
-# flaque
+# Flaque
 
-Self-hosted, hi-fi oriented web audio player built on a strict file-based architecture.
+<p align="center">
+  <img src="frontend/public/logo-dark.png" alt="Flaque logo" width="260" />
+</p>
 
-## Overview
+<p align="center"><strong>F</strong>ile-based <strong>L</strong>ibrary <strong>A</strong>udio <strong>Q</strong>uery <strong>E</strong>ngine</p>
 
-`flaque` focuses on simple and durable music library management:
+Flaque is a self-hosted web audio player focused on hi-fi streaming, durable file-based storage, and simple operations.
+It is designed for people who want to keep music files under their control while still having a modern browsing and playback interface.
 
-- Upload FLAC/MP3/WAV tracks.
-- Browse by owner username, artist, album, and text search.
-- Stream original files with full HTTP range support for smooth seeking.
-- Display rich embedded metadata (title, artist, album, year, track/disc info, etc.) and covers.
+## Why Flaque
 
-## Project structure
+- File-first architecture with predictable folders
+- FLAC-first streaming with HTTP range support
+- Rich metadata extraction (title, artist, album, year, track/disc, cover, extras)
+- Multi-user auth (admin/user) with SQLite sessions
+- Playlists, playback queue/history, and modern player controls
+- Built to run locally and in production with Docker
 
-- `backend/` - Node.js + Express + TypeScript API.
-- `frontend/` - React SPA (Vite + Tailwind).
-- `data/` - file-based storage and generated index.
+## Tech Stack
 
-No database is used for library business logic.
-SQLite is used only for users and sessions.
+- `backend/`: Node.js + Express + TypeScript + SQLite (`better-sqlite3`)
+- `frontend/`: React + TypeScript + Vite + Tailwind
+- Runtime data: filesystem under `data/` (or custom `DATA_ROOT`)
 
-## Data layout
+## Runtime Data Layout
 
 ```text
 data/
@@ -38,21 +42,76 @@ data/
     library-index.json
 ```
 
-## Upload pipeline
+`data/` contains runtime-generated state and user content and is intentionally ignored by Git (except structure keepers).
 
-1. Receive audio file via `POST /api/upload`.
-2. Validate extension and parse metadata.
-3. Compute content hash.
-4. Store file in the uploader's folder.
-5. Extract embedded cover if available.
-6. Rebuild global index (`library-index.json`).
+## Local Development
 
-Upload supports one or multiple files in the same request (`files` form field).
-Optional `artist` and `album` form fields allow manual override for the whole upload batch.
-Overrides are persisted in `data/index/track-metadata-overrides.json`.
-Embedded tags are preserved from audio files (including year/date and additional metadata fields when available).
+### Prerequisites
 
-## API surface
+- Node.js 20+
+- npm 10+
+- `ffprobe` / `ffmpeg` in `PATH`
+
+Debian/Ubuntu:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ffmpeg
+```
+
+### Install
+
+```bash
+npm install
+cp backend/.env.example backend/.env
+```
+
+At minimum set these values in `backend/.env`:
+
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+
+### Start
+
+```bash
+npm run dev
+```
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:4000`
+
+## Production Deployment (Docker)
+
+Flaque ships with separate production containers for backend and frontend:
+
+- `backend/Dockerfile`
+- `frontend/Dockerfile`
+- `docker-compose.prod.yml`
+
+### One-command guided setup
+
+```bash
+npm run prod:setup
+```
+
+The setup script:
+
+1. Checks Docker/Compose availability
+2. Prompts for admin username/password
+3. Prompts for host mount paths (`storage` and runtime state)
+4. Generates `.env.production`
+5. Builds images
+6. Initializes DB/directories (`initSystem`)
+7. Starts the stack
+
+### Manual lifecycle commands
+
+```bash
+npm run prod:up
+npm run prod:down
+```
+
+## Core API Surface
 
 ### Auth
 
@@ -68,215 +127,62 @@ Embedded tags are preserved from audio files (including year/date and additional
 - `POST /api/users/:id/reset-password`
 - `DELETE /api/users/:id`
 
-`POST /api/users` request body:
-
-```json
-{
-  "username": "alice",
-  "password": "strong-password",
-  "role": "user"
-}
-```
-
-Validation:
-
-- `username`: 3-32 chars, `[a-zA-Z0-9._-]`
-- `password`: 8-256 chars
-- `role`: `user` or `admin` (default: `user`)
-
-`PATCH /api/users/:id` request body (partial update):
-
-```json
-{
-  "username": "alice-renamed",
-  "role": "admin"
-}
-```
-
-Protections:
-
-- Self-deletion is blocked (`DELETE /api/users/:id` cannot target current session user).
-- Deleting the last remaining admin account is blocked.
-- Demoting the last remaining admin account is blocked (`PATCH /api/users/:id`).
-- Password reset revokes existing sessions for the target user.
-
-### Upload
+### Upload & Library
 
 - `POST /api/upload/inspect`
 - `POST /api/upload`
-
-Multipart form fields:
-
-- `files`: one or more audio files
-- `artist` (optional): forced artist tag for uploaded tracks
-- `album` (optional): forced album tag for uploaded tracks
-
-### Library
-
 - `GET /api/library`
 - `GET /api/tracks`
 - `GET /api/artists`
 - `GET /api/albums`
+- `GET /api/album/:id`
 
-`GET /api/tracks` supports pagination and sorting query params:
-
-- `page` (default `1`)
-- `limit` (default `100`, max `500`)
-- `sortBy` (`title`, `artist`, `album`, `owner`, `duration`, `codec`, `bitrate`, `sampleRate`, `path`)
-- `sortDir` (`asc` or `desc`, default `asc`)
-- plus filters: `owner`, `artist`, `album`, `q`
-
-### Streaming and covers
+### Playback
 
 - `GET /api/tracks/:id/stream`
 - `GET /api/tracks/:id/adjacent?direction=next|previous&wrap=true|false`
 - `GET /api/covers/:id`
+- `GET /api/covers/from-path?path=<relativePath>`
 
-Optional fallback transcoding is available behind query param on stream route:
+### Playlists
 
-- `GET /api/tracks/:id/stream?transcode=opus`
-- `GET /api/tracks/:id/stream?transcode=mp3`
+- `GET /api/playlists`
+- `GET /api/playlists/:id`
+- `POST /api/playlists`
+- `PATCH /api/playlists/:id`
+- `PUT /api/playlists/:id`
+- `DELETE /api/playlists/:id`
 
-Notes:
+## Player & UX Notes
 
-- Source streaming remains FLAC-first with byte range support.
-- Transcoding fallback currently targets FLAC sources and streams progressively (no byte-range seek on transcoded stream).
+- Sticky bottom player on library/upload/config views
+- Dedicated expanded player view
+- Repeat and shuffle controls
+- Queue panel (`Played`, `Now`, `Next`)
+- Recently played tracks persisted in `localStorage`
+- Quality selector (`Original`, `Opus fallback`, `MP3 fallback`)
+- Missing covers fallback to bundled default art
 
-### Index management
-
-- `POST /api/index/rebuild` (admin only)
-
-## Streaming model (hi-fi first)
-
-- FLAC is streamed as-is by default.
-- Byte ranges are fully supported (`Accept-Ranges: bytes`, `206 Partial Content`).
-- No mandatory transcoding in MVP.
-- Streaming uses `fs.createReadStream` (no full-file memory loading).
-
-## Local development
-
-### 1) Requirements
-
-- Node.js 20+
-- npm 10+
-- `ffprobe` available in `PATH`
-
-Debian/Ubuntu:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y ffmpeg
-```
-
-### 2) Install dependencies
-
-```bash
-npm install
-```
-
-### 3) Configure backend environment
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-Set at least:
-
-- `ADMIN_USERNAME`
-- `ADMIN_PASSWORD`
-
-On first run, this admin account is seeded into SQLite.
-If no env is set, default bootstrap credentials are `admin` / `admin1234`.
-Change them immediately for any non-local usage.
-
-### 4) Start applications (two terminals)
-
-Single command (recommended):
-
-```bash
-npm run dev
-```
-
-Separate commands:
-
-Backend:
-
-```bash
-npm run dev --workspace backend
-```
-
-Frontend:
-
-```bash
-npm run dev --workspace frontend
-```
-
-- Frontend default URL: `http://localhost:5173`
-- Backend default URL: `http://localhost:4000`
-- In dev mode, Vite proxies `/api` to the backend.
-
-## Build and test
-
-Build all workspaces:
-
-```bash
-npm run build
-```
-
-Run backend tests:
+## Build & Test
 
 ```bash
 npm run test
+npm run build
 ```
 
-## Admin UI
+## Environment Variables (Backend)
 
-In the frontend `Admin` tab (admin users only), you can:
+From `backend/.env.example`:
 
-- create users,
-- patch username/role,
-- reset passwords,
-- delete users,
-- search users by username/id,
-- filter the table by role (`all`, `admin`, `user`).
+- `PORT` (default: `4000`)
+- `CORS_ORIGIN` (default: `http://localhost:5173`)
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+- `SESSION_TTL_HOURS` (default: `168`)
+- `DATA_ROOT` (default: `../data`)
 
-## Player navigation route
+## Project Goals
 
-`GET /api/tracks/:id/adjacent` returns the next or previous track from the current index order.
-
-Query params:
-
-- `direction`: `next` (default) or `previous`
-- `wrap`: `true` (default) or `false`
-- optional library filters: `owner`, `artist`, `album`, `q`
-
-Example:
-
-```bash
-curl "http://localhost:4000/api/tracks/<trackId>/adjacent?direction=next&owner=<ownerId>"
-```
-
-## Player UX behavior
-
-- The library page keeps playback controls in a sticky player at the bottom.
-- Clicking a track in the library starts playback without switching to the dedicated `Player` page.
-- Recently played tracks are stored in browser `localStorage` and listed in a `Played Recently` panel; clicking an entry replays it.
-- The current playback queue is persisted in browser `localStorage`; a list icon in the expanded player toggles queue visibility with `Played`, `Now`, and `Next` states.
-- The player includes a quality selector (`Original`, `Opus fallback`, `MP3 fallback`) that targets `?transcode=` on stream requests.
-- The frontend favicon uses the centered Flaque logo artwork.
-- Missing or unreachable album covers fall back to a bundled default Flaque cover image.
-- Player and library views now surface album/year metadata when available.
-- Switching quality mode keeps playback at the same timestamp; if audio was playing, it resumes after the source swap.
-- Long titles are truncated in both the track list and player UI.
-- After pausing playback, automatic playback on track change is disabled until a manual play/replay action occurs.
-
-## Operational notes
-
-- `POST /api/index/rebuild` is protected and does not require a server restart.
-- Rebuild is lock-safe: readers continue using the current in-memory snapshot during rebuild.
-- Symlinks are ignored during filesystem scans.
-
-## Roadmap ideas
-
-- Playlist support.
-- Mobile-first player UX and queue management.
+- Keep files as the source of truth for library media
+- Keep operations easy for self-hosters
+- Keep architecture explicit, inspectable, and robust
