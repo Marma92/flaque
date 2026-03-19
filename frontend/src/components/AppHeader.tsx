@@ -12,6 +12,13 @@ type AppHeaderProps = {
  * Top-level application header with branding and primary navigation.
  */
 export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeaderProps): JSX.Element {
+  const navIconButtonClassName = (isActive: boolean): string =>
+    `flex h-10 w-10 items-center justify-center rounded-xl transition ${
+      isActive
+        ? "bg-flaque-ink text-flaque-cream"
+        : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
+    }`;
+
   return (
     <header className="mb-4 rounded-3xl border border-flaque-clay/60 bg-white/80 px-5 py-4 shadow-panel backdrop-blur-sm">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -44,51 +51,50 @@ export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeade
           </div>
         </div>
 
-        <div className="flex w-full items-center gap-2 overflow-x-auto pb-1 pr-10 sm:w-auto sm:flex-wrap sm:overflow-visible sm:pb-0 sm:pr-0">
+        <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
           <button
-            className={`rounded-xl px-4 py-2 text-sm transition ${
-              activeView === "library"
-                ? "bg-flaque-ink text-flaque-cream"
-                : "border border-flaque-clay bg-white text-flaque-ink"
-            }`}
+            className={navIconButtonClassName(activeView === "library")}
             type="button"
+            aria-label="Library"
+            title="Library"
             onClick={() => onViewChange("library")}
           >
-            Library
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-5a3 3 0 00-6 0v5H4a1 1 0 01-1-1v-9.5z" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M17 9.2v5.2a2.3 2.3 0 11-1.5-2.16V8.4L19 7.6v4.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
+
           <button
-            className={`rounded-xl px-4 py-2 text-sm transition ${
-              activeView === "upload"
-                ? "bg-flaque-ink text-flaque-cream"
-                : "border border-flaque-clay bg-white text-flaque-ink"
-            }`}
+            className={navIconButtonClassName(activeView === "upload")}
             type="button"
+            aria-label="Upload"
+            title="Upload"
             onClick={() => onViewChange("upload")}
           >
-            Upload
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M12 4v11" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M8 8l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M4 15.5v3a1.5 1.5 0 001.5 1.5h13a1.5 1.5 0 001.5-1.5v-3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
-          <button
-            className={`rounded-xl px-4 py-2 text-sm transition ${
-              activeView === "player"
-                ? "bg-flaque-ink text-flaque-cream"
-                : "border border-flaque-clay bg-white text-flaque-ink"
-            }`}
-            type="button"
-            onClick={() => onViewChange("player")}
-          >
-            Player
-          </button>
+
           {user.role === "admin" ? (
             <button
-              className={`rounded-xl px-4 py-2 text-sm transition ${
-                activeView === "config"
-                  ? "bg-flaque-ink text-flaque-cream"
-                  : "border border-flaque-clay bg-white text-flaque-ink"
-              }`}
+              className={navIconButtonClassName(activeView === "config")}
               type="button"
+              aria-label="Configuration"
+              title="Configuration"
               onClick={() => onViewChange("config")}
             >
-              Config
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <path d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M19.4 15a1.75 1.75 0 00.35 1.93l.04.04a2 2 0 11-2.83 2.83l-.04-.04A1.75 1.75 0 0015 19.4a1.75 1.75 0 00-1 .45 1.75 1.75 0 00-.5 1.34V21.5a2 2 0 11-4 0v-.06a1.75 1.75 0 00-.5-1.34A1.75 1.75 0 008 19.4a1.75 1.75 0 00-1.93.35l-.04.04a2 2 0 11-2.83-2.83l.04-.04A1.75 1.75 0 004.6 15a1.75 1.75 0 00-.45-1 1.75 1.75 0 00-1.34-.5H2.5a2 2 0 110-4h.06a1.75 1.75 0 001.34-.5A1.75 1.75 0 004.6 8a1.75 1.75 0 00-.35-1.93l-.04-.04a2 2 0 112.83-2.83l.04.04A1.75 1.75 0 008 4.6a1.75 1.75 0 001-.45 1.75 1.75 0 00.5-1.34V2.5a2 2 0 114 0v.06a1.75 1.75 0 00.5 1.34A1.75 1.75 0 0015 4.6a1.75 1.75 0 001.93-.35l.04-.04a2 2 0 112.83 2.83l-.04.04A1.75 1.75 0 0019.4 8c0 .38.14.74.45 1 .34.3.78.46 1.24.46h.41a2 2 0 110 4h-.06a1.75 1.75 0 00-1.34.5c-.3.26-.46.62-.46 1.04z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
           ) : null}
 
