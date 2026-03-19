@@ -1,14 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { logout } from "./api";
-import { AudioPlayer } from "./components/AudioPlayer";
-import { AppHeader } from "./components/AppHeader";
-import { AppStatusBanners, type AppNotice } from "./components/AppStatusBanners";
-import { ConfigView } from "./components/ConfigView";
-import { LibraryWorkspace } from "./components/LibraryWorkspace";
+import type { AppNotice } from "./components/AppStatusBanners";
+import { AppShell } from "./components/AppShell";
 import { LoginPage } from "./components/LoginPage";
-import { PlayerShell } from "./components/PlayerShell";
-import { UploadView } from "./components/UploadView";
 import { useAdminCommands } from "./hooks/useAdminCommands";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import { useLibraryCommands } from "./hooks/useLibraryCommands";
@@ -198,9 +193,6 @@ export default function App(): JSX.Element {
     setAllTracksError(null);
   }
 
-  const hasStickyPlayer = Boolean(selectedTrackRefreshed) && activeView !== "player";
-  const shouldRenderPlayer = Boolean(selectedTrackRefreshed) || activeView === "player";
-
   if (!sessionChecked) {
     return <main className="p-8 text-flaque-ink">Loading session...</main>;
   }
@@ -210,105 +202,85 @@ export default function App(): JSX.Element {
   }
 
   return (
-    <main
-      className={`mx-auto flex min-h-[100dvh] w-full max-w-7xl flex-col px-4 pt-6 md:px-6 ${
-        hasStickyPlayer
-          ? "pb-[calc(18rem+env(safe-area-inset-bottom))]"
-          : activeView === "player"
-            ? "pb-0"
-            : "pb-[calc(2.5rem+env(safe-area-inset-bottom))]"
-      }`}
-    >
-      <AppHeader activeView={activeView} user={user} onViewChange={setActiveView} onLogout={handleLogout} />
-
-      <AppStatusBanners
-        appNotice={appNotice}
-        libraryError={libraryError}
-        showLibraryRefreshing={activeView === "library" && loadingLibrary}
-      />
-
-      {activeView === "library" ? (
-        <LibraryWorkspace
-          activeLibrarySection={activeLibrarySection}
-          onSectionChange={setActiveLibrarySection}
-          availablePlaylists={availablePlaylists}
-          ownerNameById={ownerNameById}
-          onCreatePlaylist={handleCreatePlaylist}
-          onPlayPlaylist={handlePlayPlaylist}
-          libraryMetadataError={libraryMetadataError}
-          loadingLibraryArtists={loadingLibraryArtists}
-          libraryArtists={libraryArtists}
-          loadingLibraryAlbums={loadingLibraryAlbums}
-          libraryAlbums={libraryAlbums}
-          selectedAlbum={selectedAlbum}
-          selectedAlbumTracks={selectedAlbumTracks}
-          loadingSelectedAlbumTracks={loadingSelectedAlbumTracks}
-          selectedAlbumTracksError={selectedAlbumTracksError}
-          currentTrackId={selectedTrackRefreshed?.id}
-          onAlbumSelect={selectAlbum}
-          onAlbumTrackSelect={(track) => requestTrackPlaybackWithStatus(track, selectedAlbumTracks)}
-          recentTracks={recentTracks}
-          onRecentTrackReplay={handleReplayRecentTrack}
-          library={library}
-          filters={filters}
-          onFilterChange={(next) => setFilters(next)}
-          onLibraryTrackSelect={(track) => requestTrackPlaybackWithStatus(track, library.tracks)}
-        />
-      ) : null}
-
-      {activeView === "upload" ? (
-        <UploadView onUpload={handleUpload} onInspectFile={handleInspectUploadFile} />
-      ) : null}
-
-      {activeView === "config" && user.role === "admin" ? (
-        <ConfigView
-          currentUser={user}
-          tracks={allTracksLibrary.tracks}
-          ownerNameById={ownerNameById}
-          loadingTracks={loadingAllTracks}
-          trackError={allTracksError}
-          rebuilding={rebuilding}
-          onRebuildIndex={handleRebuildIndex}
-          onRefreshTracks={refreshAllTracks}
-          onDeleteTrack={handleDeleteTrack}
-          onUpdateTrackMetadata={handleUpdateTrackMetadata}
-          users={adminUsers}
-          loadingUsers={loadingAdminUsers}
-          usersError={adminError}
-          onRefreshUsers={refreshAdminUsers}
-          onCreateUser={handleCreateUser}
-          onPatchUser={handlePatchUser}
-          onDeleteUser={handleDeleteUser}
-          onResetUserPassword={handleResetUserPassword}
-        />
-      ) : null}
-
-      {shouldRenderPlayer ? (
-        <PlayerShell activeView={activeView} playerStatusMessage={playerStatusMessage}>
-          <AudioPlayer
-            track={selectedTrackRefreshed}
-            expanded={activeView === "player"}
-            onNext={(options) => handleNavigateTrack("next", options?.wrap ?? true)}
-            onPrevious={(options) => handleNavigateTrack("previous", options?.wrap ?? true)}
-            onTrackPlayed={recordTrackPlayed}
-            transcodeMode={transcodeMode}
-            onTranscodeModeChange={setTranscodeMode}
-            repeatMode={repeatMode}
-            onRepeatModeChange={setRepeatMode}
-            shuffleEnabled={shuffleEnabled}
-            onShuffleEnabledChange={setShuffleEnabled}
-            playRequestNonce={playRequestNonce}
-            playlists={manageablePlaylists}
-            onAddTrackToPlaylist={handleAddTrackToPlaylist}
-            queueTracks={refreshedQueue}
-            currentQueueTrackId={selectedTrackRefreshed?.id ?? null}
-            onQueueTrackSelect={(queueTrack) => {
-              requestTrackPlaybackWithStatus(queueTrack, refreshedQueue.length > 0 ? refreshedQueue : undefined);
-            }}
-            onArtworkClick={activeView === "player" ? undefined : () => setActiveView("player")}
-          />
-        </PlayerShell>
-      ) : null}
-    </main>
+    <AppShell
+      activeView={activeView}
+      user={user}
+      onViewChange={setActiveView}
+      onLogout={handleLogout}
+      appNotice={appNotice}
+      libraryError={libraryError}
+      loadingLibrary={loadingLibrary}
+      libraryWorkspaceProps={{
+        activeLibrarySection,
+        onSectionChange: setActiveLibrarySection,
+        availablePlaylists,
+        ownerNameById,
+        onCreatePlaylist: handleCreatePlaylist,
+        onPlayPlaylist: handlePlayPlaylist,
+        libraryMetadataError,
+        loadingLibraryArtists,
+        libraryArtists,
+        loadingLibraryAlbums,
+        libraryAlbums,
+        selectedAlbum,
+        selectedAlbumTracks,
+        loadingSelectedAlbumTracks,
+        selectedAlbumTracksError,
+        currentTrackId: selectedTrackRefreshed?.id,
+        onAlbumSelect: selectAlbum,
+        onAlbumTrackSelect: (track) => requestTrackPlaybackWithStatus(track, selectedAlbumTracks),
+        recentTracks,
+        onRecentTrackReplay: handleReplayRecentTrack,
+        library,
+        filters,
+        onFilterChange: (next) => setFilters(next),
+        onLibraryTrackSelect: (track) => requestTrackPlaybackWithStatus(track, library.tracks)
+      }}
+      uploadViewProps={{
+        onUpload: handleUpload,
+        onInspectFile: handleInspectUploadFile
+      }}
+      configViewProps={{
+        currentUser: user,
+        tracks: allTracksLibrary.tracks,
+        ownerNameById,
+        loadingTracks: loadingAllTracks,
+        trackError: allTracksError,
+        rebuilding,
+        onRebuildIndex: handleRebuildIndex,
+        onRefreshTracks: refreshAllTracks,
+        onDeleteTrack: handleDeleteTrack,
+        onUpdateTrackMetadata: handleUpdateTrackMetadata,
+        users: adminUsers,
+        loadingUsers: loadingAdminUsers,
+        usersError: adminError,
+        onRefreshUsers: refreshAdminUsers,
+        onCreateUser: handleCreateUser,
+        onPatchUser: handlePatchUser,
+        onDeleteUser: handleDeleteUser,
+        onResetUserPassword: handleResetUserPassword
+      }}
+      playerStatusMessage={playerStatusMessage}
+      audioPlayerProps={{
+        track: selectedTrackRefreshed,
+        onNext: (options) => handleNavigateTrack("next", options?.wrap ?? true),
+        onPrevious: (options) => handleNavigateTrack("previous", options?.wrap ?? true),
+        onTrackPlayed: recordTrackPlayed,
+        transcodeMode,
+        onTranscodeModeChange: setTranscodeMode,
+        repeatMode,
+        onRepeatModeChange: setRepeatMode,
+        shuffleEnabled,
+        onShuffleEnabledChange: setShuffleEnabled,
+        playRequestNonce,
+        playlists: manageablePlaylists,
+        onAddTrackToPlaylist: handleAddTrackToPlaylist,
+        queueTracks: refreshedQueue,
+        currentQueueTrackId: selectedTrackRefreshed?.id ?? null,
+        onQueueTrackSelect: (queueTrack) => {
+          requestTrackPlaybackWithStatus(queueTrack, refreshedQueue.length > 0 ? refreshedQueue : undefined);
+        }
+      }}
+    />
   );
 }
