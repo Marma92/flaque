@@ -1,5 +1,6 @@
 import type { User } from "../types";
 import type { ViewName } from "../utils/appUtils";
+import { Acronym } from "./HeaderAcronym";
 
 type AppHeaderProps = {
   activeView: ViewName;
@@ -42,11 +43,17 @@ export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeade
             />
           </button>
           <div className="min-w-0">
-            <p className="text-[10px] tracking-[0.2em] text-flaque-steel sm:text-xs">
-              File-based Library
-            </p>
-            <h1 className="font-display text-sm leading-tight text-flaque-ink sm:text-base md:text-lg">
-              Audio QUery Engine
+            <h1 className="font-display text-base leading-tight text-flaque-ink sm:text-lg md:text-xl lg:text-2xl">
+              <Acronym
+                  text="FLAQUE"
+                  expansions={{
+                      F: "ile-based",
+                      L: "ibrary",
+                      A: "udio",
+                      QU: "ery",
+                      E: "ngine",
+                  }}
+              />
             </h1>
           </div>
         </div>
