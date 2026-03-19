@@ -145,3 +145,55 @@ input[type="range"]::-moz-range-thumb {
     drop-shadow(0 0 10px rgb(114 230 255 / 0.65))
     drop-shadow(0 0 24px rgb(40 168 255 / 0.55));
 }
+
+.acronym {
+    display: inline-flex;
+    align-items: baseline;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.letter-group {
+    display: inline-flex;
+    align-items: baseline;
+    cursor: pointer;
+}
+
+.base-letter {
+    position: relative;
+    z-index: 2;
+    transition: transform 180ms ease, color 180ms ease;
+}
+
+.expansion {
+    display: inline-block;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transform: translateX(-0.1em);
+    transition:
+        max-width 300ms ease,
+        opacity 180ms ease,
+        transform 300ms ease;
+    color: #b98247;
+}
+
+:root[data-theme="dark"] .expansion {
+    color: rgb(40 168 255 / 0.55);
+}
+
+.letter-group:hover .base-letter {
+    color: #d08e47;
+}
+
+:root[data-theme="dark"] .letter-group:hover .base-letter {
+    color: rgb(114 230 255 / 0.65);
+}
+
+.letter-group:hover .expansion {
+    max-width: 8ch;
+    opacity: 1;
+    transform: translateX(0);
+}
