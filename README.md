@@ -1,7 +1,7 @@
 # Flaque
 
 <p align="center">
-  <img src="frontend/public/logo-dark.png" alt="Flaque logo" width="260" />
+  <img src="frontend/public/favicon.png" alt="Flaque logo" width="260" />
 </p>
 
 <p align="center"><strong>F</strong>ile-based <strong>L</strong>ibrary <strong>A</strong>udio <strong>QU</strong>ery <strong>E</strong>ngine</p>
