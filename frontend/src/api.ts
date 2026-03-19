@@ -80,8 +80,19 @@ export async function logout(): Promise<void> {
   });
 }
 
-export function myProfilePhotoUrl(version?: number): string {
-  const suffix = typeof version === "number" ? `?v=${version}` : "";
+export function myProfilePhotoUrl(input?: { version?: number; userId?: string }): string {
+  const searchParams = new URLSearchParams();
+
+  if (typeof input?.version === "number") {
+    searchParams.set("v", String(input.version));
+  }
+
+  if (typeof input?.userId === "string" && input.userId.trim()) {
+    searchParams.set("u", input.userId.trim());
+  }
+
+  const query = searchParams.toString();
+  const suffix = query ? `?${query}` : "";
   return withApiBase(`/api/users/me/photo${suffix}`);
 }
 

@@ -135,7 +135,16 @@ export default function App(): JSX.Element {
     return Object.fromEntries(entries);
   }, [user, adminUsers]);
 
-  const avatarUrl = useMemo(() => myProfilePhotoUrl(avatarVersion), [avatarVersion]);
+  const avatarUrl = useMemo(() => {
+    return myProfilePhotoUrl({
+      version: avatarVersion,
+      userId: user?.id
+    });
+  }, [avatarVersion, user?.id]);
+
+  useEffect(() => {
+    setAvatarVersion(0);
+  }, [user?.id]);
 
   const {
     handleUpload,

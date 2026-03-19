@@ -524,6 +524,8 @@ describe("userRoutes", () => {
 
     expect(photoResponse.status).toBe(200);
     expect(photoResponse.headers.get("content-type")).toContain("image/webp");
+    expect(photoResponse.headers.get("cache-control")).toContain("no-store");
+    expect(photoResponse.headers.get("vary")).toContain("Cookie");
     const downloadedAvatar = Buffer.from(await photoResponse.arrayBuffer());
     expect(downloadedAvatar.length).toBeGreaterThan(0);
   });

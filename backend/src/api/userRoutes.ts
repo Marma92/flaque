@@ -142,13 +142,15 @@ export function createUserRouter(): Router {
         return;
       }
 
+      res.setHeader("Cache-Control", "private, no-store, max-age=0, must-revalidate");
+      res.setHeader("Vary", "Cookie");
+
       const profilePhotoPath = await resolveUserProfilePhotoPath(authUser.id);
       if (!profilePhotoPath) {
         res.status(404).json({ error: "Profile photo not found" });
         return;
       }
 
-      res.setHeader("Cache-Control", "private, max-age=3600");
       res.sendFile(profilePhotoPath);
     } catch (error) {
       next(error);
