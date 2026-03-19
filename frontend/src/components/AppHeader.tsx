@@ -16,7 +16,13 @@ export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeade
     <header className="mb-4 rounded-3xl border border-flaque-clay/60 bg-white/80 px-5 py-4 shadow-panel backdrop-blur-sm">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">
-          <div className="relative h-20 w-20 shrink-0 md:h-24 md:w-24">
+          <button
+            className="relative h-20 w-20 shrink-0 rounded-2xl transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand md:h-24 md:w-24"
+            type="button"
+            aria-label="Go to library"
+            title="Library"
+            onClick={() => onViewChange("library")}
+          >
             <img
               className="header-logo-light absolute inset-0 h-full w-full object-contain"
               src="/favicon.png"
@@ -27,7 +33,7 @@ export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeade
               src="/logo-dark.png"
               alt="Flaque logo (dark mode)"
             />
-          </div>
+          </button>
           <h1 className="font-display text-base leading-tight text-flaque-ink sm:text-lg md:text-xl lg:text-2xl">
             File-based Library Audio QUery Engine
           </h1>
