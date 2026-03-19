@@ -11,6 +11,10 @@ import { useLibraryData } from "./hooks/useLibraryData";
 import { usePlaybackCommands } from "./hooks/usePlaybackCommands";
 import { usePlaybackState } from "./hooks/usePlaybackState";
 import { useSessionRoutingState } from "./hooks/useSessionRoutingState";
+import type { ViewName } from "./utils/appUtils";
+import { getTrackDisplayArtist, getTrackDisplayTitle } from "./utils/tracks";
+
+const DEFAULT_DOCUMENT_TITLE = "Flaque Hifi Player";
 
 export default function App(): JSX.Element {
   const {
@@ -27,6 +31,7 @@ export default function App(): JSX.Element {
   const [rebuilding, setRebuilding] = useState(false);
   const [playerStatusMessage, setPlayerStatusMessage] = useState<string | null>(null);
   const [appNotice, setAppNotice] = useState<AppNotice | null>(null);
+  const [playerReturnView, setPlayerReturnView] = useState<ViewName>("library");
 
   const {
     filters,
@@ -182,11 +187,46 @@ export default function App(): JSX.Element {
     };
   }, [appNotice]);
 
+  useEffect(() => {
+    if (!selectedTrackRefreshed) {
+      document.title = DEFAULT_DOCUMENT_TITLE;
+      return;
+    }
+
+    const title = getTrackDisplayTitle(selectedTrackRefreshed);
+    const artist = getTrackDisplayArtist(selectedTrackRefreshed) ?? "Unknown artist";
+    document.title = `${title} - ${artist} | Flaque`;
+  }, [selectedTrackRefreshed]);
+
+  useEffect(() => {
+    if (activeView !== "player") {
+      setPlayerReturnView(activeView);
+    }
+  }, [activeView]);
+
+  function handleViewChange(nextView: ViewName): void {
+    if (nextView === "player") {
+      if (activeView !== "player") {
+        setPlayerReturnView(activeView);
+      }
+      setActiveView("player");
+      return;
+    }
+
+    setActiveView(nextView);
+  }
+
+  function handleCollapsePlayer(): void {
+    const nextView = playerReturnView === "player" ? "library" : playerReturnView;
+    setActiveView(nextView);
+  }
+
   async function handleLogout(): Promise<void> {
     await logout();
     setUser(null);
     resetAfterLogout();
     setActiveLibrarySection("music");
+    setPlayerReturnView("library");
     setFilters({});
     clearAdminState();
     setLibraryError(null);
@@ -205,7 +245,8 @@ export default function App(): JSX.Element {
     <AppShell
       activeView={activeView}
       user={user}
-      onViewChange={setActiveView}
+      onViewChange={handleViewChange}
+      onPlayerCollapse={handleCollapsePlayer}
       onLogout={handleLogout}
       appNotice={appNotice}
       libraryError={libraryError}
