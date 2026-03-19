@@ -26,6 +26,7 @@ import {
 } from "./api";
 import { AudioPlayer, type RepeatMode, type TranscodeMode } from "./components/AudioPlayer";
 import { AppHeader } from "./components/AppHeader";
+import { AppStatusBanners, type AppNotice } from "./components/AppStatusBanners";
 import { ConfigView } from "./components/ConfigView";
 import { LibraryAlbumsSection } from "./components/LibraryAlbumsSection";
 import { LibraryArtistsSection } from "./components/LibraryArtistsSection";
@@ -33,6 +34,7 @@ import { LibraryPlaylistSection } from "./components/LibraryPlaylistSection";
 import { LibraryView } from "./components/LibraryView";
 import { LibrarySectionSwitcher } from "./components/LibrarySectionSwitcher";
 import { LoginPage } from "./components/LoginPage";
+import { PlayerShell } from "./components/PlayerShell";
 import { RecentTracksPanel } from "./components/RecentTracksPanel";
 import { UploadView } from "./components/UploadView";
 import type { AlbumEntry, ArtistEntry, LibraryResponse, Playlist, PlaylistVisibility, Track, TrackMetadataPatch, User } from "./types";
@@ -52,19 +54,10 @@ import {
 } from "./utils/appUtils";
 import {
   getTrackDisplayAlbum,
-  getTrackDisplayAlbumWithYear,
-  getTrackDisplayArtist,
-  getTrackDisplayTitle
+  getTrackDisplayArtist
 } from "./utils/tracks";
 
 type LibrarySection = "music" | "artists" | "albums" | "playlist";
-
-type NoticeTone = "success" | "error" | "info";
-
-type AppNotice = {
-  tone: NoticeTone;
-  message: string;
-};
 
 const VIEW_QUERY_PARAM = "view";
 
@@ -1008,31 +1001,11 @@ export default function App(): JSX.Element {
     >
       <AppHeader activeView={activeView} user={user} onViewChange={setActiveView} onLogout={handleLogout} />
 
-      {appNotice ? (
-        <div
-          className={`mb-4 rounded-xl border px-3 py-2 text-sm ${
-            appNotice.tone === "success"
-              ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-              : appNotice.tone === "error"
-                ? "border-red-300 bg-red-50 text-red-700"
-                : "border-flaque-clay bg-flaque-cream/70 text-flaque-steel"
-          }`}
-          role="status"
-          aria-live="polite"
-        >
-          {appNotice.message}
-        </div>
-      ) : null}
-
-      {libraryError ? (
-        <p className="mb-4 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {libraryError}
-        </p>
-      ) : null}
-
-      {activeView === "library" && loadingLibrary ? (
-        <p className="mb-4 text-sm text-flaque-steel">Refreshing library index...</p>
-      ) : null}
+      <AppStatusBanners
+        appNotice={appNotice}
+        libraryError={libraryError}
+        showLibraryRefreshing={activeView === "library" && loadingLibrary}
+      />
 
       {activeView === "library" ? (
         <div className="space-y-4">
@@ -1126,23 +1099,7 @@ export default function App(): JSX.Element {
       ) : null}
 
       {shouldRenderPlayer ? (
-        <div
-          className={
-            activeView === "player"
-              ? "flex min-h-0 flex-1 pb-[env(safe-area-inset-bottom)]"
-              : "fixed bottom-0 left-0 right-0 z-40 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2"
-          }
-        >
-          <div
-            className={
-              activeView === "player" ? "mx-auto flex h-full min-h-0 w-full max-w-7xl flex-col" : "mx-auto max-w-7xl"
-            }
-          >
-            {playerStatusMessage ? (
-              <p className="mb-2 rounded-xl border border-flaque-clay/60 bg-white/85 px-3 py-2 text-sm text-flaque-steel" role="status">
-                {playerStatusMessage}
-              </p>
-            ) : null}
+        <PlayerShell activeView={activeView} playerStatusMessage={playerStatusMessage}>
             <AudioPlayer
               track={selectedTrackRefreshed}
               expanded={activeView === "player"}
@@ -1165,8 +1122,7 @@ export default function App(): JSX.Element {
               }}
               onArtworkClick={activeView === "player" ? undefined : () => setActiveView("player")}
             />
-          </div>
-        </div>
+        </PlayerShell>
       ) : null}
     </main>
   );
