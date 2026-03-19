@@ -17,6 +17,7 @@ type AppShellProps = {
   activeView: ViewName;
   user: User;
   onViewChange: (view: ViewName) => void;
+  onPlayerCollapse: () => void;
   onLogout: () => void;
   appNotice: AppNotice | null;
   libraryError: string | null;
@@ -35,6 +36,7 @@ export function AppShell({
   activeView,
   user,
   onViewChange,
+  onPlayerCollapse,
   onLogout,
   appNotice,
   libraryError,
@@ -73,7 +75,12 @@ export function AppShell({
       {activeView === "config" && user.role === "admin" ? <ConfigView {...configViewProps} /> : null}
 
       {shouldRenderPlayer ? (
-        <PlayerShell activeView={activeView} playerStatusMessage={playerStatusMessage}>
+        <PlayerShell
+          activeView={activeView}
+          playerStatusMessage={playerStatusMessage}
+          onExpandPlayer={() => onViewChange("player")}
+          onCollapsePlayer={onPlayerCollapse}
+        >
           <AudioPlayer
             {...audioPlayerProps}
             expanded={activeView === "player"}
