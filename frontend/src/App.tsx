@@ -28,12 +28,29 @@ import {
 } from "./api";
 import defaultCoverImage from "./assets/default-cover.png";
 import { AudioPlayer, type RepeatMode, type TranscodeMode } from "./components/AudioPlayer";
+import { AppHeader } from "./components/AppHeader";
 import { ConfigView } from "./components/ConfigView";
 import { LibraryView } from "./components/LibraryView";
+import { LibrarySectionSwitcher } from "./components/LibrarySectionSwitcher";
 import { LoginPage } from "./components/LoginPage";
+import { RecentTracksPanel } from "./components/RecentTracksPanel";
 import { TrackList } from "./components/TrackList";
 import { UploadView } from "./components/UploadView";
 import type { AlbumEntry, ArtistEntry, LibraryResponse, Playlist, PlaylistVisibility, Track, TrackMetadataPatch, User } from "./types";
+import {
+  getAdjacentTrackInQueue,
+  getAlbumKey,
+  getViewFromLocation,
+  isTrackLike,
+  normalizeText,
+  parseStoredQueueSnapshot,
+  readShuffleMode,
+  readTranscodeMode,
+  sortAlbumTracksByNumber,
+  syncViewToLocation,
+  type StoredQueueSnapshot,
+  type ViewName
+} from "./utils/appUtils";
 import {
   getTrackDisplayAlbum,
   getTrackDisplayAlbumWithYear,
@@ -41,7 +58,6 @@ import {
   getTrackDisplayTitle
 } from "./utils/tracks";
 
-type ViewName = "library" | "upload" | "player" | "config";
 type LibrarySection = "music" | "artists" | "albums" | "playlist";
 
 type NoticeTone = "success" | "error" | "info";
@@ -70,207 +86,10 @@ const EMPTY_LIBRARY: LibraryResponse = {
   playlists: []
 };
 
-function isTrackLike(value: unknown): value is Track {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const candidate = value as {
-    id?: unknown;
-    owner?: unknown;
-    path?: unknown;
-    duration?: unknown;
-    mimeType?: unknown;
-    codec?: unknown;
-    tags?: unknown;
-  };
-
-  return (
-    typeof candidate.id === "string" &&
-    typeof candidate.owner === "string" &&
-    typeof candidate.path === "string" &&
-    typeof candidate.duration === "number" &&
-    typeof candidate.mimeType === "string" &&
-    typeof candidate.codec === "string" &&
-    Boolean(candidate.tags) &&
-    typeof candidate.tags === "object"
-  );
-}
-
-type StoredQueueSnapshot = {
-  userId: string;
-  trackIds: string[];
-  currentTrackId: string | null;
-};
-
-function parseStoredQueueSnapshot(value: unknown): StoredQueueSnapshot | null {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const candidate = value as {
-    userId?: unknown;
-    trackIds?: unknown;
-    currentTrackId?: unknown;
-  };
-
-  if (typeof candidate.userId !== "string" || !candidate.userId.trim()) {
-    return null;
-  }
-
-  if (!Array.isArray(candidate.trackIds)) {
-    return null;
-  }
-
-  const deduplicated = new Set<string>();
-  const trackIds: string[] = [];
-
-  for (const entry of candidate.trackIds) {
-    if (typeof entry !== "string") {
-      continue;
-    }
-
-    const trimmed = entry.trim();
-    if (!trimmed || deduplicated.has(trimmed)) {
-      continue;
-    }
-
-    deduplicated.add(trimmed);
-    trackIds.push(trimmed);
-  }
-
-  const currentTrackId =
-    typeof candidate.currentTrackId === "string" && candidate.currentTrackId.trim()
-      ? candidate.currentTrackId.trim()
-      : null;
-
-  return {
-    userId: candidate.userId.trim(),
-    trackIds,
-    currentTrackId
-  };
-}
-
-function readTranscodeMode(): TranscodeMode {
-  if (typeof window === "undefined") {
-    return "original";
-  }
-
-  const stored = window.localStorage.getItem(TRANSCODE_MODE_STORAGE_KEY);
-  if (stored === "opus" || stored === "mp3" || stored === "original") {
-    return stored;
-  }
-
-  return "original";
-}
-
-function readShuffleMode(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  return window.localStorage.getItem(SHUFFLE_MODE_STORAGE_KEY) === "on";
-}
-
-function getAdjacentTrackInQueue(
-  queue: Track[],
-  currentTrackId: string,
-  direction: "next" | "previous",
-  wrap = true
-): Track | null {
-  if (queue.length === 0) {
-    return null;
-  }
-
-  const currentIndex = queue.findIndex((track) => track.id === currentTrackId);
-  if (currentIndex < 0) {
-    return null;
-  }
-
-  if (queue.length === 1) {
-    return wrap ? queue[0] ?? null : null;
-  }
-
-  const offset = direction === "next" ? 1 : -1;
-  const targetIndex = currentIndex + offset;
-
-  if (targetIndex < 0 || targetIndex >= queue.length) {
-    if (!wrap) {
-      return null;
-    }
-
-    return direction === "next" ? queue[0] ?? null : queue[queue.length - 1] ?? null;
-  }
-
-  return queue[targetIndex] ?? null;
-}
-
-function parseViewParam(rawValue: string | null): ViewName | null {
-  if (rawValue === "library" || rawValue === "upload" || rawValue === "player" || rawValue === "config") {
-    return rawValue;
-  }
-
-  return null;
-}
-
-function getViewFromLocation(): ViewName {
-  if (typeof window === "undefined") {
-    return "library";
-  }
-
-  const view = parseViewParam(new URLSearchParams(window.location.search).get(VIEW_QUERY_PARAM));
-  return view ?? "library";
-}
-
-function syncViewToLocation(view: ViewName): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const url = new URL(window.location.href);
-  if (url.searchParams.get(VIEW_QUERY_PARAM) === view) {
-    return;
-  }
-
-  url.searchParams.set(VIEW_QUERY_PARAM, view);
-  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-}
-
-function normalizeText(value?: string): string {
-  return (value ?? "").trim().toLowerCase();
-}
-
-function getAlbumKey(album: Pick<AlbumEntry, "id" | "name" | "artist">): string {
-  const albumId = album.id?.trim();
-  if (albumId) {
-    return `id:${albumId}`;
-  }
-
-  return `${normalizeText(album.artist)}::${normalizeText(album.name)}`;
-}
-
-function sortAlbumTracksByNumber(tracks: Track[]): Track[] {
-  return [...tracks].sort((a, b) => {
-    const discA = a.tags.discNumber ?? Number.MAX_SAFE_INTEGER;
-    const discB = b.tags.discNumber ?? Number.MAX_SAFE_INTEGER;
-    if (discA !== discB) {
-      return discA - discB;
-    }
-
-    const trackA = a.tags.trackNumber ?? Number.MAX_SAFE_INTEGER;
-    const trackB = b.tags.trackNumber ?? Number.MAX_SAFE_INTEGER;
-    if (trackA !== trackB) {
-      return trackA - trackB;
-    }
-
-    return getTrackDisplayTitle(a).localeCompare(getTrackDisplayTitle(b));
-  });
-}
-
 export default function App(): JSX.Element {
   const [user, setUser] = useState<User | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
-  const [activeView, setActiveView] = useState<ViewName>(() => getViewFromLocation());
+  const [activeView, setActiveView] = useState<ViewName>(() => getViewFromLocation(VIEW_QUERY_PARAM));
   const [activeLibrarySection, setActiveLibrarySection] = useState<LibrarySection>("music");
 
   const [filters, setFilters] = useState<{
@@ -299,9 +118,9 @@ export default function App(): JSX.Element {
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [playQueue, setPlayQueue] = useState<Track[]>([]);
   const [playRequestNonce, setPlayRequestNonce] = useState(0);
-  const [transcodeMode, setTranscodeMode] = useState<TranscodeMode>(() => readTranscodeMode());
+  const [transcodeMode, setTranscodeMode] = useState<TranscodeMode>(() => readTranscodeMode(TRANSCODE_MODE_STORAGE_KEY));
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");
-  const [shuffleEnabled, setShuffleEnabled] = useState<boolean>(() => readShuffleMode());
+  const [shuffleEnabled, setShuffleEnabled] = useState<boolean>(() => readShuffleMode(SHUFFLE_MODE_STORAGE_KEY));
   const [queueRestoredFromStorage, setQueueRestoredFromStorage] = useState(false);
 
   const [rebuilding, setRebuilding] = useState(false);
@@ -784,7 +603,7 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     const onPopState = () => {
-      const requestedView = getViewFromLocation();
+      const requestedView = getViewFromLocation(VIEW_QUERY_PARAM);
       if (requestedView === "config" && user?.role !== "admin") {
         setActiveView("library");
         return;
@@ -810,7 +629,7 @@ export default function App(): JSX.Element {
       return;
     }
 
-    syncViewToLocation(resolvedView);
+    syncViewToLocation(resolvedView, VIEW_QUERY_PARAM);
   }, [activeView, sessionChecked, user?.role]);
 
   useEffect(() => {
@@ -1192,84 +1011,7 @@ export default function App(): JSX.Element {
             : "pb-[calc(2.5rem+env(safe-area-inset-bottom))]"
       }`}
     >
-      <header className="mb-4 rounded-3xl border border-flaque-clay/60 bg-white/80 px-5 py-4 shadow-panel backdrop-blur-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-4">
-            <div className="relative h-20 w-20 shrink-0 md:h-24 md:w-24">
-              <img
-                className="header-logo-light absolute inset-0 h-full w-full object-contain"
-                src="/favicon.png"
-                alt="Flaque logo"
-              />
-              <img
-                className="header-logo-dark absolute inset-0 h-full w-full object-contain"
-                src="/logo-dark.png"
-                alt="Flaque logo (dark mode)"
-              />
-            </div>
-            <h1 className="font-display text-base leading-tight text-flaque-ink sm:text-lg md:text-xl lg:text-2xl">
-              File-based Library Audio Query Engine
-            </h1>
-          </div>
-
-          <div className="flex w-full items-center gap-2 overflow-x-auto pb-1 pr-10 sm:w-auto sm:flex-wrap sm:overflow-visible sm:pb-0 sm:pr-0">
-            <button
-              className={`rounded-xl px-4 py-2 text-sm transition ${
-                activeView === "library"
-                  ? "bg-flaque-ink text-flaque-cream"
-                  : "border border-flaque-clay bg-white text-flaque-ink"
-              }`}
-              type="button"
-              onClick={() => setActiveView("library")}
-            >
-              Library
-            </button>
-            <button
-              className={`rounded-xl px-4 py-2 text-sm transition ${
-                activeView === "upload"
-                  ? "bg-flaque-ink text-flaque-cream"
-                  : "border border-flaque-clay bg-white text-flaque-ink"
-              }`}
-              type="button"
-              onClick={() => setActiveView("upload")}
-            >
-              Upload
-            </button>
-            <button
-              className={`rounded-xl px-4 py-2 text-sm transition ${
-                activeView === "player"
-                  ? "bg-flaque-ink text-flaque-cream"
-                  : "border border-flaque-clay bg-white text-flaque-ink"
-              }`}
-              type="button"
-              onClick={() => setActiveView("player")}
-            >
-              Player
-            </button>
-            {user.role === "admin" ? (
-              <button
-                className={`rounded-xl px-4 py-2 text-sm transition ${
-                  activeView === "config"
-                    ? "bg-flaque-ink text-flaque-cream"
-                    : "border border-flaque-clay bg-white text-flaque-ink"
-                }`}
-                type="button"
-                onClick={() => setActiveView("config")}
-              >
-                Config
-              </button>
-            ) : null}
-
-            <button
-              className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream"
-              type="button"
-              onClick={handleLogout}
-            >
-              Logout ({user.username})
-            </button>
-          </div>
-        </div>
-      </header>
+      <AppHeader activeView={activeView} user={user} onViewChange={setActiveView} onLogout={handleLogout} />
 
       {appNotice ? (
         <div
@@ -1299,62 +1041,7 @@ export default function App(): JSX.Element {
 
       {activeView === "library" ? (
         <div className="space-y-4">
-          <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.28em] text-flaque-steel">Library</p>
-                <h2 className="mt-1 font-display text-2xl text-flaque-ink">Music, Artists, Albums & Playlists</h2>
-                <p className="mt-2 text-sm text-flaque-steel">Switch between tracks, artists, albums and playlist management.</p>
-              </div>
-
-              <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
-                <button
-                  className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
-                    activeLibrarySection === "music"
-                      ? "bg-flaque-ink text-flaque-cream"
-                      : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
-                  }`}
-                  type="button"
-                  onClick={() => setActiveLibrarySection("music")}
-                >
-                  Music
-                </button>
-                <button
-                  className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
-                    activeLibrarySection === "artists"
-                      ? "bg-flaque-ink text-flaque-cream"
-                      : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
-                  }`}
-                  type="button"
-                  onClick={() => setActiveLibrarySection("artists")}
-                >
-                  Artists
-                </button>
-                <button
-                  className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
-                    activeLibrarySection === "albums"
-                      ? "bg-flaque-ink text-flaque-cream"
-                      : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
-                  }`}
-                  type="button"
-                  onClick={() => setActiveLibrarySection("albums")}
-                >
-                  Albums
-                </button>
-                <button
-                  className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
-                    activeLibrarySection === "playlist"
-                      ? "bg-flaque-ink text-flaque-cream"
-                      : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
-                  }`}
-                  type="button"
-                  onClick={() => setActiveLibrarySection("playlist")}
-                >
-                  Playlist
-                </button>
-              </div>
-            </div>
-          </section>
+          <LibrarySectionSwitcher activeSection={activeLibrarySection} onSectionChange={setActiveLibrarySection} />
 
           {activeLibrarySection === "playlist" ? (
             <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
@@ -1595,47 +1282,7 @@ export default function App(): JSX.Element {
 
           {activeLibrarySection === "music" ? (
             <>
-              {recentTracks.length > 0 ? (
-                <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-                  <h2 className="font-display text-xl text-flaque-ink">Played Recently</h2>
-
-                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {recentTracks.map((track) => {
-                      const title = getTrackDisplayTitle(track);
-                      const artist = getTrackDisplayArtist(track) ?? "Unknown artist";
-                      const albumWithYear = getTrackDisplayAlbumWithYear(track);
-
-                      return (
-                        <button
-                          key={track.id}
-                          className="w-full justify-self-start rounded-xl border border-flaque-clay/60 bg-flaque-cream/50 px-2.5 py-2 text-left transition hover:bg-flaque-cream sm:max-w-[18.5rem]"
-                          type="button"
-                          onClick={() => handleReplayRecentTrack(track)}
-                          title={title}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <img
-                              className="h-10 w-10 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
-                              src={coverUrl(track.id, track.cover)}
-                              alt={albumWithYear ? `Cover for ${albumWithYear}` : `Cover for ${title}`}
-                              onError={(event) => {
-                                event.currentTarget.src = defaultCoverImage;
-                              }}
-                            />
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-flaque-ink">{title}</p>
-                              <p className="truncate text-xs text-flaque-steel">
-                                {artist}
-                                {albumWithYear ? ` - ${albumWithYear}` : ""}
-                              </p>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-              ) : null}
+              <RecentTracksPanel tracks={recentTracks} onTrackReplay={handleReplayRecentTrack} />
 
               <LibraryView
                 generatedAt={library.generatedAt}
