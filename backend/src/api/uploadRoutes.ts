@@ -5,7 +5,7 @@ import multer from "multer";
 import { Router } from "express";
 
 import { requireAuth } from "../auth/middleware";
-import { appendTrackActivityLogEntries } from "../services/activity/trackActivityStore";
+import { appendTrackActivityLogEntries, readTrackActivityLog } from "../services/activity/trackActivityStore";
 import { mergeTrackMetadataOverrides } from "../services/indexer/metadataOverrideStore";
 import { IndexStore } from "../services/indexer/indexStore";
 import { extractAudioMetadata } from "../services/scanner/audioProbe";
@@ -356,6 +356,15 @@ export function createUploadRouter(indexStore: IndexStore): Router {
       if (temporaryPath) {
         await cleanupTemporaryFiles([temporaryPath]);
       }
+    }
+  });
+
+  router.get("/recent-uploads", requireAuth, async (_req, res, next) => {
+    try {
+      const tracks = await readTrackActivityLog();
+      res.json({ tracks });
+    } catch (error) {
+      next(error);
     }
   });
 
