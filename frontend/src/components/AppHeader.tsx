@@ -13,10 +13,10 @@ type AppHeaderProps = {
  */
 export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeaderProps): JSX.Element {
   const navIconButtonClassName = (isActive: boolean): string =>
-    `flex h-10 w-10 items-center justify-center rounded-xl transition ${
+    `flex h-10 w-10 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 ${
       isActive
-        ? "bg-flaque-ink text-flaque-cream"
-        : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
+        ? "bg-flaque-ink/12 text-flaque-ink"
+        : "text-flaque-steel hover:bg-flaque-cream/70 hover:text-flaque-ink"
     }`;
 
   return (
@@ -51,7 +51,7 @@ export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeade
           </div>
         </div>
 
-        <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+        <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
           <button
             className={navIconButtonClassName(activeView === "library")}
             type="button"
@@ -59,9 +59,23 @@ export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeade
             title="Library"
             onClick={() => onViewChange("library")}
           >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-              <path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-5a3 3 0 00-6 0v5H4a1 1 0 01-1-1v-9.5z" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M17 9.2v5.2a2.3 2.3 0 11-1.5-2.16V8.4L19 7.6v4.2" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              className="h-7 w-7"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+              <circle cx="10.5" cy="12.5" r="5.2" />
+              <circle cx="10.5" cy="12.5" r="2.2" />
+              <circle cx="10.5" cy="12.5" r="0.9" />
+              <path d="M15.8 7.7h2.8" />
+              <path d="M18.6 7.7v4.3a1.5 1.5 0 01-.44 1.06l-1.26 1.26" />
+              <path d="M16.6 14.3l1.1 1.1" />
             </svg>
           </button>
 
@@ -72,10 +86,19 @@ export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeade
             title="Upload"
             onClick={() => onViewChange("upload")}
           >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-              <path d="M12 4v11" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M8 8l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M4 15.5v3a1.5 1.5 0 001.5 1.5h13a1.5 1.5 0 001.5-1.5v-3" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              className="h-7 w-7"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 16V6" />
+              <path d="M8.8 9.2L12 6l3.2 3.2" />
+              <path d="M5 16v2.2A1.8 1.8 0 006.8 20h10.4A1.8 1.8 0 0019 18.2V16" />
             </svg>
           </button>
 
@@ -87,13 +110,26 @@ export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeade
               title="Configuration"
               onClick={() => onViewChange("config")}
             >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                <path d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z" strokeLinecap="round" strokeLinejoin="round" />
-                <path
-                  d="M19.4 15a1.75 1.75 0 00.35 1.93l.04.04a2 2 0 11-2.83 2.83l-.04-.04A1.75 1.75 0 0015 19.4a1.75 1.75 0 00-1 .45 1.75 1.75 0 00-.5 1.34V21.5a2 2 0 11-4 0v-.06a1.75 1.75 0 00-.5-1.34A1.75 1.75 0 008 19.4a1.75 1.75 0 00-1.93.35l-.04.04a2 2 0 11-2.83-2.83l.04-.04A1.75 1.75 0 004.6 15a1.75 1.75 0 00-.45-1 1.75 1.75 0 00-1.34-.5H2.5a2 2 0 110-4h.06a1.75 1.75 0 001.34-.5A1.75 1.75 0 004.6 8a1.75 1.75 0 00-.35-1.93l-.04-.04a2 2 0 112.83-2.83l.04.04A1.75 1.75 0 008 4.6a1.75 1.75 0 001-.45 1.75 1.75 0 00.5-1.34V2.5a2 2 0 114 0v.06a1.75 1.75 0 00.5 1.34A1.75 1.75 0 0015 4.6a1.75 1.75 0 001.93-.35l.04-.04a2 2 0 112.83 2.83l-.04.04A1.75 1.75 0 0019.4 8c0 .38.14.74.45 1 .34.3.78.46 1.24.46h.41a2 2 0 110 4h-.06a1.75 1.75 0 00-1.34.5c-.3.26-.46.62-.46 1.04z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+              <svg
+                className="h-7 w-7"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="2.7" />
+                <circle cx="12" cy="12" r="6.2" />
+                <path d="M12 5.4v1.5" />
+                <path d="M12 17.1v1.5" />
+                <path d="M17.3 12h1.5" />
+                <path d="M5.2 12h1.5" />
+                <path d="M16.2 7.8l1.1-1.1" />
+                <path d="M6.7 17.3l1.1-1.1" />
+                <path d="M16.2 16.2l1.1 1.1" />
+                <path d="M6.7 6.7l1.1 1.1" />
               </svg>
             </button>
           ) : null}
