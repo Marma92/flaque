@@ -270,10 +270,19 @@ type ArtistMetadata = {
 };
 
 type AlbumMetadata = {
+  id?: string;
   name: string;
   cover?: {
     path: string;
   };
+  tracks?: Track[];
+};
+
+type ResolvedAlbumMetadata = {
+  albumDir: string;
+  id?: string;
+  name?: string;
+  coverPath?: string;
 };
 
 async function resolveArtistPhotoPath(
@@ -308,7 +317,10 @@ async function resolveArtistPhotoPath(
   }
 }
 
-async function resolveAlbumCoverPath(track: Track, cache: Map<string, string | undefined>): Promise<string | undefined> {
+async function resolveAlbumMetadataForTrack(
+  track: Track,
+  cache: Map<string, ResolvedAlbumMetadata | undefined>
+): Promise<ResolvedAlbumMetadata | undefined> {
   try {
     const trackAbsolutePath = resolveDataRelativePath(track.path);
     const albumDir = path.dirname(trackAbsolutePath);
@@ -320,15 +332,21 @@ async function resolveAlbumCoverPath(track: Track, cache: Map<string, string | u
     const metadataPath = path.join(albumDir, ALBUM_METADATA_FILE);
     const metadata = await readJsonFile<AlbumMetadata | null>(metadataPath, null);
     const coverPath = metadata?.cover?.path;
+    let resolvedCoverPath: string | undefined;
 
-    if (!coverPath) {
-      cache.set(albumDir, undefined);
-      return undefined;
+    if (coverPath) {
+      const absoluteCoverPath = resolveDataRelativePath(coverPath);
+      const hasCover = await fileExists(absoluteCoverPath);
+      resolvedCoverPath = hasCover ? coverPath : undefined;
     }
 
-    const absoluteCoverPath = resolveDataRelativePath(coverPath);
-    const hasCover = await fileExists(absoluteCoverPath);
-    const resolved = hasCover ? coverPath : undefined;
+    const resolved: ResolvedAlbumMetadata = {
+      albumDir,
+      id: metadata?.id?.trim() ? metadata.id : undefined,
+      name: metadata?.name?.trim() ? metadata.name : undefined,
+      coverPath: resolvedCoverPath
+    };
+
     cache.set(albumDir, resolved);
     return resolved;
   } catch {
@@ -378,76 +396,124 @@ function normalizeAlbumName(value?: string): string {
     .replace(/\s+/g, " ");
 }
 
+function isCollaborativeAlbumTrack(track: Track): boolean {
+  return Array.isArray(track.tags.artists) && track.tags.artists.length > 1;
+}
+
+function createCollaborativeAlbumId(owner: string, albumName: string): string {
+  return `collab:${owner}:${normalizeAlbumName(albumName)}`;
+}
+
+function parseCollaborativeAlbumId(albumId: string): { owner: string; normalizedAlbumName: string } | null {
+  if (!albumId.startsWith("collab:")) {
+    return null;
+  }
+
+  const parts = albumId.split(":");
+  if (parts.length < 3) {
+    return null;
+  }
+
+  const owner = parts[1]?.trim();
+  const normalizedAlbumName = parts.slice(2).join(":").trim();
+  if (!owner || !normalizedAlbumName) {
+    return null;
+  }
+
+  return { owner, normalizedAlbumName };
+}
+
 async function attachCollaborativeAlbumCovers(
   tracks: Track[]
-): Promise<Array<{ name: string; artist?: string; artists?: string[]; trackCount: number; cover?: string; previewTrackId?: string }>> {
+): Promise<Array<{ id?: string; name: string; artist?: string; artists?: string[]; trackCount: number; cover?: string; previewTrackId?: string }>> {
   const grouped = new Map<
     string,
     {
+      id?: string;
       name: string;
       artists: Set<string>;
       trackCount: number;
-      tracks: Track[];
+      cover?: string;
       previewTrackId?: string;
     }
   >();
 
+  const metadataCache = new Map<string, ResolvedAlbumMetadata | undefined>();
+
   for (const track of tracks) {
-    const albumName = track.tags.album?.trim();
+    const metadata = await resolveAlbumMetadataForTrack(track, metadataCache);
+    const albumName = track.tags.album?.trim() ?? metadata?.name?.trim();
     if (!albumName) {
       continue;
     }
 
-    const albumKey = normalizeAlbumName(albumName);
+    const collaborative = Boolean(track.tags.album?.trim()) && isCollaborativeAlbumTrack(track);
+    const albumKey = collaborative
+      ? createCollaborativeAlbumId(track.owner, albumName)
+      : metadata?.id ?? `${track.owner}:${metadata?.albumDir ?? normalizeAlbumName(albumName)}`;
     const current = grouped.get(albumKey);
     const artistName = getTrackArtistName(track)?.trim();
+    const displayName = metadata?.name?.trim() ? metadata.name : albumName;
 
     if (!current) {
       grouped.set(albumKey, {
-        name: albumName,
+        id: collaborative ? albumKey : metadata?.id,
+        name: displayName,
         artists: artistName ? new Set([artistName]) : new Set<string>(),
         trackCount: 1,
-        tracks: [track],
+        cover: metadata?.coverPath,
         previewTrackId: track.id
       });
       continue;
     }
 
     current.trackCount += 1;
-    current.tracks.push(track);
     if (artistName) {
       current.artists.add(artistName);
+    }
+    if (!current.cover && metadata?.coverPath) {
+      current.cover = metadata.coverPath;
     }
     if (!current.previewTrackId) {
       current.previewTrackId = track.id;
     }
   }
 
-  const cache = new Map<string, string | undefined>();
-  const entries: Array<{ name: string; artist?: string; artists?: string[]; trackCount: number; cover?: string; previewTrackId?: string }> = [];
+  const entries: Array<{ id?: string; name: string; artist?: string; artists?: string[]; trackCount: number; cover?: string; previewTrackId?: string }> = [];
 
   for (const groupedAlbum of grouped.values()) {
     const artists = Array.from(groupedAlbum.artists).sort((a, b) => a.localeCompare(b));
-    let cover: string | undefined;
-
-    for (const track of groupedAlbum.tracks) {
-      cover = await resolveAlbumCoverPath(track, cache);
-      if (cover) {
-        break;
-      }
-    }
 
     entries.push({
+      id: groupedAlbum.id,
       name: groupedAlbum.name,
       artist: artists.length > 0 ? artists.join(", ") : undefined,
       artists: artists.length > 0 ? artists : undefined,
       trackCount: groupedAlbum.trackCount,
-      cover,
+      cover: groupedAlbum.cover,
       previewTrackId: groupedAlbum.previewTrackId
     });
   }
 
   return entries.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function compareAlbumTrackOrder(a: Track, b: Track): number {
+  const aDisc = a.tags.discNumber ?? Number.MAX_SAFE_INTEGER;
+  const bDisc = b.tags.discNumber ?? Number.MAX_SAFE_INTEGER;
+  if (aDisc !== bDisc) {
+    return aDisc - bDisc;
+  }
+
+  const aTrack = a.tags.trackNumber ?? Number.MAX_SAFE_INTEGER;
+  const bTrack = b.tags.trackNumber ?? Number.MAX_SAFE_INTEGER;
+  if (aTrack !== bTrack) {
+    return aTrack - bTrack;
+  }
+
+  const aTitle = a.tags.title ?? a.path;
+  const bTitle = b.tags.title ?? b.path;
+  return aTitle.localeCompare(bTitle);
 }
 
 export function createLibraryRouter(indexStore: IndexStore): Router {
@@ -689,6 +755,98 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       });
       const albums = await attachCollaborativeAlbumCovers(tracks);
       res.json({ total: tracks.length, albums });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/album/:albumId", requireAuth, async (req, res, next) => {
+    try {
+      const albumId = req.params.albumId?.trim();
+      if (!albumId) {
+        res.status(400).json({ error: "Album id is required" });
+        return;
+      }
+
+      const snapshot = indexStore.getSnapshot();
+      const tracksWithOwnerNames = mapTrackOwners(snapshot.tracks, getOwnerNamesById());
+      const collaborativeAlbum = parseCollaborativeAlbumId(albumId);
+
+      if (collaborativeAlbum) {
+        const collaborativeTracks = tracksWithOwnerNames.filter((track) => {
+          if (track.owner !== collaborativeAlbum.owner) {
+            return false;
+          }
+
+          return normalizeAlbumName(track.tags.album) === collaborativeAlbum.normalizedAlbumName;
+        });
+
+        if (collaborativeTracks.length === 0) {
+          res.status(404).json({ error: "Album not found" });
+          return;
+        }
+
+        collaborativeTracks.sort(compareAlbumTrackOrder);
+        const artists = new Set<string>();
+        for (const track of collaborativeTracks) {
+          const artistName = getTrackArtistName(track)?.trim();
+          if (artistName) {
+            artists.add(artistName);
+          }
+        }
+
+        const firstTrack = collaborativeTracks[0];
+        res.json({
+          album: {
+            id: albumId,
+            name: firstTrack?.tags.album,
+            artist: artists.size > 0 ? Array.from(artists).sort((a, b) => a.localeCompare(b)).join(", ") : undefined,
+            cover: firstTrack?.cover,
+            trackCount: collaborativeTracks.length
+          },
+          tracks: collaborativeTracks.map(mapTrackResponse)
+        });
+        return;
+      }
+
+      const metadataCache = new Map<string, ResolvedAlbumMetadata | undefined>();
+      const albumTracks: Track[] = [];
+      const artists = new Set<string>();
+      let albumName: string | undefined;
+      let cover: string | undefined;
+
+      for (const track of tracksWithOwnerNames) {
+        const metadata = await resolveAlbumMetadataForTrack(track, metadataCache);
+        if (metadata?.id !== albumId) {
+          continue;
+        }
+
+        albumTracks.push(track);
+        albumName = albumName ?? metadata.name ?? track.tags.album;
+        cover = cover ?? metadata.coverPath;
+        const artistName = getTrackArtistName(track)?.trim();
+        if (artistName) {
+          artists.add(artistName);
+        }
+      }
+
+      if (albumTracks.length === 0) {
+        res.status(404).json({ error: "Album not found" });
+        return;
+      }
+
+      albumTracks.sort(compareAlbumTrackOrder);
+
+      res.json({
+        album: {
+          id: albumId,
+          name: albumName,
+          artist: artists.size > 0 ? Array.from(artists).sort((a, b) => a.localeCompare(b)).join(", ") : undefined,
+          cover,
+          trackCount: albumTracks.length
+        },
+        tracks: albumTracks.map(mapTrackResponse)
+      });
     } catch (error) {
       next(error);
     }

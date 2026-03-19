@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   coverPathUrl,
+  getAlbumTracks,
   getAlbums,
   getArtists,
   coverUrl,
@@ -239,8 +240,31 @@ function normalizeText(value?: string): string {
   return (value ?? "").trim().toLowerCase();
 }
 
-function getAlbumKey(album: Pick<AlbumEntry, "name" | "artist">): string {
+function getAlbumKey(album: Pick<AlbumEntry, "id" | "name" | "artist">): string {
+  const albumId = album.id?.trim();
+  if (albumId) {
+    return `id:${albumId}`;
+  }
+
   return `${normalizeText(album.artist)}::${normalizeText(album.name)}`;
+}
+
+function sortAlbumTracksByNumber(tracks: Track[]): Track[] {
+  return [...tracks].sort((a, b) => {
+    const discA = a.tags.discNumber ?? Number.MAX_SAFE_INTEGER;
+    const discB = b.tags.discNumber ?? Number.MAX_SAFE_INTEGER;
+    if (discA !== discB) {
+      return discA - discB;
+    }
+
+    const trackA = a.tags.trackNumber ?? Number.MAX_SAFE_INTEGER;
+    const trackB = b.tags.trackNumber ?? Number.MAX_SAFE_INTEGER;
+    if (trackA !== trackB) {
+      return trackA - trackB;
+    }
+
+    return getTrackDisplayTitle(a).localeCompare(getTrackDisplayTitle(b));
+  });
 }
 
 export default function App(): JSX.Element {
@@ -263,6 +287,9 @@ export default function App(): JSX.Element {
   const [libraryArtists, setLibraryArtists] = useState<ArtistEntry[]>([]);
   const [libraryAlbums, setLibraryAlbums] = useState<AlbumEntry[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumEntry | null>(null);
+  const [selectedAlbumTracks, setSelectedAlbumTracks] = useState<Track[]>([]);
+  const [loadingSelectedAlbumTracks, setLoadingSelectedAlbumTracks] = useState(false);
+  const [selectedAlbumTracksError, setSelectedAlbumTracksError] = useState<string | null>(null);
   const [loadingLibraryArtists, setLoadingLibraryArtists] = useState(false);
   const [loadingLibraryAlbums, setLoadingLibraryAlbums] = useState(false);
   const [libraryError, setLibraryError] = useState<string | null>(null);
@@ -292,6 +319,7 @@ export default function App(): JSX.Element {
   const allTracksRequestIdRef = useRef(0);
   const artistsRequestIdRef = useRef(0);
   const albumsRequestIdRef = useRef(0);
+  const selectedAlbumTracksRequestIdRef = useRef(0);
 
   const allTracksById = useMemo(() => {
     return new Map(allTracksLibrary.tracks.map((track) => [track.id, track]));
@@ -337,13 +365,9 @@ export default function App(): JSX.Element {
     return Object.fromEntries(entries);
   }, [user, adminUsers]);
 
-  const selectedAlbumTracks = useMemo(() => {
-    if (!selectedAlbum) {
-      return [] as Track[];
-    }
-
-    const selectedAlbumName = normalizeText(selectedAlbum.name);
-    const selectedAlbumArtist = normalizeText(selectedAlbum.artist);
+  function getAlbumTracksFromLoadedLibraries(album: AlbumEntry): Track[] {
+    const selectedAlbumName = normalizeText(album.name);
+    const selectedAlbumArtist = normalizeText(album.artist);
     const ownerFilter = normalizeText(filters.owner);
 
     const trackMap = new Map<string, Track>();
@@ -371,7 +395,7 @@ export default function App(): JSX.Element {
 
       return normalizeText(getTrackDisplayArtist(track)) === selectedAlbumArtist;
     });
-  }, [allTracksLibrary.tracks, filters.owner, library.tracks, selectedAlbum]);
+  }
 
   useEffect(() => {
     getCurrentUser()
@@ -633,6 +657,9 @@ export default function App(): JSX.Element {
   useEffect(() => {
     if (activeLibrarySection !== "albums") {
       setSelectedAlbum(null);
+      setSelectedAlbumTracks([]);
+      setSelectedAlbumTracksError(null);
+      setLoadingSelectedAlbumTracks(false);
       return;
     }
 
@@ -645,6 +672,54 @@ export default function App(): JSX.Element {
       return libraryAlbums.some((album) => getAlbumKey(album) === currentKey) ? current : null;
     });
   }, [activeLibrarySection, libraryAlbums]);
+
+  useEffect(() => {
+    if (activeLibrarySection !== "albums" || !selectedAlbum) {
+      return;
+    }
+
+    const fallbackTracks = getAlbumTracksFromLoadedLibraries(selectedAlbum);
+
+    if (!selectedAlbum.id) {
+      setSelectedAlbumTracks(sortAlbumTracksByNumber(fallbackTracks));
+      setSelectedAlbumTracksError(null);
+      setLoadingSelectedAlbumTracks(false);
+      return;
+    }
+
+    const requestId = selectedAlbumTracksRequestIdRef.current + 1;
+    selectedAlbumTracksRequestIdRef.current = requestId;
+
+    setLoadingSelectedAlbumTracks(true);
+    setSelectedAlbumTracksError(null);
+
+    getAlbumTracks(selectedAlbum.id)
+      .then((tracks) => {
+        if (selectedAlbumTracksRequestIdRef.current !== requestId) {
+          return;
+        }
+        setSelectedAlbumTracks(sortAlbumTracksByNumber(tracks));
+      })
+      .catch((error) => {
+        if (selectedAlbumTracksRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setSelectedAlbumTracks(sortAlbumTracksByNumber(fallbackTracks));
+        setSelectedAlbumTracksError(error instanceof Error ? error.message : "Failed to load album tracks");
+      })
+      .finally(() => {
+        if (selectedAlbumTracksRequestIdRef.current === requestId) {
+          setLoadingSelectedAlbumTracks(false);
+        }
+      });
+  }, [
+    activeLibrarySection,
+    allTracksLibrary.tracks,
+    filters.owner,
+    library.tracks,
+    selectedAlbum
+  ]);
 
   useEffect(() => {
     if (!user) {
@@ -1451,7 +1526,11 @@ export default function App(): JSX.Element {
                               : "border-flaque-clay/60 bg-flaque-cream/45 hover:bg-flaque-cream"
                           }`}
                           type="button"
-                          onClick={() => setSelectedAlbum(album)}
+                          onClick={() => {
+                            setSelectedAlbum(album);
+                            setSelectedAlbumTracks([]);
+                            setSelectedAlbumTracksError(null);
+                          }}
                           title={album.artist ? `${album.artist} - ${album.name}` : album.name}
                         >
                           <div className="flex items-center gap-2.5">
@@ -1492,6 +1571,12 @@ export default function App(): JSX.Element {
                         >
                           {selectedAlbum.artist ? `${selectedAlbum.artist} - ${selectedAlbum.name}` : selectedAlbum.name}
                         </p>
+                        {loadingSelectedAlbumTracks ? (
+                          <p className="mt-1 text-xs text-flaque-steel">Loading album tracks...</p>
+                        ) : null}
+                        {selectedAlbumTracksError ? (
+                          <p className="mt-1 text-xs text-red-700">{selectedAlbumTracksError}</p>
+                        ) : null}
                       </div>
 
                       <TrackList
