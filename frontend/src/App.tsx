@@ -30,9 +30,11 @@ import { AudioPlayer, type RepeatMode, type TranscodeMode } from "./components/A
 import { ConfigView } from "./components/ConfigView";
 import { LibraryView } from "./components/LibraryView";
 import { LoginPage } from "./components/LoginPage";
+import { TrackList } from "./components/TrackList";
 import { UploadView } from "./components/UploadView";
 import type { AlbumEntry, ArtistEntry, LibraryResponse, Playlist, PlaylistVisibility, Track, TrackMetadataPatch, User } from "./types";
 import {
+  getTrackDisplayAlbum,
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
   getTrackDisplayTitle
@@ -233,6 +235,14 @@ function syncViewToLocation(view: ViewName): void {
   window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
+function normalizeText(value?: string): string {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function getAlbumKey(album: Pick<AlbumEntry, "name" | "artist">): string {
+  return `${normalizeText(album.artist)}::${normalizeText(album.name)}`;
+}
+
 export default function App(): JSX.Element {
   const [user, setUser] = useState<User | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
@@ -252,6 +262,7 @@ export default function App(): JSX.Element {
   const [loadingAllTracks, setLoadingAllTracks] = useState(false);
   const [libraryArtists, setLibraryArtists] = useState<ArtistEntry[]>([]);
   const [libraryAlbums, setLibraryAlbums] = useState<AlbumEntry[]>([]);
+  const [selectedAlbum, setSelectedAlbum] = useState<AlbumEntry | null>(null);
   const [loadingLibraryArtists, setLoadingLibraryArtists] = useState(false);
   const [loadingLibraryAlbums, setLoadingLibraryAlbums] = useState(false);
   const [libraryError, setLibraryError] = useState<string | null>(null);
@@ -325,6 +336,42 @@ export default function App(): JSX.Element {
 
     return Object.fromEntries(entries);
   }, [user, adminUsers]);
+
+  const selectedAlbumTracks = useMemo(() => {
+    if (!selectedAlbum) {
+      return [] as Track[];
+    }
+
+    const selectedAlbumName = normalizeText(selectedAlbum.name);
+    const selectedAlbumArtist = normalizeText(selectedAlbum.artist);
+    const ownerFilter = normalizeText(filters.owner);
+
+    const trackMap = new Map<string, Track>();
+    for (const track of allTracksLibrary.tracks) {
+      trackMap.set(track.id, track);
+    }
+    for (const track of library.tracks) {
+      trackMap.set(track.id, track);
+    }
+
+    const sourceTracks = Array.from(trackMap.values());
+
+    return sourceTracks.filter((track) => {
+      if (normalizeText(getTrackDisplayAlbum(track)) !== selectedAlbumName) {
+        return false;
+      }
+
+      if (ownerFilter && normalizeText(track.owner) !== ownerFilter) {
+        return false;
+      }
+
+      if (!selectedAlbumArtist) {
+        return true;
+      }
+
+      return normalizeText(getTrackDisplayArtist(track)) === selectedAlbumArtist;
+    });
+  }, [allTracksLibrary.tracks, filters.owner, library.tracks, selectedAlbum]);
 
   useEffect(() => {
     getCurrentUser()
@@ -582,6 +629,22 @@ export default function App(): JSX.Element {
         }
       });
   }, [activeLibrarySection, activeView, filters.artist, filters.owner, filters.q, user]);
+
+  useEffect(() => {
+    if (activeLibrarySection !== "albums") {
+      setSelectedAlbum(null);
+      return;
+    }
+
+    setSelectedAlbum((current) => {
+      if (!current) {
+        return null;
+      }
+
+      const currentKey = getAlbumKey(current);
+      return libraryAlbums.some((album) => getAlbumKey(album) === currentKey) ? current : null;
+    });
+  }, [activeLibrarySection, libraryAlbums]);
 
   useEffect(() => {
     if (!user) {
@@ -1370,51 +1433,83 @@ export default function App(): JSX.Element {
               ) : libraryAlbums.length === 0 ? (
                 <p className="mt-3 text-sm text-flaque-steel">No albums found for these filters.</p>
               ) : (
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {libraryAlbums.map((album) => (
-                    <div
-                      key={`${album.artist ?? "unknown"}-${album.name}`}
-                      className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 px-3 py-2"
-                      title={album.artist ? `${album.artist} - ${album.name}` : album.name}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <img
-                          className="h-11 w-11 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
-                          src={
-                            album.cover
-                              ? coverPathUrl(album.cover)
-                              : album.previewTrackId
-                                ? coverUrl(album.previewTrackId)
-                                : defaultCoverImage
-                          }
-                          alt={album.artist ? `Cover for ${album.artist} - ${album.name}` : `Cover for ${album.name}`}
-                          onError={(event) => {
-                            event.currentTarget.src = defaultCoverImage;
-                          }}
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-flaque-ink">{album.name}</p>
-                          <p className="truncate text-xs text-flaque-steel">{album.artist ?? "Unknown artist"}</p>
-                          <p className="text-xs text-flaque-steel/90">
-                            {album.trackCount} track{album.trackCount > 1 ? "s" : ""}
-                          </p>
-                        </div>
+                <>
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {libraryAlbums.map((album) => {
+                      const selected = selectedAlbum ? getAlbumKey(selectedAlbum) === getAlbumKey(album) : false;
+
+                      return (
+                        <button
+                          key={`${album.artist ?? "unknown"}-${album.name}`}
+                          className={`rounded-xl border px-3 py-2 text-left transition ${
+                            selected
+                              ? "border-flaque-ink bg-flaque-sand/25"
+                              : "border-flaque-clay/60 bg-flaque-cream/45 hover:bg-flaque-cream"
+                          }`}
+                          type="button"
+                          onClick={() => setSelectedAlbum(album)}
+                          title={album.artist ? `${album.artist} - ${album.name}` : album.name}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              className="h-11 w-11 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
+                              src={
+                                album.cover
+                                  ? coverPathUrl(album.cover)
+                                  : album.previewTrackId
+                                    ? coverUrl(album.previewTrackId)
+                                    : defaultCoverImage
+                              }
+                              alt={album.artist ? `Cover for ${album.artist} - ${album.name}` : `Cover for ${album.name}`}
+                              onError={(event) => {
+                                event.currentTarget.src = defaultCoverImage;
+                              }}
+                            />
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-flaque-ink">{album.name}</p>
+                              <p className="truncate text-xs text-flaque-steel">{album.artist ?? "Unknown artist"}</p>
+                              <p className="text-xs text-flaque-steel/90">
+                                {album.trackCount} track{album.trackCount > 1 ? "s" : ""}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedAlbum ? (
+                    <div className="mt-4 overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/75">
+                      <div className="border-b border-flaque-clay/55 px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-flaque-steel">Album tracks</p>
+                        <p
+                          className="truncate text-sm text-flaque-ink"
+                          title={selectedAlbum.artist ? `${selectedAlbum.artist} - ${selectedAlbum.name}` : selectedAlbum.name}
+                        >
+                          {selectedAlbum.artist ? `${selectedAlbum.artist} - ${selectedAlbum.name}` : selectedAlbum.name}
+                        </p>
                       </div>
+
+                      <TrackList
+                        tracks={selectedAlbumTracks}
+                        currentTrackId={selectedTrackRefreshed?.id}
+                        ownerNameById={ownerNameById}
+                        onTrackSelect={(track) => requestTrackPlayback(track, selectedAlbumTracks)}
+                        emptyMessage="No tracks found for this album."
+                      />
                     </div>
-                  ))}
-                </div>
+                  ) : null}
+                </>
               )}
             </section>
           ) : null}
 
           {activeLibrarySection === "music" ? (
             <>
-              <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-                <h2 className="font-display text-xl text-flaque-ink">Played Recently</h2>
+              {recentTracks.length > 0 ? (
+                <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+                  <h2 className="font-display text-xl text-flaque-ink">Played Recently</h2>
 
-                {recentTracks.length === 0 ? (
-                  <p className="mt-3 text-sm text-flaque-steel">No recently played tracks yet.</p>
-                ) : (
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {recentTracks.map((track) => {
                       const title = getTrackDisplayTitle(track);
@@ -1450,8 +1545,8 @@ export default function App(): JSX.Element {
                       );
                     })}
                   </div>
-                )}
-              </section>
+                </section>
+              ) : null}
 
               <LibraryView
                 generatedAt={library.generatedAt}
@@ -1466,7 +1561,6 @@ export default function App(): JSX.Element {
                 onTrackSelect={(track) => {
                   requestTrackPlayback(track, library.tracks);
                 }}
-                onOpenUpload={() => setActiveView("upload")}
               />
             </>
           ) : null}
