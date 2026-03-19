@@ -53,6 +53,10 @@ class FakeIndexStore {
     };
     return this.snapshot;
   }
+
+  async refreshPlaylists(): Promise<LibraryIndex> {
+    return this.rebuild();
+  }
 }
 
 async function bootstrapServer(indexStore: FakeIndexStore): Promise<void> {

@@ -3,6 +3,7 @@ import { readJsonFile, writeJsonAtomic } from "../../utils/fs";
 import { indexFilePath } from "../../utils/paths";
 import { pruneTrackMetadataOverrides } from "./metadataOverrideStore";
 import { scanFilesystemLibrary } from "../scanner/scannerService";
+import { scanFilesystemPlaylists } from "../playlists/playlistStore";
 
 const EMPTY_INDEX: LibraryIndex = {
   generatedAt: "",
@@ -15,6 +16,8 @@ export class IndexStore {
   private snapshot: LibraryIndex = EMPTY_INDEX;
 
   private rebuildPromise: Promise<LibraryIndex> | null = null;
+
+  private playlistsRefreshPromise: Promise<LibraryIndex> | null = null;
 
   async initialize(): Promise<void> {
     const loaded = await readJsonFile<LibraryIndex>(indexFilePath, EMPTY_INDEX);
@@ -46,6 +49,35 @@ export class IndexStore {
       return await this.rebuildPromise;
     } finally {
       this.rebuildPromise = null;
+    }
+  }
+
+  async refreshPlaylists(): Promise<LibraryIndex> {
+    if (this.rebuildPromise) {
+      return this.rebuildPromise;
+    }
+
+    if (this.playlistsRefreshPromise) {
+      return this.playlistsRefreshPromise;
+    }
+
+    this.playlistsRefreshPromise = (async () => {
+      const playlists = await scanFilesystemPlaylists(this.snapshot.tracks);
+      const nextSnapshot: LibraryIndex = {
+        ...this.snapshot,
+        generatedAt: new Date().toISOString(),
+        playlists
+      };
+
+      await writeJsonAtomic(indexFilePath, nextSnapshot);
+      this.snapshot = nextSnapshot;
+      return nextSnapshot;
+    })();
+
+    try {
+      return await this.playlistsRefreshPromise;
+    } finally {
+      this.playlistsRefreshPromise = null;
     }
   }
 

@@ -2,7 +2,8 @@ import fs from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import path from "node:path";
 
-import type { AuthUser, Playlist, PlaylistVisibility, Track } from "../../types/library";
+import type { AuthUser } from "../../types/auth";
+import type { Playlist, PlaylistVisibility, Track } from "../../types/library";
 import { usersStorageRoot } from "../../utils/paths";
 import { writeJsonAtomic } from "../../utils/fs";
 import { resolveTrackAbsolutePath, toDataRelativePath } from "../storage/storageService";
@@ -140,7 +141,26 @@ async function migrateLegacyPlaylistsForOwner(authorId: string): Promise<void> {
       continue;
     }
 
-    await migrateLegacyPlaylistDir(authorId, entry.name).catch(() => undefined);
+    await migrateLegacyPlaylistDir(authorId, entry.name);
+  }
+}
+
+export async function migrateLegacyPlaylists(): Promise<void> {
+  let ownerEntries: Dirent[] = [];
+
+  try {
+    ownerEntries = await fs.readdir(usersStorageRoot, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  const ownerIds = ownerEntries
+    .filter((entry) => entry.isDirectory() && !entry.isSymbolicLink())
+    .map((entry) => entry.name)
+    .sort((a, b) => a.localeCompare(b));
+
+  for (const ownerId of ownerIds) {
+    await migrateLegacyPlaylistsForOwner(ownerId);
   }
 }
 
@@ -169,8 +189,6 @@ async function listPlaylistDirectories(): Promise<string[]> {
     .sort((a, b) => a.localeCompare(b));
 
   for (const ownerId of ownerIds) {
-    await migrateLegacyPlaylistsForOwner(ownerId);
-
     const ownerPlaylistsRoot = getPlaylistsRoot(ownerId);
     let entries: Dirent[] = [];
 
@@ -193,7 +211,6 @@ async function listPlaylistDirectories(): Promise<string[]> {
 
 async function readPlaylistMetadata(playlistId: string): Promise<PlaylistMetadata | null> {
   const { authorId, slug } = parsePlaylistIdOrThrow(playlistId);
-  await migrateLegacyPlaylistDir(authorId, slug).catch(() => undefined);
   const filePath = getPlaylistMetadataPath(authorId, slug);
 
   try {
@@ -229,7 +246,6 @@ async function readPlaylistTrackIds(
   trackIdByRelativePath: Map<string, string>
 ): Promise<string[]> {
   const { authorId, slug } = parsePlaylistIdOrThrow(playlistId);
-  await migrateLegacyPlaylistDir(authorId, slug).catch(() => undefined);
   const playlistDir = getPlaylistDir(authorId, slug);
   let entries: Dirent[] = [];
 
@@ -365,7 +381,7 @@ export async function createFilesystemPlaylist(input: CreatePlaylistInput): Prom
   }
 
   const playlistSlug = getPlaylistSlugOrThrow(name);
-  await migrateLegacyPlaylistDir(input.authorId, playlistSlug).catch(() => undefined);
+  await migrateLegacyPlaylistDir(input.authorId, playlistSlug);
   const playlistDir = getPlaylistDir(input.authorId, playlistSlug);
 
   try {
@@ -401,8 +417,8 @@ export async function updateFilesystemPlaylist(input: UpdatePlaylistInput & { au
   }
 
   const nextSlug = getPlaylistSlugOrThrow(nextName);
-  await migrateLegacyPlaylistDir(parsed.authorId, parsed.slug).catch(() => undefined);
-  await migrateLegacyPlaylistDir(parsed.authorId, nextSlug).catch(() => undefined);
+  await migrateLegacyPlaylistDir(parsed.authorId, parsed.slug);
+  await migrateLegacyPlaylistDir(parsed.authorId, nextSlug);
   const currentDir = getPlaylistDir(parsed.authorId, parsed.slug);
   const nextDir = getPlaylistDir(parsed.authorId, nextSlug);
 
