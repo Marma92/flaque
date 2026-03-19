@@ -11,6 +11,9 @@ import { useLibraryData } from "./hooks/useLibraryData";
 import { usePlaybackCommands } from "./hooks/usePlaybackCommands";
 import { usePlaybackState } from "./hooks/usePlaybackState";
 import { useSessionRoutingState } from "./hooks/useSessionRoutingState";
+import { getTrackDisplayArtist, getTrackDisplayTitle } from "./utils/tracks";
+
+const DEFAULT_DOCUMENT_TITLE = "Flaque Hifi Player";
 
 export default function App(): JSX.Element {
   const {
@@ -181,6 +184,17 @@ export default function App(): JSX.Element {
       window.clearTimeout(timer);
     };
   }, [appNotice]);
+
+  useEffect(() => {
+    if (!selectedTrackRefreshed) {
+      document.title = DEFAULT_DOCUMENT_TITLE;
+      return;
+    }
+
+    const title = getTrackDisplayTitle(selectedTrackRefreshed);
+    const artist = getTrackDisplayArtist(selectedTrackRefreshed) ?? "Unknown artist";
+    document.title = `${title} - ${artist} | Flaque`;
+  }, [selectedTrackRefreshed]);
 
   async function handleLogout(): Promise<void> {
     await logout();
