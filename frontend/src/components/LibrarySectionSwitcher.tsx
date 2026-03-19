@@ -1,4 +1,4 @@
-type LibrarySection = "music" | "artists" | "albums" | "playlist";
+import type { LibrarySection } from "../types/library";
 
 type LibrarySectionSwitcherProps = {
   activeSection: LibrarySection;
