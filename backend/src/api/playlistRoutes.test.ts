@@ -206,6 +206,7 @@ describe("playlistRoutes", () => {
       "storage",
       "users",
       createdPlaylist.authorId,
+      "playlists",
       "my-playlist",
       "playlist.json"
     );
