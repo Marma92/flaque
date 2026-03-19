@@ -61,21 +61,22 @@ export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeade
           >
             <svg
               className="h-7 w-7"
-              viewBox="0 0 24 24"
+              viewBox="0 0 28 28"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="2.1"
               strokeLinecap="round"
               strokeLinejoin="round"
               aria-hidden="true"
             >
-              <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
-              <circle cx="10.5" cy="12.5" r="5.2" />
-              <circle cx="10.5" cy="12.5" r="2.2" />
-              <circle cx="10.5" cy="12.5" r="0.9" />
-              <path d="M15.8 7.7h2.8" />
-              <path d="M18.6 7.7v4.3a1.5 1.5 0 01-.44 1.06l-1.26 1.26" />
-              <path d="M16.6 14.3l1.1 1.1" />
+              <rect x="3" y="3" width="22" height="22" rx="3" />
+              <circle cx="11" cy="15" r="6" />
+              <circle cx="11" cy="15" r="2" />
+              <circle cx="11" cy="15" r="0.9" />
+              <path d="M18 8h4" />
+              <path d="M22 8v6" />
+              <path d="M22 14l-3 3" />
+              <path d="M19 17l2 2" />
             </svg>
           </button>
 
@@ -88,17 +89,17 @@ export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeade
           >
             <svg
               className="h-7 w-7"
-              viewBox="0 0 24 24"
+              viewBox="0 0 28 28"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="2.1"
               strokeLinecap="round"
               strokeLinejoin="round"
               aria-hidden="true"
             >
-              <path d="M12 16V6" />
-              <path d="M8.8 9.2L12 6l3.2 3.2" />
-              <path d="M5 16v2.2A1.8 1.8 0 006.8 20h10.4A1.8 1.8 0 0019 18.2V16" />
+              <path d="M14 19V8" />
+              <path d="M10 12l4-4 4 4" />
+              <path d="M6 19v3a2 2 0 002 2h12a2 2 0 002-2v-3" />
             </svg>
           </button>
 
@@ -112,24 +113,24 @@ export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeade
             >
               <svg
                 className="h-7 w-7"
-                viewBox="0 0 24 24"
+                viewBox="0 0 28 28"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="2.1"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 aria-hidden="true"
               >
-                <circle cx="12" cy="12" r="2.7" />
-                <circle cx="12" cy="12" r="6.2" />
-                <path d="M12 5.4v1.5" />
-                <path d="M12 17.1v1.5" />
-                <path d="M17.3 12h1.5" />
-                <path d="M5.2 12h1.5" />
-                <path d="M16.2 7.8l1.1-1.1" />
-                <path d="M6.7 17.3l1.1-1.1" />
-                <path d="M16.2 16.2l1.1 1.1" />
-                <path d="M6.7 6.7l1.1 1.1" />
+                <circle cx="14" cy="14" r="4" />
+                <circle cx="14" cy="14" r="8" />
+                <path d="M14 6V5" />
+                <path d="M14 23v-1" />
+                <path d="M22 14h1" />
+                <path d="M6 14H5" />
+                <path d="M20 8l1-1" />
+                <path d="M8 20l-1 1" />
+                <path d="M8 8L7 7" />
+                <path d="M20 20l1 1" />
               </svg>
             </button>
           ) : null}
