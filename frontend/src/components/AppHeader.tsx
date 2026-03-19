@@ -29,7 +29,7 @@ export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeade
             />
           </div>
           <h1 className="font-display text-base leading-tight text-flaque-ink sm:text-lg md:text-xl lg:text-2xl">
-            File-based Library Audio Query Engine
+            File-based Library Audio QUery Engine
           </h1>
         </div>
 
