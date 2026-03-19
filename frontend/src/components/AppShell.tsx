@@ -1,5 +1,6 @@
 import type { User } from "../types";
 import type { ViewName } from "../utils/appUtils";
+import { AccountView } from "./AccountView";
 import { AudioPlayer } from "./AudioPlayer";
 import { AppHeader } from "./AppHeader";
 import { AppStatusBanners, type AppNotice } from "./AppStatusBanners";
@@ -11,6 +12,7 @@ import { UploadView } from "./UploadView";
 type LibraryWorkspaceProps = Parameters<typeof LibraryWorkspace>[0];
 type UploadViewProps = Parameters<typeof UploadView>[0];
 type ConfigViewProps = Parameters<typeof ConfigView>[0];
+type AccountViewProps = Omit<Parameters<typeof AccountView>[0], "onLogout">;
 type AudioPlayerBaseProps = Omit<Parameters<typeof AudioPlayer>[0], "expanded" | "onArtworkClick">;
 
 type AppShellProps = {
@@ -19,12 +21,14 @@ type AppShellProps = {
   onViewChange: (view: ViewName) => void;
   onPlayerCollapse: () => void;
   onLogout: () => void;
+  avatarUrl: string;
   appNotice: AppNotice | null;
   libraryError: string | null;
   loadingLibrary: boolean;
   libraryWorkspaceProps: LibraryWorkspaceProps;
   uploadViewProps: UploadViewProps;
   configViewProps: ConfigViewProps;
+  accountViewProps: AccountViewProps;
   playerStatusMessage: string | null;
   audioPlayerProps: AudioPlayerBaseProps;
 };
@@ -38,12 +42,14 @@ export function AppShell({
   onViewChange,
   onPlayerCollapse,
   onLogout,
+  avatarUrl,
   appNotice,
   libraryError,
   loadingLibrary,
   libraryWorkspaceProps,
   uploadViewProps,
   configViewProps,
+  accountViewProps,
   playerStatusMessage,
   audioPlayerProps
 }: AppShellProps): JSX.Element {
@@ -60,7 +66,7 @@ export function AppShell({
             : "pb-[calc(2.5rem+env(safe-area-inset-bottom))]"
       }`}
     >
-      <AppHeader activeView={activeView} user={user} onViewChange={onViewChange} onLogout={onLogout} />
+      <AppHeader activeView={activeView} user={user} avatarUrl={avatarUrl} onViewChange={onViewChange} />
 
       <AppStatusBanners
         appNotice={appNotice}
@@ -73,6 +79,8 @@ export function AppShell({
       {activeView === "upload" ? <UploadView {...uploadViewProps} /> : null}
 
       {activeView === "config" && user.role === "admin" ? <ConfigView {...configViewProps} /> : null}
+
+      {activeView === "account" ? <AccountView {...accountViewProps} onLogout={onLogout} /> : null}
 
       {shouldRenderPlayer ? (
         <PlayerShell

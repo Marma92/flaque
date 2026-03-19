@@ -1,7 +1,7 @@
 import type { AlbumEntry, Track } from "../types";
 import { getTrackDisplayTitle } from "./tracks";
 
-export type ViewName = "library" | "upload" | "player" | "config";
+export type ViewName = "library" | "upload" | "player" | "config" | "account";
 
 export type StoredQueueSnapshot = {
   userId: string;
@@ -157,7 +157,7 @@ export function getAdjacentTrackInQueue(
  * Parse and validate the URL `view` query parameter.
  */
 export function parseViewParam(rawValue: string | null): ViewName | null {
-  if (rawValue === "library" || rawValue === "upload" || rawValue === "player" || rawValue === "config") {
+  if (rawValue === "library" || rawValue === "upload" || rawValue === "player" || rawValue === "config" || rawValue === "account") {
     return rawValue;
   }
 
