@@ -5,6 +5,7 @@ import multer from "multer";
 import { Router } from "express";
 
 import { requireAuth } from "../auth/middleware";
+import { appendTrackActivityLogEntries } from "../services/activity/trackActivityStore";
 import { mergeTrackMetadataOverrides } from "../services/indexer/metadataOverrideStore";
 import { IndexStore } from "../services/indexer/indexStore";
 import { extractAudioMetadata } from "../services/scanner/audioProbe";
@@ -387,6 +388,7 @@ export function createUploadRouter(indexStore: IndexStore): Router {
 
         const ownerUploadDir = await ensureOwnerUploadDir(ownerId);
         const uploadedTrackIds: string[] = [];
+        const newUploadTrackIds: string[] = [];
         const metadataOverridePatch: Record<string, { title?: string; artist?: string; album?: string }> = {};
         let deduplicated = 0;
 
@@ -454,6 +456,8 @@ export function createUploadRouter(indexStore: IndexStore): Router {
           const extension = sanitizeExtension(uploadedFile.originalname);
           const finalFileName = `${hash}${extension}`;
           const finalPath = path.join(albumDir, finalFileName);
+          const relativePath = toDataRelativePath(finalPath);
+          const trackId = createTrackId(ownerId, relativePath);
 
           const alreadyPresent = await fileExists(finalPath);
           if (alreadyPresent) {
@@ -461,10 +465,8 @@ export function createUploadRouter(indexStore: IndexStore): Router {
             await fs.unlink(uploadedFile.path);
           } else {
             await fs.rename(uploadedFile.path, finalPath);
+            newUploadTrackIds.push(trackId);
           }
-
-          const relativePath = toDataRelativePath(finalPath);
-          const trackId = createTrackId(ownerId, relativePath);
           await ensureTrackCover(trackId, metadata.cover);
           uploadedTrackIds.push(trackId);
 
@@ -489,6 +491,11 @@ export function createUploadRouter(indexStore: IndexStore): Router {
         const tracks = uploadedTrackIds
           .map((trackId) => updatedIndex.tracks.find((candidate) => candidate.id === trackId))
           .filter((track): track is Track => Boolean(track));
+        const newUploadTracks = newUploadTrackIds
+          .map((trackId) => updatedIndex.tracks.find((candidate) => candidate.id === trackId))
+          .filter((track): track is Track => Boolean(track));
+
+        await appendTrackActivityLogEntries(newUploadTracks);
 
         res.status(201).json({
           processed: uploadedFiles.length,
