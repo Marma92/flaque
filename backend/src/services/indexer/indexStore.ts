@@ -12,8 +12,24 @@ const EMPTY_INDEX: LibraryIndex = {
   playlists: []
 };
 
+function normalizeIndexKey(value?: string): string {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function getTrackArtist(track: Track): string | undefined {
+  return track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0];
+}
+
 export class IndexStore {
   private snapshot: LibraryIndex = EMPTY_INDEX;
+
+  private readonly tracksById = new Map<string, Track>();
+
+  private readonly tracksByOwner = new Map<string, Track[]>();
+
+  private readonly tracksByArtist = new Map<string, Track[]>();
+
+  private readonly tracksByAlbum = new Map<string, Track[]>();
 
   private rebuildPromise: Promise<LibraryIndex> | null = null;
 
@@ -21,15 +37,35 @@ export class IndexStore {
 
   async initialize(): Promise<void> {
     const loaded = await readJsonFile<LibraryIndex>(indexFilePath, EMPTY_INDEX);
-    this.snapshot = this.normalizeIndex(loaded);
+    this.updateSnapshot(loaded);
   }
 
   getSnapshot(): LibraryIndex {
     return this.snapshot;
   }
 
+  getTracks(): Track[] {
+    return this.snapshot.tracks;
+  }
+
   getTrackById(trackId: string): Track | undefined {
-    return this.snapshot.tracks.find((track) => track.id === trackId);
+    return this.tracksById.get(trackId);
+  }
+
+  hasTrack(trackId: string): boolean {
+    return this.tracksById.has(trackId);
+  }
+
+  getTracksByOwner(owner: string): Track[] {
+    return [...(this.tracksByOwner.get(normalizeIndexKey(owner)) ?? [])];
+  }
+
+  getTracksByArtist(artist: string): Track[] {
+    return [...(this.tracksByArtist.get(normalizeIndexKey(artist)) ?? [])];
+  }
+
+  getTracksByAlbum(album: string): Track[] {
+    return [...(this.tracksByAlbum.get(normalizeIndexKey(album)) ?? [])];
   }
 
   async rebuild(): Promise<LibraryIndex> {
@@ -41,8 +77,7 @@ export class IndexStore {
       const rebuilt = await scanFilesystemLibrary();
       await writeJsonAtomic(indexFilePath, rebuilt);
       await pruneTrackMetadataOverrides(rebuilt.tracks.map((track) => track.id));
-      this.snapshot = rebuilt;
-      return rebuilt;
+      return this.updateSnapshot(rebuilt);
     })();
 
     try {
@@ -70,8 +105,7 @@ export class IndexStore {
       };
 
       await writeJsonAtomic(indexFilePath, nextSnapshot);
-      this.snapshot = nextSnapshot;
-      return nextSnapshot;
+      return this.updateSnapshot(nextSnapshot);
     })();
 
     try {
@@ -92,5 +126,49 @@ export class IndexStore {
       tracks: index.tracks,
       playlists: Array.isArray(index.playlists) ? index.playlists : []
     };
+  }
+
+  private updateSnapshot(index: LibraryIndex): LibraryIndex {
+    const normalized = this.normalizeIndex(index);
+    this.snapshot = normalized;
+    this.rebuildTrackIndexes(normalized.tracks);
+    return normalized;
+  }
+
+  private rebuildTrackIndexes(tracks: Track[]): void {
+    this.tracksById.clear();
+    this.tracksByOwner.clear();
+    this.tracksByArtist.clear();
+    this.tracksByAlbum.clear();
+
+    for (const track of tracks) {
+      this.tracksById.set(track.id, track);
+      this.pushTrack(this.tracksByOwner, track.owner, track);
+
+      const artist = getTrackArtist(track);
+      if (artist) {
+        this.pushTrack(this.tracksByArtist, artist, track);
+      }
+
+      const album = track.tags.album;
+      if (album) {
+        this.pushTrack(this.tracksByAlbum, album, track);
+      }
+    }
+  }
+
+  private pushTrack(map: Map<string, Track[]>, key: string, track: Track): void {
+    const normalizedKey = normalizeIndexKey(key);
+    if (!normalizedKey) {
+      return;
+    }
+
+    const bucket = map.get(normalizedKey);
+    if (bucket) {
+      bucket.push(track);
+      return;
+    }
+
+    map.set(normalizedKey, [track]);
   }
 }
