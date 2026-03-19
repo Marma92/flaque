@@ -1,0 +1,1471 @@
+openapi: 3.1.0
+info:
+  title: Flaque API
+  version: 0.2.0
+  summary: API for the Flaque self-hosted audio platform
+  description: |
+    This specification documents the HTTP API exposed by the Flaque backend.
+
+    - Base URL defaults to `http://localhost:4000`
+    - Most endpoints require the `flaque_session` cookie obtained from `POST /api/auth/login`
+    - Admin-only endpoints are explicitly marked in endpoint descriptions
+servers:
+  - url: http://localhost:4000
+    description: Local development server
+security:
+  - cookieAuth: []
+tags:
+  - name: Health
+  - name: Auth
+  - name: Library
+  - name: Upload
+  - name: Streaming
+  - name: Covers
+  - name: Playlists
+  - name: Index
+  - name: Users
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+                required: [ok]
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate and create a session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful, session cookie is set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout and clear current session
+      responses:
+        "204":
+          $ref: "#/components/responses/NoContent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get authenticated user
+      responses:
+        "200":
+          description: Current authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/library:
+    get:
+      tags: [Library]
+      summary: Get library snapshot with optional filtering
+      parameters:
+        - $ref: "#/components/parameters/FilterOwner"
+        - $ref: "#/components/parameters/FilterArtist"
+        - $ref: "#/components/parameters/FilterAlbum"
+        - $ref: "#/components/parameters/FilterQuery"
+      responses:
+        "200":
+          description: Filtered library snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LibraryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/tracks:
+    get:
+      tags: [Library]
+      summary: List tracks with pagination and sorting
+      parameters:
+        - $ref: "#/components/parameters/TracksPage"
+        - $ref: "#/components/parameters/TracksLimit"
+        - $ref: "#/components/parameters/TracksSortBy"
+        - $ref: "#/components/parameters/TracksSortDir"
+        - $ref: "#/components/parameters/FilterOwner"
+        - $ref: "#/components/parameters/FilterArtist"
+        - $ref: "#/components/parameters/FilterAlbum"
+        - $ref: "#/components/parameters/FilterQuery"
+      responses:
+        "200":
+          description: Paginated tracks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TracksPageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/tracks/{id}:
+    patch:
+      tags: [Library]
+      summary: Patch track metadata (compat alias)
+      description: Admin only. Compatibility alias for `PATCH /api/tracks/{id}/metadata`.
+      parameters:
+        - $ref: "#/components/parameters/TrackId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrackMetadataPatchRequest"
+      responses:
+        "200":
+          description: Track metadata updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrackMetadataPatchResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Library]
+      summary: Delete track and rebuild index
+      description: Admin only.
+      parameters:
+        - $ref: "#/components/parameters/TrackId"
+      responses:
+        "200":
+          description: Track deleted and index rebuilt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteTrackResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/tracks/{id}/metadata:
+    patch:
+      tags: [Library]
+      summary: Patch track metadata
+      description: Admin only.
+      parameters:
+        - $ref: "#/components/parameters/TrackId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrackMetadataPatchRequest"
+      responses:
+        "200":
+          description: Track metadata updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrackMetadataPatchResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/tracks/{id}/adjacent:
+    get:
+      tags: [Library]
+      summary: Get adjacent track in filtered list
+      parameters:
+        - $ref: "#/components/parameters/TrackId"
+        - name: direction
+          in: query
+          description: Navigation direction
+          schema:
+            type: string
+            enum: [next, previous]
+            default: next
+        - name: wrap
+          in: query
+          description: Whether to wrap at queue boundaries
+          schema:
+            type: boolean
+            default: true
+        - $ref: "#/components/parameters/FilterOwner"
+        - $ref: "#/components/parameters/FilterArtist"
+        - $ref: "#/components/parameters/FilterAlbum"
+        - $ref: "#/components/parameters/FilterQuery"
+      responses:
+        "200":
+          description: Adjacent track response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdjacentTrackResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/artists:
+    get:
+      tags: [Library]
+      summary: List artists with optional filters
+      parameters:
+        - $ref: "#/components/parameters/FilterOwner"
+        - $ref: "#/components/parameters/FilterQuery"
+      responses:
+        "200":
+          description: Artists metadata list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArtistsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/albums:
+    get:
+      tags: [Library]
+      summary: List albums with optional filters
+      parameters:
+        - $ref: "#/components/parameters/FilterOwner"
+        - $ref: "#/components/parameters/FilterArtist"
+        - $ref: "#/components/parameters/FilterQuery"
+      responses:
+        "200":
+          description: Albums metadata list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlbumsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/album/{albumId}:
+    get:
+      tags: [Library]
+      summary: Get album details and tracks
+      parameters:
+        - name: albumId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Album details and tracks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlbumTracksResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/upload/inspect:
+    post:
+      tags: [Upload]
+      summary: Inspect one upload candidate without importing it
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        "200":
+          description: Parsed metadata preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadInspectResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/upload:
+    post:
+      tags: [Upload]
+      summary: Upload audio files and rebuild index
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Multiple files field
+                file:
+                  type: string
+                  format: binary
+                  description: Single file field (compat)
+                artist:
+                  type: string
+                  description: Default artist override for all uploaded tracks
+                album:
+                  type: string
+                  description: Default album override for all uploaded tracks
+                metadataOverrides:
+                  type: string
+                  description: |
+                    JSON-encoded array aligned with uploaded file order.
+                    Each item can contain `title`, `artist`, `album`.
+              anyOf:
+                - required: [files]
+                - required: [file]
+      responses:
+        "201":
+          description: Upload accepted, files processed and index rebuilt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadTracksResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/recent-uploads:
+    get:
+      tags: [Upload]
+      summary: Get recent upload activity
+      responses:
+        "200":
+          description: Recent uploaded tracks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecentUploadsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/tracks/{id}/stream:
+    get:
+      tags: [Streaming]
+      summary: Stream track audio with optional fallback transcoding
+      description: |
+        Supports HTTP range requests for source streaming.
+        Optional `transcode` values (`opus`, `mp3`) currently require FLAC source files.
+      parameters:
+        - $ref: "#/components/parameters/TrackId"
+        - name: transcode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [opus, mp3]
+      responses:
+        "200":
+          description: Full audio stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+            audio/ogg:
+              schema:
+                type: string
+                format: binary
+            audio/flac:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial content (range stream)
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/covers/from-path:
+    get:
+      tags: [Covers]
+      summary: Serve a cover image from a relative data path
+      parameters:
+        - name: path
+          in: query
+          required: true
+          description: Relative path under `DATA_ROOT`
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Image content
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+            image/gif:
+              schema:
+                type: string
+                format: binary
+            image/avif:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/covers/{id}:
+    get:
+      tags: [Covers]
+      summary: Serve cover image for a track id
+      parameters:
+        - $ref: "#/components/parameters/TrackId"
+      responses:
+        "200":
+          description: Image content
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+            image/gif:
+              schema:
+                type: string
+                format: binary
+            image/avif:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/playlists:
+    get:
+      tags: [Playlists]
+      summary: List playlists visible to the current user
+      responses:
+        "200":
+          description: Visible playlists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaylistListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Playlists]
+      summary: Create playlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePlaylistRequest"
+      responses:
+        "201":
+          description: Playlist created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaylistEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/playlists/{id}:
+    get:
+      tags: [Playlists]
+      summary: Get one playlist
+      parameters:
+        - $ref: "#/components/parameters/PlaylistId"
+      responses:
+        "200":
+          description: Playlist details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaylistEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Playlists]
+      summary: Replace playlist (full update)
+      parameters:
+        - $ref: "#/components/parameters/PlaylistId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplacePlaylistRequest"
+      responses:
+        "200":
+          description: Playlist replaced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaylistEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    patch:
+      tags: [Playlists]
+      summary: Patch playlist (partial update)
+      parameters:
+        - $ref: "#/components/parameters/PlaylistId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchPlaylistRequest"
+      responses:
+        "200":
+          description: Playlist patched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaylistEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      tags: [Playlists]
+      summary: Delete playlist
+      parameters:
+        - $ref: "#/components/parameters/PlaylistId"
+      responses:
+        "204":
+          $ref: "#/components/responses/NoContent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/index/rebuild:
+    post:
+      tags: [Index]
+      summary: Rebuild library index
+      description: Admin only.
+      responses:
+        "200":
+          description: Rebuild completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IndexRebuildResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/users:
+    get:
+      tags: [Users]
+      summary: List users
+      description: Admin only.
+      responses:
+        "200":
+          description: User list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Users]
+      summary: Create user
+      description: Admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/users/{id}:
+    patch:
+      tags: [Users]
+      summary: Patch user username and/or role
+      description: Admin only.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchUserRequest"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      tags: [Users]
+      summary: Delete user
+      description: Admin only.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204":
+          $ref: "#/components/responses/NoContent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/users/{id}/reset-password:
+    post:
+      tags: [Users]
+      summary: Reset user password
+      description: Admin only.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResetPasswordResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: flaque_session
+
+  parameters:
+    TrackId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    PlaylistId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    FilterOwner:
+      name: owner
+      in: query
+      required: false
+      schema:
+        type: string
+    FilterArtist:
+      name: artist
+      in: query
+      required: false
+      schema:
+        type: string
+    FilterAlbum:
+      name: album
+      in: query
+      required: false
+      schema:
+        type: string
+    FilterQuery:
+      name: q
+      in: query
+      required: false
+      schema:
+        type: string
+    TracksPage:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    TracksLimit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 100
+    TracksSortBy:
+      name: sortBy
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [title, artist, album, owner, duration, codec, bitrate, sampleRate, path]
+    TracksSortDir:
+      name: sortDir
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: asc
+
+  responses:
+    NoContent:
+      description: Request completed with no response body
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Authenticated but not allowed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    UserRole:
+      type: string
+      enum: [admin, user]
+
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        role:
+          $ref: "#/components/schemas/UserRole"
+      required: [id, username, role]
+
+    AuthUserEnvelope:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/AuthUser"
+      required: [user]
+
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required: [username, password]
+
+    TrackTagExtraValue:
+      anyOf:
+        - type: string
+        - type: number
+        - type: boolean
+        - type: array
+          items:
+            anyOf:
+              - type: string
+              - type: number
+              - type: boolean
+
+    TrackTags:
+      type: object
+      properties:
+        title:
+          type: string
+        artist:
+          type: string
+        artists:
+          type: array
+          items:
+            type: string
+        album:
+          type: string
+        albumArtist:
+          type: string
+        year:
+          type: integer
+        date:
+          type: string
+        originalDate:
+          type: string
+        genre:
+          type: array
+          items:
+            type: string
+        trackNumber:
+          type: integer
+        trackTotal:
+          type: integer
+        discNumber:
+          type: integer
+        discTotal:
+          type: integer
+        composer:
+          type: array
+          items:
+            type: string
+        lyricist:
+          type: array
+          items:
+            type: string
+        comment:
+          type: array
+          items:
+            type: string
+        bpm:
+          type: number
+        isrc:
+          type: array
+          items:
+            type: string
+        label:
+          type: array
+          items:
+            type: string
+        copyright:
+          type: string
+        language:
+          type: string
+        encodedBy:
+          type: string
+        extra:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/TrackTagExtraValue"
+      additionalProperties: true
+
+    Track:
+      type: object
+      properties:
+        id:
+          type: string
+        owner:
+          type: string
+        path:
+          type: string
+        duration:
+          type: number
+        mimeType:
+          type: string
+        codec:
+          type: string
+        bitrate:
+          type: number
+        sampleRate:
+          type: number
+        tags:
+          $ref: "#/components/schemas/TrackTags"
+        cover:
+          type: string
+      required: [id, owner, path, duration, mimeType, codec, tags]
+
+    LibrarySimpleArtistEntry:
+      type: object
+      properties:
+        name:
+          type: string
+        trackCount:
+          type: integer
+      required: [name, trackCount]
+
+    LibrarySimpleAlbumEntry:
+      type: object
+      properties:
+        name:
+          type: string
+        artist:
+          type: string
+        trackCount:
+          type: integer
+      required: [name, trackCount]
+
+    LibraryResponse:
+      type: object
+      properties:
+        generatedAt:
+          type: string
+        totalTracks:
+          type: integer
+        totalPlaylists:
+          type: integer
+        owners:
+          type: array
+          items:
+            type: string
+        artists:
+          type: array
+          items:
+            $ref: "#/components/schemas/LibrarySimpleArtistEntry"
+        albums:
+          type: array
+          items:
+            $ref: "#/components/schemas/LibrarySimpleAlbumEntry"
+        tracks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Track"
+        playlists:
+          type: array
+          items:
+            $ref: "#/components/schemas/Playlist"
+      required:
+        [generatedAt, totalTracks, totalPlaylists, owners, artists, albums, tracks, playlists]
+
+    TracksPageResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        totalPages:
+          type: integer
+        sortBy:
+          type: string
+        sortDir:
+          type: string
+          enum: [asc, desc]
+        tracks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Track"
+      required: [total, page, limit, totalPages, sortBy, sortDir, tracks]
+
+    AdjacentTrackResponse:
+      type: object
+      properties:
+        direction:
+          type: string
+          enum: [next, previous]
+        wrap:
+          type: boolean
+        sourceTrackId:
+          type: string
+        track:
+          oneOf:
+            - $ref: "#/components/schemas/Track"
+            - type: "null"
+      required: [direction, wrap, sourceTrackId, track]
+
+    TrackMetadataPatchRequest:
+      type: object
+      properties:
+        title:
+          type: [string, "null"]
+        artist:
+          type: [string, "null"]
+        album:
+          type: [string, "null"]
+      anyOf:
+        - required: [title]
+        - required: [artist]
+        - required: [album]
+
+    TrackMetadataPatchResponse:
+      type: object
+      properties:
+        track:
+          $ref: "#/components/schemas/Track"
+        warning:
+          type: string
+      required: [track]
+
+    DeleteTrackResponse:
+      type: object
+      properties:
+        deletedTrackId:
+          type: string
+        totalTracks:
+          type: integer
+      required: [deletedTrackId, totalTracks]
+
+    ArtistEntry:
+      type: object
+      properties:
+        name:
+          type: string
+        trackCount:
+          type: integer
+        photo:
+          type: string
+        previewTrackId:
+          type: string
+      required: [name, trackCount]
+
+    ArtistsResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+        artists:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArtistEntry"
+      required: [total, artists]
+
+    AlbumEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        artist:
+          type: string
+        artists:
+          type: array
+          items:
+            type: string
+        trackCount:
+          type: integer
+        cover:
+          type: string
+        previewTrackId:
+          type: string
+      required: [name, trackCount]
+
+    AlbumsResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+        albums:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlbumEntry"
+      required: [total, albums]
+
+    AlbumDetails:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        artist:
+          type: string
+        cover:
+          type: string
+        trackCount:
+          type: integer
+      required: [id, trackCount]
+
+    AlbumTracksResponse:
+      type: object
+      properties:
+        album:
+          $ref: "#/components/schemas/AlbumDetails"
+        tracks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Track"
+      required: [album, tracks]
+
+    UploadInspectResponse:
+      type: object
+      properties:
+        fileName:
+          type: string
+        size:
+          type: integer
+        mimeType:
+          type: string
+        duration:
+          type: number
+        codec:
+          type: string
+        bitrate:
+          type: number
+        sampleRate:
+          type: number
+        tags:
+          $ref: "#/components/schemas/TrackTags"
+        coverDataUrl:
+          type: string
+      required: [fileName, size, mimeType, duration, codec, tags]
+
+    UploadOverrides:
+      type: object
+      properties:
+        artist:
+          type: string
+        album:
+          type: string
+
+    UploadTracksResponse:
+      type: object
+      properties:
+        processed:
+          type: integer
+        uploaded:
+          type: integer
+        deduplicated:
+          type: integer
+        tracks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Track"
+        overrides:
+          $ref: "#/components/schemas/UploadOverrides"
+      required: [processed, uploaded, deduplicated, tracks, overrides]
+
+    RecentUploadsResponse:
+      type: object
+      properties:
+        tracks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Track"
+      required: [tracks]
+
+    PlaylistVisibility:
+      type: string
+      enum: [public, private]
+
+    Playlist:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        authorId:
+          type: string
+        visibility:
+          $ref: "#/components/schemas/PlaylistVisibility"
+        trackIds:
+          type: array
+          items:
+            type: string
+      required: [id, name, authorId, visibility, trackIds]
+
+    PlaylistWithTrackCount:
+      allOf:
+        - $ref: "#/components/schemas/Playlist"
+        - type: object
+          properties:
+            trackCount:
+              type: integer
+          required: [trackCount]
+
+    PlaylistEnvelope:
+      type: object
+      properties:
+        playlist:
+          $ref: "#/components/schemas/PlaylistWithTrackCount"
+      required: [playlist]
+
+    PlaylistListResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+        playlists:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlaylistWithTrackCount"
+      required: [total, playlists]
+
+    CreatePlaylistRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        visibility:
+          $ref: "#/components/schemas/PlaylistVisibility"
+        trackIds:
+          type: array
+          items:
+            type: string
+      required: [name]
+
+    ReplacePlaylistRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        visibility:
+          $ref: "#/components/schemas/PlaylistVisibility"
+        trackIds:
+          type: array
+          items:
+            type: string
+      required: [name, visibility, trackIds]
+
+    PatchPlaylistRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        visibility:
+          $ref: "#/components/schemas/PlaylistVisibility"
+        trackIds:
+          type: array
+          items:
+            type: string
+
+    IndexRebuildResponse:
+      type: object
+      properties:
+        generatedAt:
+          type: string
+        totalTracks:
+          type: integer
+        durationMs:
+          type: integer
+      required: [generatedAt, totalTracks, durationMs]
+
+    UserEnvelope:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/AuthUser"
+      required: [user]
+
+    UserListResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuthUser"
+      required: [users]
+
+    CreateUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+        password:
+          type: string
+          minLength: 8
+          maxLength: 256
+        role:
+          $ref: "#/components/schemas/UserRole"
+      required: [username, password]
+
+    PatchUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+        role:
+          $ref: "#/components/schemas/UserRole"
+      minProperties: 1
+
+    ResetPasswordRequest:
+      type: object
+      properties:
+        password:
+          type: string
+          minLength: 8
+          maxLength: 256
+      required: [password]
+
+    ResetPasswordResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        user:
+          $ref: "#/components/schemas/AuthUser"
+      required: [ok, user]

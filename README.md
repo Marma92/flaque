@@ -136,4 +136,14 @@ npm run build
 
 ## API Documentation
 
-Detailed API reference will be moved out of this README and published as an OpenAPI specification in a follow-up step.
+Detailed API reference is available as an OpenAPI specification at:
+
+- [docs/openapi.yaml](docs/openapi.yaml)
+
+You can preview it in tools such as Swagger Editor by importing the file, or run Swagger UI locally:
+
+```bash
+npm run docs:api
+```
+
+Then open `http://localhost:8080`.
