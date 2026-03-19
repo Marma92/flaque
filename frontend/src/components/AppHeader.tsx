@@ -42,11 +42,11 @@ export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeade
             />
           </button>
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-flaque-steel sm:text-xs">
+            <p className="text-[10px] tracking-[0.2em] text-flaque-steel sm:text-xs">
               File-based Library
             </p>
             <h1 className="font-display text-sm leading-tight text-flaque-ink sm:text-base md:text-lg">
-              Audio Query Engine
+              Audio QUery Engine
             </h1>
           </div>
         </div>
