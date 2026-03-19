@@ -6,40 +6,40 @@
 
 <p align="center"><strong>F</strong>ile-based <strong>L</strong>ibrary <strong>A</strong>udio <strong>QU</strong>ery <strong>E</strong>ngine</p>
 
-Flaque est un lecteur audio web auto-heberge, centre sur la musique locale et la qualite d'ecoute.
-Le projet assume un principe simple: vos fichiers restent la source de verite, l'application construit l'experience autour.
+Flaque is a self-hosted web audio player focused on local-first music libraries, hi-fi playback, and practical operations.
+The core principle is simple: your files stay the source of truth, and the app builds a modern listening experience around them.
 
-## Description / definitions
+## Description and Definitions
 
-| Terme | Definition |
+| Term | Definition |
 | --- | --- |
-| **Self-hosted** | L'application tourne chez vous (machine locale, NAS, VM ou serveur) et vous gardez le controle de vos donnees. |
-| **File-based library** | Les pistes audio sont stockees dans le systeme de fichiers, pas dans un blob opaque. |
-| **Index de bibliotheque** | Un index JSON derive des fichiers audio pour accelerer recherche, filtres et navigation. |
-| **FLAC-first** | Le flux original est privilegie; des fallbacks de transcodage peuvent etre proposes selon le contexte. |
-| **DATA_ROOT** | Racine des donnees runtime (utilisateurs, uploads, cache, index), separee du code source. |
+| **Self-hosted** | The app runs on your own machine, NAS, VM, or server. You keep control of data and operations. |
+| **File-based library** | Audio tracks are stored as regular files in the filesystem, not in an opaque media blob. |
+| **Library index** | A generated JSON index used to speed up filtering, browsing, and playback discovery. |
+| **FLAC-first** | Original quality is preferred whenever possible, with optional fallback transcoding when needed. |
+| **DATA_ROOT** | Runtime data root used for config DB, uploads, cache, and generated indexes. |
 
 ## Screenshot
 
-Capture de l'interface actuelle (ecran de connexion) :
+Current Player view with active playback:
 
-![Screenshot Flaque](docs/screenshots/app-login.png)
+![Flaque Player Screenshot](docs/screenshots/player-view.png)
 
-## Enjeux
+## Key Challenges
 
-- **Souverainete des donnees**: conserver la maitrise des fichiers audio et des metadonnees.
-- **Qualite audio + UX moderne**: concilier streaming hi-fi, navigation rapide et player utilisable au quotidien.
-- **Operabilite simple**: structure de donnees lisible, reproductible et inspectable.
-- **Multi-utilisateur sans complexite**: auth/sessions robustes avec roles admin/user.
-- **Evolution durable**: base technique claire pour iterer sur UX et gouvernance du projet.
+- **Data ownership**: keep full control over music files and metadata.
+- **Audio quality + UX**: combine hi-fi streaming with a clean, responsive interface.
+- **Operational simplicity**: keep runtime structure explicit, inspectable, and easy to backup.
+- **Multi-user access**: provide admin/user roles and durable sessions without heavyweight infrastructure.
+- **Long-term maintainability**: keep a codebase that can evolve safely with product and UX needs.
 
-## Comment builder
+## How to Build
 
-### Prerequis
+### Prerequisites
 
 - Node.js 20+
 - npm 10+
-- `ffmpeg` / `ffprobe` dans le `PATH`
+- `ffmpeg` / `ffprobe` available in `PATH`
 
 Debian/Ubuntu:
 
@@ -55,12 +55,12 @@ npm install
 cp backend/.env.example backend/.env
 ```
 
-Configurer au minimum dans `backend/.env`:
+Set at least the following values in `backend/.env`:
 
 - `ADMIN_USERNAME`
 - `ADMIN_PASSWORD`
 
-### Lancer en developpement
+### Run in development
 
 ```bash
 npm run dev
@@ -69,36 +69,36 @@ npm run dev
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:4000`
 
-### Builder et tester
+### Build and test
 
 ```bash
 npm run test
 npm run build
 ```
 
-### Build/deploiement production (Docker)
+### Production build/deployment (Docker)
 
 ```bash
 npm run prod:setup
 ```
 
-Puis cycle manuel:
+Then use the manual lifecycle commands:
 
 ```bash
 npm run prod:up
 npm run prod:down
 ```
 
-## Choix techniques
+## Technical Choices
 
-- **Monorepo npm workspaces** (`backend`, `frontend`) pour garder une evolution coherente produit/API/UI.
-- **Backend Node.js + Express + TypeScript** pour un service HTTP simple, type et facile a maintenir.
-- **SQLite (`better-sqlite3`)** pour les users/sessions: zero infra externe, fiable pour un usage self-hosted.
-- **Frontend React + Vite + Tailwind** pour iterer vite sur l'UX tout en gardant un bundle maitrise.
-- **Parsing audio avec `music-metadata` + `ffprobe`** pour extraire tags, qualite audio et covers.
-- **Stockage runtime sur filesystem** (`data/`) pour garder une topologie explicite et portable.
+- **npm workspaces monorepo** (`backend`, `frontend`) to keep product/API/UI changes aligned.
+- **Backend: Node.js + Express + TypeScript** for clear HTTP services with strong typing.
+- **SQLite (`better-sqlite3`)** for auth/session persistence with zero external infra.
+- **Frontend: React + Vite + Tailwind** for fast UX iteration and lightweight builds.
+- **Audio metadata extraction via `music-metadata` + `ffprobe`** for tags, codec info, and covers.
+- **Filesystem runtime storage** (`data/`) for portability, inspectability, and straightforward backups.
 
-Structure runtime (par defaut):
+Default runtime layout:
 
 ```text
 data/
@@ -116,24 +116,24 @@ data/
     library-index.json
 ```
 
-## Comment contribuer
+## How to Contribute
 
-1. **Creer une branche** depuis `master` (`feature/...`, `fix/...`, `ux-...`).
-2. **Developper en petites increments** avec des commits lisibles et focalises.
-3. **Verifier localement** avant PR:
+1. **Create a branch** from `master` (`feature/...`, `fix/...`, `ux-...`).
+2. **Work in small increments** with focused, readable commits.
+3. **Validate locally** before opening a PR:
 
 ```bash
 npm run test
 npm run build
 ```
 
-4. **Ouvrir une Pull Request** avec:
-   - contexte/probleme
-   - solution proposee
-   - impact UX/technique
-   - captures d'ecran si UI
-5. **Eviter de versionner `data/`** (runtime), sauf besoin explicite et justifie.
+4. **Open a Pull Request** including:
+   - problem/context
+   - proposed solution
+   - UX/technical impact
+   - screenshots for UI changes
+5. **Do not commit `data/` runtime artifacts** unless explicitly required and justified.
 
-## Documentation API
+## API Documentation
 
-La reference API detaillee sera sortie du README et publiee via une specification OpenAPI dans un second temps.
+Detailed API reference will be moved out of this README and published as an OpenAPI specification in a follow-up step.
