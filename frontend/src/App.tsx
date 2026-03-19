@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import {
-  getAdjacentTrack,
-  logout,
-} from "./api";
+import { logout } from "./api";
 import { AudioPlayer } from "./components/AudioPlayer";
 import { AppHeader } from "./components/AppHeader";
 import { AppStatusBanners, type AppNotice } from "./components/AppStatusBanners";
@@ -16,10 +13,9 @@ import { useAdminCommands } from "./hooks/useAdminCommands";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import { useLibraryCommands } from "./hooks/useLibraryCommands";
 import { useLibraryData } from "./hooks/useLibraryData";
+import { usePlaybackCommands } from "./hooks/usePlaybackCommands";
 import { usePlaybackState } from "./hooks/usePlaybackState";
 import { useSessionRoutingState } from "./hooks/useSessionRoutingState";
-import type { Playlist, Track } from "./types";
-import { getAdjacentTrackInQueue } from "./utils/appUtils";
 
 export default function App(): JSX.Element {
   const {
@@ -157,6 +153,26 @@ export default function App(): JSX.Element {
     setAppNotice
   });
 
+  const {
+    requestTrackPlaybackWithStatus,
+    handleReplayRecentTrack,
+    handlePlayPlaylist,
+    handleNavigateTrack
+  } = usePlaybackCommands({
+    selectedTrackRefreshed,
+    refreshedQueue,
+    shuffleEnabled,
+    allTracks: allTracksLibrary.tracks,
+    filters,
+    allTracksById,
+    requestTrackPlayback,
+    replayRecentTrack,
+    setSelectedTrack,
+    setPlayerStatusMessage,
+    setLibraryError,
+    setAppNotice
+  });
+
   useEffect(() => {
     if (!appNotice) {
       return;
@@ -180,96 +196,6 @@ export default function App(): JSX.Element {
     clearAdminState();
     setLibraryError(null);
     setAllTracksError(null);
-  }
-
-  async function handleNavigateTrack(direction: "next" | "previous", wrap = true): Promise<void> {
-    const currentTrack = selectedTrackRefreshed;
-    if (!currentTrack) {
-      return;
-    }
-
-    setPlayerStatusMessage(null);
-
-    if (shuffleEnabled && direction === "next") {
-      const shufflePool = refreshedQueue.length > 0 ? refreshedQueue : allTracksLibrary.tracks;
-      const shuffleCandidates = shufflePool.filter((track) => track.id !== currentTrack.id);
-
-      if (shuffleCandidates.length > 0) {
-        const randomIndex = Math.floor(Math.random() * shuffleCandidates.length);
-        const randomTrack = shuffleCandidates[randomIndex] ?? null;
-        if (randomTrack) {
-          setSelectedTrack(randomTrack);
-          return;
-        }
-      }
-
-      if (!wrap) {
-        setPlayerStatusMessage("Shuffle has no additional track in the current queue.");
-      }
-      return;
-    }
-
-    const nextTrackFromQueue = getAdjacentTrackInQueue(refreshedQueue, currentTrack.id, direction, wrap);
-    if (nextTrackFromQueue && nextTrackFromQueue.id !== currentTrack.id) {
-      setSelectedTrack(nextTrackFromQueue);
-      return;
-    }
-
-    try {
-      const adjacentTrack = await getAdjacentTrack({
-        trackId: currentTrack.id,
-        direction,
-        wrap,
-        owner: filters.owner,
-        artist: filters.artist,
-        album: filters.album,
-        q: filters.q
-      });
-
-      if (!adjacentTrack || adjacentTrack.id === currentTrack.id) {
-        if (!wrap) {
-          setPlayerStatusMessage(
-            direction === "next"
-              ? "You reached the end of the current queue."
-              : "You are already at the start of the current queue."
-          );
-        }
-        return;
-      }
-
-      setSelectedTrack(adjacentTrack);
-    } catch (error) {
-      setPlayerStatusMessage("Unable to change track right now.");
-      setLibraryError(error instanceof Error ? error.message : "Unable to navigate tracks");
-      setAppNotice({
-        tone: "error",
-        message: error instanceof Error ? error.message : "Unable to navigate tracks"
-      });
-    }
-  }
-
-  function requestTrackPlaybackWithStatus(track: Track, queueSource?: Track[]): void {
-    setPlayerStatusMessage(null);
-    requestTrackPlayback(track, queueSource);
-  }
-
-  function handleReplayRecentTrack(track: Track): void {
-    setPlayerStatusMessage(null);
-    replayRecentTrack(track);
-  }
-
-  function handlePlayPlaylist(playlist: Playlist): void {
-    const playlistTracks = playlist.trackIds
-      .map((trackId) => allTracksById.get(trackId))
-      .filter((track): track is Track => Boolean(track));
-
-    if (playlistTracks.length === 0) {
-      setLibraryError("This playlist has no playable tracks in the current index.");
-      return;
-    }
-
-    setLibraryError(null);
-    requestTrackPlaybackWithStatus(playlistTracks[0], playlistTracks);
   }
 
   const hasStickyPlayer = Boolean(selectedTrackRefreshed) && activeView !== "player";
