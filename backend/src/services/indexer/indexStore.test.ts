@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LibraryIndex, Playlist, Track } from "../../types/library";
 
 const {
+  mockFileExists,
   mockReadJsonFile,
   mockWriteJsonAtomic,
   mockPruneTrackMetadataOverrides,
   mockScanFilesystemLibrary,
   mockScanFilesystemPlaylists
 } = vi.hoisted(() => ({
+  mockFileExists: vi.fn(),
   mockReadJsonFile: vi.fn(),
   mockWriteJsonAtomic: vi.fn(),
   mockPruneTrackMetadataOverrides: vi.fn(),
@@ -17,8 +19,14 @@ const {
 }));
 
 vi.mock("../../utils/fs", () => ({
+  fileExists: mockFileExists,
   readJsonFile: mockReadJsonFile,
   writeJsonAtomic: mockWriteJsonAtomic
+}));
+
+vi.mock("../../utils/paths", () => ({
+  indexFilePath: "/data/index/library-index.json",
+  playlistsIndexFilePath: "/data/index/playlists-index.json"
 }));
 
 vi.mock("./metadataOverrideStore", () => ({
@@ -35,12 +43,7 @@ vi.mock("../playlists/playlistStore", () => ({
 
 import { IndexStore } from "./indexStore";
 
-function createTrack(
-  id: string,
-  owner: string,
-  artist: string,
-  album: string
-): Track {
+function createTrack(id: string, owner: string, artist: string, album: string): Track {
   return {
     id,
     owner,
@@ -56,6 +59,16 @@ function createTrack(
   };
 }
 
+function createPlaylist(id: string, trackIds: string[]): Playlist {
+  return {
+    id,
+    name: id,
+    authorId: "owner-1",
+    visibility: "private",
+    trackIds
+  };
+}
+
 function createSnapshot(tracks: Track[], playlists: Playlist[] = []): LibraryIndex {
   return {
     generatedAt: new Date().toISOString(),
@@ -67,11 +80,13 @@ function createSnapshot(tracks: Track[], playlists: Playlist[] = []): LibraryInd
 
 describe("IndexStore", () => {
   beforeEach(() => {
+    mockFileExists.mockReset();
     mockReadJsonFile.mockReset();
     mockWriteJsonAtomic.mockReset();
     mockPruneTrackMetadataOverrides.mockReset();
     mockScanFilesystemLibrary.mockReset();
     mockScanFilesystemPlaylists.mockReset();
+    mockFileExists.mockResolvedValue(false);
   });
 
   it("builds in-memory indexes from loaded snapshot", async () => {
@@ -114,15 +129,7 @@ describe("IndexStore", () => {
     const trackA = createTrack("track-a", "owner-1", "Artist One", "Album One");
     const trackB = createTrack("track-b", "owner-1", "Artist Two", "Album One");
     const baseSnapshot = createSnapshot([trackA, trackB], []);
-    const refreshedPlaylists: Playlist[] = [
-      {
-        id: "owner-1:favorites",
-        name: "Favorites",
-        authorId: "owner-1",
-        visibility: "private",
-        trackIds: ["track-a"]
-      }
-    ];
+    const refreshedPlaylists = [createPlaylist("owner-1:favorites", ["track-a"])];
 
     mockReadJsonFile.mockResolvedValue(baseSnapshot);
     mockScanFilesystemPlaylists.mockResolvedValue(refreshedPlaylists);
@@ -135,5 +142,90 @@ describe("IndexStore", () => {
     expect(refreshed.playlists).toEqual(refreshedPlaylists);
     expect(store.getTrackById("track-a")).toEqual(trackA);
     expect(store.getTracksByAlbum("album one")).toEqual([trackA, trackB]);
+  });
+
+  it("loads playlists from legacy library-index when playlists-index is missing", async () => {
+    const tracks = [createTrack("track-a", "owner-1", "Artist", "Album")];
+    const legacyPlaylists = [createPlaylist("legacy-playlist", ["track-a"])];
+    mockFileExists.mockResolvedValue(false);
+    mockReadJsonFile.mockImplementation(async (filePath: string, fallback: unknown) => {
+      if (filePath === "/data/index/library-index.json") {
+        return createSnapshot(tracks, legacyPlaylists);
+      }
+      return fallback;
+    });
+
+    const store = new IndexStore();
+    await store.initialize();
+
+    expect(store.getSnapshot().playlists).toEqual(legacyPlaylists);
+  });
+
+  it("refreshes playlists without rewriting library-index.json", async () => {
+    const tracks = [createTrack("track-a", "owner-1", "Artist", "Album")];
+    const expectedPlaylists = [createPlaylist("fresh-playlist", ["track-a"])];
+
+    mockFileExists.mockResolvedValue(false);
+    mockReadJsonFile.mockImplementation(async (filePath: string, fallback: unknown) => {
+      if (filePath === "/data/index/library-index.json") {
+        return {
+          generatedAt: "2026-03-19T10:00:00.000Z",
+          totalTracks: tracks.length,
+          tracks
+        };
+      }
+      return fallback;
+    });
+    mockScanFilesystemPlaylists.mockResolvedValue(expectedPlaylists);
+
+    const store = new IndexStore();
+    await store.initialize();
+    await store.refreshPlaylists();
+
+    expect(mockWriteJsonAtomic).toHaveBeenCalledTimes(1);
+    expect(mockWriteJsonAtomic).toHaveBeenCalledWith("/data/index/playlists-index.json", {
+      playlists: expectedPlaylists
+    });
+  });
+
+  it("keeps runtime snapshot coherent across split index files", async () => {
+    const tracks = [
+      createTrack("track-a", "owner-1", "Artist", "Album"),
+      createTrack("track-b", "owner-1", "Artist", "Album")
+    ];
+    const initialPlaylists = [createPlaylist("initial-playlist", ["track-a"])];
+    const refreshedPlaylists = [createPlaylist("refreshed-playlist", ["track-a", "track-b"])];
+
+    mockFileExists.mockResolvedValue(true);
+    mockReadJsonFile.mockImplementation(async (filePath: string, fallback: unknown) => {
+      if (filePath === "/data/index/library-index.json") {
+        return {
+          generatedAt: "2026-03-19T10:00:00.000Z",
+          totalTracks: tracks.length,
+          tracks
+        };
+      }
+
+      if (filePath === "/data/index/playlists-index.json") {
+        return { playlists: initialPlaylists };
+      }
+
+      return fallback;
+    });
+    mockScanFilesystemPlaylists.mockResolvedValue(refreshedPlaylists);
+
+    const store = new IndexStore();
+    await store.initialize();
+    expect(store.getSnapshot().playlists).toEqual(initialPlaylists);
+
+    const refreshed = await store.refreshPlaylists();
+
+    expect(refreshed).toMatchObject({
+      totalTracks: tracks.length,
+      tracks,
+      playlists: refreshedPlaylists
+    });
+    expect(store.getTrackById("track-a")).toEqual(tracks[0]);
+    expect(store.getSnapshot()).toEqual(refreshed);
   });
 });
