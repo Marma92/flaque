@@ -1,6 +1,13 @@
+import fs from "node:fs/promises";
+import type { Dirent } from "node:fs";
+import path from "node:path";
+
+import multer from "multer";
 import { Router } from "express";
+import sharp from "sharp";
 
 import {
+  createSession,
   countUsersByRole,
   createUser,
   deleteUserById,
@@ -12,13 +19,81 @@ import {
   updateUserUsername
 } from "../auth/db";
 import { requireAdmin, requireAuth } from "../auth/middleware";
+import { verifyPassword } from "../auth/password";
+import { getSessionTtlMs, setSessionCookie } from "../auth/session";
 import type { UserRole } from "../types/library";
+import { ensureDir, fileExists } from "../utils/fs";
+import { usersStorageRoot } from "../utils/paths";
 
 const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 32;
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_LENGTH = 256;
+const PROFILE_DIR_NAME = "profile";
+const PROFILE_PHOTO_BASE_NAME = "avatar";
+const PROFILE_PHOTO_FILE_NAME = `${PROFILE_PHOTO_BASE_NAME}.webp`;
+const PROFILE_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+const PROFILE_PHOTO_EXTENSIONS = [".webp", ".jpg", ".jpeg", ".png", ".gif", ".avif"];
+
+const profilePhotoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: PROFILE_PHOTO_MAX_BYTES,
+    files: 1
+  }
+});
+
+function getUserProfileDir(userId: string): string {
+  return path.join(usersStorageRoot, userId, PROFILE_DIR_NAME);
+}
+
+async function resolveUserProfilePhotoPath(userId: string): Promise<string | null> {
+  const profileDir = getUserProfileDir(userId);
+
+  const preferred = path.join(profileDir, PROFILE_PHOTO_FILE_NAME);
+  if (await fileExists(preferred)) {
+    return preferred;
+  }
+
+  for (const extension of PROFILE_PHOTO_EXTENSIONS) {
+    const candidate = path.join(profileDir, `${PROFILE_PHOTO_BASE_NAME}${extension}`);
+    const exists = await fileExists(candidate);
+    if (exists) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+async function removeExistingProfilePhotos(userId: string): Promise<void> {
+  const profileDir = getUserProfileDir(userId);
+
+  let entries: Dirent[];
+  try {
+    entries = await fs.readdir(profileDir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.startsWith(`${PROFILE_PHOTO_BASE_NAME}.`))
+      .map((entry) => fs.unlink(path.join(profileDir, entry.name)))
+  );
+}
+
+async function convertProfilePhotoToWebp(source: Buffer): Promise<Buffer> {
+  return sharp(source)
+    .rotate()
+    .resize(320, 320, {
+      fit: "cover",
+      position: "centre"
+    })
+    .webp({ quality: 90 })
+    .toBuffer();
+}
 
 function parseRoleForCreate(value: unknown): UserRole | null {
   if (value === undefined || value === null || value === "") {
@@ -58,6 +133,125 @@ function isSqliteUniqueError(error: unknown): boolean {
 
 export function createUserRouter(): Router {
   const router = Router();
+
+  router.get("/users/me/photo", requireAuth, async (req, res, next) => {
+    try {
+      const authUser = req.authUser;
+      if (!authUser) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const profilePhotoPath = await resolveUserProfilePhotoPath(authUser.id);
+      if (!profilePhotoPath) {
+        res.status(404).json({ error: "Profile photo not found" });
+        return;
+      }
+
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      res.sendFile(profilePhotoPath);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/users/me/photo", requireAuth, (req, res, next) => {
+    profilePhotoUpload.single("photo")(req, res, (error: unknown) => {
+      if (error) {
+        if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+          res.status(400).json({ error: `Profile photo must be <= ${Math.floor(PROFILE_PHOTO_MAX_BYTES / (1024 * 1024))} MB` });
+          return;
+        }
+
+        next(error);
+        return;
+      }
+
+      void (async () => {
+        const authUser = req.authUser;
+        if (!authUser) {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+
+        const file = req.file;
+        if (!file) {
+          res.status(400).json({ error: "photo file is required" });
+          return;
+        }
+
+        if (!file.mimetype.toLowerCase().startsWith("image/")) {
+          res.status(400).json({ error: "Unsupported image format" });
+          return;
+        }
+
+        let convertedBuffer: Buffer;
+        try {
+          convertedBuffer = await convertProfilePhotoToWebp(file.buffer);
+        } catch {
+          res.status(400).json({ error: "Invalid image file" });
+          return;
+        }
+
+        const profileDir = getUserProfileDir(authUser.id);
+        await ensureDir(profileDir);
+
+        const tmpPath = path.join(profileDir, `profile-photo-upload.${process.pid}.${Date.now()}.tmp`);
+        const targetPath = path.join(profileDir, PROFILE_PHOTO_FILE_NAME);
+
+        await fs.writeFile(tmpPath, convertedBuffer);
+        await removeExistingProfilePhotos(authUser.id);
+        await fs.rename(tmpPath, targetPath);
+
+        res.json({ ok: true });
+      })().catch(next);
+    });
+  });
+
+  router.post("/users/me/password", requireAuth, (req, res) => {
+    const currentPassword = typeof req.body?.currentPassword === "string" ? req.body.currentPassword : "";
+    const nextPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword : "";
+
+    if (currentPassword.length === 0) {
+      res.status(400).json({ error: "currentPassword is required" });
+      return;
+    }
+
+    if (nextPassword.length < PASSWORD_MIN_LENGTH || nextPassword.length > PASSWORD_MAX_LENGTH) {
+      res.status(400).json({
+        error: `Password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters`
+      });
+      return;
+    }
+
+    if (currentPassword === nextPassword) {
+      res.status(400).json({ error: "New password must be different from the current password" });
+      return;
+    }
+
+    const authUser = req.authUser;
+    if (!authUser) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const existingUser = findUserByUsername(authUser.username);
+    if (!existingUser || !verifyPassword(currentPassword, existingUser.password_hash)) {
+      res.status(401).json({ error: "Current password is invalid" });
+      return;
+    }
+
+    const updated = updateUserPassword(authUser.id, nextPassword);
+    if (!updated) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const newSession = createSession(authUser.id, getSessionTtlMs());
+    setSessionCookie(res, newSession.id, newSession.expiresAt);
+
+    res.json({ ok: true });
+  });
 
   router.get("/users", requireAuth, requireAdmin, (_req, res) => {
     res.json({ users: listUsers() });

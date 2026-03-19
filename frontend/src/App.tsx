@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { logout } from "./api";
+import { logout, myProfilePhotoUrl, updateMyPassword, uploadMyProfilePhoto } from "./api";
 import type { AppNotice } from "./components/AppStatusBanners";
 import { AppShell } from "./components/AppShell";
 import { LoginPage } from "./components/LoginPage";
@@ -32,6 +32,7 @@ export default function App(): JSX.Element {
   const [playerStatusMessage, setPlayerStatusMessage] = useState<string | null>(null);
   const [appNotice, setAppNotice] = useState<AppNotice | null>(null);
   const [playerReturnView, setPlayerReturnView] = useState<ViewName>("library");
+  const [avatarVersion, setAvatarVersion] = useState(0);
 
   const {
     filters,
@@ -134,6 +135,8 @@ export default function App(): JSX.Element {
     return Object.fromEntries(entries);
   }, [user, adminUsers]);
 
+  const avatarUrl = useMemo(() => myProfilePhotoUrl(avatarVersion), [avatarVersion]);
+
   const {
     handleUpload,
     handleInspectUploadFile,
@@ -227,10 +230,28 @@ export default function App(): JSX.Element {
     resetAfterLogout();
     setActiveLibrarySection("music");
     setPlayerReturnView("library");
+    setAvatarVersion(0);
     setFilters({});
     clearAdminState();
     setLibraryError(null);
     setAllTracksError(null);
+  }
+
+  async function handleUpdateProfilePhoto(file: File): Promise<void> {
+    await uploadMyProfilePhoto(file);
+    setAvatarVersion((current) => current + 1);
+    setAppNotice({
+      tone: "success",
+      message: "Profile photo updated"
+    });
+  }
+
+  async function handleUpdateOwnPassword(input: { currentPassword: string; newPassword: string }): Promise<void> {
+    await updateMyPassword(input);
+    setAppNotice({
+      tone: "success",
+      message: "Password updated"
+    });
   }
 
   if (!sessionChecked) {
@@ -248,6 +269,7 @@ export default function App(): JSX.Element {
       onViewChange={handleViewChange}
       onPlayerCollapse={handleCollapsePlayer}
       onLogout={handleLogout}
+      avatarUrl={avatarUrl}
       appNotice={appNotice}
       libraryError={libraryError}
       loadingLibrary={loadingLibrary}
@@ -300,6 +322,12 @@ export default function App(): JSX.Element {
         onPatchUser: handlePatchUser,
         onDeleteUser: handleDeleteUser,
         onResetUserPassword: handleResetUserPassword
+      }}
+      accountViewProps={{
+        user,
+        avatarUrl,
+        onUpdatePhoto: handleUpdateProfilePhoto,
+        onChangePassword: handleUpdateOwnPassword
       }}
       playerStatusMessage={playerStatusMessage}
       audioPlayerProps={{

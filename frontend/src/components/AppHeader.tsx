@@ -1,3 +1,5 @@
+import { useEffect, useMemo, useState } from "react";
+
 import type { User } from "../types";
 import type { ViewName } from "../utils/appUtils";
 import { Acronym } from "./HeaderAcronym";
@@ -5,20 +7,30 @@ import { Acronym } from "./HeaderAcronym";
 type AppHeaderProps = {
   activeView: ViewName;
   user: User;
+  avatarUrl: string;
   onViewChange: (view: ViewName) => void;
-  onLogout: () => void;
 };
 
 /**
  * Top-level application header with branding and primary navigation.
  */
-export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeaderProps): JSX.Element {
+export function AppHeader({ activeView, user, avatarUrl, onViewChange }: AppHeaderProps): JSX.Element {
   const navIconButtonClassName = (isActive: boolean): string =>
     `flex h-10 w-10 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 ${
       isActive
         ? "bg-flaque-ink/12 text-flaque-ink"
         : "text-flaque-steel hover:bg-flaque-cream/70 hover:text-flaque-ink"
     }`;
+
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const userInitial = useMemo(() => {
+    const trimmed = user.username.trim();
+    return (trimmed[0] ?? "U").toUpperCase();
+  }, [user.username]);
+
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [avatarUrl, user.id]);
 
   return (
     <header className="mb-4 rounded-3xl border border-flaque-clay/60 bg-white/80 px-5 py-4 shadow-panel backdrop-blur-sm">
@@ -143,11 +155,28 @@ export function AppHeader({ activeView, user, onViewChange, onLogout }: AppHeade
           ) : null}
 
           <button
-            className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream"
+            className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 ${
+              activeView === "account"
+                ? "bg-flaque-ink/12 ring-1 ring-flaque-ink/30"
+                : "bg-white text-flaque-steel hover:bg-flaque-cream/70"
+            }`}
             type="button"
-            onClick={onLogout}
+            aria-label="Account"
+            title={user.username}
+            onClick={() => onViewChange("account")}
           >
-            Logout ({user.username})
+            {avatarLoadFailed ? (
+              <span className="font-display text-sm text-flaque-ink">{userInitial}</span>
+            ) : (
+              <img
+                className="h-full w-full object-cover"
+                src={avatarUrl}
+                alt={`${user.username} profile`}
+                onError={() => {
+                  setAvatarLoadFailed(true);
+                }}
+              />
+            )}
           </button>
         </div>
       </div>

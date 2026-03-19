@@ -73,6 +73,45 @@ async function apiRequest(pathname: string, options: RequestInit = {}) {
   };
 }
 
+async function apiMultipartRequest(input: {
+  pathname: string;
+  cookie: string;
+  fileFieldName: string;
+  fileName: string;
+  mimeType: string;
+  bytes: number[];
+}) {
+  const formData = new FormData();
+  const binary = Uint8Array.from(input.bytes);
+  formData.append(input.fileFieldName, new Blob([binary.buffer as ArrayBuffer], { type: input.mimeType }), input.fileName);
+
+  const response = await fetch(`${baseUrl}${input.pathname}`, {
+    method: "POST",
+    headers: {
+      Cookie: input.cookie
+    },
+    body: formData
+  });
+
+  const text = await response.text();
+  let payload: unknown = undefined;
+
+  if (text) {
+    try {
+      payload = JSON.parse(text) as unknown;
+    } catch {
+      payload = text;
+    }
+  }
+
+  return {
+    status: response.status,
+    payload,
+    cookie: response.headers.get("set-cookie"),
+    contentType: response.headers.get("content-type")
+  };
+}
+
 async function login(username: string, password: string): Promise<string> {
   const response = await apiRequest("/api/auth/login", {
     method: "POST",
@@ -372,6 +411,121 @@ describe("userRoutes", () => {
 
     const newCookie = await login("carol", "carol-new-password");
     expect(newCookie).toContain("flaque_session=");
+  });
+
+  it("allows users to change their own password", async () => {
+    const adminCookie = await login("admin", "admin-secret-123");
+    await createUserAsAdmin({
+      adminCookie,
+      username: "marie",
+      password: "marie-old-password",
+      role: "user"
+    });
+
+    const userCookie = await login("marie", "marie-old-password");
+
+    const changeResponse = await apiRequest("/api/users/me/password", {
+      method: "POST",
+      headers: {
+        Cookie: userCookie
+      },
+      body: JSON.stringify({
+        currentPassword: "marie-old-password",
+        newPassword: "marie-new-password"
+      })
+    });
+
+    expect(changeResponse.status).toBe(200);
+    expect(changeResponse.cookie).toContain("flaque_session=");
+
+    const oldSessionResponse = await apiRequest("/api/auth/me", {
+      method: "GET",
+      headers: {
+        Cookie: userCookie
+      }
+    });
+    expect(oldSessionResponse.status).toBe(401);
+
+    const newSessionCookie = changeResponse.cookie?.split(";", 1)[0] ?? "";
+    expect(newSessionCookie).toContain("flaque_session=");
+
+    const meResponse = await apiRequest("/api/auth/me", {
+      method: "GET",
+      headers: {
+        Cookie: newSessionCookie
+      }
+    });
+    expect(meResponse.status).toBe(200);
+
+    const oldLoginResponse = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        username: "marie",
+        password: "marie-old-password"
+      })
+    });
+    expect(oldLoginResponse.status).toBe(401);
+
+    const newLoginResponse = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        username: "marie",
+        password: "marie-new-password"
+      })
+    });
+    expect(newLoginResponse.status).toBe(200);
+  });
+
+  it("stores and serves profile photos from the user folder", async () => {
+    const adminCookie = await login("admin", "admin-secret-123");
+    await createUserAsAdmin({
+      adminCookie,
+      username: "nina",
+      password: "nina-password",
+      role: "user"
+    });
+
+    const userCookie = await login("nina", "nina-password");
+    const userId = await currentUserId(userCookie);
+    const profileDir = path.join(dataRoot, "storage", "users", userId, "profile");
+    await fs.mkdir(profileDir, { recursive: true });
+    await fs.writeFile(path.join(profileDir, "avatar.png"), "legacy-avatar");
+
+    const tinyPng = Array.from(
+      Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+lm8sAAAAASUVORK5CYII=", "base64")
+    );
+
+    const uploadResponse = await apiMultipartRequest({
+      pathname: "/api/users/me/photo",
+      cookie: userCookie,
+      fileFieldName: "photo",
+      fileName: "avatar.png",
+      mimeType: "image/png",
+      bytes: tinyPng
+    });
+
+    expect(uploadResponse.status).toBe(200);
+    expect(uploadResponse.payload).toEqual({ ok: true });
+
+    const avatarPath = path.join(dataRoot, "storage", "users", userId, "profile", "avatar.webp");
+    const storedAvatar = await fs.readFile(avatarPath);
+    expect(storedAvatar.length).toBeGreaterThan(0);
+
+    const profileEntries = await fs.readdir(profileDir);
+    const avatarFiles = profileEntries.filter((entry) => entry.startsWith("avatar."));
+    expect(avatarFiles).toEqual(["avatar.webp"]);
+
+    const photoResponse = await fetch(`${baseUrl}/api/users/me/photo`, {
+      method: "GET",
+      headers: {
+        Cookie: userCookie
+      }
+    });
+
+    expect(photoResponse.status).toBe(200);
+    expect(photoResponse.headers.get("content-type")).toContain("image/webp");
+    const downloadedAvatar = Buffer.from(await photoResponse.arrayBuffer());
+    expect(downloadedAvatar.length).toBeGreaterThan(0);
   });
 
   it("prevents deleting own account and allows deleting another user", async () => {

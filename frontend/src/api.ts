@@ -80,6 +80,31 @@ export async function logout(): Promise<void> {
   });
 }
 
+export function myProfilePhotoUrl(version?: number): string {
+  const suffix = typeof version === "number" ? `?v=${version}` : "";
+  return withApiBase(`/api/users/me/photo${suffix}`);
+}
+
+export async function uploadMyProfilePhoto(file: File): Promise<void> {
+  const formData = new FormData();
+  formData.append("photo", file);
+
+  await requestJson<{ ok: boolean }>("/api/users/me/photo", {
+    method: "POST",
+    body: formData
+  });
+}
+
+export async function updateMyPassword(input: { currentPassword: string; newPassword: string }): Promise<void> {
+  await requestJson<{ ok: boolean }>("/api/users/me/password", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(input)
+  });
+}
+
 export async function getLibrary(filters: {
   owner?: string;
   artist?: string;
