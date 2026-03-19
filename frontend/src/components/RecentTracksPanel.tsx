@@ -20,12 +20,14 @@ export function RecentTracksPanel({ tracks, onTrackReplay }: RecentTracksPanelPr
     return null;
   }
 
+  const visibleTracks = tracks.slice(0, 12);
+
   return (
     <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
       <h2 className="font-display text-xl text-flaque-ink">Played Recently</h2>
 
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {tracks.map((track) => {
+        {visibleTracks.map((track) => {
           const title = getTrackDisplayTitle(track);
           const artist = getTrackDisplayArtist(track) ?? "Unknown artist";
           const albumWithYear = getTrackDisplayAlbumWithYear(track);
