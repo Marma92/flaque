@@ -1,14 +1,26 @@
-import type { LibraryIndex, Track } from "../../types/library";
-import { readJsonFile, writeJsonAtomic } from "../../utils/fs";
-import { indexFilePath } from "../../utils/paths";
+import type { LibraryIndex, Playlist, Track } from "../../types/library";
+import { fileExists, readJsonFile, writeJsonAtomic } from "../../utils/fs";
+import { indexFilePath, playlistsIndexFilePath } from "../../utils/paths";
 import { pruneTrackMetadataOverrides } from "./metadataOverrideStore";
 import { scanFilesystemLibrary } from "../scanner/scannerService";
 import { scanFilesystemPlaylists } from "../playlists/playlistStore";
+
+type PersistedLibraryIndex = Omit<LibraryIndex, "playlists"> & {
+  playlists?: Playlist[];
+};
+
+type PlaylistsIndex = {
+  playlists: Playlist[];
+};
 
 const EMPTY_INDEX: LibraryIndex = {
   generatedAt: "",
   totalTracks: 0,
   tracks: [],
+  playlists: []
+};
+
+const EMPTY_PLAYLISTS_INDEX: PlaylistsIndex = {
   playlists: []
 };
 
@@ -36,8 +48,19 @@ export class IndexStore {
   private playlistsRefreshPromise: Promise<LibraryIndex> | null = null;
 
   async initialize(): Promise<void> {
-    const loaded = await readJsonFile<LibraryIndex>(indexFilePath, EMPTY_INDEX);
-    this.updateSnapshot(loaded);
+    const loadedLibrary = await readJsonFile<PersistedLibraryIndex>(indexFilePath, EMPTY_INDEX);
+    const normalizedLibrary = this.normalizeIndex(loadedLibrary);
+    const hasPlaylistsIndex = await fileExists(playlistsIndexFilePath);
+    const loadedPlaylists = hasPlaylistsIndex
+      ? await readJsonFile<PlaylistsIndex>(playlistsIndexFilePath, EMPTY_PLAYLISTS_INDEX)
+      : null;
+
+    this.updateSnapshot({
+      ...normalizedLibrary,
+      playlists: hasPlaylistsIndex
+        ? this.normalizePlaylistsIndex(loadedPlaylists).playlists
+        : normalizedLibrary.playlists
+    });
   }
 
   getSnapshot(): LibraryIndex {
@@ -75,7 +98,7 @@ export class IndexStore {
 
     this.rebuildPromise = (async () => {
       const rebuilt = await scanFilesystemLibrary({ previousIndex: this.snapshot });
-      await writeJsonAtomic(indexFilePath, rebuilt);
+      await writeJsonAtomic(indexFilePath, this.toPersistedLibraryIndex(rebuilt));
       await pruneTrackMetadataOverrides(rebuilt.tracks.map((track) => track.id));
       return this.updateSnapshot(rebuilt);
     })();
@@ -104,7 +127,9 @@ export class IndexStore {
         playlists
       };
 
-      await writeJsonAtomic(indexFilePath, nextSnapshot);
+      await writeJsonAtomic(playlistsIndexFilePath, {
+        playlists: nextSnapshot.playlists ?? []
+      });
       return this.updateSnapshot(nextSnapshot);
     })();
 
@@ -115,7 +140,7 @@ export class IndexStore {
     }
   }
 
-  private normalizeIndex(index: LibraryIndex): LibraryIndex {
+  private normalizeIndex(index: PersistedLibraryIndex): LibraryIndex {
     if (!index || !Array.isArray(index.tracks)) {
       return EMPTY_INDEX;
     }
@@ -125,6 +150,24 @@ export class IndexStore {
       totalTracks: index.totalTracks ?? index.tracks.length,
       tracks: index.tracks,
       playlists: Array.isArray(index.playlists) ? index.playlists : []
+    };
+  }
+
+  private normalizePlaylistsIndex(index: PlaylistsIndex | null): PlaylistsIndex {
+    if (!index || !Array.isArray(index.playlists)) {
+      return EMPTY_PLAYLISTS_INDEX;
+    }
+
+    return {
+      playlists: index.playlists
+    };
+  }
+
+  private toPersistedLibraryIndex(index: LibraryIndex): PersistedLibraryIndex {
+    return {
+      generatedAt: index.generatedAt,
+      totalTracks: index.totalTracks,
+      tracks: index.tracks
     };
   }
 
