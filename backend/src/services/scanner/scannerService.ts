@@ -8,6 +8,13 @@ import { createAlbumId, createTrackId } from "../../utils/hash";
 import { getAudioMimeType, isSupportedAudioFile } from "../../utils/mime";
 import { getOwnerUploadsDir, resolveDataRelativePath } from "../../utils/paths";
 import { readTrackMetadataOverrides } from "../indexer/metadataOverrideStore";
+import {
+  ensureDirectoryMetadata,
+  fetchAlbumCoverPath,
+  fetchArtistPhotoPath,
+  normalizeDirectorySegment,
+  writeEmbeddedCoverToDirectory
+} from "../media/mediaMetadataService";
 import { extractAudioMetadata } from "./audioProbe";
 import { listOwnerIds, toDataRelativePath } from "../storage/storageService";
 import { ensureTrackCover } from "../storage/coverService";
@@ -15,10 +22,6 @@ import { scanFilesystemPlaylists } from "../playlists/playlistStore";
 
 const ARTIST_METADATA_FILE = "artist.json";
 const ALBUM_METADATA_FILE = "album.json";
-const AUDIO_DB_SEARCH_URL = "https://www.theaudiodb.com/api/v1/json/2/search.php";
-const AUDIO_DB_ALBUM_SEARCH_URL = "https://www.theaudiodb.com/api/v1/json/2/searchalbum.php";
-const ARTIST_PHOTO_BASE_NAME = "artist-photo";
-const ALBUM_COVER_BASE_NAME = "album-cover";
 const UNKNOWN_ARTIST = "Unknown Artist";
 const UNKNOWN_ALBUM = "Unknown Album";
 
@@ -57,149 +60,6 @@ function getTrackAlbum(track: Track): string {
 
 function getTrackTitle(track: Track): string {
   return track.tags.title ?? track.path;
-}
-
-function normalizeDirectorySegment(value: string): string {
-  const normalized = value
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .replace(/_+/g, "_");
-
-  return normalized || "unknown";
-}
-
-function pickImageExtension(contentType: string | null, sourceUrl: string): string {
-  const normalizedContentType = contentType?.toLowerCase().trim();
-  if (normalizedContentType === "image/png") {
-    return ".png";
-  }
-  if (normalizedContentType === "image/webp") {
-    return ".webp";
-  }
-  if (normalizedContentType === "image/jpeg" || normalizedContentType === "image/jpg") {
-    return ".jpg";
-  }
-
-  try {
-    const extension = path.extname(new URL(sourceUrl).pathname).toLowerCase();
-    if (extension === ".png" || extension === ".jpg" || extension === ".jpeg" || extension === ".webp") {
-      return extension === ".jpeg" ? ".jpg" : extension;
-    }
-  } catch {
-    return ".jpg";
-  }
-
-  return ".jpg";
-}
-
-function pickImageExtensionFromCoverFormat(format?: string): string {
-  const normalizedFormat = format?.toLowerCase().trim();
-  if (!normalizedFormat) {
-    return ".jpg";
-  }
-
-  if (normalizedFormat.includes("png")) {
-    return ".png";
-  }
-  if (normalizedFormat.includes("webp")) {
-    return ".webp";
-  }
-  if (normalizedFormat.includes("jpeg") || normalizedFormat.includes("jpg")) {
-    return ".jpg";
-  }
-
-  return ".jpg";
-}
-
-async function downloadImageToDirectory(
-  imageUrl: string,
-  targetDir: string,
-  fileBaseName: string
-): Promise<string | undefined> {
-  const response = await fetch(imageUrl);
-  if (!response.ok) {
-    return undefined;
-  }
-
-  const imageBuffer = Buffer.from(await response.arrayBuffer());
-  if (imageBuffer.length === 0) {
-    return undefined;
-  }
-
-  const extension = pickImageExtension(response.headers.get("content-type"), imageUrl);
-  const filePath = path.join(targetDir, `${fileBaseName}${extension}`);
-  await fs.writeFile(filePath, imageBuffer);
-  return toDataRelativePath(filePath);
-}
-
-async function writeEmbeddedCoverToDirectory(
-  cover: { data: Buffer; format?: string } | undefined,
-  targetDir: string,
-  fileBaseName: string
-): Promise<string | undefined> {
-  if (!cover?.data || cover.data.length === 0) {
-    return undefined;
-  }
-
-  const extension = pickImageExtensionFromCoverFormat(cover.format);
-  const filePath = path.join(targetDir, `${fileBaseName}${extension}`);
-  await fs.writeFile(filePath, cover.data);
-  return toDataRelativePath(filePath);
-}
-
-async function fetchArtistPhotoPath(artistName: string, artistDir: string): Promise<string | undefined> {
-  try {
-    const searchUrl = new URL(AUDIO_DB_SEARCH_URL);
-    searchUrl.searchParams.set("s", artistName);
-    const searchResponse = await fetch(searchUrl);
-    if (!searchResponse.ok) {
-      return undefined;
-    }
-
-    const payload = (await searchResponse.json()) as {
-      artists?: Array<{ strArtistThumb?: string | null }>;
-    };
-    const thumbUrl = payload.artists?.[0]?.strArtistThumb?.trim();
-    if (!thumbUrl) {
-      return undefined;
-    }
-
-    return await downloadImageToDirectory(thumbUrl, artistDir, ARTIST_PHOTO_BASE_NAME);
-  } catch {
-    return undefined;
-  }
-}
-
-async function fetchAlbumCoverPath(
-  artistName: string,
-  albumName: string,
-  albumDir: string
-): Promise<string | undefined> {
-  try {
-    const searchUrl = new URL(AUDIO_DB_ALBUM_SEARCH_URL);
-    searchUrl.searchParams.set("s", artistName);
-    searchUrl.searchParams.set("a", albumName);
-    const searchResponse = await fetch(searchUrl);
-    if (!searchResponse.ok) {
-      return undefined;
-    }
-
-    const payload = (await searchResponse.json()) as {
-      album?: Array<{ strAlbumThumb?: string | null }>;
-    };
-    const thumbUrl = payload.album?.[0]?.strAlbumThumb?.trim();
-    if (!thumbUrl) {
-      return undefined;
-    }
-
-    return await downloadImageToDirectory(thumbUrl, albumDir, ALBUM_COVER_BASE_NAME);
-  } catch {
-    return undefined;
-  }
 }
 
 async function hasArtistPhoto(metadata: ArtistMetadata): Promise<boolean> {
@@ -278,7 +138,7 @@ async function ensureAlbumCoverForTrack(
     return;
   }
 
-  const embeddedCoverPath = await writeEmbeddedCoverToDirectory(trackCover, albumDir, ALBUM_COVER_BASE_NAME);
+  const embeddedCoverPath = await writeEmbeddedCoverToDirectory(trackCover, albumDir, "album-cover");
   const coverPath = embeddedCoverPath ?? (await fetchAlbumCoverPath(artistName, existingName, albumDir));
   if (!coverPath) {
     if (!metadata) {
@@ -293,17 +153,6 @@ async function ensureAlbumCoverForTrack(
       path: coverPath
     }
   });
-}
-
-async function ensureDirectoryMetadata(directoryPath: string, metadataFileName: string, name: string): Promise<void> {
-  if (!(await fileExists(directoryPath))) {
-    await fs.mkdir(directoryPath, { recursive: true });
-  }
-
-  const metadataPath = path.join(directoryPath, metadataFileName);
-  if (!(await fileExists(metadataPath))) {
-    await writeJsonAtomic(metadataPath, { name });
-  }
 }
 
 async function flushAlbumMetadata(albums: Map<string, AlbumAggregate>): Promise<void> {
@@ -372,7 +221,7 @@ async function sortRootUploadFiles(
     const albumMetadataPath = path.join(albumDir, ALBUM_METADATA_FILE);
     const albumMetadata = await readJsonFile<AlbumMetadata | null>(albumMetadataPath, null);
     if (!albumMetadata || !(await hasAlbumCover(albumMetadata))) {
-      const embeddedCoverPath = await writeEmbeddedCoverToDirectory(metadata.cover, albumDir, ALBUM_COVER_BASE_NAME);
+      const embeddedCoverPath = await writeEmbeddedCoverToDirectory(metadata.cover, albumDir, "album-cover");
       if (embeddedCoverPath) {
         await writeJsonAtomic(albumMetadataPath, {
           name: albumMetadata?.name?.trim() ? albumMetadata.name : albumName,

@@ -8,6 +8,7 @@ import {
   ensureDefaultAdmin,
   initializeAuthDatabase
 } from "./auth/db";
+import { migrateLegacyPlaylists } from "./services/playlists/playlistStore";
 import { IndexStore } from "./services/indexer/indexStore";
 import { ensureBaseDirectories } from "./utils/fs";
 
@@ -15,6 +16,7 @@ const SESSION_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
 async function bootstrap(): Promise<void> {
   await ensureBaseDirectories();
+  await migrateLegacyPlaylists();
   initializeAuthDatabase();
 
   const seededAdmin = ensureDefaultAdmin();

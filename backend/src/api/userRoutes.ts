@@ -21,7 +21,7 @@ import {
 import { requireAdmin, requireAuth } from "../auth/middleware";
 import { verifyPassword } from "../auth/password";
 import { getSessionTtlMs, setSessionCookie } from "../auth/session";
-import type { UserRole } from "../types/library";
+import type { UserRole } from "../types/auth";
 import { ensureDir, fileExists } from "../utils/fs";
 import { usersStorageRoot } from "../utils/paths";
 

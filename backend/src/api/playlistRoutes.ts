@@ -151,7 +151,7 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         tracksById: getTracksById(snapshot.tracks)
       });
 
-      const rebuilt = await indexStore.rebuild();
+      const rebuilt = await indexStore.refreshPlaylists();
       const playlist = rebuilt.playlists?.find((item) => item.id === playlistId);
       if (!playlist) {
         res.status(500).json({ error: "Playlist was created but not found after reindex" });
@@ -223,7 +223,7 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         tracksById: getTracksById(snapshot.tracks)
       });
 
-      const rebuilt = await indexStore.rebuild();
+      const rebuilt = await indexStore.refreshPlaylists();
       const updated = rebuilt.playlists?.find(
         (item) => item.authorId === existing.authorId && item.name === name
       );
@@ -297,7 +297,7 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         tracksById: getTracksById(snapshot.tracks)
       });
 
-      const rebuilt = await indexStore.rebuild();
+      const rebuilt = await indexStore.refreshPlaylists();
       const updated = rebuilt.playlists?.find(
         (item) => item.authorId === existing.authorId && item.name === (name ?? existing.name)
       );
@@ -344,7 +344,7 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
       }
 
       await deleteFilesystemPlaylist(playlistId);
-      await indexStore.rebuild();
+      await indexStore.refreshPlaylists();
 
       res.status(204).send();
     } catch (error) {

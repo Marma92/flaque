@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 
-import type { AuthUser, UserRole } from "../types/library";
+import type { AuthUser, UserRole } from "../types/auth";
 import { createId } from "../utils/hash";
 import { usersDbPath } from "../utils/paths";
 import { hashPassword } from "./password";
