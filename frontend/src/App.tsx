@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  coverPathUrl,
   getAlbumTracks,
   getAlbums,
   getArtists,
-  coverUrl,
   createPlaylist,
   createUserAccount,
   deleteTrackFile,
@@ -26,15 +24,16 @@ import {
   type UploadTrackPreview,
   type UploadTracksResult
 } from "./api";
-import defaultCoverImage from "./assets/default-cover.png";
 import { AudioPlayer, type RepeatMode, type TranscodeMode } from "./components/AudioPlayer";
 import { AppHeader } from "./components/AppHeader";
 import { ConfigView } from "./components/ConfigView";
+import { LibraryAlbumsSection } from "./components/LibraryAlbumsSection";
+import { LibraryArtistsSection } from "./components/LibraryArtistsSection";
+import { LibraryPlaylistSection } from "./components/LibraryPlaylistSection";
 import { LibraryView } from "./components/LibraryView";
 import { LibrarySectionSwitcher } from "./components/LibrarySectionSwitcher";
 import { LoginPage } from "./components/LoginPage";
 import { RecentTracksPanel } from "./components/RecentTracksPanel";
-import { TrackList } from "./components/TrackList";
 import { UploadView } from "./components/UploadView";
 import type { AlbumEntry, ArtistEntry, LibraryResponse, Playlist, PlaylistVisibility, Track, TrackMetadataPatch, User } from "./types";
 import {
@@ -128,10 +127,6 @@ export default function App(): JSX.Element {
   const [loadingAdminUsers, setLoadingAdminUsers] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [recentTracks, setRecentTracks] = useState<Track[]>([]);
-  const [playlistCreateName, setPlaylistCreateName] = useState("");
-  const [playlistCreateVisibility, setPlaylistCreateVisibility] = useState<PlaylistVisibility>("private");
-  const [playlistCreateSubmitting, setPlaylistCreateSubmitting] = useState(false);
-  const [playlistCreateStatus, setPlaylistCreateStatus] = useState<string | null>(null);
   const [playerStatusMessage, setPlayerStatusMessage] = useState<string | null>(null);
   const [appNotice, setAppNotice] = useState<AppNotice | null>(null);
   const libraryRequestIdRef = useRef(0);
@@ -1044,240 +1039,40 @@ export default function App(): JSX.Element {
           <LibrarySectionSwitcher activeSection={activeLibrarySection} onSectionChange={setActiveLibrarySection} />
 
           {activeLibrarySection === "playlist" ? (
-            <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-              <h2 className="font-display text-xl text-flaque-ink">Create Playlist</h2>
-              <p className="mt-1 text-sm text-flaque-steel">
-                Create a file-based playlist folder next to uploads with a `playlist.json` and symlinks.
-              </p>
-
-              <form
-                className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  if (playlistCreateSubmitting) {
-                    return;
-                  }
-
-                  setPlaylistCreateSubmitting(true);
-                  setPlaylistCreateStatus(null);
-
-                  handleCreatePlaylist({
-                    name: playlistCreateName,
-                    visibility: playlistCreateVisibility
-                  })
-                    .then(() => {
-                      setPlaylistCreateName("");
-                      setPlaylistCreateStatus("Playlist created.");
-                    })
-                    .catch((error) => {
-                      setPlaylistCreateStatus(error instanceof Error ? error.message : "Unable to create playlist");
-                    })
-                    .finally(() => {
-                      setPlaylistCreateSubmitting(false);
-                    });
-                }}
-              >
-                <input
-                  className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-                  type="text"
-                  placeholder="Playlist name"
-                  value={playlistCreateName}
-                  onChange={(event) => setPlaylistCreateName(event.target.value)}
-                />
-                <select
-                  className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-                  value={playlistCreateVisibility}
-                  onChange={(event) => setPlaylistCreateVisibility(event.target.value as PlaylistVisibility)}
-                >
-                  <option value="private">Private</option>
-                  <option value="public">Public</option>
-                </select>
-                <button
-                  className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
-                  type="submit"
-                  disabled={playlistCreateSubmitting}
-                >
-                  {playlistCreateSubmitting ? "Creating..." : "Create"}
-                </button>
-              </form>
-
-              {playlistCreateStatus ? (
-                <p className="mt-2 text-sm text-flaque-steel">{playlistCreateStatus}</p>
-              ) : null}
-
-              <div className="mt-4">
-                <h3 className="font-display text-lg text-flaque-ink">Playlists</h3>
-                {availablePlaylists.length === 0 ? (
-                  <p className="mt-2 text-sm text-flaque-steel">No playlists yet.</p>
-                ) : (
-                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {availablePlaylists.map((playlist) => {
-                      const playlistOwner = ownerNameById[playlist.authorId] ?? playlist.authorId;
-                      return (
-                        <button
-                          key={playlist.id}
-                          className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/40 px-3 py-2 text-left transition hover:bg-flaque-cream"
-                          type="button"
-                          onClick={() => handlePlayPlaylist(playlist)}
-                          title={`Play playlist ${playlist.name}`}
-                        >
-                          <p className="truncate text-sm font-medium text-flaque-ink">{playlist.name}</p>
-                          <p className="truncate text-xs text-flaque-steel">
-                            {playlist.trackIds.length} track{playlist.trackIds.length > 1 ? "s" : ""} - {playlist.visibility} - {playlistOwner}
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </section>
+            <LibraryPlaylistSection
+              availablePlaylists={availablePlaylists}
+              ownerNameById={ownerNameById}
+              onCreatePlaylist={handleCreatePlaylist}
+              onPlayPlaylist={handlePlayPlaylist}
+            />
           ) : null}
 
           {activeLibrarySection === "artists" ? (
-            <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-              <h2 className="font-display text-xl text-flaque-ink">Artists</h2>
-              <p className="mt-1 text-sm text-flaque-steel">Artist list from `/api/artists` based on your current owner/search filters.</p>
-
-              {libraryMetadataError ? (
-                <p className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{libraryMetadataError}</p>
-              ) : null}
-
-              {loadingLibraryArtists ? (
-                <p className="mt-3 text-sm text-flaque-steel">Loading artists...</p>
-              ) : libraryArtists.length === 0 ? (
-                <p className="mt-3 text-sm text-flaque-steel">No artists found for these filters.</p>
-              ) : (
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {libraryArtists.map((artist) => {
-                    const artistPhoto = artist.photo
-                      ? coverPathUrl(artist.photo)
-                      : artist.previewTrackId
-                        ? coverUrl(artist.previewTrackId)
-                        : defaultCoverImage;
-                    return (
-                      <div
-                        key={artist.name}
-                        className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 px-3 py-2"
-                        title={artist.name}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <img
-                            className="h-11 w-11 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
-                            src={artistPhoto}
-                            alt={`Artwork for ${artist.name}`}
-                            onError={(event) => {
-                              event.currentTarget.src = defaultCoverImage;
-                            }}
-                          />
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-flaque-ink">{artist.name}</p>
-                            <p className="text-xs text-flaque-steel">
-                              {artist.trackCount} track{artist.trackCount > 1 ? "s" : ""}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
+            <LibraryArtistsSection
+              libraryMetadataError={libraryMetadataError}
+              loadingArtists={loadingLibraryArtists}
+              artists={libraryArtists}
+            />
           ) : null}
 
           {activeLibrarySection === "albums" ? (
-            <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-              <h2 className="font-display text-xl text-flaque-ink">Albums</h2>
-              <p className="mt-1 text-sm text-flaque-steel">Album list from `/api/albums` based on your current owner/artist/search filters.</p>
-
-              {libraryMetadataError ? (
-                <p className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{libraryMetadataError}</p>
-              ) : null}
-
-              {loadingLibraryAlbums ? (
-                <p className="mt-3 text-sm text-flaque-steel">Loading albums...</p>
-              ) : libraryAlbums.length === 0 ? (
-                <p className="mt-3 text-sm text-flaque-steel">No albums found for these filters.</p>
-              ) : (
-                <>
-                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {libraryAlbums.map((album) => {
-                      const selected = selectedAlbum ? getAlbumKey(selectedAlbum) === getAlbumKey(album) : false;
-
-                      return (
-                        <button
-                          key={`${album.artist ?? "unknown"}-${album.name}`}
-                          className={`rounded-xl border px-3 py-2 text-left transition ${
-                            selected
-                              ? "border-flaque-ink bg-flaque-sand/25"
-                              : "border-flaque-clay/60 bg-flaque-cream/45 hover:bg-flaque-cream"
-                          }`}
-                          type="button"
-                          onClick={() => {
-                            setSelectedAlbum(album);
-                            setSelectedAlbumTracks([]);
-                            setSelectedAlbumTracksError(null);
-                          }}
-                          title={album.artist ? `${album.artist} - ${album.name}` : album.name}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <img
-                              className="h-11 w-11 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
-                              src={
-                                album.cover
-                                  ? coverPathUrl(album.cover)
-                                  : album.previewTrackId
-                                    ? coverUrl(album.previewTrackId)
-                                    : defaultCoverImage
-                              }
-                              alt={album.artist ? `Cover for ${album.artist} - ${album.name}` : `Cover for ${album.name}`}
-                              onError={(event) => {
-                                event.currentTarget.src = defaultCoverImage;
-                              }}
-                            />
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-flaque-ink">{album.name}</p>
-                              <p className="truncate text-xs text-flaque-steel">{album.artist ?? "Unknown artist"}</p>
-                              <p className="text-xs text-flaque-steel/90">
-                                {album.trackCount} track{album.trackCount > 1 ? "s" : ""}
-                              </p>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {selectedAlbum ? (
-                    <div className="mt-4 overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/75">
-                      <div className="border-b border-flaque-clay/55 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.14em] text-flaque-steel">Album tracks</p>
-                        <p
-                          className="truncate text-sm text-flaque-ink"
-                          title={selectedAlbum.artist ? `${selectedAlbum.artist} - ${selectedAlbum.name}` : selectedAlbum.name}
-                        >
-                          {selectedAlbum.artist ? `${selectedAlbum.artist} - ${selectedAlbum.name}` : selectedAlbum.name}
-                        </p>
-                        {loadingSelectedAlbumTracks ? (
-                          <p className="mt-1 text-xs text-flaque-steel">Loading album tracks...</p>
-                        ) : null}
-                        {selectedAlbumTracksError ? (
-                          <p className="mt-1 text-xs text-red-700">{selectedAlbumTracksError}</p>
-                        ) : null}
-                      </div>
-
-                      <TrackList
-                        tracks={selectedAlbumTracks}
-                        currentTrackId={selectedTrackRefreshed?.id}
-                        ownerNameById={ownerNameById}
-                        onTrackSelect={(track) => requestTrackPlayback(track, selectedAlbumTracks)}
-                        emptyMessage="No tracks found for this album."
-                      />
-                    </div>
-                  ) : null}
-                </>
-              )}
-            </section>
+            <LibraryAlbumsSection
+              libraryMetadataError={libraryMetadataError}
+              loadingAlbums={loadingLibraryAlbums}
+              albums={libraryAlbums}
+              selectedAlbum={selectedAlbum}
+              selectedAlbumTracks={selectedAlbumTracks}
+              loadingSelectedAlbumTracks={loadingSelectedAlbumTracks}
+              selectedAlbumTracksError={selectedAlbumTracksError}
+              currentTrackId={selectedTrackRefreshed?.id}
+              ownerNameById={ownerNameById}
+              onAlbumSelect={(album) => {
+                setSelectedAlbum(album);
+                setSelectedAlbumTracks([]);
+                setSelectedAlbumTracksError(null);
+              }}
+              onTrackSelect={(track) => requestTrackPlayback(track, selectedAlbumTracks)}
+            />
           ) : null}
 
           {activeLibrarySection === "music" ? (
