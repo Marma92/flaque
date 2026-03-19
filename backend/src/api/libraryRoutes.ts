@@ -64,6 +64,10 @@ function normalizeQueryValue(value: unknown): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+function normalizeIndexKey(value?: string): string {
+  return (value ?? "").trim().toLowerCase();
+}
+
 function parsePositiveInteger(
   value: unknown,
   fallback: number,
@@ -263,6 +267,70 @@ function mapTrackOwners(tracks: Track[], ownerNamesById: Map<string, string>): T
   return tracks.map((track) => mapTrackOwner(track, ownerNamesById));
 }
 
+function intersectTracks(left: Track[], right: Track[]): Track[] {
+  if (left.length === 0 || right.length === 0) {
+    return [];
+  }
+
+  if (left.length > right.length) {
+    return intersectTracks(right, left);
+  }
+
+  const rightById = new Set(right.map((track) => track.id));
+  return left.filter((track) => rightById.has(track.id));
+}
+
+function collectTracksByOwnerFilter(
+  indexStore: IndexStore,
+  ownerFilter: string,
+  ownerNamesById: Map<string, string>
+): Track[] {
+  const normalizedOwner = normalizeIndexKey(ownerFilter);
+  const ownerIds = new Set<string>([ownerFilter]);
+
+  for (const [ownerId, ownerName] of ownerNamesById) {
+    if (
+      normalizeIndexKey(ownerId) === normalizedOwner ||
+      normalizeIndexKey(ownerName) === normalizedOwner
+    ) {
+      ownerIds.add(ownerId);
+    }
+  }
+
+  const tracksById = new Map<string, Track>();
+  for (const ownerId of ownerIds) {
+    for (const track of indexStore.getTracksByOwner(ownerId)) {
+      tracksById.set(track.id, track);
+    }
+  }
+
+  return Array.from(tracksById.values());
+}
+
+function selectIndexedTracks(
+  indexStore: IndexStore,
+  filter: Pick<LibraryFilter, "owner" | "artist" | "album">,
+  ownerNamesById: Map<string, string>
+): Track[] {
+  let tracks: Track[] | null = null;
+
+  if (filter.owner) {
+    tracks = collectTracksByOwnerFilter(indexStore, filter.owner, ownerNamesById);
+  }
+
+  if (filter.artist) {
+    const artistTracks = indexStore.getTracksByArtist(filter.artist);
+    tracks = tracks ? intersectTracks(tracks, artistTracks) : artistTracks;
+  }
+
+  if (filter.album) {
+    const albumTracks = indexStore.getTracksByAlbum(filter.album);
+    tracks = tracks ? intersectTracks(tracks, albumTracks) : albumTracks;
+  }
+
+  return tracks ?? indexStore.getTracks();
+}
+
 export function createLibraryRouter(indexStore: IndexStore): Router {
   const router = Router();
 
@@ -325,9 +393,9 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
         [trackId]: nextOverride
       });
 
-      const rebuiltIndex = await indexStore.rebuild();
+      await indexStore.rebuild();
       const ownerNamesById = getOwnerNamesById();
-      const updatedTrack = rebuiltIndex.tracks.find((track) => track.id === trackId);
+      const updatedTrack = indexStore.getTrackById(trackId);
       if (updatedTrack) {
         res.json({ track: mapTrackResponse(mapTrackOwner(updatedTrack, ownerNamesById)) });
         return;
@@ -354,8 +422,9 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
   router.get("/library", requireAuth, (req, res) => {
     const snapshot = indexStore.getSnapshot();
     const ownerNamesById = getOwnerNamesById();
-    const tracksWithOwnerNames = mapTrackOwners(snapshot.tracks, ownerNamesById);
     const filter = readFilter(req.query as Record<string, unknown>);
+    const indexedTracks = selectIndexedTracks(indexStore, filter, ownerNamesById);
+    const tracksWithOwnerNames = mapTrackOwners(indexedTracks, ownerNamesById);
     const tracks = filterTracks(tracksWithOwnerNames, filter).map(mapTrackResponse);
     const playlists = req.authUser
       ? filterPlayablePlaylists(snapshot.playlists ?? [], req.authUser)
@@ -380,8 +449,9 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       return;
     }
 
-    const snapshot = indexStore.getSnapshot();
-    const tracksWithOwnerNames = mapTrackOwners(snapshot.tracks, getOwnerNamesById());
+    const ownerNamesById = getOwnerNamesById();
+    const indexedTracks = selectIndexedTracks(indexStore, parsedQuery.filter, ownerNamesById);
+    const tracksWithOwnerNames = mapTrackOwners(indexedTracks, ownerNamesById);
     const filteredTracks = filterTracks(tracksWithOwnerNames, parsedQuery.filter);
     const sortedTracks = parsedQuery.sortBy
       ? sortTracks(filteredTracks, parsedQuery.sortBy, parsedQuery.sortDir)
@@ -413,15 +483,15 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
     }
 
     const wrap = readWrap(req.query.wrap);
-    const snapshot = indexStore.getSnapshot();
-    const tracksWithOwnerNames = mapTrackOwners(snapshot.tracks, getOwnerNamesById());
-    const existsInLibrary = tracksWithOwnerNames.some((track) => track.id === trackId);
-    if (!existsInLibrary) {
+    if (!indexStore.hasTrack(trackId)) {
       res.status(404).json({ error: "Track not found" });
       return;
     }
 
+    const ownerNamesById = getOwnerNamesById();
     const filter = readFilter(req.query as Record<string, unknown>);
+    const indexedTracks = selectIndexedTracks(indexStore, filter, ownerNamesById);
+    const tracksWithOwnerNames = mapTrackOwners(indexedTracks, ownerNamesById);
     const filteredTracks = filterTracks(tracksWithOwnerNames, filter);
     const adjacentTrack = getAdjacentTrack(filteredTracks, trackId, direction, wrap);
 
@@ -476,9 +546,10 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
 
   router.get("/artists", requireAuth, async (req, res, next) => {
     try {
-      const snapshot = indexStore.getSnapshot();
-      const tracksWithOwnerNames = mapTrackOwners(snapshot.tracks, getOwnerNamesById());
+      const ownerNamesById = getOwnerNamesById();
       const filter = readFilter(req.query as Record<string, unknown>);
+      const indexedTracks = selectIndexedTracks(indexStore, { owner: filter.owner }, ownerNamesById);
+      const tracksWithOwnerNames = mapTrackOwners(indexedTracks, ownerNamesById);
       const tracks = filterTracks(tracksWithOwnerNames, {
         owner: filter.owner,
         q: filter.q
@@ -492,9 +563,10 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
 
   router.get("/albums", requireAuth, async (req, res, next) => {
     try {
-      const snapshot = indexStore.getSnapshot();
-      const tracksWithOwnerNames = mapTrackOwners(snapshot.tracks, getOwnerNamesById());
+      const ownerNamesById = getOwnerNamesById();
       const filter = readFilter(req.query as Record<string, unknown>);
+      const indexedTracks = selectIndexedTracks(indexStore, filter, ownerNamesById);
+      const tracksWithOwnerNames = mapTrackOwners(indexedTracks, ownerNamesById);
       const tracks = filterTracks(tracksWithOwnerNames, {
         owner: filter.owner,
         artist: filter.artist,
@@ -515,11 +587,16 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
         return;
       }
 
-      const snapshot = indexStore.getSnapshot();
-      const tracksWithOwnerNames = mapTrackOwners(snapshot.tracks, getOwnerNamesById());
       const collaborativeAlbum = parseCollaborativeAlbumId(albumId);
+      const ownerNamesById = getOwnerNamesById();
 
       if (collaborativeAlbum) {
+        const indexedTracks = selectIndexedTracks(
+          indexStore,
+          { owner: collaborativeAlbum.owner },
+          ownerNamesById
+        );
+        const tracksWithOwnerNames = mapTrackOwners(indexedTracks, ownerNamesById);
         const collaborativeTracks = tracksWithOwnerNames.filter((track) => {
           if (track.owner !== collaborativeAlbum.owner) {
             return false;
@@ -555,6 +632,8 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
         });
         return;
       }
+
+      const tracksWithOwnerNames = mapTrackOwners(indexStore.getTracks(), ownerNamesById);
 
       const metadataCache = new Map<string, ResolvedAlbumMetadata | undefined>();
       const albumTracks: Track[] = [];

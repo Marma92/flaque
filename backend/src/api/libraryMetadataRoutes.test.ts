@@ -19,24 +19,91 @@ type FakeIndexStoreOptions = {
 class FakeIndexStore {
   private snapshot: LibraryIndex;
 
+  private tracksById = new Map<string, Track>();
+
+  private tracksByOwner = new Map<string, Track[]>();
+
+  private tracksByArtist = new Map<string, Track[]>();
+
+  private tracksByAlbum = new Map<string, Track[]>();
+
   private readonly rebuildSnapshot: LibraryIndex;
 
   constructor(options: FakeIndexStoreOptions) {
     this.snapshot = options.initialSnapshot;
     this.rebuildSnapshot = options.rebuildSnapshot;
+    this.rebuildIndexes();
   }
 
   getSnapshot(): LibraryIndex {
     return this.snapshot;
   }
 
+  getTracks(): Track[] {
+    return this.snapshot.tracks;
+  }
+
   getTrackById(trackId: string): Track | undefined {
-    return this.snapshot.tracks.find((track) => track.id === trackId);
+    return this.tracksById.get(trackId);
+  }
+
+  hasTrack(trackId: string): boolean {
+    return this.tracksById.has(trackId);
+  }
+
+  getTracksByOwner(owner: string): Track[] {
+    return [...(this.tracksByOwner.get(this.normalize(owner)) ?? [])];
+  }
+
+  getTracksByArtist(artist: string): Track[] {
+    return [...(this.tracksByArtist.get(this.normalize(artist)) ?? [])];
+  }
+
+  getTracksByAlbum(album: string): Track[] {
+    return [...(this.tracksByAlbum.get(this.normalize(album)) ?? [])];
   }
 
   async rebuild(): Promise<LibraryIndex> {
     this.snapshot = this.rebuildSnapshot;
+    this.rebuildIndexes();
     return this.rebuildSnapshot;
+  }
+
+  private normalize(value?: string): string {
+    return (value ?? "").trim().toLowerCase();
+  }
+
+  private getTrackArtist(track: Track): string | undefined {
+    return track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0];
+  }
+
+  private pushToIndex(map: Map<string, Track[]>, key: string | undefined, track: Track): void {
+    const normalizedKey = this.normalize(key);
+    if (!normalizedKey) {
+      return;
+    }
+
+    const tracks = map.get(normalizedKey);
+    if (tracks) {
+      tracks.push(track);
+      return;
+    }
+
+    map.set(normalizedKey, [track]);
+  }
+
+  private rebuildIndexes(): void {
+    this.tracksById = new Map<string, Track>();
+    this.tracksByOwner = new Map<string, Track[]>();
+    this.tracksByArtist = new Map<string, Track[]>();
+    this.tracksByAlbum = new Map<string, Track[]>();
+
+    for (const track of this.snapshot.tracks) {
+      this.tracksById.set(track.id, track);
+      this.pushToIndex(this.tracksByOwner, track.owner, track);
+      this.pushToIndex(this.tracksByArtist, this.getTrackArtist(track), track);
+      this.pushToIndex(this.tracksByAlbum, track.tags.album, track);
+    }
   }
 }
 
@@ -181,6 +248,76 @@ afterEach(async () => {
 });
 
 describe("library metadata routes", () => {
+  it("returns consistent filtered data for /library and /tracks", async () => {
+    const trackOne = createNestedTrack(
+      "track-filter-1",
+      "Song A",
+      "Artist A",
+      "Album A",
+      "storage/users/owner-1/uploads/artist_a/album_a/song-a.flac"
+    );
+    const trackTwo = createNestedTrack(
+      "track-filter-2",
+      "Song B",
+      "Artist B",
+      "Album B",
+      "storage/users/owner-1/uploads/artist_b/album_b/song-b.flac"
+    );
+    const trackThree = createNestedTrack(
+      "track-filter-3",
+      "Song C",
+      "Artist A",
+      "Album C",
+      "storage/users/owner-2/uploads/artist_a/album_c/song-c.flac"
+    );
+
+    const snapshot: LibraryIndex = {
+      generatedAt: new Date().toISOString(),
+      totalTracks: 3,
+      tracks: [trackOne, trackTwo, trackThree]
+    };
+
+    const indexStore = new FakeIndexStore({
+      initialSnapshot: snapshot,
+      rebuildSnapshot: snapshot
+    });
+
+    await bootstrapServer(indexStore);
+    const cookie = await login("admin", "admin-secret-123");
+
+    const libraryResponse = await apiRequest("/api/library?artist=Artist%20A", {
+      headers: {
+        Cookie: cookie
+      }
+    });
+    expect(libraryResponse.status).toBe(200);
+    expect(libraryResponse.payload).toEqual(
+      expect.objectContaining({
+        totalTracks: 2,
+        tracks: expect.arrayContaining([
+          expect.objectContaining({ id: trackOne.id }),
+          expect.objectContaining({ id: trackThree.id })
+        ])
+      })
+    );
+
+    const tracksResponse = await apiRequest("/api/tracks?artist=Artist%20A&sortBy=title&sortDir=asc", {
+      headers: {
+        Cookie: cookie
+      }
+    });
+    expect(tracksResponse.status).toBe(200);
+    expect(tracksResponse.payload).toEqual(
+      expect.objectContaining({
+        total: 2,
+        tracks: expect.arrayContaining([
+          expect.objectContaining({ id: trackOne.id }),
+          expect.objectContaining({ id: trackThree.id })
+        ])
+      })
+    );
+  });
+
   it("accepts metadata patch on /tracks/:id/metadata", async () => {
     const track = createTrack("track-1", "Original");
     const snapshot: LibraryIndex = {
