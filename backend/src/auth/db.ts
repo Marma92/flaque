@@ -3,7 +3,7 @@ import Database from "better-sqlite3";
 import type { AuthUser, UserRole } from "../types/auth";
 import { createId } from "../utils/hash";
 import { usersDbPath } from "../utils/paths";
-import { hashPassword } from "./password";
+import { hashPassword, verifyPassword } from "./password";
 
 type UserRow = {
   id: string;
@@ -215,12 +215,29 @@ export function ensureDefaultAdmin(): AuthUser | null {
   const username = (process.env.ADMIN_USERNAME ?? "admin").trim();
   const password = process.env.ADMIN_PASSWORD ?? "admin1234";
 
+  if (!username) {
+    return null;
+  }
+
   const existing = findUserByUsername(username);
   if (existing) {
+    if (existing.role !== "admin") {
+      updateUserRole(existing.id, "admin");
+    }
+
+    if (!verifyPassword(password, existing.password_hash)) {
+      updateUserPassword(existing.id, password);
+    }
+
+    const refreshed = findUserById(existing.id);
+    if (refreshed) {
+      return refreshed;
+    }
+
     return {
       id: existing.id,
       username: existing.username,
-      role: existing.role
+      role: "admin"
     };
   }
 
