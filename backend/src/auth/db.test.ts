@@ -109,4 +109,40 @@ describe("ensureDefaultAdmin", () => {
     expect(verifyPassword("bootstrap-pass-1", row.password_hash)).toBe(true);
     expect(verifyPassword("bootstrap-pass-1\r", row.password_hash)).toBe(false);
   });
+
+  it("supports quoted passwords from production env files", async () => {
+    process.env.ADMIN_USERNAME = "bootstrap-admin";
+    process.env.ADMIN_PASSWORD = "'bootstrap-pass-1'";
+
+    const { ensureDefaultAdmin, findUserByUsername } = await import("./db");
+    const { verifyPassword } = await import("./password");
+
+    ensureDefaultAdmin();
+    const row = findUserByUsername("bootstrap-admin");
+    expect(row).not.toBeNull();
+    if (!row) {
+      return;
+    }
+
+    expect(verifyPassword("bootstrap-pass-1", row.password_hash)).toBe(true);
+    expect(verifyPassword("'bootstrap-pass-1'", row.password_hash)).toBe(false);
+  });
+
+  it("supports quoted passwords with apostrophes", async () => {
+    process.env.ADMIN_USERNAME = "bootstrap-admin";
+    process.env.ADMIN_PASSWORD = "'pa\\'ssword'";
+
+    const { ensureDefaultAdmin, findUserByUsername } = await import("./db");
+    const { verifyPassword } = await import("./password");
+
+    ensureDefaultAdmin();
+    const row = findUserByUsername("bootstrap-admin");
+    expect(row).not.toBeNull();
+    if (!row) {
+      return;
+    }
+
+    expect(verifyPassword("pa'ssword", row.password_hash)).toBe(true);
+    expect(verifyPassword("'pa\\'ssword'", row.password_hash)).toBe(false);
+  });
 });

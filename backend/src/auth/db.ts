@@ -211,9 +211,33 @@ export function findSessionUser(sessionId: string): { user: AuthUser; sessionId:
   };
 }
 
+function normalizeBootstrapAdminPassword(rawValue: string): string {
+  const value = rawValue.replace(/\r$/, "");
+  if (value.length < 2) {
+    return value;
+  }
+
+  const quote = value[0];
+  if ((quote !== "'" && quote !== '"') || value[value.length - 1] !== quote) {
+    return value;
+  }
+
+  const inner = value.slice(1, -1);
+
+  if (quote === "'") {
+    return inner.replace(/\\'/g, "'").replace(/\\\\/g, "\\");
+  }
+
+  try {
+    return JSON.parse(value) as string;
+  } catch {
+    return inner.replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+  }
+}
+
 export function ensureDefaultAdmin(): AuthUser | null {
   const username = (process.env.ADMIN_USERNAME ?? "admin").trim();
-  const password = (process.env.ADMIN_PASSWORD ?? "admin1234").replace(/\r$/, "");
+  const password = normalizeBootstrapAdminPassword(process.env.ADMIN_PASSWORD ?? "admin1234");
 
   if (!username) {
     return null;
