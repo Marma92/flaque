@@ -10,7 +10,7 @@ import { ensureBaseDirectories } from "../utils/fs";
  *
  * This script is safe to run multiple times:
  * - Missing directories/files are created.
- * - The bootstrap admin account is created or synchronized from env credentials.
+ * - The bootstrap admin account is created if it does not already exist.
  * - Existing indexes are loaded and left intact.
  */
 async function initSystem(): Promise<void> {

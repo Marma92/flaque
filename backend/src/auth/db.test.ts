@@ -49,7 +49,7 @@ describe("ensureDefaultAdmin", () => {
     expect(verifyPassword("bootstrap-pass-1", row.password_hash)).toBe(true);
   });
 
-  it("updates bootstrap admin password when env password changes", async () => {
+  it("does not override admin password when env password changes", async () => {
     process.env.ADMIN_USERNAME = "bootstrap-admin";
     process.env.ADMIN_PASSWORD = "bootstrap-pass-1";
 
@@ -59,8 +59,8 @@ describe("ensureDefaultAdmin", () => {
     ensureDefaultAdmin();
 
     process.env.ADMIN_PASSWORD = "bootstrap-pass-2";
-    const syncedAdmin = ensureDefaultAdmin();
-    expect(syncedAdmin).toMatchObject({
+    const existingAdmin = ensureDefaultAdmin();
+    expect(existingAdmin).toMatchObject({
       username: "bootstrap-admin",
       role: "admin"
     });
@@ -71,7 +71,42 @@ describe("ensureDefaultAdmin", () => {
       return;
     }
 
-    expect(verifyPassword("bootstrap-pass-2", row.password_hash)).toBe(true);
-    expect(verifyPassword("bootstrap-pass-1", row.password_hash)).toBe(false);
+    expect(verifyPassword("bootstrap-pass-1", row.password_hash)).toBe(true);
+    expect(verifyPassword("bootstrap-pass-2", row.password_hash)).toBe(false);
+  });
+
+  it("preserves utf-8 bootstrap password semantics", async () => {
+    process.env.ADMIN_USERNAME = "bootstrap-admin";
+    process.env.ADMIN_PASSWORD = "MötDePasse-🔒-漢字";
+
+    const { ensureDefaultAdmin, findUserByUsername } = await import("./db");
+    const { verifyPassword } = await import("./password");
+
+    ensureDefaultAdmin();
+    const row = findUserByUsername("bootstrap-admin");
+    expect(row).not.toBeNull();
+    if (!row) {
+      return;
+    }
+
+    expect(verifyPassword("MötDePasse-🔒-漢字", row.password_hash)).toBe(true);
+  });
+
+  it("ignores trailing carriage return from env files", async () => {
+    process.env.ADMIN_USERNAME = "bootstrap-admin";
+    process.env.ADMIN_PASSWORD = "bootstrap-pass-1\r";
+
+    const { ensureDefaultAdmin, findUserByUsername } = await import("./db");
+    const { verifyPassword } = await import("./password");
+
+    ensureDefaultAdmin();
+    const row = findUserByUsername("bootstrap-admin");
+    expect(row).not.toBeNull();
+    if (!row) {
+      return;
+    }
+
+    expect(verifyPassword("bootstrap-pass-1", row.password_hash)).toBe(true);
+    expect(verifyPassword("bootstrap-pass-1\r", row.password_hash)).toBe(false);
   });
 });

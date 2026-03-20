@@ -75,6 +75,12 @@ prompt_secret() {
   done
 }
 
+quote_env_literal() {
+  local value="$1"
+  value="${value//\'/\\\'}"
+  printf "'%s'" "$value"
+}
+
 print_title "Flaque Production Setup"
 printf "This script configures env vars, creates mount folders, builds images, initializes DB, and starts containers.\n\n"
 
@@ -122,11 +128,12 @@ mkdir -p \
 print_ok "Mount folders are ready"
 
 print_step "Writing ${ENV_FILE}"
+ADMIN_PASSWORD_LITERAL="$(quote_env_literal "${ADMIN_PASSWORD}")"
 cat >"${ENV_FILE}" <<EOF
 PORT=4000
 CORS_ORIGIN=${CORS_ORIGIN}
 ADMIN_USERNAME=${ADMIN_USERNAME}
-ADMIN_PASSWORD=${ADMIN_PASSWORD}
+ADMIN_PASSWORD=${ADMIN_PASSWORD_LITERAL}
 SESSION_TTL_HOURS=168
 
 FLAQUE_STORAGE_DIR=${STORAGE_DIR}
