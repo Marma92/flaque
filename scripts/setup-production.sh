@@ -442,7 +442,7 @@ print_step "Stopping existing production stack (if running)"
 compose down --remove-orphans >/dev/null 2>&1 || true
 
 print_step "Initializing database and base runtime files"
-if ! compose run --rm --no-deps backend node backend/dist/scripts/initSystem.js; then
+if ! compose run --rm --no-deps -e BOOTSTRAP_SYNC_ADMIN_PASSWORD=true backend node backend/dist/scripts/initSystem.js; then
   show_compose_diagnostics
   abort "Initialization failed"
 fi
