@@ -19,7 +19,7 @@ import { extractAudioMetadata } from "../services/scanner/audioProbe";
 import { ensureTrackCover } from "../services/storage/coverService";
 import { ensureOwnerUploadDir, toDataRelativePath } from "../services/storage/storageService";
 import type { Track } from "../types/library";
-import { fileExists, writeJsonAtomic } from "../utils/fs";
+import { fileExists, moveFile, writeJsonAtomic } from "../utils/fs";
 import { createTrackId, hashFile } from "../utils/hash";
 import { getAudioMimeType, getSupportedAudioExtensions, isSupportedAudioFile } from "../utils/mime";
 import { tmpUploadsRoot } from "../utils/paths";
@@ -311,7 +311,7 @@ export function createUploadRouter(indexStore: IndexStore): Router {
             deduplicated += 1;
             await fs.unlink(uploadedFile.path);
           } else {
-            await fs.rename(uploadedFile.path, finalPath);
+            await moveFile(uploadedFile.path, finalPath);
             newUploadTrackIds.push(trackId);
           }
           await ensureTrackCover(trackId, metadata.cover);
