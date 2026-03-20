@@ -191,22 +191,51 @@ prompt_admin_username() {
   done
 }
 
+normalize_secret_value() {
+  local value="$1"
+  value="$(trim_carriage_return "${value}")"
+  value="${value//$'\n'/}"
+  value="$(trim_whitespace "${value}")"
+  printf "%s" "${value}"
+}
+
+is_valid_password() {
+  local value="$1"
+  local length="${#value}"
+  (( length >= 1 && length <= 256 ))
+}
+
 prompt_secret_with_default() {
   local prompt_label="$1"
   local default_value="$2"
   local secret
   local confirm
+  local normalized_default
+
+  normalized_default="$(normalize_secret_value "${default_value}")"
+  if ! is_valid_password "${normalized_default}"; then
+    abort "Default password for ${prompt_label} is invalid (must be 1-256 characters)."
+  fi
 
   while true; do
     secret="$(read_prompt_value "${prompt_label} [press Enter for default]: " "yes")"
-    if [[ -z "$(trim_whitespace "${secret}")" ]]; then
-      printf "%s" "${default_value}"
+    secret="$(normalize_secret_value "${secret}")"
+
+    if [[ -z "${secret}" ]]; then
+      printf "%s" "${normalized_default}"
       return
     fi
 
     confirm="$(read_prompt_value "Confirm ${prompt_label}: " "yes")"
+    confirm="$(normalize_secret_value "${confirm}")"
+
     if [[ "${secret}" != "${confirm}" ]]; then
       print_warn "Values do not match. Please retry."
+      continue
+    fi
+
+    if ! is_valid_password "${secret}"; then
+      print_warn "Password must be between 1 and 256 characters."
       continue
     fi
 
@@ -513,5 +542,5 @@ printf "Storage : %s\n" "${STORAGE_DIR}"
 printf "State   : %s\n" "${STATE_DIR}"
 printf "Env file: %s\n" "${ENV_FILE}"
 printf "Admin   : %s\n" "${ADMIN_USERNAME}"
-printf "Password: %s\n" "${ADMIN_PASSWORD}"
+printf "Password: '%s'\n" "${ADMIN_PASSWORD}"
 printf "Cookie secure: %s\n" "${SESSION_COOKIE_SECURE}"
