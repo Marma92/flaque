@@ -13,6 +13,7 @@ DEFAULT_FRONTEND_PORT="8080"
 DEFAULT_BACKEND_PORT="4000"
 DEFAULT_ADMIN_USERNAME="admin"
 DEFAULT_ADMIN_PASSWORD="change-me"
+DEFAULT_SESSION_COOKIE_SECURE="no"
 
 COLOR_RESET="\033[0m"
 COLOR_TITLE="\033[1;36m"
@@ -346,6 +347,42 @@ verify_admin_login() {
   print_ok "Bootstrap admin login verified"
 }
 
+verify_frontend_auth_flow() {
+  local frontend_port="$1"
+  local admin_username="$2"
+  local admin_password="$3"
+  local payload
+  local cookie_file
+  local login_response_file
+  local me_response_file
+  local login_status
+  local me_status
+
+  payload="$(printf '{"username":"%s","password":"%s"}' "$(json_escape "${admin_username}")" "$(json_escape "${admin_password}")")"
+  cookie_file="$(mktemp)"
+  login_response_file="$(mktemp)"
+  me_response_file="$(mktemp)"
+
+  login_status="$(curl -sS -o "${login_response_file}" -w "%{http_code}" -c "${cookie_file}" -H "Content-Type: application/json" --data "${payload}" "http://localhost:${frontend_port}/api/auth/login" || true)"
+  if [[ "${login_status}" != "200" ]]; then
+    print_warn "Frontend /api/auth/login failed with HTTP ${login_status}."
+    print_warn "Frontend login response: $(cat "${login_response_file}")"
+    rm -f "${cookie_file}" "${login_response_file}" "${me_response_file}"
+    abort "Frontend auth flow verification failed"
+  fi
+
+  me_status="$(curl -sS -o "${me_response_file}" -w "%{http_code}" -b "${cookie_file}" "http://localhost:${frontend_port}/api/auth/me" || true)"
+  if [[ "${me_status}" != "200" ]]; then
+    print_warn "Frontend /api/auth/me failed with HTTP ${me_status}."
+    print_warn "Frontend me response: $(cat "${me_response_file}")"
+    rm -f "${cookie_file}" "${login_response_file}" "${me_response_file}"
+    abort "Frontend auth session verification failed"
+  fi
+
+  rm -f "${cookie_file}" "${login_response_file}" "${me_response_file}"
+  print_ok "Frontend auth flow verified"
+}
+
 show_compose_diagnostics() {
   print_warn "Docker compose status:"
   compose ps || true
@@ -397,6 +434,12 @@ DEFAULT_CORS_ORIGIN="http://localhost:${FRONTEND_PORT}"
 CORS_ORIGIN="$(prompt_cors_origin_list "${DEFAULT_CORS_ORIGIN}")"
 ADMIN_USERNAME="$(prompt_admin_username)"
 ADMIN_PASSWORD="$(prompt_secret_with_default "Bootstrap admin password" "${DEFAULT_ADMIN_PASSWORD}")"
+SESSION_COOKIE_SECURE_PROMPT="$(prompt_yes_no "Use secure session cookie (requires HTTPS URL in browser)?" "${DEFAULT_SESSION_COOKIE_SECURE}")"
+if [[ "${SESSION_COOKIE_SECURE_PROMPT}" == "yes" ]]; then
+  SESSION_COOKIE_SECURE="true"
+else
+  SESSION_COOKIE_SECURE="false"
+fi
 
 if [[ -f "${ENV_FILE}" ]]; then
   print_warn ".env.production already exists at ${ENV_FILE}"
@@ -425,6 +468,7 @@ CORS_ORIGIN=${CORS_ORIGIN}
 ADMIN_USERNAME=${ADMIN_USERNAME}
 ADMIN_PASSWORD=${ADMIN_PASSWORD_LITERAL}
 SESSION_TTL_HOURS=168
+SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE}
 
 FLAQUE_STORAGE_DIR=${STORAGE_DIR}
 FLAQUE_STATE_DIR=${STATE_DIR}
@@ -459,6 +503,7 @@ print_step "Running post-deploy checks"
 wait_for_http_ok "http://localhost:${BACKEND_PORT}/health" "Backend health endpoint"
 wait_for_http_ok "http://localhost:${FRONTEND_PORT}" "Frontend endpoint"
 verify_admin_login "${BACKEND_PORT}" "${ADMIN_USERNAME}" "${ADMIN_PASSWORD}"
+verify_frontend_auth_flow "${FRONTEND_PORT}" "${ADMIN_USERNAME}" "${ADMIN_PASSWORD}"
 
 printf "\n"
 print_title "Deployment summary"
@@ -467,3 +512,6 @@ printf "Backend : http://localhost:%s\n" "${BACKEND_PORT}"
 printf "Storage : %s\n" "${STORAGE_DIR}"
 printf "State   : %s\n" "${STATE_DIR}"
 printf "Env file: %s\n" "${ENV_FILE}"
+printf "Admin   : %s\n" "${ADMIN_USERNAME}"
+printf "Password: %s\n" "${ADMIN_PASSWORD}"
+printf "Cookie secure: %s\n" "${SESSION_COOKIE_SECURE}"
