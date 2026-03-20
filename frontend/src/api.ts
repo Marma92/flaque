@@ -225,6 +225,7 @@ type UploadSingleTrackInput = {
   file: File;
   artist?: string;
   album?: string;
+  deferRebuild?: boolean;
   metadataOverride?: {
     title?: string;
     artist?: string;
@@ -247,6 +248,10 @@ function uploadSingleTrack(input: UploadSingleTrackInput): Promise<UploadTracksR
 
   if (input.metadataOverride) {
     formData.append("metadataOverrides", JSON.stringify([input.metadataOverride]));
+  }
+
+  if (input.deferRebuild) {
+    formData.append("deferRebuild", "1");
   }
 
   return new Promise<UploadTracksResult>((resolve, reject) => {
@@ -311,13 +316,17 @@ export async function uploadTracks(input: UploadTracksInput): Promise<UploadTrac
     }
   };
 
+  const aggregatedTrackById = new Map<string, Track>();
+
   for (const [index, file] of files.entries()) {
     const metadataOverride = input.metadataOverrides?.[index] ?? null;
+    const isLastFile = index === files.length - 1;
 
     const singleResult = await uploadSingleTrack({
       file,
       artist: input.artist,
       album: input.album,
+      deferRebuild: !isLastFile,
       metadataOverride,
       onProgress: input.onProgress
         ? (progress) => {
@@ -339,7 +348,9 @@ export async function uploadTracks(input: UploadTracksInput): Promise<UploadTrac
     aggregate.processed += singleResult.processed;
     aggregate.uploaded += singleResult.uploaded;
     aggregate.deduplicated += singleResult.deduplicated;
-    aggregate.tracks.push(...singleResult.tracks);
+    for (const track of singleResult.tracks) {
+      aggregatedTrackById.set(track.id, track);
+    }
 
     if (input.onProgress) {
       const percent = totalBytes > 0 ? Math.round((completedBytes / totalBytes) * 100) : 100;
@@ -350,6 +361,8 @@ export async function uploadTracks(input: UploadTracksInput): Promise<UploadTrac
       });
     }
   }
+
+  aggregate.tracks = Array.from(aggregatedTrackById.values());
 
   return aggregate;
 }

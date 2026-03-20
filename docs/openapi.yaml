@@ -343,7 +343,7 @@ paths:
   /api/upload:
     post:
       tags: [Upload]
-      summary: Upload audio files and rebuild index
+      summary: Upload audio files with optional deferred index rebuild
       requestBody:
         required: true
         content:
@@ -372,6 +372,12 @@ paths:
                   description: |
                     JSON-encoded array aligned with uploaded file order.
                     Each item can contain `title`, `artist`, `album`.
+                deferRebuild:
+                  type: string
+                  description: |
+                    Optional boolean-like flag (`1`, `true`, `yes`) to skip index rebuild
+                    for this request. Useful for sequential per-file uploads where only
+                    the last request performs a rebuild.
               anyOf:
                 - required: [files]
                 - required: [file]
@@ -1299,6 +1305,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Track"
+        deferredRebuild:
+          type: boolean
         overrides:
           $ref: "#/components/schemas/UploadOverrides"
       required: [processed, uploaded, deduplicated, tracks, overrides]
