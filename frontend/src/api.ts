@@ -221,12 +221,21 @@ export type UploadTrackPreview = {
   coverDataUrl?: string;
 };
 
-export async function uploadTracks(input: UploadTracksInput): Promise<UploadTracksResult> {
-  const formData = new FormData();
+type UploadSingleTrackInput = {
+  file: File;
+  artist?: string;
+  album?: string;
+  metadataOverride?: {
+    title?: string;
+    artist?: string;
+    album?: string;
+  } | null;
+  onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
+};
 
-  for (const file of input.files) {
-    formData.append("files", file);
-  }
+function uploadSingleTrack(input: UploadSingleTrackInput): Promise<UploadTracksResult> {
+  const formData = new FormData();
+  formData.append("file", input.file);
 
   if (input.artist?.trim()) {
     formData.append("artist", input.artist.trim());
@@ -236,8 +245,8 @@ export async function uploadTracks(input: UploadTracksInput): Promise<UploadTrac
     formData.append("album", input.album.trim());
   }
 
-  if (input.metadataOverrides && input.metadataOverrides.length > 0) {
-    formData.append("metadataOverrides", JSON.stringify(input.metadataOverrides));
+  if (input.metadataOverride) {
+    formData.append("metadataOverrides", JSON.stringify([input.metadataOverride]));
   }
 
   return new Promise<UploadTracksResult>((resolve, reject) => {
@@ -280,6 +289,69 @@ export async function uploadTracks(input: UploadTracksInput): Promise<UploadTrac
 
     request.send(formData);
   });
+}
+
+export async function uploadTracks(input: UploadTracksInput): Promise<UploadTracksResult> {
+  const files = input.files;
+  if (files.length === 0) {
+    throw new Error("At least one file is required");
+  }
+
+  const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+  let completedBytes = 0;
+
+  const aggregate: UploadTracksResult = {
+    processed: 0,
+    uploaded: 0,
+    deduplicated: 0,
+    tracks: [],
+    overrides: {
+      artist: input.artist?.trim() || undefined,
+      album: input.album?.trim() || undefined
+    }
+  };
+
+  for (const [index, file] of files.entries()) {
+    const metadataOverride = input.metadataOverrides?.[index] ?? null;
+
+    const singleResult = await uploadSingleTrack({
+      file,
+      artist: input.artist,
+      album: input.album,
+      metadataOverride,
+      onProgress: input.onProgress
+        ? (progress) => {
+            const loaded = Math.min(completedBytes + progress.loaded, totalBytes);
+            const percent =
+              totalBytes > 0 ? Math.max(0, Math.min(100, Math.round((loaded / totalBytes) * 100))) : progress.percent;
+
+            input.onProgress?.({
+              loaded,
+              total: totalBytes,
+              percent
+            });
+          }
+        : undefined
+    });
+
+    completedBytes += file.size;
+
+    aggregate.processed += singleResult.processed;
+    aggregate.uploaded += singleResult.uploaded;
+    aggregate.deduplicated += singleResult.deduplicated;
+    aggregate.tracks.push(...singleResult.tracks);
+
+    if (input.onProgress) {
+      const percent = totalBytes > 0 ? Math.round((completedBytes / totalBytes) * 100) : 100;
+      input.onProgress({
+        loaded: Math.min(completedBytes, totalBytes),
+        total: totalBytes,
+        percent: Math.max(0, Math.min(100, percent))
+      });
+    }
+  }
+
+  return aggregate;
 }
 
 export async function inspectUploadFile(file: File): Promise<UploadTrackPreview> {
