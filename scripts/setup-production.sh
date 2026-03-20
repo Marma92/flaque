@@ -81,6 +81,21 @@ quote_env_literal() {
   printf "'%s'" "$value"
 }
 
+validate_single_line_value() {
+  local name="$1"
+  local value="$2"
+
+  if [[ -z "$value" ]]; then
+    printf "Invalid %s: value cannot be empty.\n" "$name" >&2
+    exit 1
+  fi
+
+  if [[ "$value" == *$'\n'* || "$value" == *$'\r'* ]]; then
+    printf "Invalid %s: multiline values are not supported in .env.production.\n" "$name" >&2
+    exit 1
+  fi
+}
+
 print_title "Flaque Production Setup"
 printf "This script configures env vars, creates mount folders, builds images, initializes DB, and starts containers.\n\n"
 
@@ -107,6 +122,9 @@ DEFAULT_CORS_ORIGIN="http://localhost:${FRONTEND_PORT}"
 CORS_ORIGIN="$(prompt_with_default "CORS origin for frontend" "${DEFAULT_CORS_ORIGIN}")"
 ADMIN_USERNAME="$(prompt_with_default "Bootstrap admin username" "admin")"
 ADMIN_PASSWORD="$(prompt_secret "Bootstrap admin password")"
+
+validate_single_line_value "ADMIN_USERNAME" "$ADMIN_USERNAME"
+validate_single_line_value "ADMIN_PASSWORD" "$ADMIN_PASSWORD"
 
 if [[ -f "$ENV_FILE" ]]; then
   print_warn ".env.production already exists: ${ENV_FILE}"

@@ -18,6 +18,8 @@
     "prod:setup": "bash scripts/setup-production.sh",
     "prod:up": "docker compose -f docker-compose.prod.yml --env-file .env.production up -d",
     "prod:down": "docker compose -f docker-compose.prod.yml --env-file .env.production down",
+    "prod:admin:reset-password": "bash scripts/prod-reset-admin-password.sh",
+    "prod:authdb:reset": "bash scripts/prod-reset-auth-db.sh",
     "docs:api": "docker run --rm -p 8080:8080 -e SWAGGER_JSON=/spec/openapi.yaml -v \"$(pwd)/docs:/spec\" swaggerapi/swagger-ui"
   },
   "devDependencies": {
