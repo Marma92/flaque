@@ -386,17 +386,27 @@ verify_frontend_auth_flow() {
   local me_response_file
   local login_status
   local me_status
+  local upload_probe_file
+  local upload_probe_response_file
+  local upload_probe_status
 
   payload="$(printf '{"username":"%s","password":"%s"}' "$(json_escape "${admin_username}")" "$(json_escape "${admin_password}")")"
   cookie_file="$(mktemp)"
   login_response_file="$(mktemp)"
   me_response_file="$(mktemp)"
+  upload_probe_response_file="$(mktemp)"
+  upload_probe_file="$(mktemp "/tmp/flaque-upload-probe-XXXXXX.bin")"
+
+  if ! dd if=/dev/zero of="${upload_probe_file}" bs=1M count=2 status=none; then
+    rm -f "${cookie_file}" "${login_response_file}" "${me_response_file}" "${upload_probe_response_file}" "${upload_probe_file}"
+    abort "Failed to create upload probe file"
+  fi
 
   login_status="$(curl -sS -o "${login_response_file}" -w "%{http_code}" -c "${cookie_file}" -H "Content-Type: application/json" --data "${payload}" "http://localhost:${frontend_port}/api/auth/login" || true)"
   if [[ "${login_status}" != "200" ]]; then
     print_warn "Frontend /api/auth/login failed with HTTP ${login_status}."
     print_warn "Frontend login response: $(cat "${login_response_file}")"
-    rm -f "${cookie_file}" "${login_response_file}" "${me_response_file}"
+    rm -f "${cookie_file}" "${login_response_file}" "${me_response_file}" "${upload_probe_response_file}" "${upload_probe_file}"
     abort "Frontend auth flow verification failed"
   fi
 
@@ -404,12 +414,28 @@ verify_frontend_auth_flow() {
   if [[ "${me_status}" != "200" ]]; then
     print_warn "Frontend /api/auth/me failed with HTTP ${me_status}."
     print_warn "Frontend me response: $(cat "${me_response_file}")"
-    rm -f "${cookie_file}" "${login_response_file}" "${me_response_file}"
+    rm -f "${cookie_file}" "${login_response_file}" "${me_response_file}" "${upload_probe_response_file}" "${upload_probe_file}"
     abort "Frontend auth session verification failed"
   fi
 
-  rm -f "${cookie_file}" "${login_response_file}" "${me_response_file}"
+  upload_probe_status="$(curl -sS -o "${upload_probe_response_file}" -w "%{http_code}" -b "${cookie_file}" -F "files=@${upload_probe_file};filename=upload-probe.bin;type=application/octet-stream" "http://localhost:${frontend_port}/api/upload" || true)"
+  if [[ "${upload_probe_status}" == "413" ]]; then
+    print_warn "Frontend upload probe returned HTTP 413 (Request Entity Too Large)."
+    print_warn "Ensure nginx has client_max_body_size configured (expected 100M)."
+    rm -f "${cookie_file}" "${login_response_file}" "${me_response_file}" "${upload_probe_response_file}" "${upload_probe_file}"
+    abort "Frontend upload body-size verification failed"
+  fi
+
+  if [[ "${upload_probe_status}" != "400" && "${upload_probe_status}" != "201" ]]; then
+    print_warn "Frontend upload probe returned unexpected HTTP ${upload_probe_status}."
+    print_warn "Frontend upload probe response: $(cat "${upload_probe_response_file}")"
+    rm -f "${cookie_file}" "${login_response_file}" "${me_response_file}" "${upload_probe_response_file}" "${upload_probe_file}"
+    abort "Frontend upload path verification failed"
+  fi
+
+  rm -f "${cookie_file}" "${login_response_file}" "${me_response_file}" "${upload_probe_response_file}" "${upload_probe_file}"
   print_ok "Frontend auth flow verified"
+  print_ok "Frontend upload body-size probe verified (status ${upload_probe_status})"
 }
 
 show_compose_diagnostics() {
