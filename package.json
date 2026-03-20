@@ -16,8 +16,8 @@
     "test:backend": "npm run test --workspace backend",
     "test:frontend": "npm run test --workspace frontend",
     "prod:setup": "bash scripts/setup-production.sh",
-    "prod:up": "docker compose -f docker-compose.prod.yml --env-file .env.production up -d",
-    "prod:down": "docker compose -f docker-compose.prod.yml --env-file .env.production down",
+    "prod:up": "bash scripts/compose-production.sh down --remove-orphans && bash scripts/compose-production.sh up -d --remove-orphans",
+    "prod:down": "bash scripts/compose-production.sh down --remove-orphans",
     "docs:api": "docker run --rm -p 8080:8080 -e SWAGGER_JSON=/spec/openapi.yaml -v \"$(pwd)/docs:/spec\" swaggerapi/swagger-ui"
   },
   "devDependencies": {
