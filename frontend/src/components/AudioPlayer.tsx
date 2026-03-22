@@ -108,7 +108,7 @@ function SyncedLyricsOverlay({
   }, [activeIndex]);
 
   return (
-    <div ref={containerRef} className="h-full overflow-auto text-left text-sm leading-relaxed">
+    <div ref={containerRef} className="h-full overflow-y-auto overflow-x-hidden text-left text-sm leading-relaxed">
       {lines.map((line, index) => (
         <p
           key={index}
@@ -503,7 +503,7 @@ export function AudioPlayer({
     );
   }
 
-  const artworkSize = expanded ? "h-64 w-64 md:h-72 md:w-72" : "h-16 w-16 md:h-20 md:w-20";
+  const artworkSize = expanded ? "h-80 w-80 md:h-96 md:w-96" : "h-16 w-16 md:h-20 md:w-20";
   const contentLayoutClass = expanded ? "w-full max-w-4xl space-y-4" : "min-w-0 flex-1 space-y-1";
   const controlsLayoutClass = expanded
     ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-3"
@@ -614,7 +614,7 @@ export function AudioPlayer({
 
       <div
         className={`flex min-w-0 ${
-          expanded ? "min-h-0 flex-1 flex-col items-center justify-between gap-6" : "flex-col gap-4 md:flex-row md:items-center"
+          expanded ? "min-h-0 flex-1 flex-col items-center justify-center gap-4" : "flex-col gap-4 md:flex-row md:items-center"
         }`}
       >
         {expanded ? (
@@ -652,7 +652,7 @@ export function AudioPlayer({
                 {syncedLyrics ? (
                   <SyncedLyricsOverlay lines={syncedLyrics} currentTime={currentTime} />
                 ) : (
-                  <div className="h-full overflow-auto whitespace-pre-wrap text-left text-sm leading-relaxed text-flaque-cream/90">
+                  <div className="h-full overflow-y-auto overflow-x-hidden whitespace-pre-wrap text-left text-sm leading-relaxed text-flaque-cream/90">
                     {displayLyrics}
                   </div>
                 )}
