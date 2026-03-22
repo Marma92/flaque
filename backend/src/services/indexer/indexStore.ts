@@ -74,7 +74,7 @@ export class IndexStore {
     }
 
     this.rebuildPromise = (async () => {
-      const rebuilt = await scanFilesystemLibrary();
+      const rebuilt = await scanFilesystemLibrary({ previousIndex: this.snapshot });
       await writeJsonAtomic(indexFilePath, rebuilt);
       await pruneTrackMetadataOverrides(rebuilt.tracks.map((track) => track.id));
       return this.updateSnapshot(rebuilt);
