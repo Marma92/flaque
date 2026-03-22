@@ -1,6 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { logout, myProfilePhotoUrl, updateMyPassword, uploadMyProfilePhoto } from "./api";
+import {
+  getMySessions,
+  logout,
+  logoutOtherSessions,
+  myProfilePhotoUrl,
+  revokeMySession,
+  updateMyPassword,
+  uploadMyProfilePhoto
+} from "./api";
 import type { AppNotice } from "./components/AppStatusBanners";
 import { AppShell } from "./components/AppShell";
 import { LoginPage } from "./components/LoginPage";
@@ -25,7 +33,8 @@ export default function App(): JSX.Element {
     setActiveView,
     activeLibrarySection,
     setActiveLibrarySection,
-    handleLogin
+    handleLogin,
+    notifyAuthStateChanged
   } = useSessionRoutingState();
 
   const [rebuilding, setRebuilding] = useState(false);
@@ -236,6 +245,7 @@ export default function App(): JSX.Element {
   async function handleLogout(): Promise<void> {
     await logout();
     setUser(null);
+    notifyAuthStateChanged("logout");
     resetAfterLogout();
     setActiveLibrarySection("music");
     setPlayerReturnView("library");
@@ -257,11 +267,38 @@ export default function App(): JSX.Element {
 
   async function handleUpdateOwnPassword(input: { currentPassword: string; newPassword: string }): Promise<void> {
     await updateMyPassword(input);
+    notifyAuthStateChanged("session-change");
     setAppNotice({
       tone: "success",
       message: "Password updated"
     });
   }
+
+  const handleListMySessions = useCallback(async () => {
+    return getMySessions();
+  }, []);
+
+  const handleRevokeMySession = useCallback(
+    async (sessionId: string): Promise<void> => {
+      await revokeMySession(sessionId);
+      notifyAuthStateChanged("session-change");
+      setAppNotice({
+        tone: "success",
+        message: "Session revoked"
+      });
+    },
+    [notifyAuthStateChanged]
+  );
+
+  const handleLogoutOtherSessions = useCallback(async (): Promise<number> => {
+    const result = await logoutOtherSessions();
+    notifyAuthStateChanged("session-change");
+    setAppNotice({
+      tone: "success",
+      message: `${result.revoked} session${result.revoked === 1 ? "" : "s"} logged out`
+    });
+    return result.revoked;
+  }, [notifyAuthStateChanged]);
 
   if (!sessionChecked) {
     return <main className="p-8 text-flaque-ink">Loading session...</main>;
@@ -336,7 +373,10 @@ export default function App(): JSX.Element {
         user,
         avatarUrl,
         onUpdatePhoto: handleUpdateProfilePhoto,
-        onChangePassword: handleUpdateOwnPassword
+        onChangePassword: handleUpdateOwnPassword,
+        onListSessions: handleListMySessions,
+        onRevokeSession: handleRevokeMySession,
+        onLogoutOtherSessions: handleLogoutOtherSessions
       }}
       playerStatusMessage={playerStatusMessage}
       audioPlayerProps={{

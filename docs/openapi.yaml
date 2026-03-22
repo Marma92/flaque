@@ -94,6 +94,50 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /api/auth/sessions:
+    get:
+      tags: [Auth]
+      summary: List active sessions for the current user
+      responses:
+        "200":
+          description: Active sessions ordered by most recent activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSessionsEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/sessions/{id}:
+    delete:
+      tags: [Auth]
+      summary: Revoke a specific session for the current user
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "204":
+          $ref: "#/components/responses/NoContent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/auth/logout-others:
+    post:
+      tags: [Auth]
+      summary: Revoke all sessions except the current one
+      responses:
+        "200":
+          description: Number of revoked sessions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogoutOtherSessionsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/library:
     get:
       tags: [Library]
@@ -823,6 +867,12 @@ components:
       required: true
       schema:
         type: string
+    SessionId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
     FilterOwner:
       name: owner
       in: query
@@ -951,7 +1001,50 @@ components:
           type: string
         password:
           type: string
+        deviceLabel:
+          type: string
+          description: Optional human-readable client/device label
       required: [username, password]
+
+    AuthSession:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        createdAt:
+          type: integer
+        expiresAt:
+          type: integer
+        lastSeenAt:
+          type: integer
+        userAgent:
+          type: ["string", "null"]
+        ipAddress:
+          type: ["string", "null"]
+        label:
+          type: ["string", "null"]
+        current:
+          type: boolean
+      required: [id, userId, createdAt, expiresAt, lastSeenAt, userAgent, ipAddress, label, current]
+
+    AuthSessionsEnvelope:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuthSession"
+      required: [sessions]
+
+    LogoutOtherSessionsResponse:
+      type: object
+      properties:
+        revoked:
+          type: integer
+          minimum: 0
+      required: [revoked]
 
     TrackTagExtraValue:
       anyOf:

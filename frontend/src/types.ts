@@ -4,6 +4,18 @@ export type User = {
   role: "admin" | "user";
 };
 
+export type UserSession = {
+  id: string;
+  userId: string;
+  createdAt: number;
+  expiresAt: number;
+  lastSeenAt: number;
+  userAgent: string | null;
+  ipAddress: string | null;
+  label: string | null;
+  current: boolean;
+};
+
 export type TrackTagExtraValue =
   | string
   | number

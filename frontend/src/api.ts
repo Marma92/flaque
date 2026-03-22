@@ -7,7 +7,8 @@ import type {
   Track,
   TrackMetadataPatch,
   TrackTags,
-  User
+  User,
+  UserSession
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
@@ -62,12 +63,15 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 export async function login(username: string, password: string): Promise<User> {
+  const deviceLabel =
+    typeof navigator !== "undefined" ? `${navigator.platform || "Unknown platform"} - ${navigator.userAgent}` : undefined;
+
   const payload = await requestJson<{ user: User }>("/api/auth/login", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ username, password, deviceLabel })
   });
 
   return payload.user;
@@ -77,6 +81,24 @@ export async function logout(): Promise<void> {
   await requestJson<void>("/api/auth/logout", {
     method: "POST",
     skipJson: true
+  });
+}
+
+export async function getMySessions(): Promise<UserSession[]> {
+  const payload = await requestJson<{ sessions: UserSession[] }>("/api/auth/sessions");
+  return payload.sessions;
+}
+
+export async function revokeMySession(sessionId: string): Promise<void> {
+  await requestJson<void>(`/api/auth/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "DELETE",
+    skipJson: true
+  });
+}
+
+export async function logoutOtherSessions(): Promise<{ revoked: number }> {
+  return requestJson<{ revoked: number }>("/api/auth/logout-others", {
+    method: "POST"
   });
 }
 

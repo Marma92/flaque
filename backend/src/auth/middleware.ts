@@ -18,7 +18,8 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
 
   req.authUser = session.user;
-  req.sessionId = session.sessionId;
+  req.sessionId = session.session.id;
+  req.authSession = session.session;
   next();
 }
 

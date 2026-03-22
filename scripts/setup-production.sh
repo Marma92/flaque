@@ -14,8 +14,10 @@ DEFAULT_BACKEND_PORT="4000"
 DEFAULT_ADMIN_USERNAME="admin"
 DEFAULT_ADMIN_PASSWORD="change-me"
 DEFAULT_SESSION_COOKIE_SECURE="no"
+DEFAULT_SYNC_ADMIN_PASSWORD="yes"
 DEFAULT_HTTP_REQUEST_TIMEOUT_MS="0"
 DEFAULT_HTTP_SOCKET_TIMEOUT_MS="0"
+ADMIN_LOGIN_VERIFIED="no"
 
 COLOR_RESET="\033[0m"
 COLOR_TITLE="\033[1;36m"
@@ -359,6 +361,7 @@ verify_admin_login() {
   local backend_port="$1"
   local admin_username="$2"
   local admin_password="$3"
+  local strict_mode="${4:-yes}"
   local payload
   local response_file
   local status_code
@@ -371,10 +374,18 @@ verify_admin_login() {
     print_warn "Admin login verification failed with HTTP ${status_code}."
     print_warn "Backend response: $(cat "${response_file}")"
     rm -f "${response_file}"
-    abort "Bootstrap admin account verification failed"
+
+    if [[ "${strict_mode}" == "yes" ]]; then
+      abort "Bootstrap admin account verification failed"
+    fi
+
+    print_warn "Admin password sync is disabled; continuing without strict admin login verification."
+    ADMIN_LOGIN_VERIFIED="no"
+    return
   fi
 
   rm -f "${response_file}"
+  ADMIN_LOGIN_VERIFIED="yes"
   print_ok "Bootstrap admin login verified"
 }
 
@@ -512,6 +523,12 @@ if [[ "${SESSION_COOKIE_SECURE_PROMPT}" == "yes" ]]; then
 else
   SESSION_COOKIE_SECURE="false"
 fi
+SYNC_ADMIN_PASSWORD_PROMPT="$(prompt_yes_no "If admin exists, sync setup password and revoke all active sessions?" "${DEFAULT_SYNC_ADMIN_PASSWORD}")"
+if [[ "${SYNC_ADMIN_PASSWORD_PROMPT}" == "yes" ]]; then
+  SYNC_ADMIN_PASSWORD="true"
+else
+  SYNC_ADMIN_PASSWORD="false"
+fi
 
 HTTP_REQUEST_TIMEOUT_MS="${DEFAULT_HTTP_REQUEST_TIMEOUT_MS}"
 HTTP_SOCKET_TIMEOUT_MS="${DEFAULT_HTTP_SOCKET_TIMEOUT_MS}"
@@ -566,7 +583,7 @@ print_step "Stopping existing production stack (if running)"
 compose down --remove-orphans >/dev/null 2>&1 || true
 
 print_step "Initializing database and base runtime files"
-if ! compose run --rm --no-deps -e BOOTSTRAP_SYNC_ADMIN_PASSWORD=true backend node backend/dist/scripts/initSystem.js; then
+if ! compose run --rm --no-deps -e "BOOTSTRAP_SYNC_ADMIN_PASSWORD=${SYNC_ADMIN_PASSWORD}" backend node backend/dist/scripts/initSystem.js; then
   show_compose_diagnostics
   abort "Initialization failed"
 fi
@@ -582,8 +599,12 @@ print_ok "Stack is running"
 print_step "Running post-deploy checks"
 wait_for_http_ok "http://localhost:${BACKEND_PORT}/health" "Backend health endpoint"
 wait_for_http_ok "http://localhost:${FRONTEND_PORT}" "Frontend endpoint"
-verify_admin_login "${BACKEND_PORT}" "${ADMIN_USERNAME}" "${ADMIN_PASSWORD}"
-verify_frontend_auth_flow "${FRONTEND_PORT}" "${ADMIN_USERNAME}" "${ADMIN_PASSWORD}"
+verify_admin_login "${BACKEND_PORT}" "${ADMIN_USERNAME}" "${ADMIN_PASSWORD}" "${SYNC_ADMIN_PASSWORD_PROMPT}"
+if [[ "${ADMIN_LOGIN_VERIFIED}" == "yes" ]]; then
+  verify_frontend_auth_flow "${FRONTEND_PORT}" "${ADMIN_USERNAME}" "${ADMIN_PASSWORD}"
+else
+  print_warn "Skipping frontend auth verification because admin login check did not pass in non-strict mode."
+fi
 
 printf "\n"
 print_title "Deployment summary"
@@ -595,3 +616,4 @@ printf "Env file: %s\n" "${ENV_FILE}"
 printf "Admin   : %s\n" "${ADMIN_USERNAME}"
 printf "Password: '%s'\n" "${ADMIN_PASSWORD}"
 printf "Cookie secure: %s\n" "${SESSION_COOKIE_SECURE}"
+printf "Sync admin password on setup: %s\n" "${SYNC_ADMIN_PASSWORD}"

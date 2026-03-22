@@ -3,7 +3,7 @@ import type { Dirent } from "node:fs";
 import path from "node:path";
 
 import multer from "multer";
-import { Router } from "express";
+import { Router, type Request } from "express";
 import sharp from "sharp";
 
 import {
@@ -121,6 +121,19 @@ function parseRoleForPatch(value: unknown): UserRole | null {
 
 function hasOwnProperty(value: unknown, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(value ?? {}, key);
+}
+
+function getClientIp(req: Request): string | undefined {
+  const forwardedFor = req.headers["x-forwarded-for"];
+  const firstForwarded =
+    typeof forwardedFor === "string"
+      ? forwardedFor.split(",", 1)[0]
+      : Array.isArray(forwardedFor)
+        ? forwardedFor[0]
+        : undefined;
+
+  const candidate = (firstForwarded ?? req.ip ?? req.socket.remoteAddress ?? "").trim();
+  return candidate || undefined;
 }
 
 function isSqliteUniqueError(error: unknown): boolean {
@@ -249,7 +262,12 @@ export function createUserRouter(): Router {
       return;
     }
 
-    const newSession = createSession(authUser.id, getSessionTtlMs());
+    const newSession = createSession({
+      userId: authUser.id,
+      ttlMs: getSessionTtlMs(),
+      userAgent: req.get("user-agent"),
+      ipAddress: getClientIp(req)
+    });
     setSessionCookie(res, newSession.id, newSession.expiresAt);
 
     res.json({ ok: true });
