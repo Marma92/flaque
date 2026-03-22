@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   getMySessions,
@@ -274,20 +274,23 @@ export default function App(): JSX.Element {
     });
   }
 
-  async function handleListMySessions() {
+  const handleListMySessions = useCallback(async () => {
     return getMySessions();
-  }
+  }, []);
 
-  async function handleRevokeMySession(sessionId: string): Promise<void> {
-    await revokeMySession(sessionId);
-    notifyAuthStateChanged("session-change");
-    setAppNotice({
-      tone: "success",
-      message: "Session revoked"
-    });
-  }
+  const handleRevokeMySession = useCallback(
+    async (sessionId: string): Promise<void> => {
+      await revokeMySession(sessionId);
+      notifyAuthStateChanged("session-change");
+      setAppNotice({
+        tone: "success",
+        message: "Session revoked"
+      });
+    },
+    [notifyAuthStateChanged]
+  );
 
-  async function handleLogoutOtherSessions(): Promise<number> {
+  const handleLogoutOtherSessions = useCallback(async (): Promise<number> => {
     const result = await logoutOtherSessions();
     notifyAuthStateChanged("session-change");
     setAppNotice({
@@ -295,7 +298,7 @@ export default function App(): JSX.Element {
       message: `${result.revoked} session${result.revoked === 1 ? "" : "s"} logged out`
     });
     return result.revoked;
-  }
+  }, [notifyAuthStateChanged]);
 
   if (!sessionChecked) {
     return <main className="p-8 text-flaque-ink">Loading session...</main>;

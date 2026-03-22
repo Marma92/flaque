@@ -170,4 +170,32 @@ describe("useSessionRoutingState", () => {
       );
     });
   });
+
+  it("falls back to storage events when BroadcastChannel is unavailable", async () => {
+    globalThis.BroadcastChannel = undefined as unknown as typeof BroadcastChannel;
+    getCurrentUserMock.mockResolvedValueOnce(createUser("alice")).mockResolvedValueOnce(null);
+
+    render(<HookProbe />);
+
+    await waitFor(() => {
+      expect(getCurrentUserMock).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId("user").textContent).toBe("alice");
+    });
+
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: "flaque_auth_sync_v1",
+        newValue: JSON.stringify({
+          sourceId: "other-tab",
+          kind: "logout",
+          at: Date.now()
+        })
+      })
+    );
+
+    await waitFor(() => {
+      expect(getCurrentUserMock).toHaveBeenCalledTimes(2);
+      expect(screen.getByTestId("user").textContent).toBe("none");
+    });
+  });
 });
