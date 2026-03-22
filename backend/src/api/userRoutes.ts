@@ -14,6 +14,7 @@ import {
   findUserById,
   findUserByUsername,
   listUsers,
+  updateUserEmail,
   updateUserPassword,
   updateUserRole,
   updateUserUsername
@@ -273,6 +274,37 @@ export function createUserRouter(): Router {
     res.json({ ok: true });
   });
 
+  router.post("/users/me/email", requireAuth, (req, res, next) => {
+    try {
+      const authUser = req.authUser;
+      if (!authUser) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+      if (!email || !email.includes("@")) {
+        res.status(400).json({ error: "A valid email address is required" });
+        return;
+      }
+
+      const updated = updateUserEmail(authUser.id, email);
+      if (!updated) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      const updatedUser = findUserById(authUser.id);
+      res.json({ ok: true, user: updatedUser });
+    } catch (error) {
+      if (isSqliteUniqueError(error)) {
+        res.status(409).json({ error: "Email address already in use" });
+        return;
+      }
+      next(error);
+    }
+  });
+
   router.get("/users", requireAuth, requireAdmin, (_req, res) => {
     res.json({ users: listUsers() });
   });
@@ -346,9 +378,10 @@ export function createUserRouter(): Router {
 
       const hasUsername = hasOwnProperty(req.body, "username");
       const hasRole = hasOwnProperty(req.body, "role");
+      const hasEmail = hasOwnProperty(req.body, "email");
 
-      if (!hasUsername && !hasRole) {
-        res.status(400).json({ error: "At least one field must be provided: username or role" });
+      if (!hasUsername && !hasRole && !hasEmail) {
+        res.status(400).json({ error: "At least one field must be provided: username, role, or email" });
         return;
       }
 
@@ -383,6 +416,22 @@ export function createUserRouter(): Router {
         }
       }
 
+      let nextEmail: string | undefined;
+      if (hasEmail) {
+        if (typeof req.body?.email !== "string") {
+          res.status(400).json({ error: "email must be a string" });
+          return;
+        }
+
+        const parsedEmail = req.body.email.trim();
+        if (!parsedEmail || !parsedEmail.includes("@")) {
+          res.status(400).json({ error: "A valid email address is required" });
+          return;
+        }
+
+        nextEmail = parsedEmail;
+      }
+
       const existingUser = findUserById(userId);
       if (!existingUser) {
         res.status(404).json({ error: "User not found" });
@@ -392,8 +441,9 @@ export function createUserRouter(): Router {
       const shouldChangeUsername =
         typeof nextUsername === "string" && nextUsername !== existingUser.username;
       const shouldChangeRole = typeof nextRole === "string" && nextRole !== existingUser.role;
+      const shouldChangeEmail = typeof nextEmail === "string" && nextEmail.toLowerCase() !== (existingUser.email ?? "").toLowerCase();
 
-      if (!shouldChangeUsername && !shouldChangeRole) {
+      if (!shouldChangeUsername && !shouldChangeRole && !shouldChangeEmail) {
         res.json({ user: existingUser });
         return;
       }
@@ -427,6 +477,14 @@ export function createUserRouter(): Router {
         }
       }
 
+      if (shouldChangeEmail && nextEmail) {
+        const updated = updateUserEmail(userId, nextEmail);
+        if (!updated) {
+          res.status(404).json({ error: "User not found" });
+          return;
+        }
+      }
+
       const updatedUser = findUserById(userId);
       if (!updatedUser) {
         res.status(404).json({ error: "User not found" });
@@ -436,6 +494,11 @@ export function createUserRouter(): Router {
       res.json({ user: updatedUser });
     } catch (error) {
       if (isSqliteUniqueError(error)) {
+        const errorMessage = (error as Error).message ?? "";
+        if (errorMessage.includes("email")) {
+          res.status(409).json({ error: "Email address already in use" });
+          return;
+        }
         res.status(409).json({ error: "Username already exists" });
         return;
       }

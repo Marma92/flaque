@@ -481,10 +481,23 @@ export async function createUserAccount(input: {
   return payload.user;
 }
 
+export async function updateMyEmail(email: string): Promise<User> {
+  const payload = await requestJson<{ user: User }>("/api/users/me/email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ email })
+  });
+
+  return payload.user;
+}
+
 export async function patchUserAccount(
   userId: string,
   patch: {
     username?: string;
+    email?: string;
     role?: "user" | "admin";
   }
 ): Promise<User> {
