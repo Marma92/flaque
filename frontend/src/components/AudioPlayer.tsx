@@ -565,24 +565,52 @@ export function AudioPlayer({
         }`}
       >
         {expanded ? (
-          <div className="flex w-full items-start justify-center gap-3">
+          <div className="relative shrink-0 overflow-hidden rounded-2xl">
             {hasLyrics ? (
               <button
-                className={`rounded-xl border px-3 py-2 text-xs font-medium uppercase tracking-[0.12em] transition ${
-                  showLyricsOverlay
-                    ? "border-flaque-ink bg-flaque-ink text-flaque-cream"
-                    : "border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
-                }`}
+                className="absolute inset-0 z-10 cursor-pointer"
                 type="button"
                 onClick={() => setShowLyricsOverlay((current) => !current)}
                 aria-pressed={showLyricsOverlay}
                 aria-label={showLyricsOverlay ? "Hide lyrics" : "Show lyrics"}
-              >
-                Lyrics
-              </button>
+              />
             ) : null}
+            <img
+              className={artworkClassName}
+              src={coverUrl(track.id, track.cover)}
+              alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
+              onError={(event) => {
+                event.currentTarget.src = defaultCoverImage;
+              }}
+            />
 
-            <div className="relative shrink-0 overflow-hidden rounded-2xl">
+            {showLyricsOverlay && displayLyrics ? (
+              <div className="absolute inset-0 z-20 overflow-hidden bg-black/70 p-5">
+                <div className="h-full overflow-auto whitespace-pre-wrap text-left text-sm leading-relaxed text-flaque-cream/90 scrollbar-thin">
+                  {displayLyrics}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="relative shrink-0">
+            {onArtworkClick ? (
+              <button
+                className="shrink-0 rounded-2xl"
+                type="button"
+                aria-label="Open player view"
+                onClick={onArtworkClick}
+              >
+                <img
+                  className={`${artworkClassName} cursor-pointer`}
+                  src={coverUrl(track.id, track.cover)}
+                  alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
+                  onError={(event) => {
+                    event.currentTarget.src = defaultCoverImage;
+                  }}
+                />
+              </button>
+            ) : (
               <img
                 className={artworkClassName}
                 src={coverUrl(track.id, track.cover)}
@@ -591,39 +619,14 @@ export function AudioPlayer({
                   event.currentTarget.src = defaultCoverImage;
                 }}
               />
+            )}
 
-              {showLyricsOverlay && displayLyrics ? (
-                <div className="absolute inset-0 bg-black/60 p-4 text-left text-sm leading-relaxed text-flaque-cream">
-                  <div className="h-full overflow-auto whitespace-pre-wrap">{displayLyrics}</div>
-                </div>
-              ) : null}
-            </div>
+            {hasLyrics ? (
+              <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-flaque-cream/90">
+                Lyrics
+              </span>
+            ) : null}
           </div>
-        ) : onArtworkClick ? (
-          <button
-            className="shrink-0 rounded-2xl"
-            type="button"
-            aria-label="Open player view"
-            onClick={onArtworkClick}
-          >
-            <img
-              className={`${artworkClassName} cursor-pointer`}
-              src={coverUrl(track.id, track.cover)}
-              alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
-              onError={(event) => {
-                event.currentTarget.src = defaultCoverImage;
-              }}
-            />
-          </button>
-        ) : (
-          <img
-            className={artworkClassName}
-            src={coverUrl(track.id, track.cover)}
-            alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
-            onError={(event) => {
-              event.currentTarget.src = defaultCoverImage;
-            }}
-          />
         )}
 
         <div className={contentLayoutClass}>
@@ -640,6 +643,11 @@ export function AudioPlayer({
             ) : null}
             <p className={metaTextClassName}>
               {track.codec} {track.sampleRate ? `- ${Math.round(track.sampleRate / 1000)} kHz` : ""}
+              {expanded && hasLyrics ? (
+                <span className="ml-2 rounded bg-flaque-ink/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-flaque-ink/70">
+                  Lyrics
+                </span>
+              ) : null}
             </p>
           </div>
 
