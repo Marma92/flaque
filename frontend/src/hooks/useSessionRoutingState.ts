@@ -23,7 +23,7 @@ type UseSessionRoutingStateResult = {
   setActiveView: Dispatch<SetStateAction<ViewName>>;
   activeLibrarySection: LibrarySection;
   setActiveLibrarySection: Dispatch<SetStateAction<LibrarySection>>;
-  handleLogin: (username: string, password: string) => Promise<void>;
+  handleLogin: (login: string, password: string) => Promise<void>;
   notifyAuthStateChanged: (kind: AuthSyncEvent["kind"]) => void;
 };
 
@@ -156,8 +156,8 @@ export function useSessionRoutingState(): UseSessionRoutingStateResult {
     syncViewToLocation(resolvedView, VIEW_QUERY_PARAM);
   }, [activeView, sessionChecked, user?.role]);
 
-  async function handleLogin(username: string, password: string): Promise<void> {
-    const authenticatedUser = await login(username, password);
+  async function handleLogin(loginValue: string, password: string): Promise<void> {
+    const authenticatedUser = await login(loginValue, password);
     setUser(authenticatedUser);
     setActiveView("library");
     setActiveLibrarySection("music");

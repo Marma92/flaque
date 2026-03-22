@@ -69,6 +69,54 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request a password reset email
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthForgotPasswordRequest"
+      responses:
+        "200":
+          description: Request accepted regardless of account existence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericOkResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset account password using a reset token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthResetPasswordRequest"
+      responses:
+        "200":
+          description: Password reset applied and all existing sessions revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericOkResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/auth/logout:
     post:
@@ -963,6 +1011,17 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
+    TooManyRequests:
+      description: Request rate exceeded for this route
+      headers:
+        Retry-After:
+          description: Number of seconds before retrying
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
 
   schemas:
     ErrorResponse:
@@ -997,14 +1056,47 @@ components:
     LoginRequest:
       type: object
       properties:
+        login:
+          type: string
+          description: Username or email
         username:
           type: string
+          description: Deprecated alias for login
+          deprecated: true
         password:
           type: string
         deviceLabel:
           type: string
           description: Optional human-readable client/device label
-      required: [username, password]
+      required: [password]
+      anyOf:
+        - required: [login]
+        - required: [username]
+
+    AuthForgotPasswordRequest:
+      type: object
+      properties:
+        login:
+          type: string
+          description: Username or email
+      required: [login]
+
+    AuthResetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+        newPassword:
+          type: string
+      required: [token, newPassword]
+
+    GenericOkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+      required: [ok]
 
     AuthSession:
       type: object

@@ -85,10 +85,14 @@ describe("initializeAuthDatabase migrations", () => {
     });
 
     const migratedDb = new Database(usersDbPath, { readonly: true });
+    const userColumns = migratedDb.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
+    const userIndexes = migratedDb.prepare("PRAGMA index_list(users)").all() as Array<{ name: string }>;
     const columns = migratedDb.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
     const indexes = migratedDb.prepare("PRAGMA index_list(sessions)").all() as Array<{ name: string }>;
     migratedDb.close();
 
+    expect(userColumns.some((column) => column.name === "email")).toBe(true);
+    expect(userIndexes.some((index) => index.name === "idx_users_email")).toBe(true);
     expect(columns.some((column) => column.name === "last_seen_at")).toBe(true);
     expect(columns.some((column) => column.name === "user_agent")).toBe(true);
     expect(columns.some((column) => column.name === "ip_address")).toBe(true);

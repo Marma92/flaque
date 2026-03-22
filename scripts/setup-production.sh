@@ -12,6 +12,7 @@ DEFAULT_STATE_DIR="${HOME}/flaque/state"
 DEFAULT_FRONTEND_PORT="8080"
 DEFAULT_BACKEND_PORT="4000"
 DEFAULT_ADMIN_USERNAME="admin"
+DEFAULT_ADMIN_EMAIL="admin@example.com"
 DEFAULT_ADMIN_PASSWORD="change-me"
 DEFAULT_SESSION_COOKIE_SECURE="no"
 DEFAULT_SYNC_ADMIN_PASSWORD="yes"
@@ -192,6 +193,24 @@ prompt_admin_username() {
       return
     fi
     print_warn "Username must be 3-32 chars and contain only letters, numbers, ., _, -."
+  done
+}
+
+is_valid_email() {
+  local value="$1"
+  [[ "${value}" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]
+}
+
+prompt_admin_email() {
+  local value
+  while true; do
+    value="$(prompt_with_default "Bootstrap admin email" "${DEFAULT_ADMIN_EMAIL}" "trim")"
+    value="${value,,}"
+    if is_valid_email "${value}"; then
+      printf "%s" "${value}"
+      return
+    fi
+    print_warn "Email must be a valid address."
   done
 }
 
@@ -516,6 +535,7 @@ done
 DEFAULT_CORS_ORIGIN="http://localhost:${FRONTEND_PORT}"
 CORS_ORIGIN="$(prompt_cors_origin_list "${DEFAULT_CORS_ORIGIN}")"
 ADMIN_USERNAME="$(prompt_admin_username)"
+ADMIN_EMAIL="$(prompt_admin_email)"
 ADMIN_PASSWORD="$(prompt_secret_with_default "Bootstrap admin password" "${DEFAULT_ADMIN_PASSWORD}")"
 SESSION_COOKIE_SECURE_PROMPT="$(prompt_yes_no "Use secure session cookie (requires HTTPS URL in browser)?" "${DEFAULT_SESSION_COOKIE_SECURE}")"
 if [[ "${SESSION_COOKIE_SECURE_PROMPT}" == "yes" ]]; then
@@ -534,6 +554,7 @@ HTTP_REQUEST_TIMEOUT_MS="${DEFAULT_HTTP_REQUEST_TIMEOUT_MS}"
 HTTP_SOCKET_TIMEOUT_MS="${DEFAULT_HTTP_SOCKET_TIMEOUT_MS}"
 
 validate_single_line_value "ADMIN_USERNAME" "${ADMIN_USERNAME}"
+validate_single_line_value "ADMIN_EMAIL" "${ADMIN_EMAIL}"
 validate_single_line_value "ADMIN_PASSWORD" "${ADMIN_PASSWORD}"
 
 if [[ -f "${ENV_FILE}" ]]; then
@@ -561,6 +582,7 @@ cat > "${ENV_FILE}" <<EOF
 PORT=4000
 CORS_ORIGIN=${CORS_ORIGIN}
 ADMIN_USERNAME=${ADMIN_USERNAME}
+ADMIN_EMAIL=${ADMIN_EMAIL}
 ADMIN_PASSWORD=${ADMIN_PASSWORD_LITERAL}
 SESSION_TTL_HOURS=168
 SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE}
@@ -614,6 +636,7 @@ printf "Storage : %s\n" "${STORAGE_DIR}"
 printf "State   : %s\n" "${STATE_DIR}"
 printf "Env file: %s\n" "${ENV_FILE}"
 printf "Admin   : %s\n" "${ADMIN_USERNAME}"
+printf "Email   : %s\n" "${ADMIN_EMAIL}"
 printf "Password: '%s'\n" "${ADMIN_PASSWORD}"
 printf "Cookie secure: %s\n" "${SESSION_COOKIE_SECURE}"
 printf "Sync admin password on setup: %s\n" "${SYNC_ADMIN_PASSWORD}"
