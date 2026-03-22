@@ -5,6 +5,7 @@ import type { User } from "../types";
 type NewUserInput = {
   username: string;
   password: string;
+  email: string;
   role: "user" | "admin";
 };
 
@@ -15,6 +16,11 @@ type ModalState =
       kind: "rename";
       user: User;
       username: string;
+    }
+  | {
+      kind: "changeEmail";
+      user: User;
+      email: string;
     }
   | {
       kind: "resetPassword";
@@ -41,6 +47,7 @@ type AdminUsersViewProps = {
   onPatchUser: (input: {
     userId: string;
     username?: string;
+    email?: string;
     role?: "user" | "admin";
   }) => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
@@ -64,6 +71,7 @@ export function AdminUsersView({
 }: AdminUsersViewProps): JSX.Element {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
   const [role, setRole] = useState<"user" | "admin">("user");
   const [searchText, setSearchText] = useState("");
   const [roleFilter, setRoleFilter] = useState<UserRoleFilter>("all");
@@ -102,12 +110,14 @@ export function AdminUsersView({
       await onCreateUser({
         username: username.trim(),
         password,
+        email: email.trim(),
         role
       });
 
       setFormMessage("User created successfully.");
       setUsername("");
       setPassword("");
+      setEmail("");
       setRole("user");
     } catch (submitError) {
       setFormMessage(submitError instanceof Error ? submitError.message : "Failed to create user");
@@ -140,6 +150,15 @@ export function AdminUsersView({
       kind: "rename",
       user,
       username: user.username
+    });
+  }
+
+  function openChangeEmailModal(user: User): void {
+    setModalError(null);
+    setModalState({
+      kind: "changeEmail",
+      user,
+      email: user.email
     });
   }
 
@@ -209,6 +228,27 @@ export function AdminUsersView({
           break;
         }
 
+        case "changeEmail": {
+          const nextEmail = modalState.email.trim();
+          if (!nextEmail || !nextEmail.includes("@")) {
+            setModalError("A valid email address is required.");
+            return;
+          }
+
+          if (nextEmail === modalState.user.email) {
+            setModalState(null);
+            return;
+          }
+
+          await onPatchUser({
+            userId: modalState.user.id,
+            email: nextEmail
+          });
+          setActionMessage(`Email updated for ${modalState.user.username}.`);
+          setModalState(null);
+          break;
+        }
+
         case "resetPassword": {
           const nextPassword = modalState.password.trim();
           if (nextPassword.length < 8) {
@@ -274,7 +314,7 @@ export function AdminUsersView({
           </button>
         </div>
 
-        <form className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-4" onSubmit={handleSubmit}>
+        <form className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-5" onSubmit={handleSubmit}>
           <label className="text-sm text-flaque-ink">
             Username
             <input
@@ -285,6 +325,18 @@ export function AdminUsersView({
               minLength={3}
               maxLength={32}
               pattern="[a-zA-Z0-9._-]+"
+              required
+            />
+          </label>
+
+          <label className="text-sm text-flaque-ink">
+            Email
+            <input
+              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="user@example.com"
               required
             />
           </label>
@@ -382,6 +434,7 @@ export function AdminUsersView({
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <p className="text-base font-medium text-flaque-ink">{entry.username}</p>
+                    <p className="truncate text-xs text-flaque-steel">{entry.email}</p>
                     <p className="font-mono text-[11px] text-flaque-steel">{entry.id}</p>
                   </div>
                   <span
@@ -401,6 +454,14 @@ export function AdminUsersView({
                     onClick={() => openRenameModal(entry)}
                   >
                     Rename
+                  </button>
+                  <button
+                    className="rounded-lg border border-flaque-clay bg-white px-3 py-2 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    disabled={runningAction}
+                    onClick={() => openChangeEmailModal(entry)}
+                  >
+                    Change email
                   </button>
                   <button
                     className="rounded-lg border border-flaque-clay bg-white px-3 py-2 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
@@ -439,6 +500,7 @@ export function AdminUsersView({
             <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
               <tr>
                 <th className="px-4 py-3 font-medium">Username</th>
+                <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Role</th>
                 <th className="px-4 py-3 font-medium">User ID</th>
                 <th className="px-4 py-3 font-medium">Actions</th>
@@ -452,6 +514,7 @@ export function AdminUsersView({
                 return (
                   <tr key={entry.id} className="border-t border-flaque-clay/40">
                     <td className="px-4 py-3 text-flaque-ink">{entry.username}</td>
+                    <td className="max-w-[14rem] truncate px-4 py-3 text-flaque-steel" title={entry.email}>{entry.email}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium uppercase tracking-[0.12em] ${
@@ -473,6 +536,14 @@ export function AdminUsersView({
                           onClick={() => openRenameModal(entry)}
                         >
                           Rename
+                        </button>
+                        <button
+                          className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                          type="button"
+                          disabled={runningAction}
+                          onClick={() => openChangeEmailModal(entry)}
+                        >
+                          Change email
                         </button>
                         <button
                           className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
@@ -505,7 +576,7 @@ export function AdminUsersView({
               })}
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-4 text-flaque-steel" colSpan={4}>
+                  <td className="px-4 py-4 text-flaque-steel" colSpan={5}>
                     No users match this search/filter.
                   </td>
                 </tr>
@@ -524,11 +595,13 @@ export function AdminUsersView({
             <h3 className="font-display text-xl text-flaque-ink">
               {modalState.kind === "rename"
                 ? `Rename ${modalState.user.username}`
-                : modalState.kind === "resetPassword"
-                  ? `Reset password for ${modalState.user.username}`
-                  : modalState.kind === "toggleRole"
-                    ? `Change role for ${modalState.user.username}`
-                    : `Delete ${modalState.user.username}`}
+                : modalState.kind === "changeEmail"
+                  ? `Change email for ${modalState.user.username}`
+                  : modalState.kind === "resetPassword"
+                    ? `Reset password for ${modalState.user.username}`
+                    : modalState.kind === "toggleRole"
+                      ? `Change role for ${modalState.user.username}`
+                      : `Delete ${modalState.user.username}`}
             </h3>
 
             {modalState.kind === "rename" ? (
@@ -547,6 +620,28 @@ export function AdminUsersView({
                         ? {
                             ...current,
                             username: event.target.value
+                          }
+                        : current
+                    );
+                  }}
+                  autoFocus
+                />
+              </label>
+            ) : null}
+
+            {modalState.kind === "changeEmail" ? (
+              <label className="mt-4 block text-sm text-flaque-ink">
+                New email
+                <input
+                  className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                  type="email"
+                  value={modalState.email}
+                  onChange={(event) => {
+                    setModalState((current) =>
+                      current && current.kind === "changeEmail"
+                        ? {
+                            ...current,
+                            email: event.target.value
                           }
                         : current
                     );
@@ -616,11 +711,13 @@ export function AdminUsersView({
                   ? "Saving..."
                   : modalState.kind === "rename"
                     ? "Save username"
-                    : modalState.kind === "resetPassword"
-                      ? "Reset password"
-                      : modalState.kind === "toggleRole"
-                        ? "Confirm role"
-                        : "Delete user"}
+                    : modalState.kind === "changeEmail"
+                      ? "Save email"
+                      : modalState.kind === "resetPassword"
+                        ? "Reset password"
+                        : modalState.kind === "toggleRole"
+                          ? "Confirm role"
+                          : "Delete user"}
               </button>
             </div>
           </form>

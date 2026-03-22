@@ -144,6 +144,7 @@ async function createUserAsAdmin(input: {
   adminCookie: string;
   username: string;
   password: string;
+  email?: string;
   role?: "user" | "admin";
 }): Promise<{ id: string; username: string; role: "user" | "admin" }> {
   const response = await apiRequest("/api/users", {
@@ -154,6 +155,7 @@ async function createUserAsAdmin(input: {
     body: JSON.stringify({
       username: input.username,
       password: input.password,
+      email: input.email ?? `${input.username}@test.local`,
       role: input.role ?? "user"
     })
   });
@@ -189,6 +191,7 @@ beforeEach(async () => {
   process.env.DATA_ROOT = dataRoot;
   process.env.ADMIN_USERNAME = "admin";
   process.env.ADMIN_PASSWORD = "admin-secret-123";
+  process.env.ADMIN_EMAIL = "admin@test.local";
   process.env.CORS_ORIGIN = "http://localhost:5173";
 
   await bootstrapServer();
@@ -211,6 +214,7 @@ afterEach(async () => {
   delete process.env.DATA_ROOT;
   delete process.env.ADMIN_USERNAME;
   delete process.env.ADMIN_PASSWORD;
+  delete process.env.ADMIN_EMAIL;
   delete process.env.CORS_ORIGIN;
   server = null;
   baseUrl = "";

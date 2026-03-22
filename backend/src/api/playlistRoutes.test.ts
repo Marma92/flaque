@@ -69,7 +69,7 @@ async function bootstrapServer(indexStore: FakeIndexStore): Promise<void> {
   await ensureBaseDirectories();
   initializeAuthDatabase();
   ensureDefaultAdmin();
-  createUser("alice", "alice-password", "user");
+  createUser("alice", "alice-password", "user", "alice@test.local");
 
   const app = createApp(indexStore as unknown as import("../services/indexer/indexStore").IndexStore);
   server = createServer(app);
@@ -140,6 +140,7 @@ beforeEach(async () => {
   process.env.DATA_ROOT = dataRoot;
   process.env.ADMIN_USERNAME = "admin";
   process.env.ADMIN_PASSWORD = "admin-secret-123";
+  process.env.ADMIN_EMAIL = "admin@test.local";
   process.env.CORS_ORIGIN = "http://localhost:5173";
 });
 
@@ -160,6 +161,7 @@ afterEach(async () => {
   delete process.env.DATA_ROOT;
   delete process.env.ADMIN_USERNAME;
   delete process.env.ADMIN_PASSWORD;
+  delete process.env.ADMIN_EMAIL;
   delete process.env.CORS_ORIGIN;
   server = null;
   baseUrl = "";

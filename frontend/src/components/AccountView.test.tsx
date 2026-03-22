@@ -31,6 +31,7 @@ function createUser(): User {
   return {
     id: "user-1",
     username: "alice",
+    email: "alice@test.local",
     role: "user"
   };
 }
@@ -55,6 +56,7 @@ describe("AccountView", () => {
         user={createUser()}
         avatarUrl="/api/users/me/photo"
         onUpdatePhoto={vi.fn().mockResolvedValue(undefined)}
+        onUpdateEmail={vi.fn().mockResolvedValue(undefined)}
         onChangePassword={vi.fn().mockResolvedValue(undefined)}
         onListSessions={onListSessions}
         onRevokeSession={onRevokeSession}
@@ -92,6 +94,7 @@ describe("AccountView", () => {
         user={createUser()}
         avatarUrl="/api/users/me/photo"
         onUpdatePhoto={vi.fn().mockResolvedValue(undefined)}
+        onUpdateEmail={vi.fn().mockResolvedValue(undefined)}
         onChangePassword={vi.fn().mockResolvedValue(undefined)}
         onListSessions={onListSessions}
         onRevokeSession={vi.fn().mockResolvedValue(undefined)}
@@ -125,6 +128,7 @@ describe("AccountView", () => {
         user={createUser()}
         avatarUrl="/api/users/me/photo"
         onUpdatePhoto={vi.fn().mockResolvedValue(undefined)}
+        onUpdateEmail={vi.fn().mockResolvedValue(undefined)}
         onChangePassword={vi.fn().mockResolvedValue(undefined)}
         onListSessions={onListSessions}
         onRevokeSession={vi.fn().mockResolvedValue(undefined)}

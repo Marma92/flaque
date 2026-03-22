@@ -281,6 +281,7 @@ export function createUserRouter(): Router {
     try {
       const username = typeof req.body?.username === "string" ? req.body.username.trim() : "";
       const password = typeof req.body?.password === "string" ? req.body.password : "";
+      const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
       const role = parseRoleForCreate(req.body?.role);
 
       if (
@@ -301,6 +302,11 @@ export function createUserRouter(): Router {
         return;
       }
 
+      if (!email || !email.includes("@")) {
+        res.status(400).json({ error: "A valid email address is required" });
+        return;
+      }
+
       if (!role) {
         res.status(400).json({ error: "Role must be either user or admin" });
         return;
@@ -312,10 +318,15 @@ export function createUserRouter(): Router {
         return;
       }
 
-      const user = createUser(username, password, role);
+      const user = createUser(username, password, role, email);
       res.status(201).json({ user });
     } catch (error) {
       if (isSqliteUniqueError(error)) {
+        const errorMessage = (error as Error).message ?? "";
+        if (errorMessage.includes("email")) {
+          res.status(409).json({ error: "Email address already in use" });
+          return;
+        }
         res.status(409).json({ error: "Username already exists" });
         return;
       }

@@ -58,7 +58,8 @@ function run(): void {
 
   const existing = findUserByUsername(username);
   if (!existing) {
-    const created = createUser(username, password, "admin");
+    const email = process.env.ADMIN_EMAIL ?? `${username}@localhost`;
+    const created = createUser(username, password, "admin", email);
     console.log(`Admin user created: ${created.username}`);
     return;
   }

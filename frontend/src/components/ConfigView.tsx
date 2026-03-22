@@ -26,11 +26,13 @@ type ConfigViewProps = {
   onCreateUser: (input: {
     username: string;
     password: string;
+    email: string;
     role: "user" | "admin";
   }) => Promise<void>;
   onPatchUser: (input: {
     userId: string;
     username?: string;
+    email?: string;
     role?: "user" | "admin";
   }) => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
@@ -359,10 +361,10 @@ export function ConfigView({
                         {title}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-flaque-steel">{getTrackDisplayArtist(track) ?? "Unknown"}</td>
-                    <td className="px-4 py-3 text-flaque-steel">{getTrackDisplayAlbumWithYear(track) ?? "Unknown"}</td>
-                    <td className="px-4 py-3 text-flaque-steel">{resolveOwnerLabel(track.owner)}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-flaque-steel">{track.path}</td>
+                    <td className="max-w-[12rem] truncate px-4 py-3 text-flaque-steel" title={getTrackDisplayArtist(track) ?? "Unknown"}>{getTrackDisplayArtist(track) ?? "Unknown"}</td>
+                    <td className="max-w-[14rem] truncate px-4 py-3 text-flaque-steel" title={getTrackDisplayAlbumWithYear(track) ?? "Unknown"}>{getTrackDisplayAlbumWithYear(track) ?? "Unknown"}</td>
+                    <td className="max-w-[8rem] truncate px-4 py-3 text-flaque-steel" title={resolveOwnerLabel(track.owner)}>{resolveOwnerLabel(track.owner)}</td>
+                    <td className="max-w-[14rem] truncate px-4 py-3 font-mono text-xs text-flaque-steel" title={track.path}>{track.path}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <button

@@ -208,7 +208,7 @@ export function createUser(
   username: string,
   password: string,
   role: UserRole = "user",
-  email?: string | null
+  email: string
 ): AuthUser {
   const database = requireDb();
   const id = createId(16);
@@ -216,13 +216,17 @@ export function createUser(
   const passwordHash = hashPassword(password);
   const normalizedEmail = normalizeEmail(email);
 
+  if (!normalizedEmail) {
+    throw new Error("A valid email address is required");
+  }
+
   database
     .prepare(
       "INSERT INTO users (id, username, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?)"
     )
     .run(id, username, normalizedEmail, passwordHash, role, now);
 
-  return { id, username, role };
+  return { id, username, role, email: normalizedEmail };
 }
 
 export function findUserByUsername(username: string): UserRow | null {
@@ -263,7 +267,7 @@ export function findUserByLogin(login: string): UserRow | null {
 export function findUserById(userId: string): AuthUser | null {
   const database = requireDb();
   const row = database
-    .prepare("SELECT id, username, role FROM users WHERE id = ?")
+    .prepare("SELECT id, username, COALESCE(email, '') AS email, role FROM users WHERE id = ?")
     .get(userId) as AuthUser | undefined;
   return row ?? null;
 }
@@ -271,8 +275,8 @@ export function findUserById(userId: string): AuthUser | null {
 export function listUsers(): AuthUser[] {
   const database = requireDb();
   return database
-    .prepare("SELECT id, username, role FROM users ORDER BY username ASC")
-    .all() as PublicUserRow[];
+    .prepare("SELECT id, username, COALESCE(email, '') AS email, role FROM users ORDER BY username ASC")
+    .all() as AuthUser[];
 }
 
 export function countUsersByRole(role: UserRole): number {
@@ -462,6 +466,7 @@ export function findSessionUser(sessionId: string): { user: AuthUser; session: A
         s.user_id,
         u.id,
         u.username,
+        COALESCE(u.email, '') AS email,
         u.role,
         s.id AS session_id,
         s.created_at,
@@ -499,6 +504,7 @@ export function findSessionUser(sessionId: string): { user: AuthUser; session: A
     user: {
       id: row.id,
       username: row.username,
+      email: (row as { email?: string }).email ?? "",
       role: row.role
     },
     session: {
@@ -546,7 +552,7 @@ function shouldSyncBootstrapAdminPassword(): boolean {
 export function ensureDefaultAdmin(): AuthUser | null {
   const username = (process.env.ADMIN_USERNAME ?? "admin").trim();
   const password = normalizeBootstrapAdminPassword(process.env.ADMIN_PASSWORD ?? "admin1234");
-  const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL ?? "");
+  const adminEmail = process.env.ADMIN_EMAIL?.trim() ?? "";
   const syncBootstrapAdminPassword = shouldSyncBootstrapAdminPassword();
 
   if (!username) {
@@ -559,8 +565,9 @@ export function ensureDefaultAdmin(): AuthUser | null {
       updateUserRole(existing.id, "admin");
     }
 
-    if (adminEmail && existing.email !== adminEmail) {
-      updateUserEmail(existing.id, adminEmail);
+    const normalizedAdminEmail = normalizeEmail(adminEmail);
+    if (normalizedAdminEmail && existing.email !== normalizedAdminEmail) {
+      updateUserEmail(existing.id, normalizedAdminEmail);
     }
 
     if (syncBootstrapAdminPassword) {
@@ -571,8 +578,14 @@ export function ensureDefaultAdmin(): AuthUser | null {
     return promoted ?? {
       id: existing.id,
       username: existing.username,
+      email: existing.email ?? normalizedAdminEmail ?? "",
       role: "admin"
     };
+  }
+
+  if (!adminEmail) {
+    console.warn("ADMIN_EMAIL is required to create the default admin user. Set it in your environment.");
+    return null;
   }
 
   return createUser(username, password, "admin", adminEmail);

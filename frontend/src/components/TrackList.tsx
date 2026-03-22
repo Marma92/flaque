@@ -4,6 +4,7 @@ import type { Track } from "../types";
 import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
+  getTrackDisplayLyrics,
   getTrackDisplayTitle
 } from "../utils/tracks";
 
@@ -64,6 +65,9 @@ export function TrackList({
               onClick={() => onTrackSelect(track)}
             >
               <p className="truncate text-sm font-medium" title={trackTitle}>
+                {getTrackDisplayLyrics(track) ? (
+                  <span className={`mr-1.5 inline-block rounded px-1 py-px text-[9px] font-bold leading-tight ${selected ? "bg-flaque-cream/25 text-flaque-cream" : "bg-flaque-ink/10 text-flaque-ink/60"}`}>L</span>
+                ) : null}
                 {trackTitle}
               </p>
               <p className={`mt-1 truncate text-xs ${selected ? "text-flaque-cream/85" : "text-flaque-steel"}`}>
@@ -122,6 +126,9 @@ export function TrackList({
                 >
                   <td className="px-4 py-3 text-flaque-ink">
                     <span className="block max-w-[24rem] truncate" title={trackTitle}>
+                      {getTrackDisplayLyrics(track) ? (
+                        <span className="mr-1.5 inline-block rounded bg-flaque-ink/10 px-1 py-px text-[9px] font-bold leading-tight text-flaque-ink/60">L</span>
+                      ) : null}
                       {trackTitle}
                     </span>
                   </td>
