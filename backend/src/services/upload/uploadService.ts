@@ -11,6 +11,7 @@ import {
 import { extractAudioMetadata } from "../scanner/audioProbe";
 import { ensureTrackCover } from "../storage/coverService";
 import { toDataRelativePath } from "../storage/storageService";
+import { registerTrackOwner } from "../storage/ownershipStore";
 import type { Track } from "../../types/library";
 import { fileExists, moveFile, writeJsonAtomic } from "../../utils/fs";
 import { createTrackId, hashFile } from "../../utils/hash";
@@ -139,7 +140,7 @@ async function placeFile(
   const finalFileName = `${hash}${extension}`;
   const finalPath = path.join(albumDir, finalFileName);
   const relativePath = toDataRelativePath(finalPath);
-  const trackId = createTrackId(ownerId, relativePath);
+  const trackId = createTrackId(relativePath);
 
   const alreadyPresent = await fileExists(finalPath);
   if (alreadyPresent) {
@@ -148,6 +149,7 @@ async function placeFile(
     await moveFile(uploadedFile.path, finalPath);
   }
 
+  await registerTrackOwner(relativePath, ownerId);
   return { trackId, relativePath, isNew: !alreadyPresent };
 }
 
@@ -158,7 +160,7 @@ async function placeFile(
 export async function processUploadedFile(
   uploadedFile: Express.Multer.File,
   ownerId: string,
-  ownerUploadDir: string,
+  musicDir: string,
   manualArtist: string | undefined,
   manualAlbum: string | undefined,
   metadataOverride: UploadMetadataOverride
@@ -170,7 +172,7 @@ export async function processUploadedFile(
   const metadata = await extractAudioMetadata(uploadedFile.path);
   const { artistName, albumName } = resolveEffectiveNames(metadata, manualArtist, manualAlbum, metadataOverride);
 
-  const artistDir = path.join(ownerUploadDir, normalizeDirectorySegment(artistName));
+  const artistDir = path.join(musicDir, normalizeDirectorySegment(artistName));
   const albumDir = path.join(artistDir, normalizeDirectorySegment(albumName));
 
   await ensureArtistDirectory(artistDir, artistName);

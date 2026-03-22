@@ -47,7 +47,7 @@ function createTrack(id: string, owner: string, artist: string, album: string): 
   return {
     id,
     owner,
-    path: `storage/users/${owner}/uploads/${id}.mp3`,
+    path: `storage/music/${id}.mp3`,
     duration: 120,
     mimeType: "audio/mpeg",
     codec: "mp3",

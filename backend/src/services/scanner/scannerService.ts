@@ -6,7 +6,7 @@ import type { LibraryIndex, Track } from "../../types/library";
 import { fileExists, readJsonFile, writeJsonAtomic } from "../../utils/fs";
 import { createAlbumId, createTrackId } from "../../utils/hash";
 import { getAudioMimeType, isSupportedAudioFile } from "../../utils/mime";
-import { getOwnerUploadsDir, indexFilePath, resolveDataRelativePath, scannerStateFilePath } from "../../utils/paths";
+import { indexFilePath, resolveDataRelativePath, scannerStateFilePath, sharedMusicRoot } from "../../utils/paths";
 import { readTrackMetadataOverrides } from "../indexer/metadataOverrideStore";
 import {
   ensureDirectoryMetadata,
@@ -16,8 +16,9 @@ import {
   writeEmbeddedCoverToDirectory
 } from "../media/mediaMetadataService";
 import { extractAudioMetadata } from "./audioProbe";
-import { listOwnerIds, toDataRelativePath } from "../storage/storageService";
+import { toDataRelativePath } from "../storage/storageService";
 import { ensureTrackCover } from "../storage/coverService";
+import { readTrackOwnership, writeTrackOwnership } from "../storage/ownershipStore";
 import { scanFilesystemPlaylists } from "../playlists/playlistStore";
 
 const ARTIST_METADATA_FILE = "artist.json";
@@ -42,7 +43,6 @@ type AlbumMetadata = {
 };
 
 type AlbumAggregate = {
-  ownerId: string;
   albumDir: string;
   id?: string;
   name: string;
@@ -117,8 +117,8 @@ async function hasArtistPhoto(metadata: ArtistMetadata): Promise<boolean> {
   }
 }
 
-async function ensureArtistPhotoForTrack(ownerId: string, artistName: string): Promise<void> {
-  const artistDir = path.join(getOwnerUploadsDir(ownerId), normalizeDirectorySegment(artistName));
+async function ensureArtistPhotoForTrack(artistName: string): Promise<void> {
+  const artistDir = path.join(sharedMusicRoot, normalizeDirectorySegment(artistName));
   if (!(await fileExists(artistDir))) {
     return;
   }
@@ -161,12 +161,11 @@ async function hasAlbumCover(metadata: AlbumMetadata): Promise<boolean> {
 }
 
 async function ensureAlbumCoverForTrack(
-  ownerId: string,
   artistName: string,
   albumName: string,
   trackCover: { data: Buffer; format?: string } | undefined
 ): Promise<void> {
-  const artistDir = path.join(getOwnerUploadsDir(ownerId), normalizeDirectorySegment(artistName));
+  const artistDir = path.join(sharedMusicRoot, normalizeDirectorySegment(artistName));
   const albumDir = path.join(artistDir, normalizeDirectorySegment(albumName));
   if (!(await fileExists(albumDir))) {
     return;
@@ -201,7 +200,7 @@ async function flushAlbumMetadata(albums: Map<string, AlbumAggregate>): Promise<
     const albumRelativePath = toDataRelativePath(album.albumDir);
     const metadataPath = path.join(album.albumDir, ALBUM_METADATA_FILE);
     const metadata: AlbumMetadata = {
-      id: album.id?.trim() || createAlbumId(album.ownerId, albumRelativePath),
+      id: album.id?.trim() || createAlbumId(albumRelativePath),
       name: album.name,
       ...(album.coverPath
         ? {
@@ -217,15 +216,13 @@ async function flushAlbumMetadata(albums: Map<string, AlbumAggregate>): Promise<
   }
 }
 
-async function sortRootUploadFiles(
-  ownerId: string,
-  uploadsDir: string,
+async function sortRootMusicFiles(
   metadataOverrides: Record<string, { artist?: string; album?: string }>
 ): Promise<void> {
   let entries: Dirent[] = [];
 
   try {
-    entries = await fs.readdir(uploadsDir, { withFileTypes: true });
+    entries = await fs.readdir(sharedMusicRoot, { withFileTypes: true });
   } catch {
     return;
   }
@@ -235,13 +232,13 @@ async function sortRootUploadFiles(
       continue;
     }
 
-    const sourcePath = path.join(uploadsDir, entry.name);
+    const sourcePath = path.join(sharedMusicRoot, entry.name);
     if (!isSupportedAudioFile(sourcePath)) {
       continue;
     }
 
     const relativePath = toDataRelativePath(sourcePath);
-    const trackId = createTrackId(ownerId, relativePath);
+    const trackId = createTrackId(relativePath);
     const metadataOverride = metadataOverrides[trackId];
     const metadata = await extractAudioMetadata(sourcePath);
 
@@ -253,7 +250,7 @@ async function sortRootUploadFiles(
       UNKNOWN_ARTIST;
     const albumName = metadataOverride?.album ?? metadata.tags.album ?? UNKNOWN_ALBUM;
 
-    const artistDir = path.join(uploadsDir, normalizeDirectorySegment(artistName));
+    const artistDir = path.join(sharedMusicRoot, normalizeDirectorySegment(artistName));
     await ensureDirectoryMetadata(artistDir, ARTIST_METADATA_FILE, artistName);
 
     const albumDir = path.join(artistDir, normalizeDirectorySegment(albumName));
@@ -325,38 +322,36 @@ function createTrackIdentity(relativePath: string, mtimeMs: number, size: number
 }
 
 async function collectFilesystemState(
-  ownerIds: string[],
+  ownership: Record<string, string>,
   metadataOverrides: Record<string, { artist?: string; album?: string }>
 ): Promise<FileSystemTrackState[]> {
   const states: FileSystemTrackState[] = [];
 
-  for (const ownerId of ownerIds) {
-    const uploadsDir = getOwnerUploadsDir(ownerId);
-    await sortRootUploadFiles(ownerId, uploadsDir, metadataOverrides);
-    const files = await collectAudioFiles(uploadsDir);
+  await sortRootMusicFiles(metadataOverrides);
+  const files = await collectAudioFiles(sharedMusicRoot);
 
-    for (const filePath of files) {
-      let stats;
-      try {
-        stats = await fs.stat(filePath);
-      } catch {
-        continue;
-      }
-
-      const relativePath = toDataRelativePath(filePath);
-      const trackId = createTrackId(ownerId, relativePath);
-      const identity = createTrackIdentity(relativePath, stats.mtimeMs, stats.size);
-
-      states.push({
-        ownerId,
-        filePath,
-        relativePath,
-        trackId,
-        size: stats.size,
-        mtimeMs: stats.mtimeMs,
-        identity
-      });
+  for (const filePath of files) {
+    let stats;
+    try {
+      stats = await fs.stat(filePath);
+    } catch {
+      continue;
     }
+
+    const relativePath = toDataRelativePath(filePath);
+    const trackId = createTrackId(relativePath);
+    const ownerId = ownership[relativePath] ?? "";
+    const identity = createTrackIdentity(relativePath, stats.mtimeMs, stats.size);
+
+    states.push({
+      ownerId,
+      filePath,
+      relativePath,
+      trackId,
+      size: stats.size,
+      mtimeMs: stats.mtimeMs,
+      identity
+    });
   }
 
   return states;
@@ -493,33 +488,31 @@ function applyTrackMetadataOverride(
 
 async function ensureTrackMediaMetadata(
   track: Track,
-  ownerId: string,
   trackCover: { data: Buffer; format?: string } | undefined,
   processedArtists: Set<string>,
   processedAlbums: Set<string>
 ): Promise<void> {
   const artistName = track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0];
   if (artistName) {
-    const artistKey = `${ownerId}:${artistName.toLocaleLowerCase()}`;
+    const artistKey = artistName.toLocaleLowerCase();
     if (!processedArtists.has(artistKey)) {
       processedArtists.add(artistKey);
-      await ensureArtistPhotoForTrack(ownerId, artistName);
+      await ensureArtistPhotoForTrack(artistName);
     }
   }
 
   const albumArtistName = artistName ?? UNKNOWN_ARTIST;
   const albumName = track.tags.album ?? UNKNOWN_ALBUM;
-  const albumKey = `${ownerId}:${albumArtistName.toLocaleLowerCase()}:${albumName.toLocaleLowerCase()}`;
+  const albumKey = `${albumArtistName.toLocaleLowerCase()}:${albumName.toLocaleLowerCase()}`;
   if (!processedAlbums.has(albumKey)) {
     processedAlbums.add(albumKey);
-    await ensureAlbumCoverForTrack(ownerId, albumArtistName, albumName, trackCover);
+    await ensureAlbumCoverForTrack(albumArtistName, albumName, trackCover);
   }
 }
 
 async function addTrackToAlbumAggregate(
   track: Track,
   filePath: string,
-  ownerId: string,
   fallbackAlbumName: string,
   albumsByDirectory: Map<string, AlbumAggregate>
 ): Promise<void> {
@@ -536,7 +529,6 @@ async function addTrackToAlbumAggregate(
   const currentName = albumMetadata?.name?.trim() ? albumMetadata.name : fallbackAlbumName;
 
   albumsByDirectory.set(albumDir, {
-    ownerId,
     albumDir,
     id: albumMetadata?.id,
     name: currentName,
@@ -578,8 +570,8 @@ async function probeChangedTracks(
       cover
     };
 
-    await ensureTrackMediaMetadata(track, state.ownerId, metadata.cover, processedArtists, processedAlbums);
-    await addTrackToAlbumAggregate(track, state.filePath, state.ownerId, tags.album ?? UNKNOWN_ALBUM, albumsByDirectory);
+    await ensureTrackMediaMetadata(track, metadata.cover, processedArtists, processedAlbums);
+    await addTrackToAlbumAggregate(track, state.filePath, tags.album ?? UNKNOWN_ALBUM, albumsByDirectory);
     tracks.push(track);
   }
 
@@ -601,11 +593,10 @@ async function mergeFinalTracks(
       unchanged.track,
       metadataOverrides[unchanged.state.trackId]
     );
-    await ensureTrackMediaMetadata(withOverrides, unchanged.state.ownerId, undefined, processedArtists, processedAlbums);
+    await ensureTrackMediaMetadata(withOverrides, undefined, processedArtists, processedAlbums);
     await addTrackToAlbumAggregate(
       withOverrides,
       unchanged.state.filePath,
-      unchanged.state.ownerId,
       withOverrides.tags.album ?? UNKNOWN_ALBUM,
       albumsByDirectory
     );
@@ -636,8 +627,8 @@ async function performScan(
   previousIndex: LibraryIndex | undefined,
   metadataOverrides: Record<string, { title?: string; artist?: string; album?: string }>
 ): Promise<LibraryIndex> {
-  const ownerIds = await listOwnerIds();
-  const filesystemState = await collectFilesystemState(ownerIds, metadataOverrides);
+  const ownership = await readTrackOwnership();
+  const filesystemState = await collectFilesystemState(ownership, metadataOverrides);
   const previousTracks = previousIndex?.tracks ?? [];
   const previousScannerState: ScannerStateSnapshot = mode === "incremental" ? await readScannerState() : {
     version: SCANNER_STATE_VERSION,
@@ -666,6 +657,16 @@ async function performScan(
 
   await flushAlbumMetadata(albumsByDirectory);
   await writeScannerState(filesystemState);
+
+  const validPaths = filesystemState.map((state) => state.relativePath);
+  const prunedOwnership: Record<string, string> = {};
+  for (const [trackPath, owner] of Object.entries(ownership)) {
+    if (validPaths.includes(trackPath)) {
+      prunedOwnership[trackPath] = owner;
+    }
+  }
+  await writeTrackOwnership(prunedOwnership);
+
   const playlists = await scanFilesystemPlaylists(tracks);
 
   return {
