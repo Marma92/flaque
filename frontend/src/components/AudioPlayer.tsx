@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { coverUrl, streamUrl } from "../api";
+import { coverUrl } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
+import { useAudioPlayback, type RepeatMode, type TranscodeMode } from "../hooks/useAudioPlayback";
 import type { Playlist, Track } from "../types";
+import { formatDuration } from "../utils/format";
 import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
@@ -10,12 +12,11 @@ import {
   getTrackDisplayTitle,
   getTrackSyncedLyrics
 } from "../utils/tracks";
-import type { SyncedLyricsLine } from "../utils/tracks";
+import { PlaylistPicker } from "./PlaylistPicker";
+import { QueuePanel } from "./QueuePanel";
+import { SyncedLyricsOverlay } from "./SyncedLyricsOverlay";
 
-export type TranscodeMode = "original" | "opus" | "mp3";
-export type RepeatMode = "off" | "all" | "one";
-
-const PLAYER_VOLUME_STORAGE_KEY = "flaque_player_volume_v1";
+export type { TranscodeMode, RepeatMode };
 
 type NavigateOptions = {
   wrap?: boolean;
@@ -42,91 +43,6 @@ type AudioPlayerProps = {
   onArtworkClick?: () => void;
 };
 
-function isFlacTrack(track: Track): boolean {
-  return (
-    track.mimeType.toLowerCase() === "audio/flac" ||
-    track.codec.toLowerCase() === "flac" ||
-    track.path.toLowerCase().endsWith(".flac")
-  );
-}
-
-function formatDuration(totalSeconds: number): string {
-  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
-    return "0:00";
-  }
-
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
-
-function clampVolume(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 1;
-  }
-
-  return Math.min(1, Math.max(0, value));
-}
-
-function readStoredVolume(): number {
-  if (typeof window === "undefined") {
-    return 1;
-  }
-
-  const raw = Number(window.localStorage.getItem(PLAYER_VOLUME_STORAGE_KEY));
-  return clampVolume(raw);
-}
-
-function SyncedLyricsOverlay({
-  lines,
-  currentTime
-}: {
-  lines: SyncedLyricsLine[];
-  currentTime: number;
-}): JSX.Element {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const activeIndexRef = useRef(-1);
-
-  const activeIndex = useMemo(() => {
-    for (let i = lines.length - 1; i >= 0; i--) {
-      if (currentTime >= lines[i].t) return i;
-    }
-    return -1;
-  }, [lines, currentTime]);
-
-  useEffect(() => {
-    if (activeIndex === activeIndexRef.current) return;
-    activeIndexRef.current = activeIndex;
-
-    const container = containerRef.current;
-    if (!container || activeIndex < 0) return;
-
-    const activeElement = container.children[activeIndex] as HTMLElement | undefined;
-    if (!activeElement) return;
-
-    activeElement.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [activeIndex]);
-
-  return (
-    <div ref={containerRef} className="h-full overflow-y-auto overflow-x-hidden text-left text-sm leading-relaxed">
-      {lines.map((line, index) => (
-        <p
-          key={index}
-          className={`py-0.5 transition-all duration-300 ${
-            index === activeIndex
-              ? "text-white font-medium scale-[1.02] origin-left"
-              : index < activeIndex
-                ? "text-flaque-cream/50"
-                : "text-flaque-cream/30"
-          }`}
-        >
-          {line.text}
-        </p>
-      ))}
-    </div>
-  );
-}
-
 export function AudioPlayer({
   track,
   expanded = false,
@@ -147,147 +63,25 @@ export function AudioPlayer({
   onQueueTrackSelect,
   onArtworkClick
 }: AudioPlayerProps): JSX.Element {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const autoplayOnTrackChangeRef = useRef(true);
-  const lastPlayRequestHandledRef = useRef(0);
-  const lastTrackIdRef = useRef<string | null>(null);
-  const lastStreamSourceRef = useRef("");
-  const pendingRestoreTimeRef = useRef<number | null>(null);
-  const pendingRestoreShouldPlayRef = useRef(false);
-  const qualitySwapSnapshotTimeRef = useRef<number | null>(null);
-  const qualitySwapShouldPlayRef = useRef<boolean | null>(null);
-  const currentTimeRef = useRef(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const {
+    audioRef, streamSource,
+    isPlaying, currentTime, duration, volume, muted,
+    canTranscode, effectiveTranscode,
+    onTogglePlayback, onSeek, onEnded,
+    onCycleRepeatMode, onToggleShuffle,
+    handleTranscodeModeChange, handleVolumeChange, setMuted,
+    handleAudioPlay, handleAudioPause, handleAudioTimeUpdate, handleAudioLoadedMetadata
+  } = useAudioPlayback({
+    track, transcodeMode, onTranscodeModeChange,
+    repeatMode, onRepeatModeChange,
+    shuffleEnabled, onShuffleEnabledChange,
+    playRequestNonce, onNext, onPrevious, onTrackPlayed
+  });
+
   const [showPlaylistPicker, setShowPlaylistPicker] = useState(false);
-  const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
-  const [playlistSubmitStatus, setPlaylistSubmitStatus] = useState<string | null>(null);
-  const [playlistSubmitLoading, setPlaylistSubmitLoading] = useState(false);
   const [showQueuePanel, setShowQueuePanel] = useState(false);
   const [showLyricsOverlay, setShowLyricsOverlay] = useState(false);
   const [showMobileUtilityPanel, setShowMobileUtilityPanel] = useState(false);
-  const [volume, setVolume] = useState<number>(() => readStoredVolume());
-  const [muted, setMuted] = useState(false);
-
-  const canTranscode = Boolean(track && isFlacTrack(track));
-  const requestedTranscode = transcodeMode === "original" ? undefined : transcodeMode;
-  const effectiveTranscode = canTranscode ? requestedTranscode : undefined;
-
-  const streamSource = useMemo(() => {
-    if (!track) {
-      return "";
-    }
-    return streamUrl(track.id, effectiveTranscode ? { transcode: effectiveTranscode } : undefined);
-  }, [track?.id, effectiveTranscode]);
-
-  useEffect(() => {
-    const audioElement = audioRef.current;
-    if (!audioElement || !track) {
-      return;
-    }
-
-    pendingRestoreTimeRef.current = null;
-    pendingRestoreShouldPlayRef.current = false;
-    qualitySwapSnapshotTimeRef.current = null;
-    qualitySwapShouldPlayRef.current = null;
-    currentTimeRef.current = 0;
-    setCurrentTime(0);
-    setDuration(track.duration || 0);
-    audioElement.load();
-
-    if (!autoplayOnTrackChangeRef.current) {
-      setIsPlaying(false);
-      return;
-    }
-
-    audioElement
-      .play()
-      .then(() => {
-        setIsPlaying(true);
-      })
-      .catch(() => {
-        setIsPlaying(false);
-      });
-  }, [track?.id]);
-
-  useEffect(() => {
-    const audioElement = audioRef.current;
-
-    if (!track || !audioElement) {
-      lastTrackIdRef.current = track?.id ?? null;
-      lastStreamSourceRef.current = streamSource;
-      return;
-    }
-
-    const previousTrackId = lastTrackIdRef.current;
-    const previousSource = lastStreamSourceRef.current;
-    const sameTrack = previousTrackId === track.id;
-    const sourceChanged = Boolean(previousSource) && previousSource !== streamSource;
-
-    if (sameTrack && sourceChanged) {
-      const snapshotTime =
-        qualitySwapSnapshotTimeRef.current ??
-        (audioElement.currentTime > 0 ? audioElement.currentTime : currentTimeRef.current);
-      const shouldResumePlayback = qualitySwapShouldPlayRef.current ?? !audioElement.paused;
-
-      pendingRestoreTimeRef.current = snapshotTime;
-      pendingRestoreShouldPlayRef.current = shouldResumePlayback;
-
-      currentTimeRef.current = snapshotTime;
-      setCurrentTime(snapshotTime);
-      setIsPlaying(shouldResumePlayback);
-
-      qualitySwapSnapshotTimeRef.current = null;
-      qualitySwapShouldPlayRef.current = null;
-
-      audioElement.load();
-    }
-
-    lastTrackIdRef.current = track.id;
-    lastStreamSourceRef.current = streamSource;
-  }, [streamSource, track?.id]);
-
-  useEffect(() => {
-    if (!track || !audioRef.current) {
-      return;
-    }
-
-    if (!playRequestNonce || playRequestNonce === lastPlayRequestHandledRef.current) {
-      return;
-    }
-
-    lastPlayRequestHandledRef.current = playRequestNonce;
-    autoplayOnTrackChangeRef.current = true;
-
-    audioRef.current.currentTime = 0;
-    audioRef.current
-      .play()
-      .then(() => {
-        setIsPlaying(true);
-      })
-        .catch(() => {
-          setIsPlaying(false);
-        });
-  }, [playRequestNonce, track?.id]);
-
-  useEffect(() => {
-    const audioElement = audioRef.current;
-    if (!audioElement) {
-      return;
-    }
-
-    audioElement.volume = volume;
-    audioElement.muted = muted;
-  }, [muted, track?.id, volume]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.localStorage.setItem(PLAYER_VOLUME_STORAGE_KEY, String(volume));
-  }, [volume]);
 
   useEffect(() => {
     setShowLyricsOverlay(false);
@@ -299,200 +93,6 @@ export function AudioPlayer({
       setShowLyricsOverlay(false);
     }
   }, [expanded]);
-
-  function startPlayback(): void {
-    const audioElement = audioRef.current;
-    if (!audioElement || !track) {
-      return;
-    }
-
-    autoplayOnTrackChangeRef.current = true;
-    audioElement
-      .play()
-      .then(() => setIsPlaying(true))
-      .catch(() => setIsPlaying(false));
-  }
-
-  function pausePlayback(): void {
-    const audioElement = audioRef.current;
-    if (!audioElement || !track) {
-      return;
-    }
-
-    autoplayOnTrackChangeRef.current = false;
-    audioElement.pause();
-    setIsPlaying(false);
-  }
-
-  function onTogglePlayback(): void {
-    const audioElement = audioRef.current;
-    if (!audioElement || !track) {
-      return;
-    }
-
-    if (audioElement.paused) {
-      startPlayback();
-      return;
-    }
-
-    pausePlayback();
-  }
-
-  function onSeek(nextSeconds: number): void {
-    const audioElement = audioRef.current;
-    if (!audioElement || !track) {
-      return;
-    }
-
-    audioElement.currentTime = nextSeconds;
-    currentTimeRef.current = nextSeconds;
-    setCurrentTime(nextSeconds);
-  }
-
-  function onEnded(): void {
-    const audioElement = audioRef.current;
-    if (!audioElement) {
-      return;
-    }
-
-    if (repeatMode === "one") {
-      audioElement.currentTime = 0;
-      currentTimeRef.current = 0;
-      setCurrentTime(0);
-      audioElement
-        .play()
-        .then(() => {
-          setIsPlaying(true);
-        })
-        .catch(() => {
-          setIsPlaying(false);
-        });
-      return;
-    }
-
-    setIsPlaying(false);
-    if (onNext && autoplayOnTrackChangeRef.current) {
-      void onNext({ wrap: repeatMode === "all" });
-    }
-  }
-
-  function onCycleRepeatMode(): void {
-    if (!onRepeatModeChange) {
-      return;
-    }
-
-    const nextMode: RepeatMode =
-      repeatMode === "off" ? "all" : repeatMode === "all" ? "one" : "off";
-    onRepeatModeChange(nextMode);
-  }
-
-  function onToggleShuffle(): void {
-    if (!onShuffleEnabledChange) {
-      return;
-    }
-
-    onShuffleEnabledChange(!shuffleEnabled);
-  }
-
-  function handleTranscodeModeChange(nextMode: TranscodeMode): void {
-    if (!onTranscodeModeChange) {
-      return;
-    }
-
-    if (nextMode === transcodeMode) {
-      return;
-    }
-
-    const nextRequestedTranscode = nextMode === "original" ? undefined : nextMode;
-    const nextEffectiveTranscode = canTranscode ? nextRequestedTranscode : undefined;
-    const sourceWillChange = nextEffectiveTranscode !== effectiveTranscode;
-
-    if (sourceWillChange) {
-      const audioElement = audioRef.current;
-      const snapshotTime =
-        audioElement && audioElement.currentTime > 0 ? audioElement.currentTime : currentTimeRef.current;
-      const shouldResumePlayback = audioElement ? !audioElement.paused : isPlaying;
-
-      qualitySwapSnapshotTimeRef.current = snapshotTime;
-      qualitySwapShouldPlayRef.current = shouldResumePlayback;
-    } else {
-      qualitySwapSnapshotTimeRef.current = null;
-      qualitySwapShouldPlayRef.current = null;
-    }
-
-    onTranscodeModeChange(nextMode);
-  }
-
-  function handleVolumeChange(nextVolumeRaw: number): void {
-    const nextVolume = clampVolume(nextVolumeRaw);
-    setVolume(nextVolume);
-    if (nextVolume > 0 && muted) {
-      setMuted(false);
-    }
-  }
-
-  useEffect(() => {
-    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) {
-      return;
-    }
-
-    const mediaSession = navigator.mediaSession;
-    const bindAction = (action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
-      try {
-        mediaSession.setActionHandler(action, handler);
-      } catch {
-        // ignored for unsupported actions/platforms
-      }
-    };
-
-    if (!track) {
-      mediaSession.metadata = null;
-      mediaSession.playbackState = "none";
-      bindAction("play", null);
-      bindAction("pause", null);
-      bindAction("previoustrack", null);
-      bindAction("nexttrack", null);
-      return;
-    }
-
-    const artist = getTrackDisplayArtist(track) ?? "Unknown artist";
-    const album = getTrackDisplayAlbumWithYear(track) ?? "";
-    if (typeof MediaMetadata !== "undefined") {
-      mediaSession.metadata = new MediaMetadata({
-        title: getTrackDisplayTitle(track),
-        artist,
-        album,
-        artwork: [
-          {
-            src: coverUrl(track.id, track.cover),
-            sizes: "512x512",
-            type: "image/png"
-          }
-        ]
-      });
-    }
-    mediaSession.playbackState = isPlaying ? "playing" : "paused";
-
-    bindAction("play", () => startPlayback());
-    bindAction("pause", () => pausePlayback());
-    bindAction("previoustrack", () => {
-      if (onPrevious) {
-        void onPrevious({ wrap: false });
-      }
-    });
-    bindAction("nexttrack", () => {
-      if (onNext) {
-        void onNext({ wrap: false });
-      }
-    });
-
-    return () => {
-      bindAction("play", null);
-      bindAction("pause", null);
-      bindAction("previoustrack", null);
-      bindAction("nexttrack", null);
-    };
-  }, [isPlaying, onNext, onPrevious, track]);
 
   if (!track) {
     return (
@@ -546,17 +146,10 @@ export function AudioPlayer({
   const hasLyrics = Boolean(displayLyrics);
 
   const hasPlayablePlaylists = playlists.length > 0;
-  const activePlaylistId = selectedPlaylistId || playlists[0]?.id || "";
   const effectiveQueue = queueTracks.length > 0 ? queueTracks : [track];
   const queueCurrentId = currentQueueTrackId ?? track.id;
   const rawQueueCurrentIndex = effectiveQueue.findIndex((queueTrack) => queueTrack.id === queueCurrentId);
   const queueCurrentIndex = rawQueueCurrentIndex >= 0 ? rawQueueCurrentIndex : 0;
-  const queuePanelClassName = expanded
-    ? "rounded-2xl border border-flaque-clay/60 bg-flaque-cream/35 p-3"
-    : "rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 p-2.5";
-  const queueListClassName = expanded
-    ? "mt-2 max-h-56 space-y-1.5 overflow-auto pr-1"
-    : "mt-2 max-h-36 space-y-1 overflow-auto pr-1";
 
   return (
     <section className={sectionClassName}>
@@ -564,52 +157,11 @@ export function AudioPlayer({
         ref={audioRef}
         src={streamSource}
         preload="metadata"
-        onPlay={() => {
-          setIsPlaying(true);
-          if (track && onTrackPlayed) {
-            onTrackPlayed(track);
-          }
-        }}
-        onPause={() => setIsPlaying(false)}
+        onPlay={handleAudioPlay}
+        onPause={handleAudioPause}
         onEnded={onEnded}
-        onTimeUpdate={(event) => {
-          const nextTime = event.currentTarget.currentTime;
-          currentTimeRef.current = nextTime;
-          setCurrentTime(nextTime);
-        }}
-        onLoadedMetadata={(event) => {
-          const nextDuration = event.currentTarget.duration || track.duration || 0;
-          setDuration(nextDuration);
-
-          const pendingTime = pendingRestoreTimeRef.current;
-          if (pendingTime === null) {
-            return;
-          }
-
-          const maxSeek = Math.max(0, nextDuration - 0.25);
-          const restoreTime = Math.min(Math.max(0, pendingTime), maxSeek || pendingTime);
-          event.currentTarget.currentTime = restoreTime;
-          currentTimeRef.current = restoreTime;
-          setCurrentTime(restoreTime);
-          pendingRestoreTimeRef.current = null;
-
-          const shouldResumePlayback = pendingRestoreShouldPlayRef.current;
-          pendingRestoreShouldPlayRef.current = false;
-
-          if (!shouldResumePlayback) {
-            setIsPlaying(false);
-            return;
-          }
-
-          event.currentTarget
-            .play()
-            .then(() => {
-              setIsPlaying(true);
-            })
-            .catch(() => {
-              setIsPlaying(false);
-            });
-        }}
+        onTimeUpdate={handleAudioTimeUpdate}
+        onLoadedMetadata={handleAudioLoadedMetadata}
       />
 
       <div
@@ -863,10 +415,7 @@ export function AudioPlayer({
                 type="button"
                 aria-label="Add to playlist"
                 title="Add to playlist"
-                onClick={() => {
-                  setPlaylistSubmitStatus(null);
-                  setShowPlaylistPicker((current) => !current);
-                }}
+                onClick={() => setShowPlaylistPicker((current) => !current)}
                 disabled={!onAddTrackToPlaylist || !hasPlayablePlaylists}
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -956,54 +505,14 @@ export function AudioPlayer({
             </div>
           </div>
 
-          {showPlaylistPicker ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-flaque-clay/60 bg-flaque-cream/40 px-3 py-2">
-              <select
-                className="rounded-lg border border-flaque-clay bg-white px-2 py-1 text-xs text-flaque-ink"
-                value={activePlaylistId}
-                onChange={(event) => setSelectedPlaylistId(event.target.value)}
-              >
-                {playlists.map((playlist) => (
-                  <option key={playlist.id} value={playlist.id}>
-                    {playlist.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="rounded-lg border border-flaque-clay bg-white px-3 py-1 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
-                type="button"
-                disabled={!activePlaylistId || !onAddTrackToPlaylist || playlistSubmitLoading}
-                onClick={() => {
-                  if (!track || !activePlaylistId || !onAddTrackToPlaylist) {
-                    return;
-                  }
-
-                  setPlaylistSubmitLoading(true);
-                  setPlaylistSubmitStatus(null);
-                  Promise.resolve(
-                    onAddTrackToPlaylist({
-                      trackId: track.id,
-                      playlistId: activePlaylistId
-                    })
-                  )
-                    .then(() => {
-                      setPlaylistSubmitStatus("Track added to playlist.");
-                      setShowPlaylistPicker(false);
-                    })
-                    .catch((error) => {
-                      setPlaylistSubmitStatus(error instanceof Error ? error.message : "Unable to add track");
-                    })
-                    .finally(() => {
-                      setPlaylistSubmitLoading(false);
-                    });
-                }}
-              >
-                {playlistSubmitLoading ? "Adding..." : "Add"}
-              </button>
-            </div>
+          {showPlaylistPicker && onAddTrackToPlaylist ? (
+            <PlaylistPicker
+              trackId={track.id}
+              playlists={playlists}
+              onAddTrackToPlaylist={onAddTrackToPlaylist}
+              onDismiss={() => setShowPlaylistPicker(false)}
+            />
           ) : null}
-
-          {playlistSubmitStatus ? <p className="text-xs text-flaque-steel">{playlistSubmitStatus}</p> : null}
 
           {showMobileUtilityPanel ? (
             <div className="space-y-3 rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 p-3 md:hidden">
@@ -1172,59 +681,12 @@ export function AudioPlayer({
           />
 
           {showQueuePanel ? (
-            <div className={queuePanelClassName}>
-              <p className="text-xs uppercase tracking-[0.2em] text-flaque-steel">Current queue</p>
-              <div className={queueListClassName}>
-                {effectiveQueue.map((queueTrack, index) => {
-                  const isCurrent = index === queueCurrentIndex;
-                  const isPlayed = index < queueCurrentIndex;
-                  const title = getTrackDisplayTitle(queueTrack);
-                  const artist = getTrackDisplayArtist(queueTrack) ?? "Unknown artist";
-
-                  const stateLabel = isCurrent ? "Now" : isPlayed ? "Played" : "Next";
-                  const rowClassName = isCurrent
-                    ? "border-flaque-sand/80 bg-white text-flaque-ink shadow-sm"
-                    : isPlayed
-                      ? "border-flaque-clay/40 bg-flaque-cream/60 text-flaque-steel/70 opacity-70"
-                      : "border-flaque-clay/50 bg-white/80 text-flaque-ink";
-
-                  return (
-                    <button
-                      key={`${queueTrack.id}-${index}`}
-                      className={`flex w-full items-center gap-2 rounded-xl border ${
-                        expanded ? "px-2.5 py-2" : "px-2 py-1.5"
-                      } text-left transition ${rowClassName} ${
-                        onQueueTrackSelect ? "hover:bg-flaque-cream" : "cursor-default"
-                      }`}
-                      type="button"
-                      onClick={() => {
-                        if (!onQueueTrackSelect) {
-                          return;
-                        }
-
-                        onQueueTrackSelect(queueTrack);
-                      }}
-                      disabled={!onQueueTrackSelect}
-                      title={title}
-                    >
-                      <span
-                        className={`${expanded ? "w-12" : "w-10"} shrink-0 text-[10px] uppercase tracking-[0.16em] text-flaque-steel/80`}
-                      >
-                        {stateLabel}
-                      </span>
-                      <span className="min-w-0">
-                        <span className={`block truncate font-medium ${expanded ? "text-sm" : "text-xs"}`}>{title}</span>
-                        <span
-                          className={`block truncate ${expanded ? "text-xs text-flaque-steel/85" : "text-[11px] text-flaque-steel/80"}`}
-                        >
-                          {artist}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <QueuePanel
+              tracks={effectiveQueue}
+              currentIndex={queueCurrentIndex}
+              expanded={expanded}
+              onTrackSelect={onQueueTrackSelect}
+            />
           ) : null}
         </div>
       </div>

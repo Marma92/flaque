@@ -2,6 +2,7 @@ import { ChangeEvent, DragEvent, FormEvent, useMemo, useRef, useState } from "re
 
 import type { UploadTrackPreview, UploadTracksResult } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
+import { formatDuration } from "../utils/format";
 
 type UploadViewProps = {
   onUpload: (input: {
@@ -26,16 +27,6 @@ type PreviewState = {
 
 function getFileKey(file: File): string {
   return `${file.name}::${file.size}::${file.lastModified}`;
-}
-
-function formatDuration(totalSeconds: number): string {
-  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) {
-    return "0:00";
-  }
-
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 function formatFileSize(size: number): string {

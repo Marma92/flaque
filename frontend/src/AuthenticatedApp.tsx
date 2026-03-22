@@ -1,21 +1,19 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 
 import { logout, myProfilePhotoUrl } from "./api";
-import type { AppNotice } from "./components/AppStatusBanners";
 import { AppShell } from "./components/AppShell";
 import type { User } from "./types";
 import type { LibrarySection } from "./types/library";
 import type { ViewName } from "./utils/appUtils";
-import { getTrackDisplayArtist, getTrackDisplayTitle } from "./utils/tracks";
 import { useAccountActions } from "./hooks/useAccountActions";
 import { useAdminCommands } from "./hooks/useAdminCommands";
 import { useAdminUsers } from "./hooks/useAdminUsers";
+import { useAppNotice } from "./hooks/useAppNotice";
+import { useDocumentTitle } from "./hooks/useDocumentTitle";
 import { useLibraryCommands } from "./hooks/useLibraryCommands";
 import { useLibraryData } from "./hooks/useLibraryData";
 import { usePlaybackCommands } from "./hooks/usePlaybackCommands";
 import { usePlaybackState } from "./hooks/usePlaybackState";
-
-const DEFAULT_DOCUMENT_TITLE = "Flaque Hifi Player";
 
 type AuthenticatedAppProps = {
   user: User;
@@ -39,7 +37,7 @@ export function AuthenticatedApp({
   // ── UI state ──────────────────────────────────────────────────────────
   const [rebuilding, setRebuilding] = useState(false);
   const [playerStatusMessage, setPlayerStatusMessage] = useState<string | null>(null);
-  const [appNotice, setAppNotice] = useState<AppNotice | null>(null);
+  const { appNotice, setAppNotice } = useAppNotice();
   const [playerReturnView, setPlayerReturnView] = useState<ViewName>("library");
   const [avatarVersion, setAvatarVersion] = useState(0);
 
@@ -136,23 +134,7 @@ export function AuthenticatedApp({
     setAvatarVersion(0);
   }, [user?.id]);
 
-  useEffect(() => {
-    if (!appNotice) {
-      return;
-    }
-    const timer = window.setTimeout(() => setAppNotice(null), 4800);
-    return () => window.clearTimeout(timer);
-  }, [appNotice]);
-
-  useEffect(() => {
-    if (!selectedTrackRefreshed) {
-      document.title = DEFAULT_DOCUMENT_TITLE;
-      return;
-    }
-    const title = getTrackDisplayTitle(selectedTrackRefreshed);
-    const artist = getTrackDisplayArtist(selectedTrackRefreshed) ?? "Unknown artist";
-    document.title = `${title} - ${artist} | Flaque`;
-  }, [selectedTrackRefreshed]);
+  useDocumentTitle(selectedTrackRefreshed);
 
   useEffect(() => {
     if (activeView !== "player") {
