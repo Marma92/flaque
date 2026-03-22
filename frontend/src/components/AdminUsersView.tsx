@@ -398,6 +398,7 @@ export function AdminUsersView({
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <p className="text-base font-medium text-flaque-ink">{entry.username}</p>
+                    <p className="truncate text-xs text-flaque-steel">{entry.email}</p>
                     <p className="font-mono text-[11px] text-flaque-steel">{entry.id}</p>
                   </div>
                   <span
@@ -455,6 +456,7 @@ export function AdminUsersView({
             <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
               <tr>
                 <th className="px-4 py-3 font-medium">Username</th>
+                <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Role</th>
                 <th className="px-4 py-3 font-medium">User ID</th>
                 <th className="px-4 py-3 font-medium">Actions</th>
@@ -468,6 +470,7 @@ export function AdminUsersView({
                 return (
                   <tr key={entry.id} className="border-t border-flaque-clay/40">
                     <td className="px-4 py-3 text-flaque-ink">{entry.username}</td>
+                    <td className="max-w-[14rem] truncate px-4 py-3 text-flaque-steel" title={entry.email}>{entry.email}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium uppercase tracking-[0.12em] ${
@@ -521,7 +524,7 @@ export function AdminUsersView({
               })}
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-4 text-flaque-steel" colSpan={4}>
+                  <td className="px-4 py-4 text-flaque-steel" colSpan={5}>
                     No users match this search/filter.
                   </td>
                 </tr>

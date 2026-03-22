@@ -297,6 +297,7 @@ export function AccountView({
 
             <div className="min-w-0 flex-1">
               <p className="truncate font-display text-3xl text-flaque-ink">{user.username}</p>
+              <p className="mt-1 truncate text-sm text-flaque-steel">{user.email}</p>
               <p className="mt-2 text-xs text-flaque-steel/90">Username is fixed to keep your login stable.</p>
             </div>
           </div>
