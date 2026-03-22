@@ -28,13 +28,24 @@ export function LoginPage({ onLogin }: LoginPageProps): JSX.Element {
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-12">
       <section className="w-full max-w-md rounded-3xl border border-flaque-clay/50 bg-white/80 p-8 shadow-panel backdrop-blur-sm">
-        <p className="mb-2 text-xs uppercase tracking-[0.3em] text-flaque-steel">Self-hosted hi-fi</p>
-        <h1 className="font-display text-3xl text-flaque-ink">Flaque Audio</h1>
-        <p className="mt-3 text-sm text-flaque-steel">
-          Login to upload FLAC files, rebuild the index, and stream with HTTP range support.
-        </p>
+        <h1 className="sr-only">Flaque login</h1>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+        <div className="mb-6 flex justify-center">
+          <div className="relative h-20 w-20 origin-center scale-[1.35]">
+            <img
+              className="header-logo-light h-full w-full object-contain drop-shadow-[0_8px_18px_rgba(44,31,26,0.18)]"
+              src="/favicon.png"
+              alt="Flaque logo"
+            />
+            <img
+              className="header-logo-dark absolute inset-0 h-full w-full object-contain"
+              src="/logo-dark.png"
+              alt="Flaque logo (dark mode)"
+            />
+          </div>
+        </div>
+
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <label className="block text-sm text-flaque-ink">
             Username
             <input

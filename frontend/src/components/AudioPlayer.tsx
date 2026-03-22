@@ -114,6 +114,7 @@ export function AudioPlayer({
   const [playlistSubmitLoading, setPlaylistSubmitLoading] = useState(false);
   const [showQueuePanel, setShowQueuePanel] = useState(false);
   const [showLyricsOverlay, setShowLyricsOverlay] = useState(false);
+  const [showMobileUtilityPanel, setShowMobileUtilityPanel] = useState(false);
   const [volume, setVolume] = useState<number>(() => readStoredVolume());
   const [muted, setMuted] = useState(false);
 
@@ -238,6 +239,7 @@ export function AudioPlayer({
 
   useEffect(() => {
     setShowLyricsOverlay(false);
+    setShowMobileUtilityPanel(false);
   }, [track?.id]);
 
   useEffect(() => {
@@ -246,6 +248,30 @@ export function AudioPlayer({
     }
   }, [expanded]);
 
+  function startPlayback(): void {
+    const audioElement = audioRef.current;
+    if (!audioElement || !track) {
+      return;
+    }
+
+    autoplayOnTrackChangeRef.current = true;
+    audioElement
+      .play()
+      .then(() => setIsPlaying(true))
+      .catch(() => setIsPlaying(false));
+  }
+
+  function pausePlayback(): void {
+    const audioElement = audioRef.current;
+    if (!audioElement || !track) {
+      return;
+    }
+
+    autoplayOnTrackChangeRef.current = false;
+    audioElement.pause();
+    setIsPlaying(false);
+  }
+
   function onTogglePlayback(): void {
     const audioElement = audioRef.current;
     if (!audioElement || !track) {
@@ -253,17 +279,11 @@ export function AudioPlayer({
     }
 
     if (audioElement.paused) {
-      autoplayOnTrackChangeRef.current = true;
-      audioElement
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch(() => setIsPlaying(false));
+      startPlayback();
       return;
     }
 
-    autoplayOnTrackChangeRef.current = false;
-    audioElement.pause();
-    setIsPlaying(false);
+    pausePlayback();
   }
 
   function onSeek(nextSeconds: number): void {
@@ -322,6 +342,106 @@ export function AudioPlayer({
     onShuffleEnabledChange(!shuffleEnabled);
   }
 
+  function handleTranscodeModeChange(nextMode: TranscodeMode): void {
+    if (!onTranscodeModeChange) {
+      return;
+    }
+
+    if (nextMode === transcodeMode) {
+      return;
+    }
+
+    const nextRequestedTranscode = nextMode === "original" ? undefined : nextMode;
+    const nextEffectiveTranscode = canTranscode ? nextRequestedTranscode : undefined;
+    const sourceWillChange = nextEffectiveTranscode !== effectiveTranscode;
+
+    if (sourceWillChange) {
+      const audioElement = audioRef.current;
+      const snapshotTime =
+        audioElement && audioElement.currentTime > 0 ? audioElement.currentTime : currentTimeRef.current;
+      const shouldResumePlayback = audioElement ? !audioElement.paused : isPlaying;
+
+      qualitySwapSnapshotTimeRef.current = snapshotTime;
+      qualitySwapShouldPlayRef.current = shouldResumePlayback;
+    } else {
+      qualitySwapSnapshotTimeRef.current = null;
+      qualitySwapShouldPlayRef.current = null;
+    }
+
+    onTranscodeModeChange(nextMode);
+  }
+
+  function handleVolumeChange(nextVolumeRaw: number): void {
+    const nextVolume = clampVolume(nextVolumeRaw);
+    setVolume(nextVolume);
+    if (nextVolume > 0 && muted) {
+      setMuted(false);
+    }
+  }
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) {
+      return;
+    }
+
+    const mediaSession = navigator.mediaSession;
+    const bindAction = (action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
+      try {
+        mediaSession.setActionHandler(action, handler);
+      } catch {
+        // ignored for unsupported actions/platforms
+      }
+    };
+
+    if (!track) {
+      mediaSession.metadata = null;
+      mediaSession.playbackState = "none";
+      bindAction("play", null);
+      bindAction("pause", null);
+      bindAction("previoustrack", null);
+      bindAction("nexttrack", null);
+      return;
+    }
+
+    const artist = getTrackDisplayArtist(track) ?? "Unknown artist";
+    const album = getTrackDisplayAlbumWithYear(track) ?? "";
+    if (typeof MediaMetadata !== "undefined") {
+      mediaSession.metadata = new MediaMetadata({
+        title: getTrackDisplayTitle(track),
+        artist,
+        album,
+        artwork: [
+          {
+            src: coverUrl(track.id, track.cover),
+            sizes: "512x512",
+            type: "image/png"
+          }
+        ]
+      });
+    }
+    mediaSession.playbackState = isPlaying ? "playing" : "paused";
+
+    bindAction("play", () => startPlayback());
+    bindAction("pause", () => pausePlayback());
+    bindAction("previoustrack", () => {
+      if (onPrevious) {
+        void onPrevious({ wrap: false });
+      }
+    });
+    bindAction("nexttrack", () => {
+      if (onNext) {
+        void onNext({ wrap: false });
+      }
+    });
+
+    return () => {
+      bindAction("play", null);
+      bindAction("pause", null);
+      bindAction("previoustrack", null);
+      bindAction("nexttrack", null);
+    };
+  }, [isPlaying, onNext, onPrevious, track]);
+
   if (!track) {
     return (
       <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-6 shadow-panel backdrop-blur-sm">
@@ -346,7 +466,7 @@ export function AudioPlayer({
     ? "flex items-center justify-end gap-2"
     : "flex min-w-0 flex-1 items-center justify-end gap-2";
   const sectionClassName = expanded
-    ? "flex h-full min-h-0 flex-col rounded-3xl border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
+    ? "flex min-h-0 flex-1 flex-col overflow-y-auto rounded-3xl border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
     : "rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6";
   const artworkClassName = expanded
     ? `${artworkSize} shrink-0 rounded-2xl object-cover shadow-md`
@@ -582,7 +702,7 @@ export function AudioPlayer({
 
             <div className={centerControlsClassName}>
               <button
-                className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
+                className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
                   repeatMode === "off"
                     ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
                     : "bg-flaque-ink text-flaque-cream hover:bg-black"
@@ -624,7 +744,7 @@ export function AudioPlayer({
               </button>
 
               <button
-                className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
+                className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
                   shuffleEnabled
                     ? "bg-flaque-ink text-flaque-cream hover:bg-black"
                     : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
@@ -682,43 +802,28 @@ export function AudioPlayer({
             </div>
 
             <div className={trailingControlsClassName}>
-              <div className="flex h-9 items-center justify-end gap-2">
-                <label className="sr-only" htmlFor="player-quality-select">
+              <button
+                className={`${ghostControlButtonClassName} md:hidden`}
+                type="button"
+                aria-label={showMobileUtilityPanel ? "Close player options" : "Open player options"}
+                title={showMobileUtilityPanel ? "Close options" : "More options"}
+                aria-expanded={showMobileUtilityPanel}
+                onClick={() => setShowMobileUtilityPanel((current) => !current)}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M5 12h.01M12 12h.01M19 12h.01" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              <div className="hidden h-9 items-center justify-end gap-2 md:flex">
+                <label className="sr-only" htmlFor="player-quality-select-desktop">
                   Quality
                 </label>
                 <select
-                  id="player-quality-select"
+                  id="player-quality-select-desktop"
                   className={`${qualitySelectClassName} w-28`}
                   value={transcodeMode}
-                  onChange={(event) => {
-                    if (!onTranscodeModeChange) {
-                      return;
-                    }
-
-                    const nextMode = event.target.value as TranscodeMode;
-                    if (nextMode === transcodeMode) {
-                      return;
-                    }
-
-                    const nextRequestedTranscode = nextMode === "original" ? undefined : nextMode;
-                    const nextEffectiveTranscode = canTranscode ? nextRequestedTranscode : undefined;
-                    const sourceWillChange = nextEffectiveTranscode !== effectiveTranscode;
-
-                    if (sourceWillChange) {
-                      const audioElement = audioRef.current;
-                      const snapshotTime =
-                        audioElement && audioElement.currentTime > 0 ? audioElement.currentTime : currentTimeRef.current;
-                      const shouldResumePlayback = audioElement ? !audioElement.paused : isPlaying;
-
-                      qualitySwapSnapshotTimeRef.current = snapshotTime;
-                      qualitySwapShouldPlayRef.current = shouldResumePlayback;
-                    } else {
-                      qualitySwapSnapshotTimeRef.current = null;
-                      qualitySwapShouldPlayRef.current = null;
-                    }
-
-                    onTranscodeModeChange(nextMode);
-                  }}
+                  onChange={(event) => handleTranscodeModeChange(event.target.value as TranscodeMode)}
                 >
                   <option value="original">Original</option>
                   <option value="opus">Opus fallback</option>
@@ -770,13 +875,7 @@ export function AudioPlayer({
                   value={volume}
                   aria-label="Volume"
                   title="Volume"
-                  onChange={(event) => {
-                    const nextVolume = clampVolume(Number(event.target.value));
-                    setVolume(nextVolume);
-                    if (nextVolume > 0 && muted) {
-                      setMuted(false);
-                    }
-                  }}
+                  onChange={(event) => handleVolumeChange(Number(event.target.value))}
                 />
               </div>
             </div>
@@ -830,6 +929,154 @@ export function AudioPlayer({
           ) : null}
 
           {playlistSubmitStatus ? <p className="text-xs text-flaque-steel">{playlistSubmitStatus}</p> : null}
+
+          {showMobileUtilityPanel ? (
+            <div className="space-y-3 rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 p-3 md:hidden">
+              <div className="flex items-center justify-end">
+                <button
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-cream"
+                  type="button"
+                  aria-label="Close player options"
+                  title="Close"
+                  onClick={() => setShowMobileUtilityPanel(false)}
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M6 6l12 12" strokeLinecap="round" />
+                    <path d="M18 6l-12 12" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  className={`flex h-9 items-center justify-center rounded-xl transition ${
+                    repeatMode === "off"
+                      ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
+                      : "bg-flaque-ink text-flaque-cream hover:bg-black"
+                  }`}
+                  type="button"
+                  aria-label={
+                    repeatMode === "off"
+                      ? "Enable repeat all"
+                      : repeatMode === "all"
+                        ? "Enable repeat one"
+                        : "Disable repeat"
+                  }
+                  title={
+                    repeatMode === "off"
+                      ? "Repeat off"
+                      : repeatMode === "all"
+                        ? "Repeat all"
+                        : "Repeat one"
+                  }
+                  onClick={onCycleRepeatMode}
+                >
+                  {repeatMode === "one" ? (
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M12 9v6" strokeLinecap="round" />
+                      <path d="M10.5 10.5L12 9l1.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+
+                <button
+                  className={`flex h-9 items-center justify-center rounded-xl transition ${
+                    shuffleEnabled
+                      ? "bg-flaque-ink text-flaque-cream hover:bg-black"
+                      : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
+                  }`}
+                  type="button"
+                  aria-label={shuffleEnabled ? "Disable shuffle" : "Enable shuffle"}
+                  title={shuffleEnabled ? "Shuffle on" : "Shuffle off"}
+                  onClick={onToggleShuffle}
+                  disabled={!onShuffleEnabledChange}
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <path d="M16 3h5v5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M4 20l8-8" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M21 3l-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M4 4l6 6" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M15 16l2 2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </div>
+
+              <label className="flex items-center justify-between gap-2 text-xs text-flaque-steel" htmlFor="player-quality-select-mobile">
+                <span>Quality</span>
+                <select
+                  id="player-quality-select-mobile"
+                  className={`${qualitySelectClassName} w-32`}
+                  value={transcodeMode}
+                  onChange={(event) => handleTranscodeModeChange(event.target.value as TranscodeMode)}
+                >
+                  <option value="original">Original</option>
+                  <option value="opus">Opus fallback</option>
+                  <option value="mp3">MP3 fallback</option>
+                </select>
+              </label>
+
+              <div className="flex items-center gap-2">
+                <button
+                  className={ghostControlButtonClassName}
+                  type="button"
+                  aria-label={muted || volume === 0 ? "Unmute" : "Mute"}
+                  title={muted || volume === 0 ? "Unmute" : "Mute"}
+                  onClick={() => setMuted((current) => !current)}
+                >
+                  {muted || volume === 0 ? (
+                    <svg
+                      className="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      aria-hidden="true"
+                    >
+                      <path d="M3 10v4h4l5 4V6L7 10H3z" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M16 9l5 6" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M21 9l-5 6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      aria-hidden="true"
+                    >
+                      <path d="M3 10v4h4l5 4V6L7 10H3z" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M16 9a5 5 0 010 6" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M19 7a8 8 0 010 10" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+
+                <input
+                  className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-flaque-clay/60"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={volume}
+                  aria-label="Volume"
+                  title="Volume"
+                  onChange={(event) => handleVolumeChange(Number(event.target.value))}
+                />
+              </div>
+            </div>
+          ) : null}
 
           {transcodeMode !== "original" ? (
             <p className="text-xs text-flaque-steel">
