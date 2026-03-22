@@ -139,14 +139,16 @@ export function initializeAuthDatabase(): void {
       label TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );
+  `);
 
+  ensureSessionSchemaMigrations(db);
+
+  db.exec(`
     CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
     CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_last_seen_at ON sessions(last_seen_at);
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
   `);
-
-  ensureSessionSchemaMigrations(db);
 }
 
 export function createUser(username: string, password: string, role: UserRole = "user"): AuthUser {
