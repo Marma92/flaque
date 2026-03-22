@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 
 import { createApp } from "./app";
 import {
+  deleteExpiredPasswordResetTokens,
   deleteExpiredSessions,
   ensureDefaultAdmin,
   initializeAuthDatabase
@@ -53,6 +54,7 @@ async function bootstrap(): Promise<void> {
 
   setInterval(() => {
     deleteExpiredSessions();
+    deleteExpiredPasswordResetTokens();
   }, SESSION_CLEANUP_INTERVAL_MS).unref();
 }
 

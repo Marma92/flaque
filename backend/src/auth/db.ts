@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import Database from "better-sqlite3";
 
 import type { AuthSession, AuthUser, UserRole } from "../types/auth";
@@ -10,6 +12,7 @@ type UserRow = {
   username: string;
   password_hash: string;
   role: UserRole;
+  email: string | null;
 };
 
 type SessionUserRow = {
@@ -35,6 +38,13 @@ type SessionRow = {
   user_agent: string | null;
   ip_address: string | null;
   label: string | null;
+};
+
+type PasswordResetTokenRow = {
+  id: string;
+  user_id: string;
+  expires_at: number;
+  used_at: number | null;
 };
 
 type TableColumnRow = {
@@ -74,6 +84,23 @@ function normalizeSessionText(value: string | null | undefined, maxLength: numbe
   return trimmed.slice(0, maxLength);
 }
 
+function normalizeEmail(value: string | null | undefined): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (!normalized || !normalized.includes("@")) {
+    return null;
+  }
+
+  return normalized.slice(0, 320);
+}
+
+function hashPasswordResetToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
 function mapSessionRowToAuthSession(row: SessionRow): AuthSession {
   return {
     id: row.id,
@@ -92,6 +119,15 @@ function hasTableColumn(database: Database.Database, tableName: string, columnNa
     .prepare(`PRAGMA table_info(${tableName})`)
     .all() as TableColumnRow[];
   return rows.some((row) => row.name === columnName);
+}
+
+function ensureUserSchemaMigrations(database: Database.Database): void {
+  if (!hasTableColumn(database, "users", "email")) {
+    database.exec("ALTER TABLE users ADD COLUMN email TEXT");
+  }
+
+  database.exec("UPDATE users SET email = NULL WHERE TRIM(COALESCE(email, '')) = ''");
+  database.exec("UPDATE users SET email = LOWER(TRIM(email)) WHERE email IS NOT NULL");
 }
 
 function ensureSessionSchemaMigrations(database: Database.Database): void {
@@ -123,6 +159,7 @@ export function initializeAuthDatabase(): void {
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       username TEXT NOT NULL UNIQUE,
+      email TEXT,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'user',
       created_at INTEGER NOT NULL
@@ -139,8 +176,21 @@ export function initializeAuthDatabase(): void {
       label TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      used_at INTEGER,
+      requested_ip TEXT,
+      requested_user_agent TEXT,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
+  ensureUserSchemaMigrations(db);
   ensureSessionSchemaMigrations(db);
 
   db.exec(`
@@ -148,20 +198,29 @@ export function initializeAuthDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_last_seen_at ON sessions(last_seen_at);
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at ON password_reset_tokens(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
   `);
 }
 
-export function createUser(username: string, password: string, role: UserRole = "user"): AuthUser {
+export function createUser(
+  username: string,
+  password: string,
+  role: UserRole = "user",
+  email?: string | null
+): AuthUser {
   const database = requireDb();
   const id = createId(16);
   const now = Date.now();
   const passwordHash = hashPassword(password);
+  const normalizedEmail = normalizeEmail(email);
 
   database
     .prepare(
-      "INSERT INTO users (id, username, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)"
+      "INSERT INTO users (id, username, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?)"
     )
-    .run(id, username, passwordHash, role, now);
+    .run(id, username, normalizedEmail, passwordHash, role, now);
 
   return { id, username, role };
 }
@@ -169,9 +228,36 @@ export function createUser(username: string, password: string, role: UserRole = 
 export function findUserByUsername(username: string): UserRow | null {
   const database = requireDb();
   const row = database
-    .prepare("SELECT id, username, password_hash, role FROM users WHERE username = ?")
+    .prepare("SELECT id, username, email, password_hash, role FROM users WHERE username = ?")
     .get(username) as UserRow | undefined;
   return row ?? null;
+}
+
+export function findUserByEmail(email: string): UserRow | null {
+  const database = requireDb();
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) {
+    return null;
+  }
+
+  const row = database
+    .prepare("SELECT id, username, email, password_hash, role FROM users WHERE email = ?")
+    .get(normalizedEmail) as UserRow | undefined;
+  return row ?? null;
+}
+
+export function findUserByLogin(login: string): UserRow | null {
+  const normalizedLogin = login.trim();
+  if (!normalizedLogin) {
+    return null;
+  }
+
+  const byUsername = findUserByUsername(normalizedLogin);
+  if (byUsername) {
+    return byUsername;
+  }
+
+  return findUserByEmail(normalizedLogin);
 }
 
 export function findUserById(userId: string): AuthUser | null {
@@ -235,6 +321,13 @@ export function updateUserRole(userId: string, role: UserRole): boolean {
   return result.changes > 0;
 }
 
+export function updateUserEmail(userId: string, email: string | null | undefined): boolean {
+  const database = requireDb();
+  const normalizedEmail = normalizeEmail(email);
+  const result = database.prepare("UPDATE users SET email = ? WHERE id = ?").run(normalizedEmail, userId);
+  return result.changes > 0;
+}
+
 export function createSession(input: {
   userId: string;
   ttlMs: number;
@@ -267,6 +360,61 @@ export function deleteSession(sessionId: string): void {
 export function deleteExpiredSessions(now = Date.now()): void {
   const database = requireDb();
   database.prepare("DELETE FROM sessions WHERE expires_at <= ?").run(now);
+}
+
+export function createPasswordResetToken(input: {
+  userId: string;
+  ttlMs: number;
+  requestedIp?: string | null;
+  requestedUserAgent?: string | null;
+}): { token: string; expiresAt: number } {
+  const database = requireDb();
+  const token = createId(32);
+  const tokenHash = hashPasswordResetToken(token);
+  const now = Date.now();
+  const expiresAt = now + input.ttlMs;
+  const requestedIp = normalizeSessionText(input.requestedIp, 128);
+  const requestedUserAgent = normalizeSessionText(input.requestedUserAgent, 512);
+
+  database
+    .prepare(
+      "INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at, created_at, used_at, requested_ip, requested_user_agent) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)"
+    )
+    .run(createId(16), input.userId, tokenHash, expiresAt, now, requestedIp, requestedUserAgent);
+
+  return { token, expiresAt };
+}
+
+export function consumePasswordResetToken(token: string): { userId: string } | null {
+  const database = requireDb();
+  const now = Date.now();
+
+  deleteExpiredPasswordResetTokens(now);
+
+  const tokenHash = hashPasswordResetToken(token);
+  const row = database
+    .prepare(
+      "SELECT id, user_id, expires_at, used_at FROM password_reset_tokens WHERE token_hash = ? LIMIT 1"
+    )
+    .get(tokenHash) as PasswordResetTokenRow | undefined;
+
+  if (!row || row.used_at !== null || row.expires_at <= now) {
+    return null;
+  }
+
+  const result = database
+    .prepare("UPDATE password_reset_tokens SET used_at = ? WHERE id = ? AND used_at IS NULL AND expires_at > ?")
+    .run(now, row.id, now);
+  if (result.changes <= 0) {
+    return null;
+  }
+
+  return { userId: row.user_id };
+}
+
+export function deleteExpiredPasswordResetTokens(now = Date.now()): void {
+  const database = requireDb();
+  database.prepare("DELETE FROM password_reset_tokens WHERE expires_at <= ?").run(now);
 }
 
 export function listSessionsByUserId(userId: string): AuthSession[] {
@@ -398,6 +546,7 @@ function shouldSyncBootstrapAdminPassword(): boolean {
 export function ensureDefaultAdmin(): AuthUser | null {
   const username = (process.env.ADMIN_USERNAME ?? "admin").trim();
   const password = normalizeBootstrapAdminPassword(process.env.ADMIN_PASSWORD ?? "admin1234");
+  const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL ?? "");
   const syncBootstrapAdminPassword = shouldSyncBootstrapAdminPassword();
 
   if (!username) {
@@ -408,6 +557,10 @@ export function ensureDefaultAdmin(): AuthUser | null {
   if (existing) {
     if (existing.role !== "admin") {
       updateUserRole(existing.id, "admin");
+    }
+
+    if (adminEmail && existing.email !== adminEmail) {
+      updateUserEmail(existing.id, adminEmail);
     }
 
     if (syncBootstrapAdminPassword) {
@@ -422,5 +575,5 @@ export function ensureDefaultAdmin(): AuthUser | null {
     };
   }
 
-  return createUser(username, password, "admin");
+  return createUser(username, password, "admin", adminEmail);
 }

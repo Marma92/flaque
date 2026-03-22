@@ -5,6 +5,8 @@ import {
   logout,
   logoutOtherSessions,
   myProfilePhotoUrl,
+  requestPasswordReset,
+  resetPasswordWithToken,
   revokeMySession,
   updateMyPassword,
   uploadMyProfilePhoto
@@ -274,6 +276,14 @@ export default function App(): JSX.Element {
     });
   }
 
+  async function handleRequestPasswordReset(loginValue: string): Promise<void> {
+    await requestPasswordReset(loginValue);
+  }
+
+  async function handleResetPasswordWithToken(token: string, newPassword: string): Promise<void> {
+    await resetPasswordWithToken(token, newPassword);
+  }
+
   const handleListMySessions = useCallback(async () => {
     return getMySessions();
   }, []);
@@ -305,7 +315,13 @@ export default function App(): JSX.Element {
   }
 
   if (!user) {
-    return <LoginPage onLogin={handleLogin} />;
+    return (
+      <LoginPage
+        onLogin={handleLogin}
+        onRequestPasswordReset={handleRequestPasswordReset}
+        onResetPassword={handleResetPasswordWithToken}
+      />
+    );
   }
 
   return (

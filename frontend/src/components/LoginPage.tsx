@@ -1,25 +1,128 @@
 import { FormEvent, useState } from "react";
 
 type LoginPageProps = {
-  onLogin: (username: string, password: string) => Promise<void>;
+  onLogin: (login: string, password: string) => Promise<void>;
+  onRequestPasswordReset: (login: string) => Promise<void>;
+  onResetPassword: (token: string, newPassword: string) => Promise<void>;
 };
 
-export function LoginPage({ onLogin }: LoginPageProps): JSX.Element {
-  const [username, setUsername] = useState("");
+type AuthMode = "login" | "forgot" | "reset";
+
+const PASSWORD_MIN_LENGTH = 8;
+
+function readResetTokenFromUrl(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const token = searchParams.get("resetToken");
+  if (!token) {
+    return null;
+  }
+
+  const normalized = token.trim();
+  return normalized || null;
+}
+
+function clearResetTokenInUrl(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+  url.searchParams.delete("resetToken");
+  window.history.replaceState({}, "", url.toString());
+}
+
+export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: LoginPageProps): JSX.Element {
+  const [mode, setMode] = useState<AuthMode>(() => (readResetTokenFromUrl() ? "reset" : "login"));
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
+  const [resetToken, setResetToken] = useState<string | null>(() => readResetTokenFromUrl());
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  function switchMode(nextMode: AuthMode): void {
+    setMode(nextMode);
+    setError(null);
+    setMessage(null);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+
+    if (mode !== "login") {
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    setMessage(null);
 
     try {
-      await onLogin(username, password);
+      await onLogin(login, password);
       setPassword("");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleForgotPasswordSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      await onRequestPasswordReset(login);
+      setMessage("If this account exists, a recovery email has been sent.");
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Unable to request password reset");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResetPasswordSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+
+    if (!resetToken) {
+      setError("Missing reset token.");
+      return;
+    }
+
+    if (newPassword.length < PASSWORD_MIN_LENGTH) {
+      setError(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      await onResetPassword(resetToken, newPassword);
+      clearResetTokenInUrl();
+      setResetToken(null);
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setPassword("");
+      switchMode("login");
+      setMessage("Password reset successful. You can now log in.");
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Unable to reset password");
     } finally {
       setLoading(false);
     }
@@ -45,43 +148,164 @@ export function LoginPage({ onLogin }: LoginPageProps): JSX.Element {
           </div>
         </div>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <label className="block text-sm text-flaque-ink">
-            Username
-            <input
-              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-              type="text"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              required
-              autoComplete="username"
-            />
-          </label>
+        {mode === "login" ? (
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <label className="block text-sm text-flaque-ink">
+              Username or email
+              <input
+                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                type="text"
+                value={login}
+                onChange={(event) => setLogin(event.target.value)}
+                required
+                autoComplete="username"
+              />
+            </label>
 
-          <label className="block text-sm text-flaque-ink">
-            Password
-            <input
-              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              autoComplete="current-password"
-            />
-          </label>
+            <label className="block text-sm text-flaque-ink">
+              Password
+              <input
+                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                autoComplete="current-password"
+              />
+            </label>
 
-          {error ? (
-            <p className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-          ) : null}
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="text-flaque-steel">Need help?</span>
+              <button
+                className="text-flaque-ink underline decoration-flaque-clay underline-offset-2 transition hover:text-black"
+                type="button"
+                onClick={() => switchMode("forgot")}
+              >
+                Forgot password?
+              </button>
+            </div>
 
-          <button
-            className="w-full rounded-xl bg-flaque-ink px-3 py-2 font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-70"
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? "Logging in..." : "Login"}
-          </button>
-        </form>
+            {error ? (
+              <p className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+            ) : null}
+
+            {message ? (
+              <p className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>
+            ) : null}
+
+            <button
+              className="w-full rounded-xl bg-flaque-ink px-3 py-2 font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-70"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? "Logging in..." : "Login"}
+            </button>
+          </form>
+        ) : null}
+
+        {mode === "forgot" ? (
+          <form className="space-y-4" onSubmit={handleForgotPasswordSubmit}>
+            <p className="text-sm text-flaque-steel">Enter your username or email to receive a password reset link.</p>
+
+            <label className="block text-sm text-flaque-ink">
+              Username or email
+              <input
+                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                type="text"
+                value={login}
+                onChange={(event) => setLogin(event.target.value)}
+                required
+                autoComplete="username"
+              />
+            </label>
+
+            {error ? (
+              <p className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+            ) : null}
+
+            {message ? (
+              <p className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>
+            ) : null}
+
+            <button
+              className="w-full rounded-xl bg-flaque-ink px-3 py-2 font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-70"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? "Sending..." : "Send recovery email"}
+            </button>
+
+            <button
+              className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink transition hover:bg-flaque-cream"
+              type="button"
+              onClick={() => switchMode("login")}
+              disabled={loading}
+            >
+              Back to login
+            </button>
+          </form>
+        ) : null}
+
+        {mode === "reset" ? (
+          <form className="space-y-4" onSubmit={handleResetPasswordSubmit}>
+            <p className="text-sm text-flaque-steel">Choose a new password for your account.</p>
+
+            <label className="block text-sm text-flaque-ink">
+              New password
+              <input
+                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                required
+                autoComplete="new-password"
+                minLength={PASSWORD_MIN_LENGTH}
+              />
+            </label>
+
+            <label className="block text-sm text-flaque-ink">
+              Confirm new password
+              <input
+                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                type="password"
+                value={confirmNewPassword}
+                onChange={(event) => setConfirmNewPassword(event.target.value)}
+                required
+                autoComplete="new-password"
+                minLength={PASSWORD_MIN_LENGTH}
+              />
+            </label>
+
+            {error ? (
+              <p className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+            ) : null}
+
+            {message ? (
+              <p className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>
+            ) : null}
+
+            <button
+              className="w-full rounded-xl bg-flaque-ink px-3 py-2 font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-70"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? "Resetting..." : "Reset password"}
+            </button>
+
+            <button
+              className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink transition hover:bg-flaque-cream"
+              type="button"
+              onClick={() => {
+                clearResetTokenInUrl();
+                setResetToken(null);
+                switchMode("login");
+              }}
+              disabled={loading}
+            >
+              Back to login
+            </button>
+          </form>
+        ) : null}
       </section>
     </main>
   );

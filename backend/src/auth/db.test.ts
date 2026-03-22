@@ -23,6 +23,7 @@ afterEach(async () => {
   delete process.env.DATA_ROOT;
   delete process.env.ADMIN_USERNAME;
   delete process.env.ADMIN_PASSWORD;
+  delete process.env.ADMIN_EMAIL;
   vi.resetModules();
 });
 
@@ -144,5 +145,43 @@ describe("ensureDefaultAdmin", () => {
 
     expect(verifyPassword("pa'ssword", row.password_hash)).toBe(true);
     expect(verifyPassword("'pa\\'ssword'", row.password_hash)).toBe(false);
+  });
+
+  it("stores bootstrap admin email when provided", async () => {
+    process.env.ADMIN_USERNAME = "bootstrap-admin";
+    process.env.ADMIN_PASSWORD = "bootstrap-pass-1";
+    process.env.ADMIN_EMAIL = "  Admin@Example.Com  ";
+
+    const { ensureDefaultAdmin, findUserByUsername } = await import("./db");
+
+    ensureDefaultAdmin();
+    const row = findUserByUsername("bootstrap-admin");
+    expect(row).not.toBeNull();
+    if (!row) {
+      return;
+    }
+
+    expect(row.email).toBe("admin@example.com");
+  });
+
+  it("updates bootstrap admin email for existing admin", async () => {
+    process.env.ADMIN_USERNAME = "bootstrap-admin";
+    process.env.ADMIN_PASSWORD = "bootstrap-pass-1";
+    process.env.ADMIN_EMAIL = "admin@example.com";
+
+    const { ensureDefaultAdmin, findUserByUsername } = await import("./db");
+
+    ensureDefaultAdmin();
+
+    process.env.ADMIN_EMAIL = "new-admin@example.com";
+    ensureDefaultAdmin();
+
+    const row = findUserByUsername("bootstrap-admin");
+    expect(row).not.toBeNull();
+    if (!row) {
+      return;
+    }
+
+    expect(row.email).toBe("new-admin@example.com");
   });
 });

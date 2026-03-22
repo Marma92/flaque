@@ -62,7 +62,7 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 }
 
-export async function login(username: string, password: string): Promise<User> {
+export async function login(login: string, password: string): Promise<User> {
   const deviceLabel =
     typeof navigator !== "undefined" ? `${navigator.platform || "Unknown platform"} - ${navigator.userAgent}` : undefined;
 
@@ -71,10 +71,30 @@ export async function login(username: string, password: string): Promise<User> {
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ username, password, deviceLabel })
+    body: JSON.stringify({ login, password, deviceLabel })
   });
 
   return payload.user;
+}
+
+export async function requestPasswordReset(login: string): Promise<void> {
+  await requestJson<{ ok: boolean }>("/api/auth/forgot-password", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ login })
+  });
+}
+
+export async function resetPasswordWithToken(token: string, newPassword: string): Promise<void> {
+  await requestJson<{ ok: boolean }>("/api/auth/reset-password", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ token, newPassword })
+  });
 }
 
 export async function logout(): Promise<void> {

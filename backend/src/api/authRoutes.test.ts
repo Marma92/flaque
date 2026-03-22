@@ -74,7 +74,7 @@ async function apiRequest(pathname: string, options: RequestInit = {}) {
 }
 
 async function login(input: {
-  username: string;
+  login: string;
   password: string;
   userAgent?: string;
   deviceLabel?: string;
@@ -87,7 +87,7 @@ async function login(input: {
         }
       : undefined,
     body: JSON.stringify({
-      username: input.username,
+      login: input.login,
       password: input.password,
       deviceLabel: input.deviceLabel
     })
@@ -107,6 +107,7 @@ beforeEach(async () => {
   process.env.DATA_ROOT = dataRoot;
   process.env.ADMIN_USERNAME = "admin";
   process.env.ADMIN_PASSWORD = "admin-secret-123";
+  process.env.ADMIN_EMAIL = "admin@example.com";
   process.env.CORS_ORIGIN = "http://localhost:5173";
 
   await bootstrapServer();
@@ -129,6 +130,7 @@ afterEach(async () => {
   delete process.env.DATA_ROOT;
   delete process.env.ADMIN_USERNAME;
   delete process.env.ADMIN_PASSWORD;
+  delete process.env.ADMIN_EMAIL;
   delete process.env.CORS_ORIGIN;
   server = null;
   baseUrl = "";
@@ -153,15 +155,118 @@ describe("authRoutes", () => {
     expect(logoutOthersResponse.status).toBe(401);
   });
 
+  it("allows login with either username or email", async () => {
+    const byUsername = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        login: "admin",
+        password: "admin-secret-123"
+      })
+    });
+    expect(byUsername.status).toBe(200);
+
+    const byEmail = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        login: "admin@example.com",
+        password: "admin-secret-123"
+      })
+    });
+    expect(byEmail.status).toBe(200);
+  });
+
+  it("supports forgot password and token reset flow", async () => {
+    const currentCookie = await login({
+      login: "admin",
+      password: "admin-secret-123",
+      userAgent: "Session Test Agent"
+    });
+
+    const forgotUnknown = await apiRequest("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({
+        login: "nobody@example.com"
+      })
+    });
+    expect(forgotUnknown.status).toBe(200);
+    expect(forgotUnknown.payload).toEqual({ ok: true });
+
+    const forgotKnown = await apiRequest("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({
+        login: "admin@example.com"
+      })
+    });
+    expect(forgotKnown.status).toBe(200);
+    expect(forgotKnown.payload).toEqual({ ok: true });
+
+    const { findUserByUsername, createPasswordResetToken } = await import("../auth/db");
+    const admin = findUserByUsername("admin");
+    expect(admin).not.toBeNull();
+    if (!admin) {
+      return;
+    }
+
+    const resetToken = createPasswordResetToken({
+      userId: admin.id,
+      ttlMs: 10 * 60 * 1000
+    });
+
+    const resetResponse = await apiRequest("/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({
+        token: resetToken.token,
+        newPassword: "admin-reset-password-456"
+      })
+    });
+    expect(resetResponse.status).toBe(200);
+    expect(resetResponse.payload).toEqual({ ok: true });
+
+    const staleSession = await apiRequest("/api/auth/me", {
+      method: "GET",
+      headers: {
+        Cookie: currentCookie
+      }
+    });
+    expect(staleSession.status).toBe(401);
+
+    const oldPasswordLogin = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        login: "admin@example.com",
+        password: "admin-secret-123"
+      })
+    });
+    expect(oldPasswordLogin.status).toBe(401);
+
+    const newPasswordLogin = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        login: "admin@example.com",
+        password: "admin-reset-password-456"
+      })
+    });
+    expect(newPasswordLogin.status).toBe(200);
+
+    const reuseTokenResponse = await apiRequest("/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({
+        token: resetToken.token,
+        newPassword: "admin-reset-password-789"
+      })
+    });
+    expect(reuseTokenResponse.status).toBe(400);
+  });
+
   it("lists active sessions and revokes a targeted session", async () => {
     const currentCookie = await login({
-      username: "admin",
+      login: "admin",
       password: "admin-secret-123",
       userAgent: "Session Test Agent A",
       deviceLabel: "Laptop"
     });
     const otherCookie = await login({
-      username: "admin",
+      login: "admin",
       password: "admin-secret-123",
       userAgent: "Session Test Agent B",
       deviceLabel: "Phone"
@@ -205,19 +310,19 @@ describe("authRoutes", () => {
 
   it("logs out other sessions while keeping current session active", async () => {
     const currentCookie = await login({
-      username: "admin",
+      login: "admin",
       password: "admin-secret-123",
       userAgent: "Session Test Agent A",
       deviceLabel: "Desktop"
     });
     const otherCookieOne = await login({
-      username: "admin",
+      login: "admin",
       password: "admin-secret-123",
       userAgent: "Session Test Agent B",
       deviceLabel: "Tablet"
     });
     const otherCookieTwo = await login({
-      username: "admin",
+      login: "admin",
       password: "admin-secret-123",
       userAgent: "Session Test Agent C",
       deviceLabel: "Phone"
@@ -259,7 +364,7 @@ describe("authRoutes", () => {
 
   it("allows revoking current session and clears cookie", async () => {
     const currentCookie = await login({
-      username: "admin",
+      login: "admin",
       password: "admin-secret-123",
       userAgent: "Session Test Agent Current",
       deviceLabel: "Current Session"
