@@ -447,6 +447,21 @@ show_compose_diagnostics() {
   compose logs --no-color --tail=120 || true
 }
 
+validate_single_line_value() {
+  local name="$1"
+  local value="$2"
+
+  if [[ -z "$value" ]]; then
+    printf "Invalid %s: value cannot be empty.\n" "$name" >&2
+    exit 1
+  fi
+
+  if [[ "$value" == *$'\n'* || "$value" == *$'\r'* ]]; then
+    printf "Invalid %s: multiline values are not supported in .env.production.\n" "$name" >&2
+    exit 1
+  fi
+}
+
 print_title "Flaque Production Setup"
 printf "This script configures env vars, creates mount folders, builds images, initializes runtime data, and starts containers.\n\n"
 
@@ -500,6 +515,9 @@ fi
 
 HTTP_REQUEST_TIMEOUT_MS="${DEFAULT_HTTP_REQUEST_TIMEOUT_MS}"
 HTTP_SOCKET_TIMEOUT_MS="${DEFAULT_HTTP_SOCKET_TIMEOUT_MS}"
+
+validate_single_line_value "ADMIN_USERNAME" "${ADMIN_USERNAME}"
+validate_single_line_value "ADMIN_PASSWORD" "${ADMIN_PASSWORD}"
 
 if [[ -f "${ENV_FILE}" ]]; then
   print_warn ".env.production already exists at ${ENV_FILE}"

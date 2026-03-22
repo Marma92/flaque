@@ -89,6 +89,16 @@ npm run prod:up
 npm run prod:down
 ```
 
+Operational helpers:
+
+```bash
+# Reset (or create) an admin password
+npm run prod:admin:reset-password -- <username>
+
+# Delete and recreate auth DB (users + sessions), then bootstrap admin from .env.production
+npm run prod:authdb:reset
+```
+
 ## Technical Choices
 
 - **npm workspaces monorepo** (`backend`, `frontend`) to keep product/API/UI changes aligned.

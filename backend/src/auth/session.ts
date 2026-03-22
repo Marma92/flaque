@@ -4,17 +4,28 @@ export const SESSION_COOKIE_NAME = "flaque_session";
 
 const DEFAULT_SESSION_TTL_HOURS = 24 * 7;
 
-function shouldUseSecureCookie(): boolean {
-  const raw = (process.env.SESSION_COOKIE_SECURE ?? "").trim().toLowerCase();
+function parseBooleanEnv(value: string | undefined): boolean | null {
+  if (!value) {
+    return null;
+  }
 
-  if (raw === "1" || raw === "true" || raw === "yes") {
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
     return true;
   }
 
-  if (raw === "0" || raw === "false" || raw === "no") {
+  if (["0", "false", "no", "off"].includes(normalized)) {
     return false;
   }
 
+  return null;
+}
+
+function useSecureSessionCookie(): boolean {
+  const fromEnv = parseBooleanEnv(process.env.SESSION_COOKIE_SECURE);
+  if (fromEnv !== null) {
+    return fromEnv;
+  }
   return process.env.NODE_ENV === "production";
 }
 
@@ -25,7 +36,7 @@ export function getSessionTtlMs(): number {
 }
 
 export function setSessionCookie(res: Response, sessionId: string, expiresAt: number): void {
-  const secureCookie = shouldUseSecureCookie();
+  const secureCookie = useSecureSessionCookie();
 
   res.cookie(SESSION_COOKIE_NAME, sessionId, {
     httpOnly: true,
@@ -36,7 +47,7 @@ export function setSessionCookie(res: Response, sessionId: string, expiresAt: nu
 }
 
 export function clearSessionCookie(res: Response): void {
-  const secureCookie = shouldUseSecureCookie();
+  const secureCookie = useSecureSessionCookie();
 
   res.clearCookie(SESSION_COOKIE_NAME, {
     httpOnly: true,
