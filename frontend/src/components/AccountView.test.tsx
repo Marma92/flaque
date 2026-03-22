@@ -31,6 +31,7 @@ function createUser(): User {
   return {
     id: "user-1",
     username: "alice",
+    email: "alice@test.local",
     role: "user"
   };
 }

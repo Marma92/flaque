@@ -467,6 +467,7 @@ export async function getUsers(): Promise<User[]> {
 export async function createUserAccount(input: {
   username: string;
   password: string;
+  email: string;
   role?: "user" | "admin";
 }): Promise<User> {
   const payload = await requestJson<{ user: User }>("/api/users", {

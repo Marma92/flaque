@@ -1,4 +1,4 @@
-export type LibrarySection = "music" | "artists" | "albums" | "playlist";
+export type LibrarySection = "music" | "artists" | "albums" | "playlists";
 
 export type LibraryFilters = {
   owner?: string;

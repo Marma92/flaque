@@ -213,10 +213,22 @@ function normalizeTrackTags(parsedMetadata?: IAudioMetadata): TrackTags {
     "copyright",
     "language",
     "encodedby",
-    "picture"
+    "picture",
+    "lyrics"
   ]);
 
   const extra: Record<string, TrackTagExtraValue> = {};
+
+  if (Array.isArray(common.lyrics)) {
+    const lyricsText = common.lyrics
+      .map((entry: { text?: string }) => (typeof entry.text === "string" ? entry.text.trim() : ""))
+      .filter(Boolean)
+      .join("\n\n");
+
+    if (lyricsText) {
+      extra.lyrics = lyricsText;
+    }
+  }
   for (const [key, value] of Object.entries(common as unknown as Record<string, unknown>)) {
     if (knownCommonKeys.has(key)) {
       continue;

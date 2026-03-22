@@ -18,7 +18,7 @@ export function LibrarySectionSwitcher({
         <div>
           <p className="text-xs uppercase tracking-[0.28em] text-flaque-steel">Library</p>
           <h2 className="mt-1 font-display text-2xl text-flaque-ink">Music, Artists, Albums & Playlists</h2>
-          <p className="mt-2 text-sm text-flaque-steel">Switch between tracks, artists, albums and playlist management.</p>
+          <p className="mt-2 text-sm text-flaque-steel">Switch between tracks, artists, albums and playlists management.</p>
         </div>
 
         <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
@@ -26,7 +26,7 @@ export function LibrarySectionSwitcher({
             ["music", "Music"],
             ["artists", "Artists"],
             ["albums", "Albums"],
-            ["playlist", "Playlist"]
+            ["playlists", "Playlists"]
           ] as const).map(([sectionKey, sectionLabel]) => (
             <button
               key={sectionKey}

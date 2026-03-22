@@ -31,6 +31,7 @@ describe("ensureDefaultAdmin", () => {
   it("creates the bootstrap admin from env credentials", async () => {
     process.env.ADMIN_USERNAME = "bootstrap-admin";
     process.env.ADMIN_PASSWORD = "bootstrap-pass-1";
+    process.env.ADMIN_EMAIL = "admin@test.local";
 
     const { ensureDefaultAdmin, findUserByUsername } = await import("./db");
     const { verifyPassword } = await import("./password");
@@ -53,6 +54,7 @@ describe("ensureDefaultAdmin", () => {
   it("does not override admin password when env password changes", async () => {
     process.env.ADMIN_USERNAME = "bootstrap-admin";
     process.env.ADMIN_PASSWORD = "bootstrap-pass-1";
+    process.env.ADMIN_EMAIL = "admin@test.local";
 
     const { ensureDefaultAdmin, findUserByUsername } = await import("./db");
     const { verifyPassword } = await import("./password");
@@ -79,6 +81,7 @@ describe("ensureDefaultAdmin", () => {
   it("preserves utf-8 bootstrap password semantics", async () => {
     process.env.ADMIN_USERNAME = "bootstrap-admin";
     process.env.ADMIN_PASSWORD = "MötDePasse-🔒-漢字";
+    process.env.ADMIN_EMAIL = "admin@test.local";
 
     const { ensureDefaultAdmin, findUserByUsername } = await import("./db");
     const { verifyPassword } = await import("./password");
@@ -96,6 +99,7 @@ describe("ensureDefaultAdmin", () => {
   it("ignores trailing carriage return from env files", async () => {
     process.env.ADMIN_USERNAME = "bootstrap-admin";
     process.env.ADMIN_PASSWORD = "bootstrap-pass-1\r";
+    process.env.ADMIN_EMAIL = "admin@test.local";
 
     const { ensureDefaultAdmin, findUserByUsername } = await import("./db");
     const { verifyPassword } = await import("./password");
@@ -114,6 +118,7 @@ describe("ensureDefaultAdmin", () => {
   it("supports quoted passwords from production env files", async () => {
     process.env.ADMIN_USERNAME = "bootstrap-admin";
     process.env.ADMIN_PASSWORD = "'bootstrap-pass-1'";
+    process.env.ADMIN_EMAIL = "admin@test.local";
 
     const { ensureDefaultAdmin, findUserByUsername } = await import("./db");
     const { verifyPassword } = await import("./password");
@@ -132,6 +137,7 @@ describe("ensureDefaultAdmin", () => {
   it("supports quoted passwords with apostrophes", async () => {
     process.env.ADMIN_USERNAME = "bootstrap-admin";
     process.env.ADMIN_PASSWORD = "'pa\\'ssword'";
+    process.env.ADMIN_EMAIL = "admin@test.local";
 
     const { ensureDefaultAdmin, findUserByUsername } = await import("./db");
     const { verifyPassword } = await import("./password");

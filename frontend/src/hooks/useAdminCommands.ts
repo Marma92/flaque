@@ -21,6 +21,7 @@ type UseAdminCommandsResult = {
   handleCreateUser: (input: {
     username: string;
     password: string;
+    email: string;
     role: "user" | "admin";
   }) => Promise<void>;
   handleDeleteUser: (userId: string) => Promise<void>;
@@ -45,6 +46,7 @@ export function useAdminCommands({
   async function handleCreateUser(input: {
     username: string;
     password: string;
+    email: string;
     role: "user" | "admin";
   }): Promise<void> {
     await createUserAccount(input);

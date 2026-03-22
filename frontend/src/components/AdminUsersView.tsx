@@ -5,6 +5,7 @@ import type { User } from "../types";
 type NewUserInput = {
   username: string;
   password: string;
+  email: string;
   role: "user" | "admin";
 };
 
@@ -64,6 +65,7 @@ export function AdminUsersView({
 }: AdminUsersViewProps): JSX.Element {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
   const [role, setRole] = useState<"user" | "admin">("user");
   const [searchText, setSearchText] = useState("");
   const [roleFilter, setRoleFilter] = useState<UserRoleFilter>("all");
@@ -102,12 +104,14 @@ export function AdminUsersView({
       await onCreateUser({
         username: username.trim(),
         password,
+        email: email.trim(),
         role
       });
 
       setFormMessage("User created successfully.");
       setUsername("");
       setPassword("");
+      setEmail("");
       setRole("user");
     } catch (submitError) {
       setFormMessage(submitError instanceof Error ? submitError.message : "Failed to create user");
@@ -274,7 +278,7 @@ export function AdminUsersView({
           </button>
         </div>
 
-        <form className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-4" onSubmit={handleSubmit}>
+        <form className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-5" onSubmit={handleSubmit}>
           <label className="text-sm text-flaque-ink">
             Username
             <input
@@ -285,6 +289,18 @@ export function AdminUsersView({
               minLength={3}
               maxLength={32}
               pattern="[a-zA-Z0-9._-]+"
+              required
+            />
+          </label>
+
+          <label className="text-sm text-flaque-ink">
+            Email
+            <input
+              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="user@example.com"
               required
             />
           </label>

@@ -67,7 +67,7 @@ export function LibraryWorkspace({
     <div className="space-y-4">
       <LibrarySectionSwitcher activeSection={activeLibrarySection} onSectionChange={onSectionChange} />
 
-      {activeLibrarySection === "playlist" ? (
+      {activeLibrarySection === "playlists" ? (
         <LibraryPlaylistSection
           availablePlaylists={availablePlaylists}
           ownerNameById={ownerNameById}
