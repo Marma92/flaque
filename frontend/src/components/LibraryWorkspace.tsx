@@ -32,6 +32,8 @@ type LibraryWorkspaceProps = {
   filters: LibraryFilters;
   onFilterChange: (next: LibraryFilters) => void;
   onLibraryTrackSelect: (track: Track) => void;
+  manageablePlaylists: Playlist[];
+  onAddTrackToPlaylist: (input: { trackId: string; playlistId: string }) => Promise<void>;
 };
 
 /**
@@ -61,7 +63,9 @@ export function LibraryWorkspace({
   library,
   filters,
   onFilterChange,
-  onLibraryTrackSelect
+  onLibraryTrackSelect,
+  manageablePlaylists,
+  onAddTrackToPlaylist
 }: LibraryWorkspaceProps): JSX.Element {
   return (
     <div className="space-y-4">
@@ -97,6 +101,8 @@ export function LibraryWorkspace({
           ownerNameById={ownerNameById}
           onAlbumSelect={onAlbumSelect}
           onTrackSelect={onAlbumTrackSelect}
+          playlists={manageablePlaylists}
+          onAddTrackToPlaylist={onAddTrackToPlaylist}
         />
       ) : null}
 
@@ -115,6 +121,8 @@ export function LibraryWorkspace({
             onFilterChange={onFilterChange}
             currentTrackId={currentTrackId}
             onTrackSelect={onLibraryTrackSelect}
+            playlists={manageablePlaylists}
+            onAddTrackToPlaylist={onAddTrackToPlaylist}
           />
         </>
       ) : null}

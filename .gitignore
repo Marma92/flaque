@@ -20,6 +20,12 @@ data/cache/tmp-uploads/*
 !data/cache/tmp-uploads/.gitkeep
 data/index/*
 !data/index/.gitkeep
+data/**/*.json
+data/storage/music/**
+!data/storage/music/
+!data/storage/music/**/
+!data/storage/music/**/.gitkeep
+!data/**/.gitkeep
 
 frontend/dist/
 backend/dist/

@@ -1,5 +1,6 @@
 import type { LibraryIndex, Playlist, Track } from "../../types/library";
 import { fileExists, readJsonFile, writeJsonAtomic } from "../../utils/fs";
+import { normalizeIndexKey, getTrackArtistName } from "../../utils/music";
 import { indexFilePath, playlistsIndexFilePath } from "../../utils/paths";
 import { pruneTrackMetadataOverrides } from "./metadataOverrideStore";
 import { scanFilesystemLibrary } from "../scanner/scannerService";
@@ -23,14 +24,6 @@ const EMPTY_INDEX: LibraryIndex = {
 const EMPTY_PLAYLISTS_INDEX: PlaylistsIndex = {
   playlists: []
 };
-
-function normalizeIndexKey(value?: string): string {
-  return (value ?? "").trim().toLowerCase();
-}
-
-function getTrackArtist(track: Track): string | undefined {
-  return track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0];
-}
 
 export class IndexStore {
   private snapshot: LibraryIndex = EMPTY_INDEX;
@@ -188,7 +181,7 @@ export class IndexStore {
       this.tracksById.set(track.id, track);
       this.pushTrack(this.tracksByOwner, track.owner, track);
 
-      const artist = getTrackArtist(track);
+      const artist = getTrackArtistName(track);
       if (artist) {
         this.pushTrack(this.tracksByArtist, artist, track);
       }

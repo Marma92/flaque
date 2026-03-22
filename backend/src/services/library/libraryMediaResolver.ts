@@ -1,12 +1,10 @@
 import path from "node:path";
 
 import { fileExists, readJsonFile } from "../../utils/fs";
+import { ARTIST_METADATA_FILE, ALBUM_METADATA_FILE } from "../../utils/music";
 import { resolveDataRelativePath } from "../../utils/paths";
 import { listArtists } from "../indexer/libraryQuery";
 import type { Track } from "../../types/library";
-
-const ARTIST_METADATA_FILE = "artist.json";
-const ALBUM_METADATA_FILE = "album.json";
 
 type ArtistMetadata = {
   name: string;
@@ -31,9 +29,8 @@ export type ResolvedAlbumMetadata = {
   coverPath?: string;
 };
 
-export function getTrackArtistName(track: Track): string | undefined {
-  return track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0];
-}
+import { getTrackArtistName } from "../../utils/music";
+export { getTrackArtistName };
 
 async function resolveArtistPhotoPath(
   track: Track,

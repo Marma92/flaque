@@ -1,6 +1,6 @@
 /* @vitest-environment happy-dom */
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AlbumEntry, Track } from "../types";
@@ -145,5 +145,61 @@ describe("LibraryAlbumsSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Play Open Eye Signal" }));
 
     expect(onTrackSelect).toHaveBeenCalledWith(track);
+  });
+
+  it("adds a track to playlist from the plus button without triggering playback", async () => {
+    const album = createAlbum({
+      id: "album-3",
+      name: "Typhoons",
+      artist: "Royal Blood",
+      trackCount: 1
+    });
+    const track = createTrack({
+      id: "track-2",
+      title: "Trouble's Coming",
+      artist: "Royal Blood",
+      album: "Typhoons"
+    });
+    const playlist = {
+      id: "playlist-1",
+      name: "Workout",
+      authorId: "user-1",
+      visibility: "private" as const,
+      trackIds: []
+    };
+    const onTrackSelect = vi.fn();
+    const onAddTrackToPlaylist = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <LibraryAlbumsSection
+        libraryMetadataError={null}
+        loadingAlbums={false}
+        albums={[album]}
+        selectedAlbum={album}
+        selectedAlbumTracks={[track]}
+        loadingSelectedAlbumTracks={false}
+        selectedAlbumTracksError={null}
+        ownerNameById={{ "user-1": "Alice" }}
+        onAlbumSelect={vi.fn()}
+        onTrackSelect={onTrackSelect}
+        playlists={[playlist]}
+        onAddTrackToPlaylist={onAddTrackToPlaylist}
+      />
+    );
+
+    const addTrackButtons = screen.getAllByRole("button", { name: "Add Trouble's Coming to playlist" });
+    fireEvent.click(addTrackButtons[0]);
+    expect(onTrackSelect).not.toHaveBeenCalled();
+
+    const confirmAddButtons = screen.getAllByRole("button", { name: "Add" });
+    fireEvent.click(confirmAddButtons[0]);
+
+    await waitFor(() => {
+      expect(onAddTrackToPlaylist).toHaveBeenCalledWith({
+        trackId: "track-2",
+        playlistId: "playlist-1"
+      });
+    });
+    expect(onTrackSelect).not.toHaveBeenCalled();
   });
 });

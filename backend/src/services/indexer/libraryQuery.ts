@@ -1,4 +1,5 @@
 import type { Track } from "../../types/library";
+import { normalizeIndexKey as normalize, getTrackArtistName as getTrackArtist } from "../../utils/music";
 
 export type LibraryFilter = {
   owner?: string;
@@ -32,14 +33,6 @@ export type TrackSortBy =
   | "path";
 
 export type TrackSortDirection = "asc" | "desc";
-
-function normalize(value?: string): string {
-  return (value ?? "").trim().toLowerCase();
-}
-
-function getTrackArtist(track: Track): string | undefined {
-  return track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0];
-}
 
 function extractYearString(date?: string): string | undefined {
   if (!date) {

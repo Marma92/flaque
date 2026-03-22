@@ -3,12 +3,10 @@ import "dotenv/config";
 import { createServer } from "node:http";
 
 import { createApp } from "./app";
-import {
-  deleteExpiredPasswordResetTokens,
-  deleteExpiredSessions,
-  ensureDefaultAdmin,
-  initializeAuthDatabase
-} from "./auth/db";
+import { ensureDefaultAdmin } from "./auth/bootstrap";
+import { initializeAuthDatabase } from "./auth/dbConnection";
+import { deleteExpiredPasswordResetTokens } from "./auth/passwordResetDb";
+import { deleteExpiredSessions } from "./auth/sessionDb";
 import { migrateLegacyPlaylists } from "./services/playlists/playlistStore";
 import { IndexStore } from "./services/indexer/indexStore";
 import { migratePerUserUploadsToSharedMusic } from "./services/storage/storageService";

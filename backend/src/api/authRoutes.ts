@@ -2,25 +2,24 @@ import { createHash } from "node:crypto";
 
 import { Router, type Request, type Response } from "express";
 
+import { findUserByLogin, updateUserPassword } from "../auth/db";
 import { requireAuth } from "../auth/middleware";
-import {
-  consumePasswordResetToken,
-  createPasswordResetToken,
-  createSession,
-  deleteOtherUserSessions,
-  deleteSessionForUser,
-  deleteSession,
-  findUserByLogin,
-  listSessionsByUserId,
-  updateUserPassword
-} from "../auth/db";
 import { verifyPassword } from "../auth/password";
+import { consumePasswordResetToken, createPasswordResetToken } from "../auth/passwordResetDb";
 import { sendPasswordResetEmail } from "../auth/passwordResetEmail";
 import {
   clearSessionCookie,
   getSessionTtlMs,
   setSessionCookie
 } from "../auth/session";
+import {
+  createSession,
+  deleteOtherUserSessions,
+  deleteSession,
+  deleteSessionForUser,
+  listSessionsByUserId
+} from "../auth/sessionDb";
+import { getClientIp } from "./requestHelpers";
 
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_LENGTH = 256;
@@ -37,19 +36,6 @@ type RateLimitBucket = {
 };
 
 const rateLimitBuckets = new Map<string, RateLimitBucket>();
-
-function getClientIp(req: Request): string | undefined {
-  const forwardedFor = req.headers["x-forwarded-for"];
-  const firstForwarded =
-    typeof forwardedFor === "string"
-      ? forwardedFor.split(",", 1)[0]
-      : Array.isArray(forwardedFor)
-        ? forwardedFor[0]
-        : undefined;
-
-  const candidate = (firstForwarded ?? req.ip ?? req.socket.remoteAddress ?? "").trim();
-  return candidate || undefined;
-}
 
 function parseDeviceLabel(value: unknown): string | undefined {
   if (typeof value !== "string") {

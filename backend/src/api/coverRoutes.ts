@@ -6,9 +6,8 @@ import { requireAuth } from "../auth/middleware";
 import type { IndexStore } from "../services/indexer/indexStore";
 import { findCoverFileByTrackId } from "../services/storage/coverService";
 import { fileExists, readJsonFile } from "../utils/fs";
+import { ALBUM_METADATA_FILE } from "../utils/music";
 import { resolveDataRelativePath } from "../utils/paths";
-
-const ALBUM_METADATA_FILE = "album.json";
 const ALLOWED_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"]);
 
 type AlbumMetadata = {
