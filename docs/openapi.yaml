@@ -69,6 +69,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/auth/forgot-password:
     post:
@@ -90,6 +92,8 @@ paths:
                 $ref: "#/components/schemas/GenericOkResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/auth/reset-password:
     post:
@@ -111,6 +115,8 @@ paths:
                 $ref: "#/components/schemas/GenericOkResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/auth/logout:
     post:
@@ -1001,6 +1007,17 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     Conflict:
       description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    TooManyRequests:
+      description: Request rate exceeded for this route
+      headers:
+        Retry-After:
+          description: Number of seconds before retrying
+          schema:
+            type: string
       content:
         application/json:
           schema:

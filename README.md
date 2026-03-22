@@ -67,6 +67,15 @@ To enable password recovery emails, also configure SMTP:
 - `SMTP_USER`, `SMTP_PASS`
 - `SMTP_FROM`
 
+Auth hardening envs (optional overrides):
+
+- `AUTH_RATE_LIMIT_WINDOW_MS`
+- `AUTH_LOGIN_RATE_LIMIT_MAX`
+- `AUTH_FORGOT_PASSWORD_RATE_LIMIT_MAX`
+- `AUTH_RESET_PASSWORD_RATE_LIMIT_MAX`
+- `AUTH_FORGOT_PASSWORD_MIN_RESPONSE_MS`
+- `AUTH_AUDIT_LOGS`
+
 ### Run in development
 
 ```bash

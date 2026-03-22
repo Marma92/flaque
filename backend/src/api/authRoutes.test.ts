@@ -69,7 +69,8 @@ async function apiRequest(pathname: string, options: RequestInit = {}) {
   return {
     status: response.status,
     payload,
-    cookie: response.headers.get("set-cookie")
+    cookie: response.headers.get("set-cookie"),
+    retryAfter: response.headers.get("retry-after")
   };
 }
 
@@ -132,6 +133,12 @@ afterEach(async () => {
   delete process.env.ADMIN_PASSWORD;
   delete process.env.ADMIN_EMAIL;
   delete process.env.CORS_ORIGIN;
+  delete process.env.AUTH_RATE_LIMIT_WINDOW_MS;
+  delete process.env.AUTH_LOGIN_RATE_LIMIT_MAX;
+  delete process.env.AUTH_FORGOT_PASSWORD_RATE_LIMIT_MAX;
+  delete process.env.AUTH_RESET_PASSWORD_RATE_LIMIT_MAX;
+  delete process.env.AUTH_FORGOT_PASSWORD_MIN_RESPONSE_MS;
+  delete process.env.AUTH_AUDIT_LOGS;
   server = null;
   baseUrl = "";
   vi.resetModules();
@@ -173,6 +180,63 @@ describe("authRoutes", () => {
       })
     });
     expect(byEmail.status).toBe(200);
+  });
+
+  it("rate limits repeated failed login attempts", async () => {
+    process.env.AUTH_RATE_LIMIT_WINDOW_MS = "60000";
+    process.env.AUTH_LOGIN_RATE_LIMIT_MAX = "2";
+
+    const firstFailed = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        login: "admin",
+        password: "wrong-password"
+      })
+    });
+    expect(firstFailed.status).toBe(401);
+
+    const secondFailed = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        login: "admin",
+        password: "wrong-password"
+      })
+    });
+    expect(secondFailed.status).toBe(401);
+
+    const blocked = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        login: "admin",
+        password: "wrong-password"
+      })
+    });
+    expect(blocked.status).toBe(429);
+    expect(blocked.payload).toEqual({ error: "Too many requests. Try again later." });
+    expect(blocked.retryAfter).toBeTruthy();
+  });
+
+  it("rate limits repeated forgot-password requests", async () => {
+    process.env.AUTH_RATE_LIMIT_WINDOW_MS = "60000";
+    process.env.AUTH_FORGOT_PASSWORD_RATE_LIMIT_MAX = "1";
+
+    const first = await apiRequest("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({
+        login: "admin@example.com"
+      })
+    });
+    expect(first.status).toBe(200);
+
+    const blocked = await apiRequest("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({
+        login: "admin@example.com"
+      })
+    });
+    expect(blocked.status).toBe(429);
+    expect(blocked.payload).toEqual({ error: "Too many requests. Try again later." });
+    expect(blocked.retryAfter).toBeTruthy();
   });
 
   it("supports forgot password and token reset flow", async () => {
