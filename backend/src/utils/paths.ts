@@ -10,6 +10,7 @@ export const dataRoot = process.env.DATA_ROOT
 export const configRoot = path.join(dataRoot, "config");
 export const storageRoot = path.join(dataRoot, "storage");
 export const usersStorageRoot = path.join(storageRoot, "users");
+export const sharedMusicRoot = path.join(storageRoot, "music");
 export const cacheRoot = path.join(dataRoot, "cache");
 export const coversRoot = path.join(cacheRoot, "covers");
 export const transcodesRoot = path.join(cacheRoot, "transcodes");

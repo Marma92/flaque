@@ -593,15 +593,11 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       if (collaborativeAlbum) {
         const indexedTracks = selectIndexedTracks(
           indexStore,
-          { owner: collaborativeAlbum.owner },
+          {},
           ownerNamesById
         );
         const tracksWithOwnerNames = mapTrackOwners(indexedTracks, ownerNamesById);
         const collaborativeTracks = tracksWithOwnerNames.filter((track) => {
-          if (track.owner !== collaborativeAlbum.owner) {
-            return false;
-          }
-
           return normalizeAlbumName(track.tags.album) === collaborativeAlbum.normalizedAlbumName;
         });
 

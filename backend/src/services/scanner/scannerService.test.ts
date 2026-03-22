@@ -14,7 +14,9 @@ const {
   mockEnsureDirectoryMetadata,
   mockFetchAlbumCoverPath,
   mockFetchArtistPhotoPath,
-  mockWriteEmbeddedCoverToDirectory
+  mockWriteEmbeddedCoverToDirectory,
+  mockReadTrackOwnership,
+  mockWriteTrackOwnership
 } = vi.hoisted(() => ({
   mockReadTrackMetadataOverrides: vi.fn(),
   mockExtractAudioMetadata: vi.fn(),
@@ -23,7 +25,9 @@ const {
   mockEnsureDirectoryMetadata: vi.fn(),
   mockFetchAlbumCoverPath: vi.fn(),
   mockFetchArtistPhotoPath: vi.fn(),
-  mockWriteEmbeddedCoverToDirectory: vi.fn()
+  mockWriteEmbeddedCoverToDirectory: vi.fn(),
+  mockReadTrackOwnership: vi.fn(),
+  mockWriteTrackOwnership: vi.fn()
 }));
 
 vi.mock("../indexer/metadataOverrideStore", () => ({
@@ -50,14 +54,19 @@ vi.mock("../media/mediaMetadataService", () => ({
   writeEmbeddedCoverToDirectory: mockWriteEmbeddedCoverToDirectory
 }));
 
+vi.mock("../storage/ownershipStore", () => ({
+  readTrackOwnership: mockReadTrackOwnership,
+  writeTrackOwnership: mockWriteTrackOwnership
+}));
+
 let dataRoot = "";
 
-function getOwnerUploadsRoot(ownerId: string): string {
-  return path.join(dataRoot, "storage", "users", ownerId, "uploads");
+function getSharedMusicRoot(): string {
+  return path.join(dataRoot, "storage", "music");
 }
 
-async function writeAudioFile(ownerId: string, relativePath: string, content: string): Promise<string> {
-  const absolutePath = path.join(getOwnerUploadsRoot(ownerId), relativePath);
+async function writeAudioFile(relativePath: string, content: string): Promise<string> {
+  const absolutePath = path.join(getSharedMusicRoot(), relativePath);
   await fs.mkdir(path.dirname(absolutePath), { recursive: true });
   await fs.writeFile(absolutePath, content, "utf8");
   return absolutePath;
@@ -83,6 +92,8 @@ beforeEach(async () => {
   mockFetchAlbumCoverPath.mockReset();
   mockFetchArtistPhotoPath.mockReset();
   mockWriteEmbeddedCoverToDirectory.mockReset();
+  mockReadTrackOwnership.mockReset();
+  mockWriteTrackOwnership.mockReset();
 
   mockReadTrackMetadataOverrides.mockResolvedValue({});
   mockEnsureTrackCover.mockResolvedValue(undefined);
@@ -91,6 +102,8 @@ beforeEach(async () => {
   mockFetchAlbumCoverPath.mockResolvedValue(undefined);
   mockFetchArtistPhotoPath.mockResolvedValue(undefined);
   mockWriteEmbeddedCoverToDirectory.mockResolvedValue(undefined);
+  mockReadTrackOwnership.mockResolvedValue({});
+  mockWriteTrackOwnership.mockResolvedValue(undefined);
 
   mockExtractAudioMetadata.mockImplementation(async (filePath: string) => {
     const stats = await fs.stat(filePath);
@@ -121,14 +134,13 @@ afterEach(async () => {
 
 describe("scanFilesystemLibrary incremental mode", () => {
   it("probes only newly added files", async () => {
-    const ownerId = "owner-1";
-    await writeAudioFile(ownerId, "artist_a/album_a/track-a.mp3", "aaa");
+    await writeAudioFile("artist_a/album_a/track-a.mp3", "aaa");
 
     const { scanFilesystemLibrary } = await import("./scannerService");
     const first = await scanFilesystemLibrary({ mode: "full" });
 
     mockExtractAudioMetadata.mockClear();
-    await writeAudioFile(ownerId, "artist_a/album_a/track-b.mp3", "bbbb");
+    await writeAudioFile("artist_a/album_a/track-b.mp3", "bbbb");
 
     const incremental = await scanFilesystemLibrary({ previousIndex: first });
 
@@ -141,8 +153,7 @@ describe("scanFilesystemLibrary incremental mode", () => {
   });
 
   it("re-probes modified files and matches full rebuild truth", async () => {
-    const ownerId = "owner-1";
-    const trackPath = await writeAudioFile(ownerId, "artist_a/album_a/track-a.mp3", "aaa");
+    const trackPath = await writeAudioFile("artist_a/album_a/track-a.mp3", "aaa");
 
     const { scanFilesystemLibrary } = await import("./scannerService");
     const first = await scanFilesystemLibrary({ mode: "full" });
@@ -161,9 +172,8 @@ describe("scanFilesystemLibrary incremental mode", () => {
   });
 
   it("removes deleted files from index", async () => {
-    const ownerId = "owner-1";
-    const trackA = await writeAudioFile(ownerId, "artist_a/album_a/track-a.mp3", "aaa");
-    await writeAudioFile(ownerId, "artist_a/album_a/track-b.mp3", "bbbb");
+    const trackA = await writeAudioFile("artist_a/album_a/track-a.mp3", "aaa");
+    await writeAudioFile("artist_a/album_a/track-b.mp3", "bbbb");
 
     const { scanFilesystemLibrary } = await import("./scannerService");
     const first = await scanFilesystemLibrary({ mode: "full" });
@@ -179,9 +189,8 @@ describe("scanFilesystemLibrary incremental mode", () => {
   });
 
   it("does zero probe when filesystem is unchanged", async () => {
-    const ownerId = "owner-1";
-    await writeAudioFile(ownerId, "artist_b/album_b/z-track.mp3", "zzzz");
-    await writeAudioFile(ownerId, "artist_a/album_a/a-track.mp3", "aa");
+    await writeAudioFile("artist_b/album_b/z-track.mp3", "zzzz");
+    await writeAudioFile("artist_a/album_a/a-track.mp3", "aa");
 
     const { scanFilesystemLibrary } = await import("./scannerService");
     const first = await scanFilesystemLibrary({ mode: "full" });
@@ -193,5 +202,26 @@ describe("scanFilesystemLibrary incremental mode", () => {
     expect(mockExtractAudioMetadata).toHaveBeenCalledTimes(0);
     expect(second.totalTracks).toBe(2);
     expect(second.tracks.map((track) => track.tags.title)).toEqual(["a-track", "z-track"]);
+  });
+
+  it("assigns owner from ownership registry", async () => {
+    const relativePath = "storage/music/artist_a/album_a/track-a.mp3";
+    mockReadTrackOwnership.mockResolvedValue({ [relativePath]: "user-42" });
+
+    await writeAudioFile("artist_a/album_a/track-a.mp3", "aaa");
+
+    const { scanFilesystemLibrary } = await import("./scannerService");
+    const result = await scanFilesystemLibrary({ mode: "full" });
+
+    expect(result.tracks[0]?.owner).toBe("user-42");
+  });
+
+  it("deduplicates same file across users via shared storage", async () => {
+    await writeAudioFile("artist_a/album_a/track-a.mp3", "aaa");
+
+    const { scanFilesystemLibrary } = await import("./scannerService");
+    const result = await scanFilesystemLibrary({ mode: "full" });
+
+    expect(result.totalTracks).toBe(1);
   });
 });

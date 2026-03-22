@@ -13,7 +13,7 @@ import type { Track } from "../types/library";
 import { fileExists } from "../utils/fs";
 import { getAudioMimeType, getSupportedAudioExtensions, isSupportedAudioFile } from "../utils/mime";
 import { tmpUploadsRoot } from "../utils/paths";
-import { ensureOwnerUploadDir } from "../services/storage/storageService";
+import { ensureSharedMusicDir } from "../services/storage/storageService";
 import fs from "node:fs/promises";
 
 const DEFAULT_MAX_UPLOAD_FILES = 50;
@@ -202,7 +202,7 @@ export function createUploadRouter(indexStore: IndexStore): Router {
         const deferRebuild = parseBooleanFormField(req.body?.deferRebuild);
         const metadataOverrides = parseUploadMetadataOverrides(req.body?.metadataOverrides);
 
-        const ownerUploadDir = await ensureOwnerUploadDir(ownerId);
+        const musicDir = await ensureSharedMusicDir();
         const results: Awaited<ReturnType<typeof processUploadedFile>>[] = [];
 
         for (const [index, uploadedFile] of uploadedFiles.entries()) {
@@ -210,7 +210,7 @@ export function createUploadRouter(indexStore: IndexStore): Router {
             await processUploadedFile(
               uploadedFile,
               ownerId,
-              ownerUploadDir,
+              musicDir,
               manualArtist,
               manualAlbum,
               metadataOverrides[index] ?? {}

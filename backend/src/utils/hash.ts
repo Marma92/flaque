@@ -13,12 +13,12 @@ export async function hashFile(filePath: string): Promise<string> {
   });
 }
 
-export function createTrackId(owner: string, relativePath: string): string {
-  return createHash("sha1").update(`${owner}:${relativePath}`).digest("hex");
+export function createTrackId(relativePath: string): string {
+  return createHash("sha1").update(relativePath).digest("hex");
 }
 
-export function createAlbumId(owner: string, relativePath: string): string {
-  return createHash("sha1").update(`album:${owner}:${relativePath}`).digest("hex");
+export function createAlbumId(relativePath: string): string {
+  return createHash("sha1").update(`album:${relativePath}`).digest("hex");
 }
 
 export function createId(bytes = 24): string {

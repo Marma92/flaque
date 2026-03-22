@@ -150,29 +150,23 @@ function isCollaborativeAlbumTrack(track: Track): boolean {
   return Array.isArray(track.tags.artists) && track.tags.artists.length > 1;
 }
 
-function createCollaborativeAlbumId(owner: string, albumName: string): string {
-  return `collab:${owner}:${normalizeAlbumName(albumName)}`;
+function createCollaborativeAlbumId(albumName: string): string {
+  return `collab:${normalizeAlbumName(albumName)}`;
 }
 
 export function parseCollaborativeAlbumId(
   albumId: string
-): { owner: string; normalizedAlbumName: string } | null {
+): { normalizedAlbumName: string } | null {
   if (!albumId.startsWith("collab:")) {
     return null;
   }
 
-  const parts = albumId.split(":");
-  if (parts.length < 3) {
+  const normalizedAlbumName = albumId.slice("collab:".length).trim();
+  if (!normalizedAlbumName) {
     return null;
   }
 
-  const owner = parts[1]?.trim();
-  const normalizedAlbumName = parts.slice(2).join(":").trim();
-  if (!owner || !normalizedAlbumName) {
-    return null;
-  }
-
-  return { owner, normalizedAlbumName };
+  return { normalizedAlbumName };
 }
 
 export async function attachCollaborativeAlbumCovers(
@@ -211,8 +205,8 @@ export async function attachCollaborativeAlbumCovers(
 
     const collaborative = Boolean(track.tags.album?.trim()) && isCollaborativeAlbumTrack(track);
     const albumKey = collaborative
-      ? createCollaborativeAlbumId(track.owner, albumName)
-      : metadata?.id ?? `${track.owner}:${metadata?.albumDir ?? normalizeAlbumName(albumName)}`;
+      ? createCollaborativeAlbumId(albumName)
+      : metadata?.id ?? (metadata?.albumDir ?? normalizeAlbumName(albumName));
     const current = grouped.get(albumKey);
     const artistName = getTrackArtistName(track)?.trim();
     const displayName = metadata?.name?.trim() ? metadata.name : albumName;

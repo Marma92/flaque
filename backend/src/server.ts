@@ -11,6 +11,7 @@ import {
 } from "./auth/db";
 import { migrateLegacyPlaylists } from "./services/playlists/playlistStore";
 import { IndexStore } from "./services/indexer/indexStore";
+import { migratePerUserUploadsToSharedMusic } from "./services/storage/storageService";
 import { ensureBaseDirectories } from "./utils/fs";
 
 const SESSION_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -27,6 +28,12 @@ function readNonNegativeIntEnv(name: string, fallback: number): number {
 async function bootstrap(): Promise<void> {
   await ensureBaseDirectories();
   await migrateLegacyPlaylists();
+
+  const migratedTracks = await migratePerUserUploadsToSharedMusic();
+  if (migratedTracks > 0) {
+    console.log(`Migrated ${migratedTracks} track${migratedTracks === 1 ? "" : "s"} to shared music storage`);
+  }
+
   initializeAuthDatabase();
 
   const seededAdmin = ensureDefaultAdmin();
