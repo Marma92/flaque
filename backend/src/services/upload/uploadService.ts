@@ -16,11 +16,7 @@ import type { Track } from "../../types/library";
 import { fileExists, moveFile, writeJsonAtomic } from "../../utils/fs";
 import { createTrackId, hashFile } from "../../utils/hash";
 import { getAudioMimeType, getSupportedAudioExtensions, isSupportedAudioFile } from "../../utils/mime";
-
-const UNKNOWN_ARTIST = "Unknown Artist";
-const UNKNOWN_ALBUM = "Unknown Album";
-const ARTIST_METADATA_FILE = "artist.json";
-const ALBUM_METADATA_FILE = "album.json";
+import { UNKNOWN_ARTIST, UNKNOWN_ALBUM, ARTIST_METADATA_FILE, ALBUM_METADATA_FILE } from "../../utils/music";
 const ALBUM_COVER_BASE_NAME = "album-cover";
 
 type ArtistMetadata = {

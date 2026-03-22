@@ -4,50 +4,35 @@ import path from "node:path";
 
 import type { LibraryIndex, Track } from "../../types/library";
 import { fileExists, readJsonFile, writeJsonAtomic } from "../../utils/fs";
-import { createAlbumId, createTrackId } from "../../utils/hash";
+import { createTrackId } from "../../utils/hash";
 import { getAudioMimeType, isSupportedAudioFile } from "../../utils/mime";
-import { indexFilePath, resolveDataRelativePath, scannerStateFilePath, sharedMusicRoot } from "../../utils/paths";
+import { getTrackArtist, getTrackAlbum, getTrackTitle, UNKNOWN_ARTIST, UNKNOWN_ALBUM, ARTIST_METADATA_FILE, ALBUM_METADATA_FILE } from "../../utils/music";
+import { indexFilePath, sharedMusicRoot } from "../../utils/paths";
 import { readTrackMetadataOverrides } from "../indexer/metadataOverrideStore";
-import {
-  ensureDirectoryMetadata,
-  fetchAlbumCoverPath,
-  fetchArtistPhotoPath,
-  normalizeDirectorySegment,
-  writeEmbeddedCoverToDirectory
-} from "../media/mediaMetadataService";
+import { ensureDirectoryMetadata, normalizeDirectorySegment, writeEmbeddedCoverToDirectory } from "../media/mediaMetadataService";
 import { extractAudioMetadata } from "./audioProbe";
 import { toDataRelativePath } from "../storage/storageService";
 import { ensureTrackCover } from "../storage/coverService";
 import { readTrackOwnership, writeTrackOwnership } from "../storage/ownershipStore";
 import { scanFilesystemPlaylists } from "../playlists/playlistStore";
-
-const ARTIST_METADATA_FILE = "artist.json";
-const ALBUM_METADATA_FILE = "album.json";
-const UNKNOWN_ARTIST = "Unknown Artist";
-const UNKNOWN_ALBUM = "Unknown Album";
-
-type ArtistMetadata = {
-  name: string;
-  photo?: {
-    path: string;
-  };
-};
+import {
+  type AlbumAggregate,
+  addTrackToAlbumAggregate,
+  ensureTrackMediaMetadata,
+  flushAlbumMetadata
+} from "./scannerMedia";
+import {
+  type FileSystemTrackState,
+  type ScannerStateSnapshot,
+  createEmptyScannerState,
+  createTrackIdentity,
+  readScannerState,
+  writeScannerState
+} from "./scannerState";
 
 type AlbumMetadata = {
-  id?: string;
-  name: string;
-  cover?: {
-    path: string;
-  };
-  tracks?: Track[];
-};
-
-type AlbumAggregate = {
-  albumDir: string;
-  id?: string;
-  name: string;
-  coverPath?: string;
-  tracks: Track[];
+  name?: string;
+  cover?: { path: string };
 };
 
 type ScanMode = "incremental" | "full";
@@ -55,29 +40,6 @@ type ScanMode = "incremental" | "full";
 type ScanFilesystemLibraryOptions = {
   mode?: ScanMode;
   previousIndex?: LibraryIndex;
-};
-
-type FileSystemTrackState = {
-  ownerId: string;
-  filePath: string;
-  relativePath: string;
-  trackId: string;
-  size: number;
-  mtimeMs: number;
-  identity: string;
-};
-
-type ScannerTrackState = {
-  trackId: string;
-  path: string;
-  size: number;
-  mtimeMs: number;
-  identity: string;
-};
-
-type ScannerStateSnapshot = {
-  version: 1;
-  tracks: ScannerTrackState[];
 };
 
 type ClassifiedTracks = {
@@ -89,132 +51,7 @@ type ClassifiedTracks = {
   deletedTrackIds: string[];
 };
 
-const SCANNER_STATE_VERSION = 1;
-
-function getTrackArtist(track: Track): string {
-  return track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0] ?? "";
-}
-
-function getTrackAlbum(track: Track): string {
-  return track.tags.album ?? "";
-}
-
-function getTrackTitle(track: Track): string {
-  return track.tags.title ?? track.path;
-}
-
-async function hasArtistPhoto(metadata: ArtistMetadata): Promise<boolean> {
-  const photoPath = metadata.photo?.path;
-  if (!photoPath) {
-    return false;
-  }
-
-  try {
-    const absolutePhotoPath = resolveDataRelativePath(photoPath);
-    return await fileExists(absolutePhotoPath);
-  } catch {
-    return false;
-  }
-}
-
-async function ensureArtistPhotoForTrack(artistName: string): Promise<void> {
-  const artistDir = path.join(sharedMusicRoot, normalizeDirectorySegment(artistName));
-  if (!(await fileExists(artistDir))) {
-    return;
-  }
-
-  const metadataPath = path.join(artistDir, ARTIST_METADATA_FILE);
-  const metadata = await readJsonFile<ArtistMetadata | null>(metadataPath, null);
-  const existingName = metadata?.name?.trim() ? metadata.name : artistName;
-  if (metadata && (await hasArtistPhoto(metadata))) {
-    return;
-  }
-
-  const artistPhotoPath = await fetchArtistPhotoPath(existingName, artistDir);
-  if (!artistPhotoPath) {
-    if (!metadata) {
-      await writeJsonAtomic(metadataPath, { name: existingName });
-    }
-    return;
-  }
-
-  await writeJsonAtomic(metadataPath, {
-    name: existingName,
-    photo: {
-      path: artistPhotoPath
-    }
-  });
-}
-
-async function hasAlbumCover(metadata: AlbumMetadata): Promise<boolean> {
-  const coverPath = metadata.cover?.path;
-  if (!coverPath) {
-    return false;
-  }
-
-  try {
-    const absoluteCoverPath = resolveDataRelativePath(coverPath);
-    return await fileExists(absoluteCoverPath);
-  } catch {
-    return false;
-  }
-}
-
-async function ensureAlbumCoverForTrack(
-  artistName: string,
-  albumName: string,
-  trackCover: { data: Buffer; format?: string } | undefined
-): Promise<void> {
-  const artistDir = path.join(sharedMusicRoot, normalizeDirectorySegment(artistName));
-  const albumDir = path.join(artistDir, normalizeDirectorySegment(albumName));
-  if (!(await fileExists(albumDir))) {
-    return;
-  }
-
-  const metadataPath = path.join(albumDir, ALBUM_METADATA_FILE);
-  const metadata = await readJsonFile<AlbumMetadata | null>(metadataPath, null);
-  const existingName = metadata?.name?.trim() ? metadata.name : albumName;
-  if (metadata && (await hasAlbumCover(metadata))) {
-    return;
-  }
-
-  const embeddedCoverPath = await writeEmbeddedCoverToDirectory(trackCover, albumDir, "album-cover");
-  const coverPath = embeddedCoverPath ?? (await fetchAlbumCoverPath(artistName, existingName, albumDir));
-  if (!coverPath) {
-    if (!metadata) {
-      await writeJsonAtomic(metadataPath, { name: existingName });
-    }
-    return;
-  }
-
-  await writeJsonAtomic(metadataPath, {
-    name: existingName,
-    cover: {
-      path: coverPath
-    }
-  });
-}
-
-async function flushAlbumMetadata(albums: Map<string, AlbumAggregate>): Promise<void> {
-  for (const album of albums.values()) {
-    const albumRelativePath = toDataRelativePath(album.albumDir);
-    const metadataPath = path.join(album.albumDir, ALBUM_METADATA_FILE);
-    const metadata: AlbumMetadata = {
-      id: album.id?.trim() || createAlbumId(albumRelativePath),
-      name: album.name,
-      ...(album.coverPath
-        ? {
-            cover: {
-              path: album.coverPath
-            }
-          }
-        : {}),
-      tracks: album.tracks
-    };
-
-    await writeJsonAtomic(metadataPath, metadata);
-  }
-}
+// ── Filesystem traversal ────────────────────────────────────────────────
 
 async function sortRootMusicFiles(
   metadataOverrides: Record<string, { artist?: string; album?: string }>
@@ -258,14 +95,12 @@ async function sortRootMusicFiles(
 
     const albumMetadataPath = path.join(albumDir, ALBUM_METADATA_FILE);
     const albumMetadata = await readJsonFile<AlbumMetadata | null>(albumMetadataPath, null);
-    if (!albumMetadata || !(await hasAlbumCover(albumMetadata))) {
+    if (!albumMetadata?.cover?.path) {
       const embeddedCoverPath = await writeEmbeddedCoverToDirectory(metadata.cover, albumDir, "album-cover");
       if (embeddedCoverPath) {
         await writeJsonAtomic(albumMetadataPath, {
           name: albumMetadata?.name?.trim() ? albumMetadata.name : albumName,
-          cover: {
-            path: embeddedCoverPath
-          }
+          cover: { path: embeddedCoverPath }
         });
       }
     }
@@ -317,10 +152,6 @@ async function collectAudioFiles(rootDir: string): Promise<string[]> {
   return files;
 }
 
-function createTrackIdentity(relativePath: string, mtimeMs: number, size: number): string {
-  return `${relativePath}:${mtimeMs}:${size}`;
-}
-
 async function collectFilesystemState(
   ownership: Record<string, string>,
   metadataOverrides: Record<string, { artist?: string; album?: string }>
@@ -343,90 +174,13 @@ async function collectFilesystemState(
     const ownerId = ownership[relativePath] ?? "";
     const identity = createTrackIdentity(relativePath, stats.mtimeMs, stats.size);
 
-    states.push({
-      ownerId,
-      filePath,
-      relativePath,
-      trackId,
-      size: stats.size,
-      mtimeMs: stats.mtimeMs,
-      identity
-    });
+    states.push({ ownerId, filePath, relativePath, trackId, size: stats.size, mtimeMs: stats.mtimeMs, identity });
   }
 
   return states;
 }
 
-function normalizeScannerState(raw: unknown): ScannerStateSnapshot {
-  if (!raw || typeof raw !== "object") {
-    return { version: SCANNER_STATE_VERSION, tracks: [] };
-  }
-
-  const source = raw as {
-    version?: unknown;
-    tracks?: unknown;
-  };
-
-  if (source.version !== SCANNER_STATE_VERSION || !Array.isArray(source.tracks)) {
-    return { version: SCANNER_STATE_VERSION, tracks: [] };
-  }
-
-  const tracks: ScannerTrackState[] = [];
-  for (const item of source.tracks) {
-    if (!item || typeof item !== "object") {
-      continue;
-    }
-
-    const candidate = item as Partial<ScannerTrackState>;
-    if (
-      typeof candidate.trackId !== "string" ||
-      typeof candidate.path !== "string" ||
-      typeof candidate.identity !== "string" ||
-      typeof candidate.size !== "number" ||
-      typeof candidate.mtimeMs !== "number"
-    ) {
-      continue;
-    }
-
-    tracks.push({
-      trackId: candidate.trackId,
-      path: candidate.path,
-      identity: candidate.identity,
-      size: candidate.size,
-      mtimeMs: candidate.mtimeMs
-    });
-  }
-
-  return {
-    version: SCANNER_STATE_VERSION,
-    tracks
-  };
-}
-
-async function readScannerState(): Promise<ScannerStateSnapshot> {
-  const raw = await readJsonFile<unknown>(scannerStateFilePath, {
-    version: SCANNER_STATE_VERSION,
-    tracks: []
-  });
-
-  return normalizeScannerState(raw);
-}
-
-async function writeScannerState(states: FileSystemTrackState[]): Promise<void> {
-  const snapshot: ScannerStateSnapshot = {
-    version: SCANNER_STATE_VERSION,
-    tracks: states.map((state) => ({
-      trackId: state.trackId,
-      path: state.relativePath,
-      size: state.size,
-      mtimeMs: state.mtimeMs,
-      identity: state.identity
-    }))
-  };
-
-  await fs.mkdir(path.dirname(scannerStateFilePath), { recursive: true });
-  await writeJsonAtomic(scannerStateFilePath, snapshot);
-}
+// ── Change detection ────────────────────────────────────────────────────
 
 function classifyTrackChanges(
   filesystemState: FileSystemTrackState[],
@@ -460,12 +214,10 @@ function classifyTrackChanges(
     }
   }
 
-  return {
-    changed,
-    unchanged,
-    deletedTrackIds
-  };
+  return { changed, unchanged, deletedTrackIds };
 }
+
+// ── Track building ──────────────────────────────────────────────────────
 
 function applyTrackMetadataOverride(
   track: Track,
@@ -484,57 +236,6 @@ function applyTrackMetadataOverride(
       album: metadataOverride.album ?? track.tags.album
     }
   };
-}
-
-async function ensureTrackMediaMetadata(
-  track: Track,
-  trackCover: { data: Buffer; format?: string } | undefined,
-  processedArtists: Set<string>,
-  processedAlbums: Set<string>
-): Promise<void> {
-  const artistName = track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0];
-  if (artistName) {
-    const artistKey = artistName.toLocaleLowerCase();
-    if (!processedArtists.has(artistKey)) {
-      processedArtists.add(artistKey);
-      await ensureArtistPhotoForTrack(artistName);
-    }
-  }
-
-  const albumArtistName = artistName ?? UNKNOWN_ARTIST;
-  const albumName = track.tags.album ?? UNKNOWN_ALBUM;
-  const albumKey = `${albumArtistName.toLocaleLowerCase()}:${albumName.toLocaleLowerCase()}`;
-  if (!processedAlbums.has(albumKey)) {
-    processedAlbums.add(albumKey);
-    await ensureAlbumCoverForTrack(albumArtistName, albumName, trackCover);
-  }
-}
-
-async function addTrackToAlbumAggregate(
-  track: Track,
-  filePath: string,
-  fallbackAlbumName: string,
-  albumsByDirectory: Map<string, AlbumAggregate>
-): Promise<void> {
-  const albumDir = path.dirname(filePath);
-  const currentAlbum = albumsByDirectory.get(albumDir);
-
-  if (currentAlbum) {
-    currentAlbum.tracks.push(track);
-    return;
-  }
-
-  const metadataPath = path.join(albumDir, ALBUM_METADATA_FILE);
-  const albumMetadata = await readJsonFile<AlbumMetadata | null>(metadataPath, null);
-  const currentName = albumMetadata?.name?.trim() ? albumMetadata.name : fallbackAlbumName;
-
-  albumsByDirectory.set(albumDir, {
-    albumDir,
-    id: albumMetadata?.id,
-    name: currentName,
-    coverPath: albumMetadata?.cover?.path,
-    tracks: [track]
-  });
 }
 
 async function probeChangedTracks(
@@ -578,6 +279,20 @@ async function probeChangedTracks(
   return tracks;
 }
 
+function compareTrackOrder(a: Track, b: Track): number {
+  const byArtist = getTrackArtist(a).localeCompare(getTrackArtist(b));
+  if (byArtist !== 0) {
+    return byArtist;
+  }
+
+  const byAlbum = getTrackAlbum(a).localeCompare(getTrackAlbum(b));
+  if (byAlbum !== 0) {
+    return byAlbum;
+  }
+
+  return getTrackTitle(a).localeCompare(getTrackTitle(b));
+}
+
 async function mergeFinalTracks(
   unchangedTracks: ClassifiedTracks["unchanged"],
   changedTracks: Track[],
@@ -608,19 +323,7 @@ async function mergeFinalTracks(
   return mergedTracks;
 }
 
-function compareTrackOrder(a: Track, b: Track): number {
-  const byArtist = getTrackArtist(a).localeCompare(getTrackArtist(b));
-  if (byArtist !== 0) {
-    return byArtist;
-  }
-
-  const byAlbum = getTrackAlbum(a).localeCompare(getTrackAlbum(b));
-  if (byAlbum !== 0) {
-    return byAlbum;
-  }
-
-  return getTrackTitle(a).localeCompare(getTrackTitle(b));
-}
+// ── Scan orchestration ──────────────────────────────────────────────────
 
 async function performScan(
   mode: ScanMode,
@@ -630,38 +333,26 @@ async function performScan(
   const ownership = await readTrackOwnership();
   const filesystemState = await collectFilesystemState(ownership, metadataOverrides);
   const previousTracks = previousIndex?.tracks ?? [];
-  const previousScannerState: ScannerStateSnapshot = mode === "incremental" ? await readScannerState() : {
-    version: SCANNER_STATE_VERSION,
-    tracks: []
-  };
+  const previousScannerState = mode === "incremental" ? await readScannerState() : createEmptyScannerState();
   const classified = classifyTrackChanges(filesystemState, previousTracks, previousScannerState);
   const albumsByDirectory = new Map<string, AlbumAggregate>();
   const processedArtists = new Set<string>();
   const processedAlbums = new Set<string>();
 
   const changedTracks = await probeChangedTracks(
-    classified.changed,
-    metadataOverrides,
-    albumsByDirectory,
-    processedArtists,
-    processedAlbums
+    classified.changed, metadataOverrides, albumsByDirectory, processedArtists, processedAlbums
   );
   const tracks = await mergeFinalTracks(
-    classified.unchanged,
-    changedTracks,
-    metadataOverrides,
-    albumsByDirectory,
-    processedArtists,
-    processedAlbums
+    classified.unchanged, changedTracks, metadataOverrides, albumsByDirectory, processedArtists, processedAlbums
   );
 
   await flushAlbumMetadata(albumsByDirectory);
   await writeScannerState(filesystemState);
 
-  const validPaths = filesystemState.map((state) => state.relativePath);
+  const validPaths = new Set(filesystemState.map((state) => state.relativePath));
   const prunedOwnership: Record<string, string> = {};
   for (const [trackPath, owner] of Object.entries(ownership)) {
-    if (validPaths.includes(trackPath)) {
+    if (validPaths.has(trackPath)) {
       prunedOwnership[trackPath] = owner;
     }
   }
