@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 
-import type { AuthUser, UserRole } from "../types/auth";
+import type { AuthSession, AuthUser, UserRole } from "../types/auth";
 import { createId } from "../utils/hash";
 import { usersDbPath } from "../utils/paths";
 import { hashPassword } from "./password";
@@ -13,11 +13,32 @@ type UserRow = {
 };
 
 type SessionUserRow = {
+  user_id: string;
   id: string;
   username: string;
   role: UserRole;
   session_id: string;
+  created_at: number;
   expires_at: number;
+  last_seen_at: number;
+  user_agent: string | null;
+  ip_address: string | null;
+  label: string | null;
+};
+
+type SessionRow = {
+  id: string;
+  user_id: string;
+  created_at: number;
+  expires_at: number;
+  last_seen_at: number;
+  user_agent: string | null;
+  ip_address: string | null;
+  label: string | null;
+};
+
+type TableColumnRow = {
+  name: string;
 };
 
 type PublicUserRow = {
@@ -31,12 +52,66 @@ type CountRow = {
 };
 
 let db: Database.Database | null = null;
+const SESSION_HEARTBEAT_INTERVAL_MS = 60 * 1000;
 
 function requireDb(): Database.Database {
   if (!db) {
     throw new Error("Auth database has not been initialized");
   }
   return db;
+}
+
+function normalizeSessionText(value: string | null | undefined, maxLength: number): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed.slice(0, maxLength);
+}
+
+function mapSessionRowToAuthSession(row: SessionRow): AuthSession {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    lastSeenAt: row.last_seen_at,
+    userAgent: row.user_agent,
+    ipAddress: row.ip_address,
+    label: row.label
+  };
+}
+
+function hasTableColumn(database: Database.Database, tableName: string, columnName: string): boolean {
+  const rows = database
+    .prepare(`PRAGMA table_info(${tableName})`)
+    .all() as TableColumnRow[];
+  return rows.some((row) => row.name === columnName);
+}
+
+function ensureSessionSchemaMigrations(database: Database.Database): void {
+  if (!hasTableColumn(database, "sessions", "last_seen_at")) {
+    database.exec("ALTER TABLE sessions ADD COLUMN last_seen_at INTEGER");
+  }
+
+  if (!hasTableColumn(database, "sessions", "user_agent")) {
+    database.exec("ALTER TABLE sessions ADD COLUMN user_agent TEXT");
+  }
+
+  if (!hasTableColumn(database, "sessions", "ip_address")) {
+    database.exec("ALTER TABLE sessions ADD COLUMN ip_address TEXT");
+  }
+
+  if (!hasTableColumn(database, "sessions", "label")) {
+    database.exec("ALTER TABLE sessions ADD COLUMN label TEXT");
+  }
+
+  database.exec("UPDATE sessions SET last_seen_at = COALESCE(last_seen_at, created_at)");
 }
 
 export function initializeAuthDatabase(): void {
@@ -58,12 +133,20 @@ export function initializeAuthDatabase(): void {
       user_id TEXT NOT NULL,
       expires_at INTEGER NOT NULL,
       created_at INTEGER NOT NULL,
+      last_seen_at INTEGER NOT NULL,
+      user_agent TEXT,
+      ip_address TEXT,
+      label TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_last_seen_at ON sessions(last_seen_at);
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
   `);
+
+  ensureSessionSchemaMigrations(db);
 }
 
 export function createUser(username: string, password: string, role: UserRole = "user"): AuthUser {
@@ -150,15 +233,26 @@ export function updateUserRole(userId: string, role: UserRole): boolean {
   return result.changes > 0;
 }
 
-export function createSession(userId: string, ttlMs: number): { id: string; expiresAt: number } {
+export function createSession(input: {
+  userId: string;
+  ttlMs: number;
+  userAgent?: string | null;
+  ipAddress?: string | null;
+  label?: string | null;
+}): { id: string; expiresAt: number } {
   const database = requireDb();
   const id = createId(24);
   const now = Date.now();
-  const expiresAt = now + ttlMs;
+  const expiresAt = now + input.ttlMs;
+  const userAgent = normalizeSessionText(input.userAgent, 512);
+  const ipAddress = normalizeSessionText(input.ipAddress, 128);
+  const label = normalizeSessionText(input.label, 128);
 
   database
-    .prepare("INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)")
-    .run(id, userId, expiresAt, now);
+    .prepare(
+      "INSERT INTO sessions (id, user_id, expires_at, created_at, last_seen_at, user_agent, ip_address, label) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    )
+    .run(id, input.userId, expiresAt, now, now, userAgent, ipAddress, label);
 
   return { id, expiresAt };
 }
@@ -173,17 +267,59 @@ export function deleteExpiredSessions(now = Date.now()): void {
   database.prepare("DELETE FROM sessions WHERE expires_at <= ?").run(now);
 }
 
-export function findSessionUser(sessionId: string): { user: AuthUser; sessionId: string } | null {
+export function listSessionsByUserId(userId: string): AuthSession[] {
   const database = requireDb();
+  const now = Date.now();
+  deleteExpiredSessions(now);
+
+  const rows = database
+    .prepare(
+      `
+      SELECT id, user_id, created_at, expires_at, last_seen_at, user_agent, ip_address, label
+      FROM sessions
+      WHERE user_id = ? AND expires_at > ?
+      ORDER BY last_seen_at DESC, created_at DESC
+      `
+    )
+    .all(userId, now) as SessionRow[];
+
+  return rows.map(mapSessionRowToAuthSession);
+}
+
+export function deleteSessionForUser(sessionId: string, userId: string): boolean {
+  const database = requireDb();
+  const result = database
+    .prepare("DELETE FROM sessions WHERE id = ? AND user_id = ?")
+    .run(sessionId, userId);
+  return result.changes > 0;
+}
+
+export function deleteOtherUserSessions(userId: string, currentSessionId: string): number {
+  const database = requireDb();
+  const result = database
+    .prepare("DELETE FROM sessions WHERE user_id = ? AND id <> ?")
+    .run(userId, currentSessionId);
+  return result.changes;
+}
+
+export function findSessionUser(sessionId: string): { user: AuthUser; session: AuthSession } | null {
+  const database = requireDb();
+  const now = Date.now();
   const row = database
     .prepare(
       `
       SELECT
+        s.user_id,
         u.id,
         u.username,
         u.role,
         s.id AS session_id,
-        s.expires_at
+        s.created_at,
+        s.expires_at,
+        s.last_seen_at,
+        s.user_agent,
+        s.ip_address,
+        s.label
       FROM sessions s
       INNER JOIN users u ON u.id = s.user_id
       WHERE s.id = ?
@@ -196,9 +332,17 @@ export function findSessionUser(sessionId: string): { user: AuthUser; sessionId:
     return null;
   }
 
-  if (row.expires_at <= Date.now()) {
+  if (row.expires_at <= now) {
     deleteSession(sessionId);
     return null;
+  }
+
+  let lastSeenAt = row.last_seen_at;
+  if (now - lastSeenAt >= SESSION_HEARTBEAT_INTERVAL_MS) {
+    database
+      .prepare("UPDATE sessions SET last_seen_at = ? WHERE id = ?")
+      .run(now, sessionId);
+    lastSeenAt = now;
   }
 
   return {
@@ -207,7 +351,16 @@ export function findSessionUser(sessionId: string): { user: AuthUser; sessionId:
       username: row.username,
       role: row.role
     },
-    sessionId: row.session_id
+    session: {
+      id: row.session_id,
+      userId: row.user_id,
+      createdAt: row.created_at,
+      expiresAt: row.expires_at,
+      lastSeenAt,
+      userAgent: row.user_agent,
+      ipAddress: row.ip_address,
+      label: row.label
+    }
   };
 }
 

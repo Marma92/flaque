@@ -1,12 +1,15 @@
-import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { User } from "../types";
+import type { User, UserSession } from "../types";
 
 type AccountViewProps = {
   user: User;
   avatarUrl: string;
   onUpdatePhoto: (file: File) => Promise<void>;
   onChangePassword: (input: { currentPassword: string; newPassword: string }) => Promise<void>;
+  onListSessions: () => Promise<UserSession[]>;
+  onRevokeSession: (sessionId: string) => Promise<void>;
+  onLogoutOtherSessions: () => Promise<number>;
   onLogout: () => Promise<void> | void;
 };
 
@@ -22,7 +25,37 @@ function getUserInitial(user: User): string {
 /**
  * Self-service account page: avatar upload, password change and logout.
  */
-export function AccountView({ user, avatarUrl, onUpdatePhoto, onChangePassword, onLogout }: AccountViewProps): JSX.Element {
+function formatSessionTimestamp(value: number): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    return "Unknown";
+  }
+
+  return date.toLocaleString();
+}
+
+function getSessionTitle(session: UserSession): string {
+  if (session.label) {
+    return session.label;
+  }
+
+  if (session.userAgent) {
+    return session.userAgent;
+  }
+
+  return "Unknown device";
+}
+
+export function AccountView({
+  user,
+  avatarUrl,
+  onUpdatePhoto,
+  onChangePassword,
+  onListSessions,
+  onRevokeSession,
+  onLogoutOtherSessions,
+  onLogout
+}: AccountViewProps): JSX.Element {
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [selectedPhotoPreviewUrl, setSelectedPhotoPreviewUrl] = useState<string | null>(null);
@@ -35,6 +68,11 @@ export function AccountView({ user, avatarUrl, onUpdatePhoto, onChangePassword, 
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [sessions, setSessions] = useState<UserSession[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [sessionsMessage, setSessionsMessage] = useState<string | null>(null);
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
+  const [loggingOutOtherSessions, setLoggingOutOtherSessions] = useState(false);
 
   const initial = useMemo(() => getUserInitial(user), [user]);
   const displayedAvatarUrl = selectedPhotoPreviewUrl ?? avatarUrl;
@@ -50,6 +88,24 @@ export function AccountView({ user, avatarUrl, onUpdatePhoto, onChangePassword, 
       }
     };
   }, [selectedPhotoPreviewUrl]);
+
+  const loadSessions = useCallback(async () => {
+    setLoadingSessions(true);
+    setSessionsMessage(null);
+
+    try {
+      const nextSessions = await onListSessions();
+      setSessions(nextSessions);
+    } catch (error) {
+      setSessionsMessage(error instanceof Error ? error.message : "Unable to load sessions");
+    } finally {
+      setLoadingSessions(false);
+    }
+  }, [onListSessions]);
+
+  useEffect(() => {
+    void loadSessions();
+  }, [loadSessions, user.id]);
 
   function handlePhotoSelection(event: ChangeEvent<HTMLInputElement>): void {
     const nextFile = event.target.files?.[0] ?? null;
@@ -131,6 +187,38 @@ export function AccountView({ user, avatarUrl, onUpdatePhoto, onChangePassword, 
       setUpdatingPassword(false);
     }
   }
+
+  async function handleRevokeSession(sessionId: string): Promise<void> {
+    setRevokingSessionId(sessionId);
+    setSessionsMessage(null);
+
+    try {
+      await onRevokeSession(sessionId);
+      await loadSessions();
+      setSessionsMessage("Session revoked.");
+    } catch (error) {
+      setSessionsMessage(error instanceof Error ? error.message : "Unable to revoke session");
+    } finally {
+      setRevokingSessionId(null);
+    }
+  }
+
+  async function handleLogoutOthers(): Promise<void> {
+    setLoggingOutOtherSessions(true);
+    setSessionsMessage(null);
+
+    try {
+      const revokedCount = await onLogoutOtherSessions();
+      await loadSessions();
+      setSessionsMessage(`${revokedCount} session${revokedCount === 1 ? "" : "s"} logged out.`);
+    } catch (error) {
+      setSessionsMessage(error instanceof Error ? error.message : "Unable to log out other sessions");
+    } finally {
+      setLoggingOutOtherSessions(false);
+    }
+  }
+
+  const hasOtherSessions = sessions.some((session) => !session.current);
 
   return (
     <div className="space-y-4">
@@ -281,6 +369,84 @@ export function AccountView({ user, avatarUrl, onUpdatePhoto, onChangePassword, 
         </form>
 
         {passwordMessage ? <p className="mt-3 text-sm text-flaque-steel">{passwordMessage}</p> : null}
+      </section>
+
+      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="font-display text-xl text-flaque-ink">Sessions</h3>
+
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={() => {
+                void loadSessions();
+              }}
+              disabled={loadingSessions || revokingSessionId !== null || loggingOutOtherSessions}
+            >
+              Refresh
+            </button>
+
+            <button
+              className="rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={() => {
+                void handleLogoutOthers();
+              }}
+              disabled={!hasOtherSessions || loadingSessions || revokingSessionId !== null || loggingOutOtherSessions}
+            >
+              {loggingOutOtherSessions ? "Logging out..." : "Logout other devices"}
+            </button>
+          </div>
+        </div>
+
+        {loadingSessions ? <p className="mt-3 text-sm text-flaque-steel">Loading sessions...</p> : null}
+
+        {!loadingSessions && sessions.length === 0 ? <p className="mt-3 text-sm text-flaque-steel">No active session.</p> : null}
+
+        {!loadingSessions && sessions.length > 0 ? (
+          <div className="mt-3 space-y-2">
+            {sessions.map((session) => (
+              <div
+                key={session.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-flaque-clay/50 bg-flaque-cream/35 px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-flaque-ink">
+                    {getSessionTitle(session)}
+                    {session.current ? (
+                      <span className="ml-2 rounded-full bg-flaque-ink px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-flaque-cream">
+                        Current
+                      </span>
+                    ) : null}
+                  </p>
+                  <p className="truncate text-xs text-flaque-steel">
+                    Last seen {formatSessionTimestamp(session.lastSeenAt)} - Expires {formatSessionTimestamp(session.expiresAt)}
+                  </p>
+                  {session.ipAddress ? <p className="truncate text-xs text-flaque-steel/90">IP: {session.ipAddress}</p> : null}
+                </div>
+
+                <button
+                  className="rounded-lg border border-flaque-clay bg-white px-3 py-1 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                  type="button"
+                  disabled={
+                    session.current ||
+                    loadingSessions ||
+                    loggingOutOtherSessions ||
+                    (revokingSessionId !== null && revokingSessionId !== session.id)
+                  }
+                  onClick={() => {
+                    void handleRevokeSession(session.id);
+                  }}
+                >
+                  {revokingSessionId === session.id ? "Revoking..." : "Revoke"}
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {sessionsMessage ? <p className="mt-3 text-sm text-flaque-steel">{sessionsMessage}</p> : null}
       </section>
     </div>
   );
