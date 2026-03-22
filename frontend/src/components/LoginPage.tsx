@@ -31,8 +31,12 @@ export function LoginPage({ onLogin }: LoginPageProps): JSX.Element {
         <h1 className="sr-only">Flaque login</h1>
 
         <div className="mb-6 flex justify-center">
-          <div className="relative h-20 w-20">
-            <img className="header-logo-light h-full w-full object-contain" src="/favicon.png" alt="Flaque logo" />
+          <div className="relative h-20 w-20 origin-center scale-[1.35]">
+            <img
+              className="header-logo-light h-full w-full object-contain drop-shadow-[0_8px_18px_rgba(44,31,26,0.18)]"
+              src="/favicon.png"
+              alt="Flaque logo"
+            />
             <img
               className="header-logo-dark absolute inset-0 h-full w-full object-contain"
               src="/logo-dark.png"
