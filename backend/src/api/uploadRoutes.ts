@@ -1,4 +1,3 @@
-import fs from "node:fs/promises";
 import path from "node:path";
 
 import multer from "multer";
@@ -8,50 +7,16 @@ import { requireAuth } from "../auth/middleware";
 import { appendTrackActivityLogEntries, readTrackActivityLog } from "../services/activity/trackActivityStore";
 import { mergeTrackMetadataOverrides } from "../services/indexer/metadataOverrideStore";
 import { IndexStore } from "../services/indexer/indexStore";
-import {
-  ensureDirectoryMetadata,
-  fetchAlbumCoverPath,
-  fetchArtistPhotoPath,
-  normalizeDirectorySegment,
-  writeEmbeddedCoverToDirectory
-} from "../services/media/mediaMetadataService";
 import { extractAudioMetadata } from "../services/scanner/audioProbe";
-import { ensureTrackCover } from "../services/storage/coverService";
-import { ensureOwnerUploadDir, toDataRelativePath } from "../services/storage/storageService";
+import { processUploadedFile, sanitizeExtension, type UploadMetadataOverride } from "../services/upload/uploadService";
 import type { Track } from "../types/library";
-import { fileExists, moveFile, writeJsonAtomic } from "../utils/fs";
-import { createTrackId, hashFile } from "../utils/hash";
+import { fileExists } from "../utils/fs";
 import { getAudioMimeType, getSupportedAudioExtensions, isSupportedAudioFile } from "../utils/mime";
 import { tmpUploadsRoot } from "../utils/paths";
+import { ensureOwnerUploadDir } from "../services/storage/storageService";
+import fs from "node:fs/promises";
 
 const DEFAULT_MAX_UPLOAD_FILES = 50;
-const UNKNOWN_ARTIST = "Unknown Artist";
-const UNKNOWN_ALBUM = "Unknown Album";
-const ARTIST_METADATA_FILE = "artist.json";
-const ALBUM_METADATA_FILE = "album.json";
-const ALBUM_COVER_BASE_NAME = "album-cover";
-
-type ArtistMetadata = {
-  name: string;
-  photo?: {
-    path: string;
-  };
-};
-
-type AlbumMetadata = {
-  name: string;
-  cover?: {
-    path: string;
-  };
-};
-
-function sanitizeExtension(fileName: string): string {
-  const ext = path.extname(fileName).toLowerCase();
-  if (!ext || !getSupportedAudioExtensions().includes(ext)) {
-    return ".flac";
-  }
-  return ext;
-}
 
 function normalizeOptionalString(value: unknown): string | undefined {
   if (typeof value !== "string") {
@@ -70,12 +35,6 @@ function parseBooleanFormField(value: unknown): boolean {
   const normalized = value.trim().toLowerCase();
   return normalized === "1" || normalized === "true" || normalized === "yes";
 }
-
-type UploadMetadataOverride = {
-  title?: string;
-  artist?: string;
-  album?: string;
-};
 
 function parseUploadMetadataOverrides(value: unknown): UploadMetadataOverride[] {
   if (typeof value !== "string") {
@@ -244,121 +203,25 @@ export function createUploadRouter(indexStore: IndexStore): Router {
         const metadataOverrides = parseUploadMetadataOverrides(req.body?.metadataOverrides);
 
         const ownerUploadDir = await ensureOwnerUploadDir(ownerId);
-        const uploadedTrackIds: string[] = [];
-        const newUploadTrackIds: string[] = [];
-        const provisionalTrackById = new Map<string, Track>();
-        const metadataOverridePatch: Record<string, { title?: string; artist?: string; album?: string }> = {};
-        let deduplicated = 0;
+        const results: Awaited<ReturnType<typeof processUploadedFile>>[] = [];
 
         for (const [index, uploadedFile] of uploadedFiles.entries()) {
-          if (!isSupportedAudioFile(uploadedFile.originalname)) {
-            throw new Error(`Unsupported audio format: ${uploadedFile.originalname}`);
-          }
-
-          const metadata = await extractAudioMetadata(uploadedFile.path);
-          const metadataOverride = metadataOverrides[index] ?? {};
-          const pathArtistName =
-            metadataOverride.artist ??
-            manualArtist ??
-            metadata.tags.artist ??
-            metadata.tags.albumArtist ??
-            metadata.tags.artists?.[0] ??
-            UNKNOWN_ARTIST;
-          const pathAlbumName = metadataOverride.album ?? manualAlbum ?? metadata.tags.album ?? UNKNOWN_ALBUM;
-
-          const artistDirName = normalizeDirectorySegment(pathArtistName);
-          const albumDirName = normalizeDirectorySegment(pathAlbumName);
-          const artistDir = path.join(ownerUploadDir, artistDirName);
-          const artistDirectoryState = await ensureDirectoryMetadata(
-            artistDir,
-            ARTIST_METADATA_FILE,
-            pathArtistName
+          results.push(
+            await processUploadedFile(
+              uploadedFile,
+              ownerId,
+              ownerUploadDir,
+              manualArtist,
+              manualAlbum,
+              metadataOverrides[index] ?? {}
+            )
           );
+        }
 
-          if (artistDirectoryState.createdDirectory) {
-            const artistPhotoPath = await fetchArtistPhotoPath(pathArtistName, artistDir);
-            if (artistPhotoPath) {
-              const artistMetadata: ArtistMetadata = {
-                name: pathArtistName,
-                photo: {
-                  path: artistPhotoPath
-                }
-              };
-              await writeJsonAtomic(artistDirectoryState.metadataPath, artistMetadata);
-            }
-          }
-
-          const albumDir = path.join(artistDir, albumDirName);
-          const albumDirectoryState = await ensureDirectoryMetadata(albumDir, ALBUM_METADATA_FILE, pathAlbumName);
-
-          if (albumDirectoryState.createdDirectory) {
-            const embeddedCoverPath = await writeEmbeddedCoverToDirectory(
-              metadata.cover,
-              albumDir,
-              ALBUM_COVER_BASE_NAME
-            );
-            const albumCoverPath =
-              embeddedCoverPath ?? (await fetchAlbumCoverPath(pathArtistName, pathAlbumName, albumDir));
-            if (albumCoverPath) {
-              const albumMetadata: AlbumMetadata = {
-                name: pathAlbumName,
-                cover: {
-                  path: albumCoverPath
-                }
-              };
-              await writeJsonAtomic(albumDirectoryState.metadataPath, albumMetadata);
-            }
-          }
-
-          const hash = await hashFile(uploadedFile.path);
-          const extension = sanitizeExtension(uploadedFile.originalname);
-          const finalFileName = `${hash}${extension}`;
-          const finalPath = path.join(albumDir, finalFileName);
-          const relativePath = toDataRelativePath(finalPath);
-          const trackId = createTrackId(ownerId, relativePath);
-
-          const effectiveTitle = metadataOverride.title;
-          const effectiveArtist = metadataOverride.artist ?? manualArtist;
-          const effectiveAlbum = metadataOverride.album ?? manualAlbum;
-
-          const tags = {
-            ...metadata.tags,
-            ...(effectiveTitle ? { title: effectiveTitle } : {}),
-            ...(effectiveArtist ? { artist: effectiveArtist } : {}),
-            ...(effectiveAlbum ? { album: effectiveAlbum } : {})
-          };
-
-          const alreadyPresent = await fileExists(finalPath);
-          if (alreadyPresent) {
-            deduplicated += 1;
-            await fs.unlink(uploadedFile.path);
-          } else {
-            await moveFile(uploadedFile.path, finalPath);
-            newUploadTrackIds.push(trackId);
-          }
-          const cover = await ensureTrackCover(trackId, metadata.cover);
-
-          provisionalTrackById.set(trackId, {
-            id: trackId,
-            owner: ownerId,
-            path: relativePath,
-            duration: metadata.duration,
-            mimeType: getAudioMimeType(uploadedFile.originalname),
-            codec: metadata.codec,
-            bitrate: metadata.bitrate,
-            sampleRate: metadata.sampleRate,
-            tags,
-            cover
-          });
-
-          uploadedTrackIds.push(trackId);
-
-          if (effectiveTitle || effectiveArtist || effectiveAlbum) {
-            metadataOverridePatch[trackId] = {
-              title: effectiveTitle,
-              artist: effectiveArtist,
-              album: effectiveAlbum
-            };
+        const metadataOverridePatch: Record<string, { title?: string; artist?: string; album?: string }> = {};
+        for (const result of results) {
+          if (result.overrides) {
+            metadataOverridePatch[result.trackId] = result.overrides;
           }
         }
 
@@ -367,21 +230,28 @@ export function createUploadRouter(indexStore: IndexStore): Router {
         }
 
         const updatedIndex = deferRebuild ? indexStore.getSnapshot() : await indexStore.rebuild();
-        const tracks = uploadedTrackIds
+        const provisionalById = new Map(results.map((r) => [r.trackId, r.track]));
+
+        const tracks = results
           .map(
-            (trackId) =>
-              updatedIndex.tracks.find((candidate) => candidate.id === trackId) ?? provisionalTrackById.get(trackId)
+            (result) =>
+              updatedIndex.tracks.find((candidate) => candidate.id === result.trackId) ??
+              provisionalById.get(result.trackId)
           )
           .filter((track): track is Track => Boolean(track));
-        const newUploadTracks = newUploadTrackIds
+
+        const newUploadTracks = results
+          .filter((result) => result.isNew)
           .map(
-            (trackId) =>
-              updatedIndex.tracks.find((candidate) => candidate.id === trackId) ?? provisionalTrackById.get(trackId)
+            (result) =>
+              updatedIndex.tracks.find((candidate) => candidate.id === result.trackId) ??
+              provisionalById.get(result.trackId)
           )
           .filter((track): track is Track => Boolean(track));
 
         await appendTrackActivityLogEntries(newUploadTracks);
 
+        const deduplicated = results.filter((r) => !r.isNew).length;
         res.status(201).json({
           processed: uploadedFiles.length,
           uploaded: uploadedFiles.length - deduplicated,
