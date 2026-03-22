@@ -17,6 +17,7 @@ export const tmpUploadsRoot = path.join(cacheRoot, "tmp-uploads");
 export const indexRoot = path.join(dataRoot, "index");
 export const indexFilePath = path.join(indexRoot, "library-index.json");
 export const scannerStateFilePath = path.join(indexRoot, "scanner-state.json");
+export const playlistsIndexFilePath = path.join(indexRoot, "playlists-index.json");
 export const metadataOverridesFilePath = path.join(indexRoot, "track-metadata-overrides.json");
 export const trackActivityLogFilePath = path.join(indexRoot, "track-activity-log.json");
 export const usersDbPath = path.join(configRoot, "users.db");
