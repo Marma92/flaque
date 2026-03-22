@@ -639,6 +639,16 @@ export function AudioPlayer({
 
             {showLyricsOverlay && displayLyrics ? (
               <div className="absolute inset-0 z-20 overflow-hidden bg-black/70 p-5">
+                <button
+                  className="absolute right-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-white/15 text-flaque-cream/80 transition hover:bg-white/25 hover:text-white"
+                  type="button"
+                  onClick={() => setShowLyricsOverlay(false)}
+                  aria-label="Close lyrics"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
                 {syncedLyrics ? (
                   <SyncedLyricsOverlay lines={syncedLyrics} currentTime={currentTime} />
                 ) : (
