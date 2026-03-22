@@ -235,9 +235,15 @@ function normalizeBootstrapAdminPassword(rawValue: string): string {
   }
 }
 
+function shouldSyncBootstrapAdminPassword(): boolean {
+  const flag = (process.env.BOOTSTRAP_SYNC_ADMIN_PASSWORD ?? "").trim().toLowerCase();
+  return flag === "1" || flag === "true" || flag === "yes";
+}
+
 export function ensureDefaultAdmin(): AuthUser | null {
   const username = (process.env.ADMIN_USERNAME ?? "admin").trim();
   const password = normalizeBootstrapAdminPassword(process.env.ADMIN_PASSWORD ?? "admin1234");
+  const syncBootstrapAdminPassword = shouldSyncBootstrapAdminPassword();
 
   if (!username) {
     return null;
@@ -245,15 +251,14 @@ export function ensureDefaultAdmin(): AuthUser | null {
 
   const existing = findUserByUsername(username);
   if (existing) {
-    if (existing.role === "admin") {
-      return {
-        id: existing.id,
-        username: existing.username,
-        role: existing.role
-      };
+    if (existing.role !== "admin") {
+      updateUserRole(existing.id, "admin");
     }
 
-    updateUserRole(existing.id, "admin");
+    if (syncBootstrapAdminPassword) {
+      updateUserPassword(existing.id, password);
+    }
+
     const promoted = findUserById(existing.id);
     return promoted ?? {
       id: existing.id,

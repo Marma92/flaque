@@ -19,7 +19,7 @@ import { extractAudioMetadata } from "../services/scanner/audioProbe";
 import { ensureTrackCover } from "../services/storage/coverService";
 import { ensureOwnerUploadDir, toDataRelativePath } from "../services/storage/storageService";
 import type { Track } from "../types/library";
-import { fileExists, writeJsonAtomic } from "../utils/fs";
+import { fileExists, moveFile, writeJsonAtomic } from "../utils/fs";
 import { createTrackId, hashFile } from "../utils/hash";
 import { getAudioMimeType, getSupportedAudioExtensions, isSupportedAudioFile } from "../utils/mime";
 import { tmpUploadsRoot } from "../utils/paths";
@@ -60,6 +60,15 @@ function normalizeOptionalString(value: unknown): string | undefined {
 
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function parseBooleanFormField(value: unknown): boolean {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes";
 }
 
 type UploadMetadataOverride = {
@@ -231,11 +240,13 @@ export function createUploadRouter(indexStore: IndexStore): Router {
 
         const manualArtist = normalizeOptionalString(req.body?.artist);
         const manualAlbum = normalizeOptionalString(req.body?.album);
+        const deferRebuild = parseBooleanFormField(req.body?.deferRebuild);
         const metadataOverrides = parseUploadMetadataOverrides(req.body?.metadataOverrides);
 
         const ownerUploadDir = await ensureOwnerUploadDir(ownerId);
         const uploadedTrackIds: string[] = [];
         const newUploadTrackIds: string[] = [];
+        const provisionalTrackById = new Map<string, Track>();
         const metadataOverridePatch: Record<string, { title?: string; artist?: string; album?: string }> = {};
         let deduplicated = 0;
 
@@ -306,20 +317,41 @@ export function createUploadRouter(indexStore: IndexStore): Router {
           const relativePath = toDataRelativePath(finalPath);
           const trackId = createTrackId(ownerId, relativePath);
 
+          const effectiveTitle = metadataOverride.title;
+          const effectiveArtist = metadataOverride.artist ?? manualArtist;
+          const effectiveAlbum = metadataOverride.album ?? manualAlbum;
+
+          const tags = {
+            ...metadata.tags,
+            ...(effectiveTitle ? { title: effectiveTitle } : {}),
+            ...(effectiveArtist ? { artist: effectiveArtist } : {}),
+            ...(effectiveAlbum ? { album: effectiveAlbum } : {})
+          };
+
           const alreadyPresent = await fileExists(finalPath);
           if (alreadyPresent) {
             deduplicated += 1;
             await fs.unlink(uploadedFile.path);
           } else {
-            await fs.rename(uploadedFile.path, finalPath);
+            await moveFile(uploadedFile.path, finalPath);
             newUploadTrackIds.push(trackId);
           }
-          await ensureTrackCover(trackId, metadata.cover);
-          uploadedTrackIds.push(trackId);
+          const cover = await ensureTrackCover(trackId, metadata.cover);
 
-          const effectiveTitle = metadataOverride.title;
-          const effectiveArtist = metadataOverride.artist ?? manualArtist;
-          const effectiveAlbum = metadataOverride.album ?? manualAlbum;
+          provisionalTrackById.set(trackId, {
+            id: trackId,
+            owner: ownerId,
+            path: relativePath,
+            duration: metadata.duration,
+            mimeType: getAudioMimeType(uploadedFile.originalname),
+            codec: metadata.codec,
+            bitrate: metadata.bitrate,
+            sampleRate: metadata.sampleRate,
+            tags,
+            cover
+          });
+
+          uploadedTrackIds.push(trackId);
 
           if (effectiveTitle || effectiveArtist || effectiveAlbum) {
             metadataOverridePatch[trackId] = {
@@ -334,12 +366,18 @@ export function createUploadRouter(indexStore: IndexStore): Router {
           await mergeTrackMetadataOverrides(metadataOverridePatch);
         }
 
-        const updatedIndex = await indexStore.rebuild();
+        const updatedIndex = deferRebuild ? indexStore.getSnapshot() : await indexStore.rebuild();
         const tracks = uploadedTrackIds
-          .map((trackId) => updatedIndex.tracks.find((candidate) => candidate.id === trackId))
+          .map(
+            (trackId) =>
+              updatedIndex.tracks.find((candidate) => candidate.id === trackId) ?? provisionalTrackById.get(trackId)
+          )
           .filter((track): track is Track => Boolean(track));
         const newUploadTracks = newUploadTrackIds
-          .map((trackId) => updatedIndex.tracks.find((candidate) => candidate.id === trackId))
+          .map(
+            (trackId) =>
+              updatedIndex.tracks.find((candidate) => candidate.id === trackId) ?? provisionalTrackById.get(trackId)
+          )
           .filter((track): track is Track => Boolean(track));
 
         await appendTrackActivityLogEntries(newUploadTracks);
@@ -349,6 +387,7 @@ export function createUploadRouter(indexStore: IndexStore): Router {
           uploaded: uploadedFiles.length - deduplicated,
           deduplicated,
           tracks,
+          deferredRebuild: deferRebuild,
           overrides: {
             artist: manualArtist,
             album: manualAlbum

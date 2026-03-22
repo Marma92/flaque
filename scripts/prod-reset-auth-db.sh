@@ -3,11 +3,10 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE_FILE="${ROOT_DIR}/docker-compose.prod.yml"
-ENV_FILE="${ROOT_DIR}/.env.production"
+COMPOSE_WRAPPER="${ROOT_DIR}/scripts/compose-production.sh"
 
-if [[ ! -f "${ENV_FILE}" ]]; then
-  printf "Missing env file: %s\n" "${ENV_FILE}" >&2
+if [[ ! -x "${COMPOSE_WRAPPER}" ]]; then
+  printf "Missing compose wrapper: %s\n" "${COMPOSE_WRAPPER}" >&2
   exit 1
 fi
 
@@ -19,7 +18,7 @@ if [[ "${CONFIRM}" != "reset-auth-db" ]]; then
   exit 1
 fi
 
-docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" run --rm \
+bash "${COMPOSE_WRAPPER}" run --rm \
   backend node backend/dist/scripts/resetAuthDatabase.js
 
 printf "Auth database reset completed.\n"

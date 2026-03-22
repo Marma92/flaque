@@ -36,18 +36,22 @@ export function getSessionTtlMs(): number {
 }
 
 export function setSessionCookie(res: Response, sessionId: string, expiresAt: number): void {
+  const secureCookie = useSecureSessionCookie();
+
   res.cookie(SESSION_COOKIE_NAME, sessionId, {
     httpOnly: true,
     sameSite: "lax",
-    secure: useSecureSessionCookie(),
+    secure: secureCookie,
     expires: new Date(expiresAt)
   });
 }
 
 export function clearSessionCookie(res: Response): void {
+  const secureCookie = useSecureSessionCookie();
+
   res.clearCookie(SESSION_COOKIE_NAME, {
     httpOnly: true,
     sameSite: "lax",
-    secure: useSecureSessionCookie()
+    secure: secureCookie
   });
 }

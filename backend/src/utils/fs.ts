@@ -26,6 +26,21 @@ export async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
+export async function moveFile(sourcePath: string, destinationPath: string): Promise<void> {
+  try {
+    await fs.rename(sourcePath, destinationPath);
+    return;
+  } catch (error) {
+    const exdevError = error as NodeJS.ErrnoException;
+    if (exdevError?.code !== "EXDEV") {
+      throw error;
+    }
+  }
+
+  await fs.copyFile(sourcePath, destinationPath);
+  await fs.unlink(sourcePath);
+}
+
 export async function writeJsonAtomic(filePath: string, data: unknown): Promise<void> {
   const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
   const payload = `${JSON.stringify(data, null, 2)}\n`;
