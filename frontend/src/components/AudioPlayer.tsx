@@ -7,8 +7,10 @@ import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
   getTrackDisplayLyrics,
-  getTrackDisplayTitle
+  getTrackDisplayTitle,
+  getTrackSyncedLyrics
 } from "../utils/tracks";
+import type { SyncedLyricsLine } from "../utils/tracks";
 
 export type TranscodeMode = "original" | "opus" | "mp3";
 export type RepeatMode = "off" | "all" | "one";
@@ -73,6 +75,56 @@ function readStoredVolume(): number {
 
   const raw = Number(window.localStorage.getItem(PLAYER_VOLUME_STORAGE_KEY));
   return clampVolume(raw);
+}
+
+function SyncedLyricsOverlay({
+  lines,
+  currentTime
+}: {
+  lines: SyncedLyricsLine[];
+  currentTime: number;
+}): JSX.Element {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const activeIndexRef = useRef(-1);
+
+  const activeIndex = useMemo(() => {
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (currentTime >= lines[i].t) return i;
+    }
+    return -1;
+  }, [lines, currentTime]);
+
+  useEffect(() => {
+    if (activeIndex === activeIndexRef.current) return;
+    activeIndexRef.current = activeIndex;
+
+    const container = containerRef.current;
+    if (!container || activeIndex < 0) return;
+
+    const activeElement = container.children[activeIndex] as HTMLElement | undefined;
+    if (!activeElement) return;
+
+    activeElement.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [activeIndex]);
+
+  return (
+    <div ref={containerRef} className="h-full overflow-auto text-left text-sm leading-relaxed">
+      {lines.map((line, index) => (
+        <p
+          key={index}
+          className={`py-0.5 transition-all duration-300 ${
+            index === activeIndex
+              ? "text-white font-medium scale-[1.02] origin-left"
+              : index < activeIndex
+                ? "text-flaque-cream/50"
+                : "text-flaque-cream/30"
+          }`}
+        >
+          {line.text}
+        </p>
+      ))}
+    </div>
+  );
 }
 
 export function AudioPlayer({
@@ -490,6 +542,7 @@ export function AudioPlayer({
   const displayArtist = getTrackDisplayArtist(track) ?? "Unknown artist";
   const displayAlbumWithYear = getTrackDisplayAlbumWithYear(track);
   const displayLyrics = getTrackDisplayLyrics(track);
+  const syncedLyrics = useMemo(() => getTrackSyncedLyrics(track), [track]);
   const hasLyrics = Boolean(displayLyrics);
 
   const hasPlayablePlaylists = playlists.length > 0;
@@ -586,9 +639,13 @@ export function AudioPlayer({
 
             {showLyricsOverlay && displayLyrics ? (
               <div className="absolute inset-0 z-20 overflow-hidden bg-black/70 p-5">
-                <div className="h-full overflow-auto whitespace-pre-wrap text-left text-sm leading-relaxed text-flaque-cream/90 scrollbar-thin">
-                  {displayLyrics}
-                </div>
+                {syncedLyrics ? (
+                  <SyncedLyricsOverlay lines={syncedLyrics} currentTime={currentTime} />
+                ) : (
+                  <div className="h-full overflow-auto whitespace-pre-wrap text-left text-sm leading-relaxed text-flaque-cream/90">
+                    {displayLyrics}
+                  </div>
+                )}
               </div>
             ) : null}
           </div>
