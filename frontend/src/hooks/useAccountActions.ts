@@ -4,6 +4,7 @@ import {
   getMySessions,
   logoutOtherSessions,
   revokeMySession,
+  updateMyEmail,
   updateMyPassword,
   uploadMyProfilePhoto
 } from "../api";
@@ -13,10 +14,12 @@ type UseAccountActionsArgs = {
   notifyAuthStateChanged: (kind: "login" | "logout" | "session-change") => void;
   setAppNotice: Dispatch<SetStateAction<AppNotice | null>>;
   setAvatarVersion: Dispatch<SetStateAction<number>>;
+  setUser: Dispatch<SetStateAction<import("../types").User | null>>;
 };
 
 type UseAccountActionsResult = {
   handleUpdateProfilePhoto: (file: File) => Promise<void>;
+  handleUpdateEmail: (email: string) => Promise<void>;
   handleUpdateOwnPassword: (input: { currentPassword: string; newPassword: string }) => Promise<void>;
   handleListMySessions: () => ReturnType<typeof getMySessions>;
   handleRevokeMySession: (sessionId: string) => Promise<void>;
@@ -29,7 +32,8 @@ type UseAccountActionsResult = {
 export function useAccountActions({
   notifyAuthStateChanged,
   setAppNotice,
-  setAvatarVersion
+  setAvatarVersion,
+  setUser
 }: UseAccountActionsArgs): UseAccountActionsResult {
   const handleUpdateProfilePhoto = useCallback(
     async (file: File): Promise<void> => {
@@ -38,6 +42,15 @@ export function useAccountActions({
       setAppNotice({ tone: "success", message: "Profile photo updated" });
     },
     [setAvatarVersion, setAppNotice]
+  );
+
+  const handleUpdateEmail = useCallback(
+    async (email: string): Promise<void> => {
+      const updatedUser = await updateMyEmail(email);
+      setUser(updatedUser);
+      setAppNotice({ tone: "success", message: "Email updated" });
+    },
+    [setUser, setAppNotice]
   );
 
   const handleUpdateOwnPassword = useCallback(
@@ -74,6 +87,7 @@ export function useAccountActions({
 
   return {
     handleUpdateProfilePhoto,
+    handleUpdateEmail,
     handleUpdateOwnPassword,
     handleListMySessions,
     handleRevokeMySession,

@@ -6,6 +6,7 @@ type AccountViewProps = {
   user: User;
   avatarUrl: string;
   onUpdatePhoto: (file: File) => Promise<void>;
+  onUpdateEmail: (email: string) => Promise<void>;
   onChangePassword: (input: { currentPassword: string; newPassword: string }) => Promise<void>;
   onListSessions: () => Promise<UserSession[]>;
   onRevokeSession: (sessionId: string) => Promise<void>;
@@ -50,6 +51,7 @@ export function AccountView({
   user,
   avatarUrl,
   onUpdatePhoto,
+  onUpdateEmail,
   onChangePassword,
   onListSessions,
   onRevokeSession,
@@ -62,6 +64,11 @@ export function AccountView({
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [photoMessage, setPhotoMessage] = useState<string | null>(null);
   const [updatingPhoto, setUpdatingPhoto] = useState(false);
+
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [emailDraft, setEmailDraft] = useState(user.email);
+  const [emailMessage, setEmailMessage] = useState<string | null>(null);
+  const [updatingEmail, setUpdatingEmail] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -297,7 +304,78 @@ export function AccountView({
 
             <div className="min-w-0 flex-1">
               <p className="truncate font-display text-3xl text-flaque-ink">{user.username}</p>
-              <p className="mt-1 truncate text-sm text-flaque-steel">{user.email}</p>
+
+              {editingEmail ? (
+                <div className="mt-1 flex items-center gap-2">
+                  <input
+                    className="w-full max-w-xs rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                    type="email"
+                    value={emailDraft}
+                    onChange={(event) => setEmailDraft(event.target.value)}
+                    autoFocus
+                  />
+                  <button
+                    className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    disabled={updatingEmail}
+                    onClick={async () => {
+                      const trimmed = emailDraft.trim();
+                      if (!trimmed || !trimmed.includes("@")) {
+                        setEmailMessage("A valid email address is required.");
+                        return;
+                      }
+                      if (trimmed === user.email) {
+                        setEditingEmail(false);
+                        setEmailMessage(null);
+                        return;
+                      }
+                      setUpdatingEmail(true);
+                      setEmailMessage(null);
+                      try {
+                        await onUpdateEmail(trimmed);
+                        setEmailMessage("Email updated.");
+                        setEditingEmail(false);
+                      } catch (error) {
+                        setEmailMessage(error instanceof Error ? error.message : "Unable to update email");
+                      } finally {
+                        setUpdatingEmail(false);
+                      }
+                    }}
+                  >
+                    {updatingEmail ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    disabled={updatingEmail}
+                    onClick={() => {
+                      setEditingEmail(false);
+                      setEmailDraft(user.email);
+                      setEmailMessage(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <p className="mt-1 truncate text-sm text-flaque-steel">
+                  {user.email}
+                  <button
+                    className="ml-2 text-xs text-flaque-ink/70 underline transition hover:text-flaque-ink"
+                    type="button"
+                    onClick={() => {
+                      setEmailDraft(user.email);
+                      setEditingEmail(true);
+                      setEmailMessage(null);
+                    }}
+                  >
+                    edit
+                  </button>
+                </p>
+              )}
+
+              {emailMessage ? <p className="mt-1 text-xs text-flaque-steel">{emailMessage}</p> : null}
+
               <p className="mt-2 text-xs text-flaque-steel/90">Username is fixed to keep your login stable.</p>
             </div>
           </div>

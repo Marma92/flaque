@@ -126,9 +126,9 @@ export function AuthenticatedApp({
   });
 
   const {
-    handleUpdateProfilePhoto, handleUpdateOwnPassword,
+    handleUpdateProfilePhoto, handleUpdateEmail, handleUpdateOwnPassword,
     handleListMySessions, handleRevokeMySession, handleLogoutOtherSessions
-  } = useAccountActions({ notifyAuthStateChanged, setAppNotice, setAvatarVersion });
+  } = useAccountActions({ notifyAuthStateChanged, setAppNotice, setAvatarVersion, setUser });
 
   // ── Side effects ──────────────────────────────────────────────────────
 
@@ -259,6 +259,7 @@ export function AuthenticatedApp({
         user,
         avatarUrl,
         onUpdatePhoto: handleUpdateProfilePhoto,
+        onUpdateEmail: handleUpdateEmail,
         onChangePassword: handleUpdateOwnPassword,
         onListSessions: handleListMySessions,
         onRevokeSession: handleRevokeMySession,

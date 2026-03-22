@@ -29,6 +29,7 @@ type UseAdminCommandsResult = {
   handlePatchUser: (input: {
     userId: string;
     username?: string;
+    email?: string;
     role?: "user" | "admin";
   }) => Promise<void>;
 };
@@ -65,10 +66,12 @@ export function useAdminCommands({
   async function handlePatchUser(input: {
     userId: string;
     username?: string;
+    email?: string;
     role?: "user" | "admin";
   }): Promise<void> {
     const patchedUser = await patchUserAccount(input.userId, {
       username: input.username,
+      email: input.email,
       role: input.role
     });
 

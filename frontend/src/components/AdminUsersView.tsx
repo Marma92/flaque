@@ -18,6 +18,11 @@ type ModalState =
       username: string;
     }
   | {
+      kind: "changeEmail";
+      user: User;
+      email: string;
+    }
+  | {
       kind: "resetPassword";
       user: User;
       password: string;
@@ -42,6 +47,7 @@ type AdminUsersViewProps = {
   onPatchUser: (input: {
     userId: string;
     username?: string;
+    email?: string;
     role?: "user" | "admin";
   }) => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
@@ -147,6 +153,15 @@ export function AdminUsersView({
     });
   }
 
+  function openChangeEmailModal(user: User): void {
+    setModalError(null);
+    setModalState({
+      kind: "changeEmail",
+      user,
+      email: user.email
+    });
+  }
+
   function openResetPasswordModal(user: User): void {
     setModalError(null);
     setModalState({
@@ -209,6 +224,27 @@ export function AdminUsersView({
             username: nextUsername
           });
           setActionMessage(`Username updated for ${modalState.user.username}.`);
+          setModalState(null);
+          break;
+        }
+
+        case "changeEmail": {
+          const nextEmail = modalState.email.trim();
+          if (!nextEmail || !nextEmail.includes("@")) {
+            setModalError("A valid email address is required.");
+            return;
+          }
+
+          if (nextEmail === modalState.user.email) {
+            setModalState(null);
+            return;
+          }
+
+          await onPatchUser({
+            userId: modalState.user.id,
+            email: nextEmail
+          });
+          setActionMessage(`Email updated for ${modalState.user.username}.`);
           setModalState(null);
           break;
         }
@@ -423,6 +459,14 @@ export function AdminUsersView({
                     className="rounded-lg border border-flaque-clay bg-white px-3 py-2 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
                     type="button"
                     disabled={runningAction}
+                    onClick={() => openChangeEmailModal(entry)}
+                  >
+                    Change email
+                  </button>
+                  <button
+                    className="rounded-lg border border-flaque-clay bg-white px-3 py-2 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    disabled={runningAction}
                     onClick={() => openToggleRoleModal(entry)}
                   >
                     {entry.role === "admin" ? "Make user" : "Make admin"}
@@ -497,6 +541,14 @@ export function AdminUsersView({
                           className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
                           type="button"
                           disabled={runningAction}
+                          onClick={() => openChangeEmailModal(entry)}
+                        >
+                          Change email
+                        </button>
+                        <button
+                          className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                          type="button"
+                          disabled={runningAction}
                           onClick={() => openToggleRoleModal(entry)}
                         >
                           {entry.role === "admin" ? "Make user" : "Make admin"}
@@ -543,11 +595,13 @@ export function AdminUsersView({
             <h3 className="font-display text-xl text-flaque-ink">
               {modalState.kind === "rename"
                 ? `Rename ${modalState.user.username}`
-                : modalState.kind === "resetPassword"
-                  ? `Reset password for ${modalState.user.username}`
-                  : modalState.kind === "toggleRole"
-                    ? `Change role for ${modalState.user.username}`
-                    : `Delete ${modalState.user.username}`}
+                : modalState.kind === "changeEmail"
+                  ? `Change email for ${modalState.user.username}`
+                  : modalState.kind === "resetPassword"
+                    ? `Reset password for ${modalState.user.username}`
+                    : modalState.kind === "toggleRole"
+                      ? `Change role for ${modalState.user.username}`
+                      : `Delete ${modalState.user.username}`}
             </h3>
 
             {modalState.kind === "rename" ? (
@@ -566,6 +620,28 @@ export function AdminUsersView({
                         ? {
                             ...current,
                             username: event.target.value
+                          }
+                        : current
+                    );
+                  }}
+                  autoFocus
+                />
+              </label>
+            ) : null}
+
+            {modalState.kind === "changeEmail" ? (
+              <label className="mt-4 block text-sm text-flaque-ink">
+                New email
+                <input
+                  className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                  type="email"
+                  value={modalState.email}
+                  onChange={(event) => {
+                    setModalState((current) =>
+                      current && current.kind === "changeEmail"
+                        ? {
+                            ...current,
+                            email: event.target.value
                           }
                         : current
                     );
@@ -635,11 +711,13 @@ export function AdminUsersView({
                   ? "Saving..."
                   : modalState.kind === "rename"
                     ? "Save username"
-                    : modalState.kind === "resetPassword"
-                      ? "Reset password"
-                      : modalState.kind === "toggleRole"
-                        ? "Confirm role"
-                        : "Delete user"}
+                    : modalState.kind === "changeEmail"
+                      ? "Save email"
+                      : modalState.kind === "resetPassword"
+                        ? "Reset password"
+                        : modalState.kind === "toggleRole"
+                          ? "Confirm role"
+                          : "Delete user"}
               </button>
             </div>
           </form>

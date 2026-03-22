@@ -32,6 +32,7 @@ type ConfigViewProps = {
   onPatchUser: (input: {
     userId: string;
     username?: string;
+    email?: string;
     role?: "user" | "admin";
   }) => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
