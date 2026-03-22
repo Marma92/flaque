@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import type { AlbumEntry, ArtistEntry, Track } from "../types";
+import type { AlbumEntry, ArtistEntry, Playlist, Track } from "../types";
 import { TrackList } from "./TrackList";
 
 type LibraryFilter = {
@@ -21,6 +21,8 @@ type LibraryViewProps = {
   onFilterChange: (next: LibraryFilter) => void;
   currentTrackId?: string;
   onTrackSelect: (track: Track) => void;
+  playlists?: Playlist[];
+  onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
 };
 
 export function LibraryView({
@@ -33,7 +35,9 @@ export function LibraryView({
   filters,
   onFilterChange,
   currentTrackId,
-  onTrackSelect
+  onTrackSelect,
+  playlists,
+  onAddTrackToPlaylist
 }: LibraryViewProps): JSX.Element {
   const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
   const hasActiveFilters = Boolean(filters.owner || filters.artist || filters.album || filters.q);
@@ -181,6 +185,8 @@ export function LibraryView({
             currentTrackId={currentTrackId}
             ownerNameById={ownerNameById}
             onTrackSelect={onTrackSelect}
+            playlists={playlists}
+            onAddTrackToPlaylist={onAddTrackToPlaylist}
           />
         </div>
       </section>

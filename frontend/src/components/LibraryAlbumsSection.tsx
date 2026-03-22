@@ -1,6 +1,6 @@
 import { coverPathUrl, coverUrl } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
-import type { AlbumEntry, Track } from "../types";
+import type { AlbumEntry, Playlist, Track } from "../types";
 import { getAlbumKey } from "../utils/appUtils";
 import { TrackList } from "./TrackList";
 
@@ -16,6 +16,8 @@ type LibraryAlbumsSectionProps = {
   ownerNameById: Record<string, string>;
   onAlbumSelect: (album: AlbumEntry) => void;
   onTrackSelect: (track: Track) => void;
+  playlists?: Playlist[];
+  onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
 };
 
 /**
@@ -32,7 +34,9 @@ export function LibraryAlbumsSection({
   currentTrackId,
   ownerNameById,
   onAlbumSelect,
-  onTrackSelect
+  onTrackSelect,
+  playlists,
+  onAddTrackToPlaylist
 }: LibraryAlbumsSectionProps): JSX.Element {
   return (
     <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
@@ -116,6 +120,8 @@ export function LibraryAlbumsSection({
                 currentTrackId={currentTrackId}
                 ownerNameById={ownerNameById}
                 onTrackSelect={onTrackSelect}
+                playlists={playlists}
+                onAddTrackToPlaylist={onAddTrackToPlaylist}
                 emptyMessage="No tracks found for this album."
               />
             </div>

@@ -144,6 +144,7 @@ export function AudioPlayer({
   const displayLyrics = getTrackDisplayLyrics(track);
   const syncedLyrics = useMemo(() => getTrackSyncedLyrics(track), [track]);
   const hasLyrics = Boolean(displayLyrics);
+  const codecLabel = `${track.codec}${track.sampleRate ? ` - ${Math.round(track.sampleRate / 1000)} kHz` : ""}`;
 
   const hasPlayablePlaylists = playlists.length > 0;
   const effectiveQueue = queueTracks.length > 0 ? queueTracks : [track];
@@ -240,11 +241,6 @@ export function AudioPlayer({
               />
             )}
 
-            {hasLyrics ? (
-              <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-flaque-cream/90">
-                Lyrics
-              </span>
-            ) : null}
           </div>
         )}
 
@@ -261,8 +257,8 @@ export function AudioPlayer({
               <p className="truncate text-xs text-flaque-steel/80">{displayAlbumWithYear}</p>
             ) : null}
             <p className={metaTextClassName}>
-              {track.codec} {track.sampleRate ? `- ${Math.round(track.sampleRate / 1000)} kHz` : ""}
-              {expanded && hasLyrics ? (
+              {codecLabel}
+              {hasLyrics ? (
                 <span className="ml-2 rounded bg-flaque-ink/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-flaque-ink/70">
                   Lyrics
                 </span>

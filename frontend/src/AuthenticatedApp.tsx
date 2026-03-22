@@ -211,7 +211,9 @@ export function AuthenticatedApp({
         library,
         filters,
         onFilterChange: (next) => setFilters(next),
-        onLibraryTrackSelect: (track) => requestTrackPlaybackWithStatus(track, library.tracks)
+        onLibraryTrackSelect: (track) => requestTrackPlaybackWithStatus(track, library.tracks),
+        manageablePlaylists,
+        onAddTrackToPlaylist: handleAddTrackToPlaylist
       }}
       uploadViewProps={{
         onUpload: handleUpload,
