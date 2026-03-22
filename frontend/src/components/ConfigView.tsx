@@ -7,6 +7,9 @@ import {
   getTrackDisplayTitle
 } from "../utils/tracks";
 import { AdminUsersView } from "./AdminUsersView";
+import { TrackDeleteModal } from "./TrackDeleteModal";
+import { TrackEditModal } from "./TrackEditModal";
+import type { EditTrackState } from "./TrackEditModal";
 
 type ConfigViewProps = {
   currentUser: User;
@@ -37,13 +40,6 @@ type ConfigViewProps = {
   }) => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
   onResetUserPassword: (userId: string, password: string) => Promise<void>;
-};
-
-type EditTrackState = {
-  track: Track;
-  title: string;
-  artist: string;
-  album: string;
 };
 
 type ConfigSection = "index" | "files" | "users";
@@ -419,127 +415,24 @@ export function ConfigView({
       ) : null}
 
       {editState ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
-          <form
-            className="w-full max-w-md rounded-3xl border border-flaque-clay/60 bg-white p-5 shadow-panel"
-            onSubmit={handleEditSubmit}
-          >
-            <h3 className="font-display text-xl text-flaque-ink">Edit metadata</h3>
-            <p className="mt-2 text-sm text-flaque-steel">{getTrackDisplayTitle(editState.track)}</p>
-
-            <label className="mt-4 block text-sm text-flaque-ink">
-              Title
-              <input
-                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-                type="text"
-                value={editState.title}
-                onChange={(event) =>
-                  setEditState((current) =>
-                    current
-                      ? {
-                          ...current,
-                          title: event.target.value
-                        }
-                      : current
-                  )
-                }
-              />
-            </label>
-
-            <label className="mt-3 block text-sm text-flaque-ink">
-              Artist
-              <input
-                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-                type="text"
-                value={editState.artist}
-                onChange={(event) =>
-                  setEditState((current) =>
-                    current
-                      ? {
-                          ...current,
-                          artist: event.target.value
-                        }
-                      : current
-                  )
-                }
-              />
-            </label>
-
-            <label className="mt-3 block text-sm text-flaque-ink">
-              Album
-              <input
-                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-                type="text"
-                value={editState.album}
-                onChange={(event) =>
-                  setEditState((current) =>
-                    current
-                      ? {
-                          ...current,
-                          album: event.target.value
-                        }
-                      : current
-                  )
-                }
-              />
-            </label>
-
-            <p className="mt-3 text-xs text-flaque-steel">
-              Leave a field empty to clear override and fallback to embedded file metadata.
-            </p>
-
-            <div className="mt-5 flex items-center justify-end gap-2">
-              <button
-                className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
-                type="button"
-                onClick={closeEditModal}
-                disabled={savingEdit}
-              >
-                Cancel
-              </button>
-              <button
-                className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
-                type="submit"
-                disabled={savingEdit}
-              >
-                {savingEdit ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </form>
-        </div>
+        <TrackEditModal
+          editState={editState}
+          onSubmit={handleEditSubmit}
+          onClose={closeEditModal}
+          saving={savingEdit}
+          onStateChange={setEditState}
+        />
       ) : null}
 
       {deleteTrackCandidate ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-flaque-clay/60 bg-white p-5 shadow-panel">
-            <h3 className="font-display text-xl text-flaque-ink">Delete track file</h3>
-            <p className="mt-2 text-sm text-red-700">
-              This action cannot be undone. The file for <strong>{getTrackDisplayTitle(deleteTrackCandidate)}</strong>
-              will be removed from storage.
-            </p>
-
-            <div className="mt-5 flex items-center justify-end gap-2">
-              <button
-                className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
-                type="button"
-                onClick={closeDeleteTrackModal}
-                disabled={deletingTrack}
-              >
-                Cancel
-              </button>
-              <button
-                className="rounded-xl bg-red-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
-                type="button"
-                disabled={deletingTrack}
-                onClick={() => {
-                  void handleDeleteTrack(deleteTrackCandidate);
-                }}
-              >
-                {deletingTrack ? "Deleting..." : "Delete file"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <TrackDeleteModal
+          track={deleteTrackCandidate}
+          onConfirm={() => {
+            void handleDeleteTrack(deleteTrackCandidate);
+          }}
+          onClose={closeDeleteTrackModal}
+          deleting={deletingTrack}
+        />
       ) : null}
     </div>
   );

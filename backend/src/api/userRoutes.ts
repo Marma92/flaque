@@ -3,11 +3,10 @@ import type { Dirent } from "node:fs";
 import path from "node:path";
 
 import multer from "multer";
-import { Router, type Request } from "express";
+import { Router } from "express";
 import sharp from "sharp";
 
 import {
-  createSession,
   countUsersByRole,
   createUser,
   deleteUserById,
@@ -22,9 +21,11 @@ import {
 import { requireAdmin, requireAuth } from "../auth/middleware";
 import { verifyPassword } from "../auth/password";
 import { getSessionTtlMs, setSessionCookie } from "../auth/session";
+import { createSession } from "../auth/sessionDb";
 import type { UserRole } from "../types/auth";
 import { ensureDir, fileExists } from "../utils/fs";
 import { usersStorageRoot } from "../utils/paths";
+import { getClientIp, hasOwnProperty, isSqliteUniqueError } from "./requestHelpers";
 
 const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 32;
@@ -118,31 +119,6 @@ function parseRoleForPatch(value: unknown): UserRole | null {
   }
 
   return null;
-}
-
-function hasOwnProperty(value: unknown, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(value ?? {}, key);
-}
-
-function getClientIp(req: Request): string | undefined {
-  const forwardedFor = req.headers["x-forwarded-for"];
-  const firstForwarded =
-    typeof forwardedFor === "string"
-      ? forwardedFor.split(",", 1)[0]
-      : Array.isArray(forwardedFor)
-        ? forwardedFor[0]
-        : undefined;
-
-  const candidate = (firstForwarded ?? req.ip ?? req.socket.remoteAddress ?? "").trim();
-  return candidate || undefined;
-}
-
-function isSqliteUniqueError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return /unique/i.test(error.message);
 }
 
 export function createUserRouter(): Router {

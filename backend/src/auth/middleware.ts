@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 
-import { findSessionUser } from "./db";
+import { findSessionUser } from "./sessionDb";
 import { clearSessionCookie, SESSION_COOKIE_NAME } from "./session";
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
