@@ -242,7 +242,7 @@ export function AudioPlayer({
                 />
               )}
             </div>
-            <span className="whitespace-nowrap text-[10px] text-flaque-steel">
+            <span className="whitespace-nowrap text-[10px] text-flaque-steel md:hidden">
               {formatDuration(currentTime)} / {formatDuration(duration || track.duration)}
             </span>
           </div>
@@ -685,7 +685,12 @@ export function AudioPlayer({
               <span>{formatDuration(currentTime)}</span>
               <span>{formatDuration(duration || track.duration)}</span>
             </div>
-          ) : null}
+          ) : (
+            <div className="hidden w-full justify-between text-xs text-flaque-steel md:flex">
+              <span>{formatDuration(currentTime)}</span>
+              <span>{formatDuration(duration || track.duration)}</span>
+            </div>
+          )}
 
           {showQueuePanel ? (
             <QueuePanel
