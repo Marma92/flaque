@@ -13,15 +13,8 @@ export function LibrarySectionSwitcher({
   onSectionChange
 }: LibrarySectionSwitcherProps): JSX.Element {
   return (
-    <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.28em] text-flaque-steel">Library</p>
-          <h2 className="mt-1 font-display text-2xl text-flaque-ink">Music, Artists, Albums & Playlists</h2>
-          <p className="mt-2 text-sm text-flaque-steel">Switch between tracks, artists, albums and playlists management.</p>
-        </div>
-
-        <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
+    <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-3 shadow-panel backdrop-blur-sm md:p-5">
+      <div className="flex flex-wrap items-center justify-center gap-1.5">
           {([
             ["music", "Music"],
             ["artists", "Artists"],
@@ -41,7 +34,6 @@ export function LibrarySectionSwitcher({
               {sectionLabel}
             </button>
           ))}
-        </div>
       </div>
     </section>
   );

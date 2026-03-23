@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type { User } from "../types";
 import type { ViewName } from "../utils/appUtils";
@@ -9,14 +9,15 @@ type AppHeaderProps = {
   user: User;
   avatarUrl: string;
   onViewChange: (view: ViewName) => void;
+  children?: ReactNode;
 };
 
 /**
  * Top-level application header with branding and primary navigation.
  */
-export function AppHeader({ activeView, user, avatarUrl, onViewChange }: AppHeaderProps): JSX.Element {
+export function AppHeader({ activeView, user, avatarUrl, onViewChange, children }: AppHeaderProps): JSX.Element {
   const navIconButtonClassName = (isActive: boolean): string =>
-    `flex h-10 w-10 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 ${
+    `flex h-9 w-9 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 ${
       isActive
         ? "bg-flaque-ink/12 text-flaque-ink"
         : "text-flaque-steel hover:bg-flaque-cream/70 hover:text-flaque-ink"
@@ -33,11 +34,11 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange }: AppHead
   }, [avatarUrl, user.id]);
 
   return (
-    <header className="mb-2 rounded-3xl border border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:mb-4 md:px-5 md:py-4">
-      <div className="flex flex-col items-center gap-2 md:flex-row md:justify-between md:gap-4">
-        <div className="flex min-w-0 items-center gap-2 md:gap-4">
+    <header className="mb-2 rounded-3xl border border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:px-4 md:py-3">
+      <div className="flex flex-col items-center gap-2 md:flex-row md:justify-between md:gap-3">
+        <div className="flex min-w-0 items-center gap-2 md:gap-3">
           <button
-            className="relative h-12 w-12 shrink-0 rounded-2xl transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand md:h-24 md:w-24"
+            className="relative h-10 w-10 shrink-0 rounded-xl transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand md:h-14 md:w-14 md:rounded-2xl"
             type="button"
             aria-label="Go to library"
             title="Library"
@@ -55,7 +56,7 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange }: AppHead
             />
           </button>
           <div className="min-w-0">
-            <h1 className="font-display text-base leading-tight text-flaque-ink sm:text-lg md:text-xl lg:text-2xl">
+            <h1 className="font-display text-base leading-tight text-flaque-ink md:text-lg">
               <Acronym
                   text="FLAQUE"
                   expansions={{
@@ -70,7 +71,13 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange }: AppHead
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        {children ? (
+          <div className="order-last flex items-center justify-center gap-1 md:order-none md:flex-wrap md:gap-1.5">
+            {children}
+          </div>
+        ) : null}
+
+        <div className="flex items-center gap-2">
           <button
             className={navIconButtonClassName(activeView === "library")}
             type="button"
@@ -79,7 +86,7 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange }: AppHead
             onClick={() => onViewChange("library")}
           >
             <svg
-              className="h-7 w-7"
+              className="h-5 w-5"
               viewBox="0 0 28 28"
               fill="none"
               stroke="currentColor"
@@ -107,7 +114,7 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange }: AppHead
             onClick={() => onViewChange("upload")}
           >
             <svg
-              className="h-7 w-7"
+              className="h-5 w-5"
               viewBox="0 0 28 28"
               fill="none"
               stroke="currentColor"
@@ -131,7 +138,7 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange }: AppHead
               onClick={() => onViewChange("config")}
             >
               <svg
-                className="h-7 w-7"
+                className="h-5 w-5"
                 viewBox="0 0 28 28"
                 fill="none"
                 stroke="currentColor"
@@ -155,7 +162,7 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange }: AppHead
           ) : null}
 
           <button
-            className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 ${
+            className={`flex h-9 w-9 items-center justify-center overflow-hidden rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 ${
               activeView === "account"
                 ? "bg-flaque-ink/12 ring-1 ring-flaque-ink/30"
                 : "bg-white text-flaque-steel hover:bg-flaque-cream/70"

@@ -1,10 +1,11 @@
 import type { User } from "../types";
+import type { LibrarySection } from "../types/library";
 import type { ViewName } from "../utils/appUtils";
 import { AccountView } from "./AccountView";
 import { AudioPlayer } from "./AudioPlayer";
 import { AppHeader } from "./AppHeader";
 import { AppStatusBanners, type AppNotice } from "./AppStatusBanners";
-import { ConfigView } from "./ConfigView";
+import { ConfigView, type ConfigSection } from "./ConfigView";
 import { LibraryWorkspace } from "./LibraryWorkspace";
 import { PlayerShell } from "./PlayerShell";
 import { UploadView } from "./UploadView";
@@ -56,6 +57,48 @@ export function AppShell({
   const hasStickyPlayer = Boolean(audioPlayerProps.track) && activeView !== "player";
   const shouldRenderPlayer = Boolean(audioPlayerProps.track) || activeView === "player";
 
+  const sectionButtonClassName = (isActive: boolean): string =>
+    `rounded-xl px-2 py-1.5 text-center text-[10px] font-medium uppercase tracking-[0.08em] transition md:min-w-[6rem] md:px-2.5 md:text-[11px] md:tracking-[0.12em] ${
+      isActive
+        ? "bg-flaque-ink text-flaque-cream"
+        : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
+    }`;
+
+  const librarySections: Array<[LibrarySection, string]> = [
+    ["music", "Music"], ["artists", "Artists"], ["albums", "Albums"], ["playlists", "Playlists"]
+  ];
+  const configSections: Array<[ConfigSection, string]> = [
+    ["index", "Index"], ["files", "Files"], ["users", "Users"]
+  ];
+
+  const sectionSwitcher = activeView === "library" ? (
+    <>
+      {librarySections.map(([key, label]) => (
+        <button
+          key={key}
+          className={sectionButtonClassName(libraryWorkspaceProps.activeLibrarySection === key)}
+          type="button"
+          onClick={() => libraryWorkspaceProps.onSectionChange(key)}
+        >
+          {label}
+        </button>
+      ))}
+    </>
+  ) : activeView === "config" && user.role === "admin" ? (
+    <>
+      {configSections.map(([key, label]) => (
+        <button
+          key={key}
+          className={sectionButtonClassName(configViewProps.activeSection === key)}
+          type="button"
+          onClick={() => configViewProps.onSectionChange(key)}
+        >
+          {label}
+        </button>
+      ))}
+    </>
+  ) : null;
+
   return (
     <main
       className={`mx-auto flex min-h-[100dvh] w-full max-w-7xl flex-col px-4 pt-6 md:px-6 ${
@@ -66,7 +109,9 @@ export function AppShell({
             : "pb-[calc(2.5rem+env(safe-area-inset-bottom))]"
       }`}
     >
-      <AppHeader activeView={activeView} user={user} avatarUrl={avatarUrl} onViewChange={onViewChange} />
+      <AppHeader activeView={activeView} user={user} avatarUrl={avatarUrl} onViewChange={onViewChange}>
+        {sectionSwitcher}
+      </AppHeader>
 
       <AppStatusBanners
         appNotice={appNotice}
