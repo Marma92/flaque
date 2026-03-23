@@ -107,28 +107,28 @@ export function AudioPlayer({
   const contentLayoutClass = expanded ? "w-full max-w-4xl space-y-4" : "min-w-0 flex-1 space-y-1";
   const controlsLayoutClass = expanded
     ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-3"
-    : "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2";
+    : "flex w-full items-center justify-between gap-2 md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]";
   const primaryControlsClassName = expanded
     ? "flex items-center gap-2"
-    : "flex min-w-0 flex-1 items-center gap-2";
+    : "flex shrink-0 items-center gap-1 md:min-w-0 md:flex-1 md:gap-2";
   const centerControlsClassName = expanded
     ? "flex shrink-0 items-center gap-2"
-    : "flex shrink-0 items-center gap-2";
+    : "hidden shrink-0 items-center gap-2 md:flex";
   const trailingControlsClassName = expanded
     ? "flex items-center justify-end gap-2"
-    : "flex min-w-0 flex-1 items-center justify-end gap-2";
+    : "flex shrink-0 items-center justify-end gap-1 md:min-w-0 md:flex-1 md:gap-2";
   const sectionClassName = expanded
     ? "flex min-h-0 flex-1 flex-col overflow-y-auto rounded-3xl border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
     : "rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6";
   const artworkClassName = expanded
     ? `${artworkSize} shrink-0 rounded-2xl object-cover shadow-md`
     : `${artworkSize} shrink-0 rounded-2xl border border-flaque-clay/50 object-cover`;
-  const secondaryTextClassName = expanded ? "truncate text-sm text-flaque-steel/90" : "truncate text-sm text-flaque-steel";
+  const secondaryTextClassName = expanded ? "truncate text-sm text-flaque-steel/90" : "overflow-x-auto scrollbar-hide whitespace-nowrap text-sm text-flaque-steel";
   const metaTextClassName = expanded ? "text-xs uppercase tracking-[0.2em] text-flaque-steel/70" : "text-xs uppercase tracking-[0.2em] text-flaque-steel/80";
   const textBlockClassName = expanded ? "space-y-1" : "space-y-0.5";
   const ghostControlButtonClassName = expanded
     ? "flex h-9 w-9 items-center justify-center rounded-xl bg-flaque-cream/80 text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
-    : "flex h-9 w-9 items-center justify-center rounded-xl border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60";
+    : "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60";
   const qualitySelectClassName = expanded
     ? "rounded-lg bg-flaque-cream/90 px-2 py-1 text-xs text-flaque-ink"
     : "rounded-lg border border-flaque-clay bg-white px-2 py-1 text-xs text-flaque-ink";
@@ -167,7 +167,7 @@ export function AudioPlayer({
 
       <div
         className={`flex min-w-0 ${
-          expanded ? "min-h-0 flex-1 flex-col items-center justify-center gap-4" : "flex-col gap-4 md:flex-row md:items-center"
+          expanded ? "min-h-0 flex-1 flex-col items-center justify-center gap-4" : "flex-row items-center gap-3"
         }`}
       >
         {expanded ? (
@@ -213,48 +213,52 @@ export function AudioPlayer({
             ) : null}
           </div>
         ) : (
-          <div className="relative shrink-0">
-            {onArtworkClick ? (
-              <button
-                className="shrink-0 rounded-2xl"
-                type="button"
-                aria-label="Open player view"
-                onClick={onArtworkClick}
-              >
+          <div className="flex shrink-0 flex-col items-center gap-0.5">
+            <div className="relative">
+              {onArtworkClick ? (
+                <button
+                  className="shrink-0 rounded-2xl"
+                  type="button"
+                  aria-label="Open player view"
+                  onClick={onArtworkClick}
+                >
+                  <img
+                    className={`${artworkClassName} cursor-pointer`}
+                    src={coverUrl(track.id, track.cover)}
+                    alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
+                    onError={(event) => {
+                      event.currentTarget.src = defaultCoverImage;
+                    }}
+                  />
+                </button>
+              ) : (
                 <img
-                  className={`${artworkClassName} cursor-pointer`}
+                  className={artworkClassName}
                   src={coverUrl(track.id, track.cover)}
                   alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
                   onError={(event) => {
                     event.currentTarget.src = defaultCoverImage;
                   }}
                 />
-              </button>
-            ) : (
-              <img
-                className={artworkClassName}
-                src={coverUrl(track.id, track.cover)}
-                alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
-                onError={(event) => {
-                  event.currentTarget.src = defaultCoverImage;
-                }}
-              />
-            )}
-
+              )}
+            </div>
+            <span className="whitespace-nowrap text-[10px] text-flaque-steel md:hidden">
+              {formatDuration(currentTime)} / {formatDuration(duration || track.duration)}
+            </span>
           </div>
         )}
 
         <div className={contentLayoutClass}>
           <div className={textBlockClassName}>
             <p
-              className={`font-display text-flaque-ink truncate leading-tight ${expanded ? "text-2xl" : "text-lg"}`}
+              className={`font-display text-flaque-ink leading-tight ${expanded ? "text-2xl truncate" : "text-lg overflow-x-auto scrollbar-hide whitespace-nowrap"}`}
               title={displayTitle}
             >
               {displayTitle}
             </p>
             <p className={secondaryTextClassName}>{displayArtist}</p>
             {displayAlbumWithYear ? (
-              <p className="truncate text-xs text-flaque-steel/80">{displayAlbumWithYear}</p>
+              <p className={expanded ? "truncate text-xs text-flaque-steel/80" : "overflow-x-auto scrollbar-hide whitespace-nowrap text-xs text-flaque-steel/80"}>{displayAlbumWithYear}</p>
             ) : null}
             <p className={metaTextClassName}>
               {codecLabel}
@@ -285,7 +289,7 @@ export function AudioPlayer({
               </svg>
             </button>
             <button
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-flaque-ink text-flaque-cream transition hover:bg-black"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-flaque-ink text-flaque-cream transition hover:bg-black"
               type="button"
               aria-label={isPlaying ? "Pause playback" : "Play playback"}
               title={isPlaying ? "Pause" : "Play"}
@@ -317,9 +321,6 @@ export function AudioPlayer({
                 <path d="M15 6h2v12h-2zM5 6v12l8.5-6L5 6z" />
               </svg>
             </button>
-            <span className="whitespace-nowrap text-xs text-flaque-steel">
-              {formatDuration(currentTime)} / {formatDuration(duration || track.duration)}
-            </span>
 
             </div>
 
@@ -387,6 +388,10 @@ export function AudioPlayer({
                 </svg>
               </button>
 
+
+            </div>
+
+            <div className={trailingControlsClassName}>
               <button
                 className={queueButtonClassName}
                 type="button"
@@ -419,21 +424,20 @@ export function AudioPlayer({
                 </svg>
               </button>
 
-            </div>
-
-            <div className={trailingControlsClassName}>
-              <button
-                className={`${ghostControlButtonClassName} md:hidden`}
-                type="button"
-                aria-label={showMobileUtilityPanel ? "Close player options" : "Open player options"}
-                title={showMobileUtilityPanel ? "Close options" : "More options"}
-                aria-expanded={showMobileUtilityPanel}
-                onClick={() => setShowMobileUtilityPanel((current) => !current)}
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M5 12h.01M12 12h.01M19 12h.01" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
+              {!expanded ? (
+                <button
+                  className={`${ghostControlButtonClassName} md:hidden`}
+                  type="button"
+                  aria-label={showMobileUtilityPanel ? "Close player options" : "Open player options"}
+                  title={showMobileUtilityPanel ? "Close options" : "More options"}
+                  aria-expanded={showMobileUtilityPanel}
+                  onClick={() => setShowMobileUtilityPanel((current) => !current)}
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M5 12h.01M12 12h.01M19 12h.01" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              ) : null}
 
               <div className="hidden h-9 items-center justify-end gap-2 md:flex">
                 <label className="sr-only" htmlFor="player-quality-select-desktop">
@@ -675,6 +679,18 @@ export function AudioPlayer({
             value={Math.min(currentTime, duration || track.duration || 0)}
             onChange={(event) => onSeek(Number(event.target.value))}
           />
+
+          {expanded ? (
+            <div className="flex w-full justify-between text-xs text-flaque-steel">
+              <span>{formatDuration(currentTime)}</span>
+              <span>{formatDuration(duration || track.duration)}</span>
+            </div>
+          ) : (
+            <div className="hidden w-full justify-between text-xs text-flaque-steel md:flex">
+              <span>{formatDuration(currentTime)}</span>
+              <span>{formatDuration(duration || track.duration)}</span>
+            </div>
+          )}
 
           {showQueuePanel ? (
             <QueuePanel

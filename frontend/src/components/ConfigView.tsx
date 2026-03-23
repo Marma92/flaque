@@ -40,9 +40,11 @@ type ConfigViewProps = {
   }) => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
   onResetUserPassword: (userId: string, password: string) => Promise<void>;
+  activeSection: ConfigSection;
+  onSectionChange: (section: ConfigSection) => void;
 };
 
-type ConfigSection = "index" | "files" | "users";
+export type ConfigSection = "index" | "files" | "users";
 
 function normalizeSearch(value: string): string {
   return value.trim().toLowerCase();
@@ -66,10 +68,11 @@ export function ConfigView({
   onCreateUser,
   onPatchUser,
   onDeleteUser,
-  onResetUserPassword
+  onResetUserPassword,
+  activeSection,
+  onSectionChange
 }: ConfigViewProps): JSX.Element {
   const [searchText, setSearchText] = useState("");
-  const [activeSection, setActiveSection] = useState<ConfigSection>("index");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [activeTrackActionId, setActiveTrackActionId] = useState<string | null>(null);
   const [deleteTrackCandidate, setDeleteTrackCandidate] = useState<Track | null>(null);
@@ -175,69 +178,21 @@ export function ConfigView({
 
   return (
     <div className="space-y-4">
-      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-flaque-steel">Config</p>
-            <h2 className="mt-1 font-display text-2xl text-flaque-ink">System Configuration</h2>
-            <p className="mt-2 text-sm text-flaque-steel">
-              Rebuild index, manage global files, and administer users from one page.
-            </p>
-          </div>
+      {trackError ? (
+        <p
+          className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"
+          role="status"
+          aria-live="polite"
+        >
+          {trackError}
+        </p>
+      ) : null}
 
-          <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
-            <button
-              className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
-                activeSection === "index"
-                  ? "bg-flaque-ink text-flaque-cream"
-                  : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
-              }`}
-              type="button"
-              onClick={() => setActiveSection("index")}
-            >
-              Index
-            </button>
-            <button
-              className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
-                activeSection === "files"
-                  ? "bg-flaque-ink text-flaque-cream"
-                  : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
-              }`}
-              type="button"
-              onClick={() => setActiveSection("files")}
-            >
-              Files
-            </button>
-            <button
-              className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
-                activeSection === "users"
-                  ? "bg-flaque-ink text-flaque-cream"
-                  : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
-              }`}
-              type="button"
-              onClick={() => setActiveSection("users")}
-            >
-              Users
-            </button>
-          </div>
-        </div>
-
-        {trackError ? (
-          <p
-            className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"
-            role="status"
-            aria-live="polite"
-          >
-            {trackError}
-          </p>
-        ) : null}
-
-        {actionMessage ? (
-          <p className="mt-3 text-sm text-flaque-steel" role="status" aria-live="polite">
-            {actionMessage}
-          </p>
-        ) : null}
-      </section>
+      {actionMessage ? (
+        <p className="text-sm text-flaque-steel" role="status" aria-live="polite">
+          {actionMessage}
+        </p>
+      ) : null}
 
       {activeSection === "index" ? (
         <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">

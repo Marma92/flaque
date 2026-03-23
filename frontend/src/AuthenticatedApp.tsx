@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from
 
 import { logout, myProfilePhotoUrl } from "./api";
 import { AppShell } from "./components/AppShell";
+import type { ConfigSection } from "./components/ConfigView";
 import type { User } from "./types";
 import type { LibrarySection } from "./types/library";
 import type { ViewName } from "./utils/appUtils";
@@ -36,6 +37,7 @@ export function AuthenticatedApp({
 }: AuthenticatedAppProps): JSX.Element {
   // ── UI state ──────────────────────────────────────────────────────────
   const [rebuilding, setRebuilding] = useState(false);
+  const [activeConfigSection, setActiveConfigSection] = useState<ConfigSection>("index");
   const [playerStatusMessage, setPlayerStatusMessage] = useState<string | null>(null);
   const { appNotice, setAppNotice } = useAppNotice();
   const [playerReturnView, setPlayerReturnView] = useState<ViewName>("library");
@@ -220,6 +222,8 @@ export function AuthenticatedApp({
         onInspectFile: handleInspectUploadFile
       }}
       configViewProps={{
+        activeSection: activeConfigSection,
+        onSectionChange: setActiveConfigSection,
         currentUser: user,
         tracks: allTracksLibrary.tracks,
         ownerNameById,

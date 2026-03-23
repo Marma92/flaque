@@ -1,7 +1,6 @@
 import { LibraryAlbumsSection } from "./LibraryAlbumsSection";
 import { LibraryArtistsSection } from "./LibraryArtistsSection";
 import { LibraryPlaylistSection } from "./LibraryPlaylistSection";
-import { LibrarySectionSwitcher } from "./LibrarySectionSwitcher";
 import { LibraryView } from "./LibraryView";
 import { RecentTracksPanel } from "./RecentTracksPanel";
 import type { AlbumEntry, ArtistEntry, LibraryResponse, Playlist, PlaylistVisibility, Track } from "../types";
@@ -69,8 +68,6 @@ export function LibraryWorkspace({
 }: LibraryWorkspaceProps): JSX.Element {
   return (
     <div className="space-y-4">
-      <LibrarySectionSwitcher activeSection={activeLibrarySection} onSectionChange={onSectionChange} />
-
       {activeLibrarySection === "playlists" ? (
         <LibraryPlaylistSection
           availablePlaylists={availablePlaylists}
