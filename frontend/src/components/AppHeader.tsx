@@ -33,11 +33,11 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange }: AppHead
   }, [avatarUrl, user.id]);
 
   return (
-    <header className="mb-4 rounded-3xl border border-flaque-clay/60 bg-white/80 px-5 py-4 shadow-panel backdrop-blur-sm">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-4">
+    <header className="mb-2 rounded-3xl border border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:mb-4 md:px-5 md:py-4">
+      <div className="flex flex-col items-center gap-2 md:flex-row md:justify-between md:gap-4">
+        <div className="flex min-w-0 items-center gap-2 md:gap-4">
           <button
-            className="relative h-20 w-20 shrink-0 rounded-2xl transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand md:h-24 md:w-24"
+            className="relative h-12 w-12 shrink-0 rounded-2xl transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand md:h-24 md:w-24"
             type="button"
             aria-label="Go to library"
             title="Library"
@@ -70,7 +70,7 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange }: AppHead
           </div>
         </div>
 
-        <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
+        <div className="flex items-center gap-3">
           <button
             className={navIconButtonClassName(activeView === "library")}
             type="button"

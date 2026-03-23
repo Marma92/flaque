@@ -388,6 +388,10 @@ export function AudioPlayer({
                 </svg>
               </button>
 
+
+            </div>
+
+            <div className={trailingControlsClassName}>
               <button
                 className={queueButtonClassName}
                 type="button"
@@ -420,47 +424,19 @@ export function AudioPlayer({
                 </svg>
               </button>
 
-            </div>
-
-            <div className={trailingControlsClassName}>
               {!expanded ? (
-                <>
-                  <button
-                    className={`${ghostControlButtonClassName} ${showQueuePanel ? "ring-2 ring-flaque-sand/55" : ""} md:hidden`}
-                    type="button"
-                    aria-label={showQueuePanel ? "Hide queue" : "Show queue"}
-                    title={showQueuePanel ? "Hide queue" : "Show queue"}
-                    onClick={() => setShowQueuePanel((current) => !current)}
-                  >
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                      <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                  <button
-                    className={`${ghostControlButtonClassName} ${showPlaylistPicker ? "ring-2 ring-flaque-sand/55" : ""} md:hidden`}
-                    type="button"
-                    aria-label="Add to playlist"
-                    title="Add to playlist"
-                    onClick={() => setShowPlaylistPicker((current) => !current)}
-                    disabled={!onAddTrackToPlaylist || !hasPlayablePlaylists}
-                  >
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                      <path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                  <button
-                    className={`${ghostControlButtonClassName} md:hidden`}
-                    type="button"
-                    aria-label={showMobileUtilityPanel ? "Close player options" : "Open player options"}
-                    title={showMobileUtilityPanel ? "Close options" : "More options"}
-                    aria-expanded={showMobileUtilityPanel}
-                    onClick={() => setShowMobileUtilityPanel((current) => !current)}
-                  >
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                      <path d="M5 12h.01M12 12h.01M19 12h.01" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                </>
+                <button
+                  className={`${ghostControlButtonClassName} md:hidden`}
+                  type="button"
+                  aria-label={showMobileUtilityPanel ? "Close player options" : "Open player options"}
+                  title={showMobileUtilityPanel ? "Close options" : "More options"}
+                  aria-expanded={showMobileUtilityPanel}
+                  onClick={() => setShowMobileUtilityPanel((current) => !current)}
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M5 12h.01M12 12h.01M19 12h.01" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
               ) : null}
 
               <div className="hidden h-9 items-center justify-end gap-2 md:flex">
