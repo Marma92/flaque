@@ -424,20 +424,18 @@ export function AudioPlayer({
                 </svg>
               </button>
 
-              {!expanded ? (
-                <button
-                  className={`${ghostControlButtonClassName} md:hidden`}
-                  type="button"
-                  aria-label={showMobileUtilityPanel ? "Close player options" : "Open player options"}
-                  title={showMobileUtilityPanel ? "Close options" : "More options"}
-                  aria-expanded={showMobileUtilityPanel}
-                  onClick={() => setShowMobileUtilityPanel((current) => !current)}
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                    <path d="M5 12h.01M12 12h.01M19 12h.01" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-              ) : null}
+              <button
+                className={`${ghostControlButtonClassName} md:hidden`}
+                type="button"
+                aria-label={showMobileUtilityPanel ? "Close player options" : "Open player options"}
+                title={showMobileUtilityPanel ? "Close options" : "More options"}
+                aria-expanded={showMobileUtilityPanel}
+                onClick={() => setShowMobileUtilityPanel((current) => !current)}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M5 12h.01M12 12h.01M19 12h.01" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
 
               <div className="hidden h-9 items-center justify-end gap-2 md:flex">
                 <label className="sr-only" htmlFor="player-quality-select-desktop">
