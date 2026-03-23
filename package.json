@@ -17,6 +17,7 @@
     "test:frontend": "npm run test --workspace frontend",
     "test:e2e": "npm run build --workspace backend && playwright test",
     "prod:setup": "bash scripts/setup-production.sh",
+    "prod:update": "bash scripts/update-production.sh",
     "prod:up": "bash scripts/compose-production.sh down --remove-orphans && bash scripts/compose-production.sh up -d --remove-orphans",
     "prod:down": "bash scripts/compose-production.sh down --remove-orphans",
     "prod:admin:reset-password": "bash scripts/prod-reset-admin-password.sh",
