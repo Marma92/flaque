@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import sharp from "sharp";
 
 import { fileExists, writeJsonAtomic } from "../../utils/fs";
 import { toDataRelativePath } from "../storage/storageService";
@@ -84,6 +85,37 @@ export async function downloadImageToDirectory(
   return toDataRelativePath(filePath);
 }
 
+async function downloadImageAsJpegToDirectory(
+  imageUrl: string,
+  targetDir: string,
+  fileBaseName: string
+): Promise<string | undefined> {
+  const response = await fetch(imageUrl);
+  if (!response.ok) {
+    return undefined;
+  }
+
+  const imageBuffer = Buffer.from(await response.arrayBuffer());
+  if (imageBuffer.length === 0) {
+    return undefined;
+  }
+
+  let jpegBuffer: Buffer;
+  try {
+    jpegBuffer = await sharp(imageBuffer).jpeg({ quality: 90 }).toBuffer();
+  } catch {
+    const contentType = response.headers.get("content-type")?.toLowerCase().trim();
+    if (contentType !== "image/jpeg" && contentType !== "image/jpg") {
+      return undefined;
+    }
+    jpegBuffer = imageBuffer;
+  }
+
+  const filePath = path.join(targetDir, `${fileBaseName}.jpg`);
+  await fs.writeFile(filePath, jpegBuffer);
+  return toDataRelativePath(filePath);
+}
+
 export async function writeEmbeddedCoverToDirectory(
   cover: { data: Buffer; format?: string } | undefined,
   targetDir: string,
@@ -144,7 +176,7 @@ export async function fetchAlbumCoverPath(
       return undefined;
     }
 
-    return await downloadImageToDirectory(thumbUrl, albumDir, "album-cover");
+    return await downloadImageAsJpegToDirectory(thumbUrl, albumDir, "album-cover");
   } catch {
     return undefined;
   }

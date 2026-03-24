@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LibraryIndex } from "../../types/library";
+import { ALBUM_METADATA_FILE } from "../../utils/music";
 
 const {
   mockReadTrackMetadataOverrides,
@@ -223,5 +224,31 @@ describe("scanFilesystemLibrary incremental mode", () => {
     const result = await scanFilesystemLibrary({ mode: "full" });
 
     expect(result.totalTracks).toBe(1);
+  });
+
+  it("fetches album cover when album-cover.jpg is missing", async () => {
+    await writeAudioFile("artist_a/album_a/track-a.mp3", "aaa");
+
+    const albumDir = path.join(getSharedMusicRoot(), "artist_a", "album_a");
+    const metadataPath = path.join(albumDir, ALBUM_METADATA_FILE);
+    await fs.writeFile(path.join(albumDir, "album-cover.png"), "png", "utf8");
+    await fs.writeFile(
+      metadataPath,
+      JSON.stringify({
+        name: "album_a",
+        cover: { path: "storage/music/artist_a/album_a/album-cover.png" }
+      }),
+      "utf8"
+    );
+    mockFetchAlbumCoverPath.mockResolvedValue("storage/music/artist_a/album_a/album-cover.jpg");
+
+    const { scanFilesystemLibrary } = await import("./scannerService");
+    await scanFilesystemLibrary({ mode: "full" });
+
+    expect(mockFetchAlbumCoverPath).toHaveBeenCalledWith("artist_a", "album_a", albumDir);
+    const albumMetadata = JSON.parse(await fs.readFile(metadataPath, "utf8")) as {
+      cover?: { path?: string };
+    };
+    expect(albumMetadata.cover?.path).toBe("storage/music/artist_a/album_a/album-cover.jpg");
   });
 });

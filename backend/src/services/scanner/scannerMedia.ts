@@ -29,6 +29,8 @@ type AlbumMetadata = {
   tracks?: Track[];
 };
 
+const ALBUM_COVER_FILE_NAME = "album-cover.jpg";
+
 export type AlbumAggregate = {
   albumDir: string;
   id?: string;
@@ -91,8 +93,27 @@ export async function ensureAlbumCoverForTrack(
   const metadataPath = path.join(albumDir, ALBUM_METADATA_FILE);
   const metadata = await readJsonFile<AlbumMetadata | null>(metadataPath, null);
   const existingName = metadata?.name?.trim() ? metadata.name : albumName;
-  if (metadata && (await hasMediaFile(metadata.cover?.path))) {
+
+  const albumCoverPath = toDataRelativePath(path.join(albumDir, ALBUM_COVER_FILE_NAME));
+  if (await fileExists(path.join(albumDir, ALBUM_COVER_FILE_NAME))) {
+    if (metadata?.cover?.path !== albumCoverPath) {
+      await writeJsonAtomic(metadataPath, {
+        name: existingName,
+        cover: { path: albumCoverPath }
+      });
+    }
     return;
+  }
+
+  if (metadata && (await hasMediaFile(metadata.cover?.path))) {
+    const fetchedCoverPath = await fetchAlbumCoverPath(artistName, existingName, albumDir);
+    if (fetchedCoverPath) {
+      await writeJsonAtomic(metadataPath, {
+        name: existingName,
+        cover: { path: fetchedCoverPath }
+      });
+      return;
+    }
   }
 
   const embeddedCoverPath = await writeEmbeddedCoverToDirectory(trackCover, albumDir, "album-cover");
