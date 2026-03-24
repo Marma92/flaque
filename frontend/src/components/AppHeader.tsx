@@ -17,7 +17,7 @@ type AppHeaderProps = {
  */
 export function AppHeader({ activeView, user, avatarUrl, onViewChange, children }: AppHeaderProps): JSX.Element {
   const navIconButtonClassName = (isActive: boolean): string =>
-    `flex h-9 w-9 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 ${
+    `flex h-11 w-11 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 ${
       isActive
         ? "bg-flaque-ink/12 text-flaque-ink"
         : "text-flaque-steel hover:bg-flaque-cream/70 hover:text-flaque-ink"
@@ -46,7 +46,7 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange, children 
           >
             <img
               className="header-logo-light absolute inset-0 h-full w-full object-contain"
-              src="/favicon.png"
+              src="/logo-light.png"
               alt="Flaque logo"
             />
             <img
@@ -85,25 +85,10 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange, children 
             title="Library"
             onClick={() => onViewChange("library")}
           >
-            <svg
-              className="h-5 w-5"
-              viewBox="0 0 28 28"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.1"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <rect x="3" y="3" width="22" height="22" rx="3" />
-              <circle cx="11" cy="15" r="6" />
-              <circle cx="11" cy="15" r="2" />
-              <circle cx="11" cy="15" r="0.9" />
-              <path d="M18 8h4" />
-              <path d="M22 8v6" />
-              <path d="M22 14l-3 3" />
-              <path d="M19 17l2 2" />
-            </svg>
+            <span className="relative block h-10 w-10" aria-hidden="true">
+              <img className="nav-icon-light absolute inset-0 h-full w-full" src="/library-light.png" alt="" />
+              <img className="nav-icon-dark absolute inset-0 h-full w-full" src="/library-dark.png" alt="" />
+            </span>
           </button>
 
           <button
@@ -113,20 +98,10 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange, children 
             title="Upload"
             onClick={() => onViewChange("upload")}
           >
-            <svg
-              className="h-5 w-5"
-              viewBox="0 0 28 28"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.1"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M14 19V8" />
-              <path d="M10 12l4-4 4 4" />
-              <path d="M6 19v3a2 2 0 002 2h12a2 2 0 002-2v-3" />
-            </svg>
+            <span className="relative block h-10 w-10" aria-hidden="true">
+              <img className="nav-icon-light absolute inset-0 h-full w-full" src="/upload-light.png" alt="" />
+              <img className="nav-icon-dark absolute inset-0 h-full w-full" src="/upload-dark.png" alt="" />
+            </span>
           </button>
 
           {user.role === "admin" ? (
@@ -137,27 +112,10 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange, children 
               title="Configuration"
               onClick={() => onViewChange("config")}
             >
-              <svg
-                className="h-5 w-5"
-                viewBox="0 0 28 28"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.1"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <circle cx="14" cy="14" r="4" />
-                <circle cx="14" cy="14" r="8" />
-                <path d="M14 6V5" />
-                <path d="M14 23v-1" />
-                <path d="M22 14h1" />
-                <path d="M6 14H5" />
-                <path d="M20 8l1-1" />
-                <path d="M8 20l-1 1" />
-                <path d="M8 8L7 7" />
-                <path d="M20 20l1 1" />
-              </svg>
+              <span className="relative block h-10 w-10" aria-hidden="true">
+                <img className="nav-icon-light absolute inset-0 h-full w-full" src="/settings-light.png" alt="" />
+                <img className="nav-icon-dark absolute inset-0 h-full w-full" src="/settings-dark.png" alt="" />
+              </span>
             </button>
           ) : null}
 
