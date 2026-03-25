@@ -18,6 +18,7 @@ type TrackListProps = {
   playlists?: Playlist[];
   onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
   emptyMessage?: string;
+  constrainHeight?: boolean;
 };
 
 export function TrackList({
@@ -27,7 +28,8 @@ export function TrackList({
   onTrackSelect,
   playlists = [],
   onAddTrackToPlaylist,
-  emptyMessage = "No tracks match this filter yet."
+  emptyMessage = "No tracks match this filter yet.",
+  constrainHeight = true
 }: TrackListProps): JSX.Element {
   const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
   const [playlistPickerTrackId, setPlaylistPickerTrackId] = useState<string | null>(null);
@@ -148,7 +150,7 @@ export function TrackList({
         {tracks.length === 0 ? <p className="text-sm text-flaque-steel">{emptyMessage}</p> : null}
       </div>
 
-      <div className="hidden max-h-[50vh] overflow-auto md:block">
+      <div className={`hidden overflow-auto md:block${constrainHeight ? " max-h-[50vh]" : ""}`}>
         <table className="w-full min-w-[780px] border-collapse text-left text-sm">
           <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
             <tr>

@@ -14,7 +14,8 @@ const SUPPORTED_TRACK_SORT_FIELDS = new Set<TrackSortBy>([
   "codec",
   "bitrate",
   "sampleRate",
-  "path"
+  "path",
+  "addedAt"
 ]);
 
 const DEFAULT_TRACKS_PAGE = 1;
@@ -98,6 +99,7 @@ export type TracksQuery = {
   sortBy?: TrackSortBy;
   sortDir: TrackSortDirection;
   filter: LibraryFilter;
+  addedAfter?: string;
 };
 
 export function readTracksQuery(query: Record<string, unknown>):
@@ -120,7 +122,7 @@ export function readTracksQuery(query: Record<string, unknown>):
   if (sortBy === null) {
     return {
       error:
-        "sortBy must be one of: title, artist, album, owner, duration, codec, bitrate, sampleRate, path"
+        "sortBy must be one of: title, artist, album, owner, duration, codec, bitrate, sampleRate, path, addedAt"
     };
   }
 
@@ -129,7 +131,17 @@ export function readTracksQuery(query: Record<string, unknown>):
     return { error: "sortDir must be asc or desc" };
   }
 
-  return { page, limit, sortBy, sortDir, filter: readFilter(query) };
+  let addedAfter: string | undefined;
+  const addedAfterRaw = normalizeQueryValue(query.addedAfter);
+  if (addedAfterRaw) {
+    const parsed = Date.parse(addedAfterRaw);
+    if (Number.isNaN(parsed)) {
+      return { error: "addedAfter must be a valid ISO 8601 date string" };
+    }
+    addedAfter = new Date(parsed).toISOString();
+  }
+
+  return { page, limit, sortBy, sortDir, filter: readFilter(query), addedAfter };
 }
 
 export function readDirection(value: unknown): AdjacentDirection | null {

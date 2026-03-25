@@ -18,6 +18,8 @@ type UseLibraryCommandsArgs = {
   manageablePlaylists: Playlist[];
   refreshCurrentLibrary: () => Promise<void>;
   refreshAllTracks: () => Promise<void>;
+  refreshRecentlyUploaded: () => void;
+  refreshPaginatedLibrary: () => void;
   removeTrackFromPlayback: (trackId: string) => void;
   setLibraryError: Dispatch<SetStateAction<string | null>>;
   setAllTracksError: Dispatch<SetStateAction<string | null>>;
@@ -52,6 +54,8 @@ export function useLibraryCommands({
   manageablePlaylists,
   refreshCurrentLibrary,
   refreshAllTracks,
+  refreshRecentlyUploaded,
+  refreshPaginatedLibrary,
   removeTrackFromPlayback,
   setLibraryError,
   setAllTracksError,
@@ -71,6 +75,8 @@ export function useLibraryCommands({
   }): Promise<UploadTracksResult> {
     const result = await uploadTracks(input);
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+    refreshRecentlyUploaded();
+    refreshPaginatedLibrary();
 
     setAppNotice({
       tone: "success",
@@ -92,6 +98,8 @@ export function useLibraryCommands({
     try {
       await rebuildIndex();
       await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+    refreshRecentlyUploaded();
+    refreshPaginatedLibrary();
       setAppNotice({
         tone: "success",
         message: "Library index rebuilt successfully."
@@ -119,6 +127,8 @@ export function useLibraryCommands({
     });
 
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+    refreshRecentlyUploaded();
+    refreshPaginatedLibrary();
   }
 
   async function handleUpdateTrackMetadata(trackId: string, patch: TrackMetadataPatch): Promise<void> {
@@ -128,6 +138,8 @@ export function useLibraryCommands({
       message: "Track metadata updated."
     });
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+    refreshRecentlyUploaded();
+    refreshPaginatedLibrary();
   }
 
   async function handleCreatePlaylist(input: {
@@ -140,6 +152,8 @@ export function useLibraryCommands({
       message: "Playlist created."
     });
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+    refreshRecentlyUploaded();
+    refreshPaginatedLibrary();
   }
 
   async function handleAddTrackToPlaylist(input: { trackId: string; playlistId: string }): Promise<void> {
@@ -166,6 +180,8 @@ export function useLibraryCommands({
     });
 
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+    refreshRecentlyUploaded();
+    refreshPaginatedLibrary();
   }
 
   return {

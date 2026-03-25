@@ -1,10 +1,11 @@
+import { HomePanels } from "./HomePanels";
 import { LibraryAlbumsSection } from "./LibraryAlbumsSection";
 import { LibraryArtistsSection } from "./LibraryArtistsSection";
 import { LibraryPlaylistSection } from "./LibraryPlaylistSection";
-import { LibraryView } from "./LibraryView";
-import { RecentTracksPanel } from "./RecentTracksPanel";
+import { PaginatedLibrary } from "./PaginatedLibrary";
 import type { AlbumEntry, ArtistEntry, LibraryResponse, Playlist, PlaylistVisibility, Track } from "../types";
 import type { LibraryFilters, LibrarySection } from "../types/library";
+import type { UploadPeriod } from "../hooks/useRecentlyUploaded";
 
 type LibraryWorkspaceProps = {
   activeLibrarySection: LibrarySection;
@@ -34,6 +35,18 @@ type LibraryWorkspaceProps = {
   onLibraryTrackSelect: (track: Track) => void;
   manageablePlaylists: Playlist[];
   onAddTrackToPlaylist: (input: { trackId: string; playlistId: string }) => Promise<void>;
+  // Recently uploaded
+  recentlyUploadedTracks: Track[];
+  recentlyUploadedLoading: boolean;
+  recentlyUploadedPeriod: UploadPeriod;
+  onRecentlyUploadedPeriodChange: (period: UploadPeriod) => void;
+  // Paginated library
+  paginatedTracks: Track[];
+  paginatedTotal: number;
+  paginatedLoading: boolean;
+  paginatedLoadingMore: boolean;
+  paginatedHasMore: boolean;
+  paginatedSentinelRef: (node: HTMLDivElement | null) => void;
 };
 
 /**
@@ -66,7 +79,17 @@ export function LibraryWorkspace({
   onFilterChange,
   onLibraryTrackSelect,
   manageablePlaylists,
-  onAddTrackToPlaylist
+  onAddTrackToPlaylist,
+  recentlyUploadedTracks,
+  recentlyUploadedLoading,
+  recentlyUploadedPeriod,
+  onRecentlyUploadedPeriodChange,
+  paginatedTracks,
+  paginatedTotal,
+  paginatedLoading,
+  paginatedLoadingMore,
+  paginatedHasMore,
+  paginatedSentinelRef
 }: LibraryWorkspaceProps): JSX.Element {
   return (
     <div className="space-y-4">
@@ -108,17 +131,30 @@ export function LibraryWorkspace({
 
       {activeLibrarySection === "music" ? (
         <>
-          <RecentTracksPanel tracks={recentTracks} onTrackReplay={onRecentTrackReplay} />
+          <HomePanels
+            recentTracks={recentTracks}
+            onRecentTrackReplay={onRecentTrackReplay}
+            recentlyUploadedTracks={recentlyUploadedTracks}
+            recentlyUploadedLoading={recentlyUploadedLoading}
+            recentlyUploadedPeriod={recentlyUploadedPeriod}
+            onRecentlyUploadedPeriodChange={onRecentlyUploadedPeriodChange}
+            onRecentlyUploadedTrackSelect={onLibraryTrackSelect}
+            ownerNameById={ownerNameById}
+          />
 
-          <LibraryView
-            generatedAt={library.generatedAt}
-            tracks={library.tracks}
+          <PaginatedLibrary
             owners={library.owners}
             ownerNameById={ownerNameById}
             artists={library.artists}
             albums={library.albums}
             filters={filters}
             onFilterChange={onFilterChange}
+            tracks={paginatedTracks}
+            total={paginatedTotal}
+            loading={paginatedLoading}
+            loadingMore={paginatedLoadingMore}
+            hasMore={paginatedHasMore}
+            sentinelRef={paginatedSentinelRef}
             currentTrackId={currentTrackId}
             onTrackSelect={onLibraryTrackSelect}
             playlists={manageablePlaylists}
