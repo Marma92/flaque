@@ -12,9 +12,9 @@ type RecentlyUploadedPanelProps = {
   ownerNameById?: Record<string, string>;
 };
 
-const periodOptions: { value: UploadPeriod; label: string }[] = [
-  { value: "7d", label: "7 days" },
-  { value: "30d", label: "30 days" }
+const periodOptions: { value: UploadPeriod; label: string; shortLabel: string }[] = [
+  { value: "7d", label: "7 days", shortLabel: "7d" },
+  { value: "30d", label: "30 days", shortLabel: "30d" }
 ];
 
 export function RecentlyUploadedPanel({
@@ -32,8 +32,8 @@ export function RecentlyUploadedPanel({
 
   return (
     <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="font-display text-xl text-flaque-ink">Recently Uploaded</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="shrink-0 font-display text-xl text-flaque-ink">Recent Uploads</h2>
         <div className="flex gap-1">
           {periodOptions.map((option) => (
             <button
@@ -46,7 +46,8 @@ export function RecentlyUploadedPanel({
               type="button"
               onClick={() => onPeriodChange(option.value)}
             >
-              {option.label}
+              <span className="md:hidden">{option.shortLabel}</span>
+              <span className="hidden md:inline">{option.label}</span>
             </button>
           ))}
         </div>
