@@ -1,8 +1,8 @@
 import { coverPathUrl, coverUrl } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
 import type { AlbumEntry, Playlist, Track } from "../types";
-import { getAlbumKey } from "../utils/appUtils";
 import { useState } from "react";
+import { AlbumList } from "./AlbumList";
 import { Coverflow } from "./Coverflow";
 import { TrackList } from "./TrackList";
 
@@ -106,43 +106,12 @@ export function LibraryAlbumsSection({
               getAlbumCoverSrc={getAlbumCoverSrc}
             />
           ) : !isListModeTracklistVisible ? (
-            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {albums.map((album) => {
-                const selected = selectedAlbum ? getAlbumKey(selectedAlbum) === getAlbumKey(album) : false;
-
-                return (
-                  <button
-                    key={`${album.artist ?? "unknown"}-${album.name}`}
-                    className={`rounded-xl border px-3 py-2 text-left transition ${
-                      selected
-                        ? "border-flaque-ink bg-flaque-sand/25"
-                        : "border-flaque-clay/60 bg-flaque-cream/45 hover:bg-flaque-cream"
-                    }`}
-                    type="button"
-                    onClick={() => onAlbumSelect(album)}
-                    title={album.artist ? `${album.artist} - ${album.name}` : album.name}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <img
-                        className="h-11 w-11 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
-                        src={getAlbumCoverSrc(album)}
-                        alt={album.artist ? `Cover for ${album.artist} - ${album.name}` : `Cover for ${album.name}`}
-                        onError={(event) => {
-                          event.currentTarget.src = defaultCoverImage;
-                        }}
-                      />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-flaque-ink">{album.name}</p>
-                        <p className="truncate text-xs text-flaque-steel">{album.artist ?? "Unknown artist"}</p>
-                        <p className="text-xs text-flaque-steel/90">
-                          {album.trackCount} track{album.trackCount > 1 ? "s" : ""}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <AlbumList
+              albums={albums}
+              selectedAlbum={selectedAlbum}
+              onAlbumSelect={onAlbumSelect}
+              getAlbumCoverSrc={getAlbumCoverSrc}
+            />
           ) : null}
 
           {selectedAlbum ? (

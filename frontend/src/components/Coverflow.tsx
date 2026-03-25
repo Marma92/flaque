@@ -1,14 +1,7 @@
-import type { AlbumEntry } from "../types";
+import type { AlbumListProps } from "./AlbumList";
 import { getAlbumKey } from "../utils/appUtils";
 
-export type AlbumCoverflowProps = {
-  albums: AlbumEntry[];
-  selectedAlbum: AlbumEntry | null;
-  onAlbumSelect: (album: AlbumEntry) => void;
-  getAlbumCoverSrc: (album: AlbumEntry) => string;
-};
-
-export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverSrc }: AlbumCoverflowProps): JSX.Element {
+export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverSrc }: AlbumListProps): JSX.Element {
   const selectedKey = selectedAlbum ? getAlbumKey(selectedAlbum) : null;
 
   return (
