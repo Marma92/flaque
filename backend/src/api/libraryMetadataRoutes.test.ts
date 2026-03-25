@@ -657,6 +657,92 @@ describe("library metadata routes", () => {
     );
   });
 
+  it("returns albums for a normalized artist directory name", async () => {
+    const owner = "owner-1";
+    const artistSlug = "ac_dc";
+    const otherArtistSlug = "daft_punk";
+
+    const trackOne = createNestedTrack(
+      "track-10",
+      "Back In Black",
+      "AC/DC",
+      "Back In Black",
+      `storage/users/${owner}/uploads/${artistSlug}/back_in_black/back-in-black.flac`
+    );
+
+    const trackTwo = createNestedTrack(
+      "track-11",
+      "Hells Bells",
+      "AC/DC",
+      "Back In Black",
+      `storage/users/${owner}/uploads/${artistSlug}/back_in_black/hells-bells.flac`
+    );
+
+    const trackThree = createNestedTrack(
+      "track-12",
+      "Thunderstruck",
+      "AC/DC",
+      "The Razors Edge",
+      `storage/users/${owner}/uploads/${artistSlug}/the_razors_edge/thunderstruck.flac`
+    );
+
+    const otherArtistTrack = createNestedTrack(
+      "track-13",
+      "Harder Better Faster Stronger",
+      "Daft Punk",
+      "Discovery",
+      `storage/users/${owner}/uploads/${otherArtistSlug}/discovery/harder-better-faster-stronger.flac`
+    );
+
+    const snapshot: LibraryIndex = {
+      generatedAt: new Date().toISOString(),
+      totalTracks: 4,
+      tracks: [trackOne, trackTwo, trackThree, otherArtistTrack]
+    };
+
+    const indexStore = new FakeIndexStore({
+      initialSnapshot: snapshot,
+      rebuildSnapshot: snapshot
+    });
+
+    await bootstrapServer(indexStore);
+    const cookie = await login("admin", "admin-secret-123");
+
+    const albumsResponse = await apiRequest(`/api/artists/${artistSlug}/albums`, {
+      headers: {
+        Cookie: cookie
+      }
+    });
+
+    expect(albumsResponse.status).toBe(200);
+    expect(albumsResponse.payload).toEqual(
+      expect.objectContaining({
+        total: 3,
+        artist: artistSlug,
+        albums: expect.arrayContaining([
+          expect.objectContaining({
+            name: "Back In Black",
+            trackCount: 2
+          }),
+          expect.objectContaining({
+            name: "The Razors Edge",
+            trackCount: 1
+          })
+        ])
+      })
+    );
+
+    expect(albumsResponse.payload).toEqual(
+      expect.not.objectContaining({
+        albums: expect.arrayContaining([
+          expect.objectContaining({
+            name: "Discovery"
+          })
+        ])
+      })
+    );
+  });
+
   it("includes unknown album entries in album list", async () => {
     const owner = "owner-1";
     const artistSlug = "unknown_artist";

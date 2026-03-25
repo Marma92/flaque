@@ -363,6 +363,41 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /api/artists/{artist}/albums:
+    get:
+      tags: [Library]
+      summary: List albums for a normalized artist directory name
+      parameters:
+        - name: artist
+          in: path
+          required: true
+          description: Normalized artist directory segment (e.g. daft_punk)
+          schema:
+            type: string
+        - $ref: "#/components/parameters/FilterOwner"
+        - $ref: "#/components/parameters/FilterQuery"
+      responses:
+        "200":
+          description: Albums metadata list for the requested artist directory
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [total, artist, albums]
+                properties:
+                  total:
+                    type: integer
+                  artist:
+                    type: string
+                  albums:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AlbumEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/albums:
     get:
       tags: [Library]
