@@ -84,6 +84,31 @@
         applyTheme(getCurrentTheme());
       })();
     </script>
-    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      (function () {
+        function supportsScrollDrivenAnimations() {
+          if (typeof window.CSS === "undefined" || typeof window.CSS.supports !== "function") {
+            return false;
+          }
+
+          return window.CSS.supports("animation-timeline: view()") || window.CSS.supports("scroll-timeline-name: --timeline");
+        }
+
+        function startApp() {
+          import("/src/main.tsx");
+        }
+
+        if (supportsScrollDrivenAnimations()) {
+          startApp();
+          return;
+        }
+
+        var polyfillScript = document.createElement("script");
+        polyfillScript.src = "/scroll-timeline.js";
+        polyfillScript.onload = startApp;
+        polyfillScript.onerror = startApp;
+        document.head.appendChild(polyfillScript);
+      })();
+    </script>
   </body>
 </html>
