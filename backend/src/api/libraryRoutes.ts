@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 
 import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
@@ -22,6 +23,7 @@ import {
 import { filterPlayablePlaylists } from "../services/playlists/playlistStore";
 import { deleteTrackCover } from "../services/storage/coverService";
 import { resolveTrackAbsolutePath } from "../services/storage/storageService";
+import { resolveDataRelativePath } from "../utils/paths";
 import {
   filterTracks,
   getAdjacentTrack,
@@ -80,6 +82,18 @@ function buildAlbumResponse(
     },
     tracks: tracks.map(mapTrackResponse)
   };
+}
+
+function getTrackArtistDirectorySegment(track: Track): string | undefined {
+  try {
+    const trackAbsolutePath = resolveDataRelativePath(track.path);
+    const albumDir = path.dirname(trackAbsolutePath);
+    const artistDir = path.dirname(albumDir);
+    const segment = path.basename(artistDir).trim().toLowerCase();
+    return segment || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 // ── Router ──────────────────────────────────────────────────────────────
@@ -283,6 +297,30 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       const tracks = filterTracks(tracksWithOwnerNames, { owner: filter.owner, q: filter.q });
       const artists = await attachArtistPhotos(tracks);
       res.json({ total: tracks.length, artists });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // GET /artists/:artist/albums
+  router.get("/artists/:artist/albums", requireAuth, async (req, res, next) => {
+    try {
+      const normalizedArtist = req.params.artist?.trim().toLowerCase();
+      if (!normalizedArtist) {
+        res.status(400).json({ error: "Artist is required" });
+        return;
+      }
+
+      const ownerNamesById = getOwnerNamesById();
+      const filter = readFilter(req.query as Record<string, unknown>);
+      const indexedTracks = selectIndexedTracks(indexStore, { owner: filter.owner }, ownerNamesById);
+      const tracksWithOwnerNames = mapTrackOwners(indexedTracks, ownerNamesById);
+      const tracksForArtist = tracksWithOwnerNames.filter(
+        (track) => getTrackArtistDirectorySegment(track) === normalizedArtist
+      );
+      const tracks = filterTracks(tracksForArtist, { owner: filter.owner, q: filter.q });
+      const albums = await attachCollaborativeAlbumCovers(tracks);
+      res.json({ total: tracks.length, artist: normalizedArtist, albums });
     } catch (error) {
       next(error);
     }
