@@ -3,7 +3,7 @@ import defaultCoverImage from "../assets/default-cover.png";
 import type { AlbumEntry, Playlist, Track } from "../types";
 import { getAlbumKey } from "../utils/appUtils";
 import { useState } from "react";
-import { AlbumCoverflow } from "./AlbumCoverflow";
+import { Coverflow } from "./Coverflow";
 import { TrackList } from "./TrackList";
 
 type LibraryAlbumsSectionProps = {
@@ -97,7 +97,7 @@ export function LibraryAlbumsSection({
       ) : (
         <>
           {viewMode === "coverflow" ? (
-            <AlbumCoverflow
+            <Coverflow
               albums={albums}
               selectedAlbum={selectedAlbum}
               onAlbumSelect={onAlbumSelect}
