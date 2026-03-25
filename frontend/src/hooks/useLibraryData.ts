@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
-import { getAlbumTracks, getAlbums, getArtists, getLibrary } from "../api";
+import { getAlbumTracks, getAlbums, getArtistAlbums, getArtists, getLibrary } from "../api";
 import type { AlbumEntry, ArtistEntry, LibraryResponse, Playlist, Track, User } from "../types";
 import type { LibraryFilters, LibrarySection } from "../types/library";
 import { getAlbumKey, normalizeText, sortAlbumTracksByNumber, type ViewName } from "../utils/appUtils";
@@ -30,6 +30,11 @@ type UseLibraryDataResult = {
   allTracksLibrary: LibraryResponse;
   availablePlaylists: Playlist[];
   libraryArtists: ArtistEntry[];
+  selectedArtist: ArtistEntry | null;
+  artistAlbums: AlbumEntry[];
+  selectedArtistAlbum: AlbumEntry | null;
+  selectedArtistAlbumTracks: Track[];
+  selectedArtistAlbumTracksError: string | null;
   libraryAlbums: AlbumEntry[];
   selectedAlbum: AlbumEntry | null;
   selectedAlbumTracks: Track[];
@@ -37,6 +42,8 @@ type UseLibraryDataResult = {
   loadingLibrary: boolean;
   loadingAllTracks: boolean;
   loadingLibraryArtists: boolean;
+  loadingArtistAlbums: boolean;
+  loadingSelectedArtistAlbumTracks: boolean;
   loadingLibraryAlbums: boolean;
   loadingSelectedAlbumTracks: boolean;
   libraryError: string | null;
@@ -46,6 +53,10 @@ type UseLibraryDataResult = {
   libraryMetadataError: string | null;
   refreshCurrentLibrary: () => Promise<void>;
   refreshAllTracks: () => Promise<void>;
+  selectArtist: (artist: ArtistEntry) => void;
+  clearSelectedArtist: () => void;
+  selectArtistAlbum: (album: AlbumEntry) => void;
+  clearSelectedArtistAlbum: () => void;
   selectAlbum: (album: AlbumEntry) => void;
   clearSelectedAlbum: () => void;
 };
@@ -65,12 +76,19 @@ export function useLibraryData({
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [loadingAllTracks, setLoadingAllTracks] = useState(false);
   const [libraryArtists, setLibraryArtists] = useState<ArtistEntry[]>([]);
+  const [selectedArtist, setSelectedArtist] = useState<ArtistEntry | null>(null);
+  const [artistAlbums, setArtistAlbums] = useState<AlbumEntry[]>([]);
+  const [selectedArtistAlbum, setSelectedArtistAlbum] = useState<AlbumEntry | null>(null);
+  const [selectedArtistAlbumTracks, setSelectedArtistAlbumTracks] = useState<Track[]>([]);
+  const [loadingSelectedArtistAlbumTracks, setLoadingSelectedArtistAlbumTracks] = useState(false);
+  const [selectedArtistAlbumTracksError, setSelectedArtistAlbumTracksError] = useState<string | null>(null);
   const [libraryAlbums, setLibraryAlbums] = useState<AlbumEntry[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumEntry | null>(null);
   const [selectedAlbumTracks, setSelectedAlbumTracks] = useState<Track[]>([]);
   const [loadingSelectedAlbumTracks, setLoadingSelectedAlbumTracks] = useState(false);
   const [selectedAlbumTracksError, setSelectedAlbumTracksError] = useState<string | null>(null);
   const [loadingLibraryArtists, setLoadingLibraryArtists] = useState(false);
+  const [loadingArtistAlbums, setLoadingArtistAlbums] = useState(false);
   const [loadingLibraryAlbums, setLoadingLibraryAlbums] = useState(false);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [allTracksError, setAllTracksError] = useState<string | null>(null);
@@ -79,6 +97,8 @@ export function useLibraryData({
   const libraryRequestIdRef = useRef(0);
   const allTracksRequestIdRef = useRef(0);
   const artistsRequestIdRef = useRef(0);
+  const artistAlbumsRequestIdRef = useRef(0);
+  const selectedArtistAlbumTracksRequestIdRef = useRef(0);
   const albumsRequestIdRef = useRef(0);
   const selectedAlbumTracksRequestIdRef = useRef(0);
 
@@ -123,10 +143,17 @@ export function useLibraryData({
       setLibrary(EMPTY_LIBRARY);
       setAllTracksLibrary(EMPTY_LIBRARY);
       setLibraryArtists([]);
+      setSelectedArtist(null);
+      setArtistAlbums([]);
+      setSelectedArtistAlbum(null);
+      setSelectedArtistAlbumTracks([]);
+      setSelectedArtistAlbumTracksError(null);
       setLibraryAlbums([]);
       setLoadingLibrary(false);
       setLoadingAllTracks(false);
       setLoadingLibraryArtists(false);
+      setLoadingArtistAlbums(false);
+      setLoadingSelectedArtistAlbumTracks(false);
       setLoadingLibraryAlbums(false);
       setLibraryError(null);
       setAllTracksError(null);
@@ -197,6 +224,128 @@ export function useLibraryData({
         }
       });
   }, [activeLibrarySection, activeView, filters.owner, filters.q, user]);
+
+  useEffect(() => {
+    if (activeLibrarySection !== "artists") {
+      setSelectedArtist(null);
+      setArtistAlbums([]);
+      setSelectedArtistAlbum(null);
+      setSelectedArtistAlbumTracks([]);
+      setSelectedArtistAlbumTracksError(null);
+      setLoadingSelectedArtistAlbumTracks(false);
+      setLoadingArtistAlbums(false);
+      return;
+    }
+
+    setSelectedArtist((current) => {
+      if (!current) {
+        return null;
+      }
+
+      return libraryArtists.some((artist) => normalizeText(artist.name) === normalizeText(current.name)) ? current : null;
+    });
+  }, [activeLibrarySection, libraryArtists]);
+
+  useEffect(() => {
+    if (activeLibrarySection !== "artists" || !selectedArtist) {
+      return;
+    }
+
+    const requestId = artistAlbumsRequestIdRef.current + 1;
+    artistAlbumsRequestIdRef.current = requestId;
+
+    setLoadingArtistAlbums(true);
+    setLibraryMetadataError(null);
+
+    getArtistAlbums(selectedArtist.normalizedName, {
+      owner: filters.owner,
+      q: filters.q
+    })
+      .then((albums) => {
+        if (artistAlbumsRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setArtistAlbums(albums);
+        setSelectedArtistAlbum((current) => {
+          if (!current) {
+            return null;
+          }
+
+          const currentKey = getAlbumKey(current);
+          return albums.some((album) => getAlbumKey(album) === currentKey) ? current : null;
+        });
+      })
+      .catch((error) => {
+        if (artistAlbumsRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setArtistAlbums([]);
+        setSelectedArtistAlbum(null);
+        setSelectedArtistAlbumTracks([]);
+        setSelectedArtistAlbumTracksError(null);
+        setLibraryMetadataError(error instanceof Error ? error.message : "Failed to load artist albums");
+      })
+      .finally(() => {
+        if (artistAlbumsRequestIdRef.current === requestId) {
+          setLoadingArtistAlbums(false);
+        }
+      });
+  }, [activeLibrarySection, filters.owner, filters.q, selectedArtist]);
+
+  useEffect(() => {
+    if (activeLibrarySection !== "artists" || !selectedArtistAlbum) {
+      return;
+    }
+
+    const fallbackTracks = getAlbumTracksFromLoadedLibraries(selectedArtistAlbum);
+
+    if (!selectedArtistAlbum.id) {
+      setSelectedArtistAlbumTracks(sortAlbumTracksByNumber(fallbackTracks));
+      setSelectedArtistAlbumTracksError(null);
+      setLoadingSelectedArtistAlbumTracks(false);
+      return;
+    }
+
+    const requestId = selectedArtistAlbumTracksRequestIdRef.current + 1;
+    selectedArtistAlbumTracksRequestIdRef.current = requestId;
+
+    setLoadingSelectedArtistAlbumTracks(true);
+    setSelectedArtistAlbumTracksError(null);
+
+    getAlbumTracks(selectedArtistAlbum.id)
+      .then((tracks) => {
+        if (selectedArtistAlbumTracksRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setSelectedArtistAlbumTracks(sortAlbumTracksByNumber(tracks));
+      })
+      .catch((error) => {
+        if (selectedArtistAlbumTracksRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setSelectedArtistAlbumTracks(sortAlbumTracksByNumber(fallbackTracks));
+        setSelectedArtistAlbumTracksError(error instanceof Error ? error.message : "Failed to load album tracks");
+      })
+      .finally(() => {
+        if (selectedArtistAlbumTracksRequestIdRef.current === requestId) {
+          setLoadingSelectedArtistAlbumTracks(false);
+        }
+      });
+  }, [activeLibrarySection, allTracksLibrary.tracks, filters.owner, library.tracks, selectedArtistAlbum]);
+
+  useEffect(() => {
+    if (activeLibrarySection !== "artists" || selectedArtistAlbum) {
+      return;
+    }
+
+    setSelectedArtistAlbumTracks([]);
+    setSelectedArtistAlbumTracksError(null);
+    setLoadingSelectedArtistAlbumTracks(false);
+  }, [activeLibrarySection, selectedArtistAlbum]);
 
   useEffect(() => {
     if (!user || activeView !== "library" || activeLibrarySection !== "albums") {
@@ -397,6 +546,38 @@ export function useLibraryData({
     setLoadingSelectedAlbumTracks(false);
   }
 
+  function selectArtist(artist: ArtistEntry): void {
+    setSelectedArtist(artist);
+    setArtistAlbums([]);
+    setSelectedArtistAlbum(null);
+    setSelectedArtistAlbumTracks([]);
+    setSelectedArtistAlbumTracksError(null);
+    setLoadingSelectedArtistAlbumTracks(false);
+  }
+
+  function clearSelectedArtist(): void {
+    setSelectedArtist(null);
+    setArtistAlbums([]);
+    setSelectedArtistAlbum(null);
+    setSelectedArtistAlbumTracks([]);
+    setSelectedArtistAlbumTracksError(null);
+    setLoadingSelectedArtistAlbumTracks(false);
+    setLoadingArtistAlbums(false);
+  }
+
+  function selectArtistAlbum(album: AlbumEntry): void {
+    setSelectedArtistAlbum(album);
+    setSelectedArtistAlbumTracks([]);
+    setSelectedArtistAlbumTracksError(null);
+  }
+
+  function clearSelectedArtistAlbum(): void {
+    setSelectedArtistAlbum(null);
+    setSelectedArtistAlbumTracks([]);
+    setSelectedArtistAlbumTracksError(null);
+    setLoadingSelectedArtistAlbumTracks(false);
+  }
+
   return {
     filters,
     setFilters,
@@ -404,6 +585,11 @@ export function useLibraryData({
     allTracksLibrary,
     availablePlaylists,
     libraryArtists,
+    selectedArtist,
+    artistAlbums,
+    selectedArtistAlbum,
+    selectedArtistAlbumTracks,
+    selectedArtistAlbumTracksError,
     libraryAlbums,
     selectedAlbum,
     selectedAlbumTracks,
@@ -411,6 +597,8 @@ export function useLibraryData({
     loadingLibrary,
     loadingAllTracks,
     loadingLibraryArtists,
+    loadingArtistAlbums,
+    loadingSelectedArtistAlbumTracks,
     loadingLibraryAlbums,
     loadingSelectedAlbumTracks,
     libraryError,
@@ -420,6 +608,10 @@ export function useLibraryData({
     libraryMetadataError,
     refreshCurrentLibrary,
     refreshAllTracks,
+    selectArtist,
+    clearSelectedArtist,
+    selectArtistAlbum,
+    clearSelectedArtistAlbum,
     selectAlbum,
     clearSelectedAlbum
   };

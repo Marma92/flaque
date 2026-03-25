@@ -487,6 +487,7 @@ describe("library metadata routes", () => {
         artists: expect.arrayContaining([
           expect.objectContaining({
             name: artist,
+            normalizedName: artistSlug,
             photo: artistPhotoPath
           })
         ])

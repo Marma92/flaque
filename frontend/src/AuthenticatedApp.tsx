@@ -49,14 +49,17 @@ export function AuthenticatedApp({
   const {
     filters, setFilters,
     library, allTracksLibrary, availablePlaylists,
-    libraryArtists, libraryAlbums,
+    libraryArtists, selectedArtist, artistAlbums, selectedArtistAlbum, libraryAlbums,
+    selectedArtistAlbumTracks, selectedArtistAlbumTracksError,
     selectedAlbum, selectedAlbumTracks, selectedAlbumTracksError,
     loadingLibrary, loadingAllTracks,
-    loadingLibraryArtists, loadingLibraryAlbums, loadingSelectedAlbumTracks,
+    loadingLibraryArtists, loadingArtistAlbums, loadingSelectedArtistAlbumTracks, loadingLibraryAlbums, loadingSelectedAlbumTracks,
     libraryError, setLibraryError,
     allTracksError, setAllTracksError,
     libraryMetadataError,
-    refreshCurrentLibrary, refreshAllTracks, selectAlbum, clearSelectedAlbum
+    refreshCurrentLibrary, refreshAllTracks,
+    selectArtist, clearSelectedArtist, selectArtistAlbum, clearSelectedArtistAlbum,
+    selectAlbum, clearSelectedAlbum
   } = useLibraryData({ user, activeView, activeLibrarySection });
 
   // ── Recently uploaded ────────────────────────────────────────────────
@@ -222,6 +225,18 @@ export function AuthenticatedApp({
         libraryMetadataError,
         loadingLibraryArtists,
         libraryArtists,
+        selectedArtist,
+        artistAlbums,
+        selectedArtistAlbum,
+        selectedArtistAlbumTracks,
+        loadingSelectedArtistAlbumTracks,
+        selectedArtistAlbumTracksError,
+        loadingArtistAlbums,
+        onArtistSelect: selectArtist,
+        onArtistBack: clearSelectedArtist,
+        onArtistAlbumSelect: selectArtistAlbum,
+        onArtistAlbumBack: clearSelectedArtistAlbum,
+        onArtistAlbumTrackSelect: (track) => requestTrackPlaybackWithStatus(track, selectedArtistAlbumTracks),
         loadingLibraryAlbums,
         libraryAlbums,
         selectedAlbum,

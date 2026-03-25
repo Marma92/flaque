@@ -1,5 +1,6 @@
 import type { Track } from "../../types/library";
 import { normalizeIndexKey as normalize, getTrackArtistName as getTrackArtist } from "../../utils/music";
+import path from "node:path";
 
 export type LibraryFilter = {
   owner?: string;
@@ -10,6 +11,7 @@ export type LibraryFilter = {
 
 export type ArtistEntry = {
   name: string;
+  normalizedName: string;
   trackCount: number;
 };
 
@@ -124,19 +126,46 @@ export function listOwners(tracks: Track[]): string[] {
 }
 
 export function listArtists(tracks: Track[]): ArtistEntry[] {
-  const map = new Map<string, number>();
+  const map = new Map<string, ArtistEntry>();
 
   for (const track of tracks) {
     const name = getTrackArtist(track)?.trim();
     if (!name) {
       continue;
     }
-    map.set(name, (map.get(name) ?? 0) + 1);
+
+    const normalizedName = getNormalizedArtistDirectoryName(track) ?? normalize(name);
+    const current = map.get(name);
+
+    if (!current) {
+      map.set(name, {
+        name,
+        normalizedName,
+        trackCount: 1
+      });
+      continue;
+    }
+
+    current.trackCount += 1;
+    if (!current.normalizedName) {
+      current.normalizedName = normalizedName;
+    }
   }
 
-  return Array.from(map.entries())
-    .map(([name, trackCount]) => ({ name, trackCount }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function getNormalizedArtistDirectoryName(track: Track): string | undefined {
+  const normalizedTrackPath = track.path.trim();
+  if (!normalizedTrackPath) {
+    return undefined;
+  }
+
+  const normalizedSeparatorsPath = normalizedTrackPath.replace(/\\/g, "/");
+  const albumDir = path.posix.dirname(normalizedSeparatorsPath);
+  const artistDir = path.posix.dirname(albumDir);
+  const artistSegment = path.posix.basename(artistDir).trim().toLowerCase();
+  return artistSegment || undefined;
 }
 
 export function listAlbums(tracks: Track[]): AlbumEntry[] {

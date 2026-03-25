@@ -17,13 +17,27 @@ type LibraryWorkspaceProps = {
   libraryMetadataError: string | null;
   loadingLibraryArtists: boolean;
   libraryArtists: ArtistEntry[];
+  selectedArtist: ArtistEntry | null;
+  artistAlbums: AlbumEntry[];
+  selectedArtistAlbum: AlbumEntry | null;
+  selectedArtistAlbumTracks: Track[];
+  loadingSelectedArtistAlbumTracks: boolean;
+  selectedArtistAlbumTracksError: string | null;
+  loadingArtistAlbums: boolean;
+  currentTrackId?: string;
+  onArtistSelect: (artist: ArtistEntry) => void;
+  onArtistBack: () => void;
+  onArtistAlbumSelect: (album: AlbumEntry) => void;
+  onArtistAlbumBack: () => void;
+  onArtistAlbumTrackSelect: (track: Track) => void;
+  manageablePlaylists: Playlist[];
+  onAddTrackToPlaylist: (input: { trackId: string; playlistId: string }) => Promise<void>;
   loadingLibraryAlbums: boolean;
   libraryAlbums: AlbumEntry[];
   selectedAlbum: AlbumEntry | null;
   selectedAlbumTracks: Track[];
   loadingSelectedAlbumTracks: boolean;
   selectedAlbumTracksError: string | null;
-  currentTrackId?: string;
   onAlbumSelect: (album: AlbumEntry) => void;
   onAlbumBack: () => void;
   onAlbumTrackSelect: (track: Track) => void;
@@ -33,8 +47,6 @@ type LibraryWorkspaceProps = {
   filters: LibraryFilters;
   onFilterChange: (next: LibraryFilters) => void;
   onLibraryTrackSelect: (track: Track) => void;
-  manageablePlaylists: Playlist[];
-  onAddTrackToPlaylist: (input: { trackId: string; playlistId: string }) => Promise<void>;
   // Recently uploaded
   recentlyUploadedTracks: Track[];
   recentlyUploadedLoading: boolean;
@@ -62,13 +74,27 @@ export function LibraryWorkspace({
   libraryMetadataError,
   loadingLibraryArtists,
   libraryArtists,
+  selectedArtist,
+  artistAlbums,
+  selectedArtistAlbum,
+  selectedArtistAlbumTracks,
+  loadingSelectedArtistAlbumTracks,
+  selectedArtistAlbumTracksError,
+  loadingArtistAlbums,
+  currentTrackId,
+  onArtistSelect,
+  onArtistBack,
+  onArtistAlbumSelect,
+  onArtistAlbumBack,
+  onArtistAlbumTrackSelect,
+  manageablePlaylists,
+  onAddTrackToPlaylist,
   loadingLibraryAlbums,
   libraryAlbums,
   selectedAlbum,
   selectedAlbumTracks,
   loadingSelectedAlbumTracks,
   selectedAlbumTracksError,
-  currentTrackId,
   onAlbumSelect,
   onAlbumBack,
   onAlbumTrackSelect,
@@ -78,8 +104,6 @@ export function LibraryWorkspace({
   filters,
   onFilterChange,
   onLibraryTrackSelect,
-  manageablePlaylists,
-  onAddTrackToPlaylist,
   recentlyUploadedTracks,
   recentlyUploadedLoading,
   recentlyUploadedPeriod,
@@ -107,6 +131,22 @@ export function LibraryWorkspace({
           libraryMetadataError={libraryMetadataError}
           loadingArtists={loadingLibraryArtists}
           artists={libraryArtists}
+          selectedArtist={selectedArtist}
+          artistAlbums={artistAlbums}
+          selectedArtistAlbum={selectedArtistAlbum}
+          selectedArtistAlbumTracks={selectedArtistAlbumTracks}
+          loadingSelectedArtistAlbumTracks={loadingSelectedArtistAlbumTracks}
+          selectedArtistAlbumTracksError={selectedArtistAlbumTracksError}
+          loadingArtistAlbums={loadingArtistAlbums}
+          currentTrackId={currentTrackId}
+          ownerNameById={ownerNameById}
+          onArtistSelect={onArtistSelect}
+          onArtistBack={onArtistBack}
+          onArtistAlbumSelect={onArtistAlbumSelect}
+          onArtistAlbumBack={onArtistAlbumBack}
+          onArtistAlbumTrackSelect={onArtistAlbumTrackSelect}
+          playlists={manageablePlaylists}
+          onAddTrackToPlaylist={onAddTrackToPlaylist}
         />
       ) : null}
 

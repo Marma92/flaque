@@ -254,6 +254,29 @@ export async function getAlbums(filters: {
   return payload.albums;
 }
 
+export async function getArtistAlbums(
+  artist: string,
+  filters: {
+    owner?: string;
+    q?: string;
+  }
+): Promise<AlbumEntry[]> {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (!value) {
+      continue;
+    }
+    searchParams.set(key, value);
+  }
+
+  const query = searchParams.toString();
+  const encodedArtist = encodeURIComponent(artist.trim());
+  const path = query ? `/api/artists/${encodedArtist}/albums?${query}` : `/api/artists/${encodedArtist}/albums`;
+  const payload = await requestJson<{ albums: AlbumEntry[] }>(path);
+  return payload.albums;
+}
+
 export async function getAlbumTracks(albumId: string): Promise<Track[]> {
   const payload = await requestJson<{ tracks: Track[] }>(`/api/album/${encodeURIComponent(albumId)}`);
   return payload.tracks;

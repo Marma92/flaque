@@ -103,7 +103,7 @@ export async function resolveAlbumMetadataForTrack(
 
 export async function attachArtistPhotos(
   tracks: Track[]
-): Promise<Array<{ name: string; trackCount: number; photo?: string; previewTrackId?: string }>> {
+): Promise<Array<{ name: string; normalizedName: string; trackCount: number; photo?: string; previewTrackId?: string }>> {
   const base = listArtists(tracks);
   const photoByArtist = new Map<string, string>();
   const previewTrackIdByArtist = new Map<string, string>();

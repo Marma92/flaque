@@ -65,6 +65,7 @@ export type Track = {
 
 export type ArtistEntry = {
   name: string;
+  normalizedName: string;
   trackCount: number;
   photo?: string;
   previewTrackId?: string;
