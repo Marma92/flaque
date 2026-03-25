@@ -17,6 +17,13 @@ type LibraryWorkspaceProps = {
   libraryMetadataError: string | null;
   loadingLibraryArtists: boolean;
   libraryArtists: ArtistEntry[];
+  selectedArtist: ArtistEntry | null;
+  artistAlbums: AlbumEntry[];
+  selectedArtistAlbum: AlbumEntry | null;
+  loadingArtistAlbums: boolean;
+  onArtistSelect: (artist: ArtistEntry) => void;
+  onArtistBack: () => void;
+  onArtistAlbumSelect: (album: AlbumEntry) => void;
   loadingLibraryAlbums: boolean;
   libraryAlbums: AlbumEntry[];
   selectedAlbum: AlbumEntry | null;
@@ -62,6 +69,13 @@ export function LibraryWorkspace({
   libraryMetadataError,
   loadingLibraryArtists,
   libraryArtists,
+  selectedArtist,
+  artistAlbums,
+  selectedArtistAlbum,
+  loadingArtistAlbums,
+  onArtistSelect,
+  onArtistBack,
+  onArtistAlbumSelect,
   loadingLibraryAlbums,
   libraryAlbums,
   selectedAlbum,
@@ -107,6 +121,13 @@ export function LibraryWorkspace({
           libraryMetadataError={libraryMetadataError}
           loadingArtists={loadingLibraryArtists}
           artists={libraryArtists}
+          selectedArtist={selectedArtist}
+          artistAlbums={artistAlbums}
+          selectedArtistAlbum={selectedArtistAlbum}
+          loadingArtistAlbums={loadingArtistAlbums}
+          onArtistSelect={onArtistSelect}
+          onArtistBack={onArtistBack}
+          onArtistAlbumSelect={onArtistAlbumSelect}
         />
       ) : null}
 
