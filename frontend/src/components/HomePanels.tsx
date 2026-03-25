@@ -11,6 +11,7 @@ type HomePanelsProps = {
   recentlyUploadedPeriod: UploadPeriod;
   onRecentlyUploadedPeriodChange: (period: UploadPeriod) => void;
   onRecentlyUploadedTrackSelect: (track: Track) => void;
+  ownerNameById?: Record<string, string>;
 };
 
 /**
@@ -24,7 +25,8 @@ export function HomePanels({
   recentlyUploadedLoading,
   recentlyUploadedPeriod,
   onRecentlyUploadedPeriodChange,
-  onRecentlyUploadedTrackSelect
+  onRecentlyUploadedTrackSelect,
+  ownerNameById
 }: HomePanelsProps): JSX.Element | null {
   const hasRecent = recentTracks.length > 0;
   const hasUploaded = recentlyUploadedTracks.length > 0 || recentlyUploadedLoading;
@@ -60,6 +62,7 @@ export function HomePanels({
           onPeriodChange={onRecentlyUploadedPeriodChange}
           onTrackSelect={onRecentlyUploadedTrackSelect}
           gridClassName={cardGridClass}
+          ownerNameById={ownerNameById}
         />
       ) : null}
     </div>

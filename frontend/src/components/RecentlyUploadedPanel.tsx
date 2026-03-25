@@ -9,6 +9,7 @@ type RecentlyUploadedPanelProps = {
   onPeriodChange: (period: UploadPeriod) => void;
   onTrackSelect: (track: Track) => void;
   gridClassName?: string;
+  ownerNameById?: Record<string, string>;
 };
 
 const periodOptions: { value: UploadPeriod; label: string }[] = [
@@ -22,7 +23,8 @@ export function RecentlyUploadedPanel({
   period,
   onPeriodChange,
   onTrackSelect,
-  gridClassName
+  gridClassName,
+  ownerNameById
 }: RecentlyUploadedPanelProps): JSX.Element | null {
   if (!loading && tracks.length === 0) {
     return null;
@@ -53,7 +55,7 @@ export function RecentlyUploadedPanel({
       {loading && tracks.length === 0 ? (
         <p className="mt-3 text-sm text-flaque-steel">Loading...</p>
       ) : (
-        <TrackCardGrid tracks={tracks} onTrackSelect={onTrackSelect} gridClassName={gridClassName} />
+        <TrackCardGrid tracks={tracks} onTrackSelect={onTrackSelect} gridClassName={gridClassName} ownerNameById={ownerNameById} showOwner />
       )}
     </section>
   );

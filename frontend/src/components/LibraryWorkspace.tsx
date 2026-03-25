@@ -136,6 +136,7 @@ export function LibraryWorkspace({
             recentlyUploadedPeriod={recentlyUploadedPeriod}
             onRecentlyUploadedPeriodChange={onRecentlyUploadedPeriodChange}
             onRecentlyUploadedTrackSelect={onLibraryTrackSelect}
+            ownerNameById={ownerNameById}
           />
 
           <PaginatedLibrary

@@ -11,6 +11,8 @@ type TrackCardGridProps = {
   tracks: Track[];
   onTrackSelect: (track: Track) => void;
   gridClassName?: string;
+  ownerNameById?: Record<string, string>;
+  showOwner?: boolean;
 };
 
 const DEFAULT_GRID = "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
@@ -18,8 +20,11 @@ const DEFAULT_GRID = "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 export function TrackCardGrid({
   tracks,
   onTrackSelect,
-  gridClassName
+  gridClassName,
+  ownerNameById,
+  showOwner = false
 }: TrackCardGridProps): JSX.Element {
+  const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
   return (
     <div className={`mt-3 grid gap-2 ${gridClassName ?? DEFAULT_GRID}`}>
       {tracks.map((track) => {
@@ -50,6 +55,9 @@ export function TrackCardGrid({
                   {artist}
                   {albumWithYear ? ` - ${albumWithYear}` : ""}
                 </p>
+                {showOwner ? (
+                  <p className="truncate text-[11px] text-flaque-steel/70">{resolveOwnerLabel(track.owner)}</p>
+                ) : null}
               </div>
             </div>
           </button>
