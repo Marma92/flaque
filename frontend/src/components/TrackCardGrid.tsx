@@ -51,10 +51,10 @@ export function TrackCardGrid({
               />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-flaque-ink">{title}</p>
-                <p className="truncate text-xs text-flaque-steel">
-                  {artist}
-                  {albumWithYear ? ` - ${albumWithYear}` : ""}
-                </p>
+                <p className="truncate text-xs text-flaque-steel">{artist}</p>
+                {albumWithYear ? (
+                  <p className="truncate text-[11px] text-flaque-steel/70">{albumWithYear}</p>
+                ) : null}
                 {showOwner ? (
                   <p className="truncate text-[11px] text-flaque-steel/70">{resolveOwnerLabel(track.owner)}</p>
                 ) : null}
