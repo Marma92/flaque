@@ -271,7 +271,7 @@ export async function getArtistAlbums(
   }
 
   const query = searchParams.toString();
-  const encodedArtist = encodeURIComponent(artist.trim().toLowerCase());
+  const encodedArtist = encodeURIComponent(artist.trim());
   const path = query ? `/api/artists/${encodedArtist}/albums?${query}` : `/api/artists/${encodedArtist}/albums`;
   const payload = await requestJson<{ albums: AlbumEntry[] }>(path);
   return payload.albums;

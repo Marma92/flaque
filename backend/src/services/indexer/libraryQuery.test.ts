@@ -67,8 +67,8 @@ describe("libraryQuery", () => {
   it("lists owners, artists and albums", () => {
     expect(listOwners(tracks)).toEqual(["alice", "bob"]);
     expect(listArtists(tracks)).toEqual([
-      { name: "Artist One", trackCount: 2 },
-      { name: "Artist Two", trackCount: 1 }
+      { name: "Artist One", normalizedName: "alice", trackCount: 2 },
+      { name: "Artist Two", normalizedName: "bob", trackCount: 1 }
     ]);
     expect(listAlbums(tracks)).toEqual([
       { artist: "Artist One", name: "Album One", trackCount: 1 },

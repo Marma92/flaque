@@ -4,12 +4,13 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AlbumEntry, ArtistEntry } from "../types";
+import type { AlbumEntry, ArtistEntry, Track } from "../types";
 import { LibraryArtistsSection } from "./LibraryArtistsSection";
 
 function createArtist(input: { name: string; trackCount: number; previewTrackId?: string }): ArtistEntry {
   return {
     name: input.name,
+    normalizedName: input.name.trim().toLowerCase(),
     trackCount: input.trackCount,
     previewTrackId: input.previewTrackId
   };
@@ -24,6 +25,22 @@ function createAlbum(input: { name: string; artist?: string; trackCount: number;
   };
 }
 
+function createTrack(input: { id: string; title: string; artist: string; album: string; owner?: string }): Track {
+  return {
+    id: input.id,
+    owner: input.owner ?? "owner-1",
+    path: `storage/users/${input.owner ?? "owner-1"}/uploads/${input.id}.flac`,
+    duration: 180,
+    mimeType: "audio/flac",
+    codec: "flac",
+    tags: {
+      title: input.title,
+      artist: input.artist,
+      album: input.album
+    }
+  };
+}
+
 function renderLibraryArtistsSection(
   overrides: Partial<ComponentProps<typeof LibraryArtistsSection>> = {}
 ): ReturnType<typeof render> {
@@ -35,10 +52,16 @@ function renderLibraryArtistsSection(
       selectedArtist={null}
       artistAlbums={[]}
       selectedArtistAlbum={null}
+      selectedArtistAlbumTracks={[]}
+      loadingSelectedArtistAlbumTracks={false}
+      selectedArtistAlbumTracksError={null}
       loadingArtistAlbums={false}
+      ownerNameById={{}}
       onArtistSelect={vi.fn()}
       onArtistBack={vi.fn()}
       onArtistAlbumSelect={vi.fn()}
+      onArtistAlbumBack={vi.fn()}
+      onArtistAlbumTrackSelect={vi.fn()}
       {...overrides}
     />
   );
@@ -92,5 +115,17 @@ describe("LibraryArtistsSection", () => {
 
     fireEvent.click(screen.getByText("Nujabes"));
     expect(onArtistSelect).toHaveBeenCalledWith(artist);
+  });
+
+  it("shows selected artist album tracklist", () => {
+    const album = createAlbum({ name: "Geogaddi", artist: "Boards of Canada", trackCount: 2 });
+    renderLibraryArtistsSection({
+      selectedArtist: createArtist({ name: "Boards of Canada", trackCount: 2 }),
+      selectedArtistAlbum: album,
+      selectedArtistAlbumTracks: [createTrack({ id: "t1", title: "Music Is Math", artist: "Boards of Canada", album: "Geogaddi" })]
+    });
+
+    expect(screen.getByText("Album tracks")).toBeTruthy();
+    expect(screen.getAllByText("Music Is Math").length).toBeGreaterThan(0);
   });
 });
