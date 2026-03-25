@@ -54,7 +54,7 @@ export function AuthenticatedApp({
     libraryError, setLibraryError,
     allTracksError, setAllTracksError,
     libraryMetadataError,
-    refreshCurrentLibrary, refreshAllTracks, selectAlbum
+    refreshCurrentLibrary, refreshAllTracks, selectAlbum, clearSelectedAlbum
   } = useLibraryData({ user, activeView, activeLibrarySection });
 
   const allTracksById = useMemo(
@@ -207,6 +207,7 @@ export function AuthenticatedApp({
         selectedAlbumTracksError,
         currentTrackId: selectedTrackRefreshed?.id,
         onAlbumSelect: selectAlbum,
+        onAlbumBack: clearSelectedAlbum,
         onAlbumTrackSelect: (track) => requestTrackPlaybackWithStatus(track, selectedAlbumTracks),
         recentTracks,
         onRecentTrackReplay: handleReplayRecentTrack,

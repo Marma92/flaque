@@ -17,6 +17,7 @@ type LibraryAlbumsSectionProps = {
   currentTrackId?: string;
   ownerNameById: Record<string, string>;
   onAlbumSelect: (album: AlbumEntry) => void;
+  onBack: () => void;
   onTrackSelect: (track: Track) => void;
   playlists?: Playlist[];
   onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
@@ -38,11 +39,13 @@ export function LibraryAlbumsSection({
   currentTrackId,
   ownerNameById,
   onAlbumSelect,
+  onBack,
   onTrackSelect,
   playlists,
   onAddTrackToPlaylist
 }: LibraryAlbumsSectionProps): JSX.Element {
   const [viewMode, setViewMode] = useState<AlbumViewMode>("list");
+  const isListModeTracklistVisible = viewMode === "list" && selectedAlbum !== null;
 
   function getAlbumCoverSrc(album: AlbumEntry): string {
     if (album.cover) {
@@ -61,7 +64,6 @@ export function LibraryAlbumsSection({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-display text-xl text-flaque-ink">Albums</h2>
-          <p className="mt-1 text-sm text-flaque-steel">Album list from `/api/albums` based on your current owner/artist/search filters.</p>
         </div>
 
         <div className="inline-flex rounded-xl border border-flaque-clay/70 bg-flaque-cream/50 p-1">
@@ -103,7 +105,7 @@ export function LibraryAlbumsSection({
               onAlbumSelect={onAlbumSelect}
               getAlbumCoverSrc={getAlbumCoverSrc}
             />
-          ) : (
+          ) : !isListModeTracklistVisible ? (
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {albums.map((album) => {
                 const selected = selectedAlbum ? getAlbumKey(selectedAlbum) === getAlbumKey(album) : false;
@@ -141,11 +143,20 @@ export function LibraryAlbumsSection({
                 );
               })}
             </div>
-          )}
+          ) : null}
 
           {selectedAlbum ? (
             <div className="mt-4 overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/75">
               <div className="border-b border-flaque-clay/55 px-4 py-3">
+                {isListModeTracklistVisible ? (
+                  <button
+                    className="mb-2 inline-flex items-center rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-2.5 py-1 text-xs font-medium text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
+                    type="button"
+                    onClick={onBack}
+                  >
+                    back
+                  </button>
+                ) : null}
                 <p className="text-xs uppercase tracking-[0.14em] text-flaque-steel">Album tracks</p>
                 <p
                   className="truncate text-sm text-flaque-ink"

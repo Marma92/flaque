@@ -44,6 +44,7 @@ describe("LibraryAlbumsSection", () => {
 
   it("shows loading and empty states", () => {
     const onAlbumSelect = vi.fn();
+    const onBack = vi.fn();
     const onTrackSelect = vi.fn();
 
     const { rerender } = render(
@@ -57,6 +58,7 @@ describe("LibraryAlbumsSection", () => {
         selectedAlbumTracksError={null}
         ownerNameById={{}}
         onAlbumSelect={onAlbumSelect}
+        onBack={onBack}
         onTrackSelect={onTrackSelect}
       />
     );
@@ -74,6 +76,7 @@ describe("LibraryAlbumsSection", () => {
         selectedAlbumTracksError={null}
         ownerNameById={{}}
         onAlbumSelect={onAlbumSelect}
+        onBack={onBack}
         onTrackSelect={onTrackSelect}
       />
     );
@@ -101,6 +104,7 @@ describe("LibraryAlbumsSection", () => {
         selectedAlbumTracksError={null}
         ownerNameById={{}}
         onAlbumSelect={onAlbumSelect}
+        onBack={vi.fn()}
         onTrackSelect={vi.fn()}
       />
     );
@@ -136,6 +140,7 @@ describe("LibraryAlbumsSection", () => {
         selectedAlbumTracksError={null}
         ownerNameById={{ "user-1": "Alice" }}
         onAlbumSelect={vi.fn()}
+        onBack={vi.fn()}
         onTrackSelect={onTrackSelect}
       />
     );
@@ -181,6 +186,7 @@ describe("LibraryAlbumsSection", () => {
         selectedAlbumTracksError={null}
         ownerNameById={{ "user-1": "Alice" }}
         onAlbumSelect={vi.fn()}
+        onBack={vi.fn()}
         onTrackSelect={onTrackSelect}
         playlists={[playlist]}
         onAddTrackToPlaylist={onAddTrackToPlaylist}
@@ -201,5 +207,37 @@ describe("LibraryAlbumsSection", () => {
       });
     });
     expect(onTrackSelect).not.toHaveBeenCalled();
+  });
+
+  it("hides album list in list mode when a tracklist is shown and supports back", () => {
+    const album = createAlbum({
+      id: "album-4",
+      name: "Discovery",
+      artist: "Daft Punk",
+      trackCount: 2
+    });
+    const onBack = vi.fn();
+
+    render(
+      <LibraryAlbumsSection
+        libraryMetadataError={null}
+        loadingAlbums={false}
+        albums={[album]}
+        selectedAlbum={album}
+        selectedAlbumTracks={[]}
+        loadingSelectedAlbumTracks={false}
+        selectedAlbumTracksError={null}
+        ownerNameById={{}}
+        onAlbumSelect={vi.fn()}
+        onBack={onBack}
+        onTrackSelect={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByAltText("Cover for Daft Punk - Discovery")).toBeNull();
+
+    const backButton = screen.getByRole("button", { name: "back" });
+    fireEvent.click(backButton);
+    expect(onBack).toHaveBeenCalledTimes(1);
   });
 });
