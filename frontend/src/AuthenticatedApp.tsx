@@ -11,10 +11,12 @@ import { useAdminCommands } from "./hooks/useAdminCommands";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import { useAppNotice } from "./hooks/useAppNotice";
 import { useDocumentTitle } from "./hooks/useDocumentTitle";
+import { useInfiniteLibrary } from "./hooks/useInfiniteLibrary";
 import { useLibraryCommands } from "./hooks/useLibraryCommands";
 import { useLibraryData } from "./hooks/useLibraryData";
 import { usePlaybackCommands } from "./hooks/usePlaybackCommands";
 import { usePlaybackState } from "./hooks/usePlaybackState";
+import { useRecentlyUploaded } from "./hooks/useRecentlyUploaded";
 
 type AuthenticatedAppProps = {
   user: User;
@@ -56,6 +58,26 @@ export function AuthenticatedApp({
     libraryMetadataError,
     refreshCurrentLibrary, refreshAllTracks, selectAlbum
   } = useLibraryData({ user, activeView, activeLibrarySection });
+
+  // ── Recently uploaded ────────────────────────────────────────────────
+  const {
+    tracks: recentlyUploadedTracks,
+    loading: recentlyUploadedLoading,
+    period: recentlyUploadedPeriod,
+    setPeriod: setRecentlyUploadedPeriod,
+    refresh: refreshRecentlyUploaded
+  } = useRecentlyUploaded({ user, ownerFilter: filters.owner });
+
+  // ── Paginated library ──────────────────────────────────────────────
+  const {
+    tracks: paginatedTracks,
+    loading: paginatedLoading,
+    loadingMore: paginatedLoadingMore,
+    hasMore: paginatedHasMore,
+    total: paginatedTotal,
+    sentinelRef: paginatedSentinelRef,
+    refresh: refreshPaginatedLibrary
+  } = useInfiniteLibrary({ user, filters, pageSize: 30 });
 
   const allTracksById = useMemo(
     () => new Map(allTracksLibrary.tracks.map((track) => [track.id, track])),
@@ -111,6 +133,7 @@ export function AuthenticatedApp({
     handleCreatePlaylist, handleAddTrackToPlaylist
   } = useLibraryCommands({
     manageablePlaylists, refreshCurrentLibrary, refreshAllTracks,
+    refreshRecentlyUploaded, refreshPaginatedLibrary,
     removeTrackFromPlayback, setLibraryError, setAllTracksError,
     setRebuilding, setAppNotice
   });
@@ -213,9 +236,19 @@ export function AuthenticatedApp({
         library,
         filters,
         onFilterChange: (next) => setFilters(next),
-        onLibraryTrackSelect: (track) => requestTrackPlaybackWithStatus(track, library.tracks),
+        onLibraryTrackSelect: (track) => requestTrackPlaybackWithStatus(track, paginatedTracks),
         manageablePlaylists,
-        onAddTrackToPlaylist: handleAddTrackToPlaylist
+        onAddTrackToPlaylist: handleAddTrackToPlaylist,
+        recentlyUploadedTracks,
+        recentlyUploadedLoading,
+        recentlyUploadedPeriod,
+        onRecentlyUploadedPeriodChange: setRecentlyUploadedPeriod,
+        paginatedTracks,
+        paginatedTotal,
+        paginatedLoading,
+        paginatedLoadingMore,
+        paginatedHasMore,
+        paginatedSentinelRef
       }}
       uploadViewProps={{
         onUpload: handleUpload,

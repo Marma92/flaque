@@ -138,10 +138,16 @@ export class IndexStore {
       return EMPTY_INDEX;
     }
 
+    const generatedAt = index.generatedAt ?? "";
+    const fallbackAddedAt = generatedAt || new Date().toISOString();
+    const tracks = index.tracks.map((track) =>
+      track.addedAt ? track : { ...track, addedAt: fallbackAddedAt }
+    );
+
     return {
-      generatedAt: index.generatedAt ?? "",
-      totalTracks: index.totalTracks ?? index.tracks.length,
-      tracks: index.tracks,
+      generatedAt,
+      totalTracks: index.totalTracks ?? tracks.length,
+      tracks,
       playlists: Array.isArray(index.playlists) ? index.playlists : []
     };
   }

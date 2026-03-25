@@ -119,7 +119,11 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
     }
 
     const ownerNamesById = getOwnerNamesById();
-    const filteredTracks = resolveFilteredTracks(indexStore, parsedQuery.filter, ownerNamesById);
+    let filteredTracks = resolveFilteredTracks(indexStore, parsedQuery.filter, ownerNamesById);
+    if (parsedQuery.addedAfter) {
+      const cutoff = parsedQuery.addedAfter;
+      filteredTracks = filteredTracks.filter((track) => (track.addedAt ?? "") >= cutoff);
+    }
     const sortedTracks = parsedQuery.sortBy
       ? sortTracks(filteredTracks, parsedQuery.sortBy, parsedQuery.sortDir)
       : filteredTracks;

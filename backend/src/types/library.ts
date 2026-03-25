@@ -41,6 +41,7 @@ export type Track = {
   sampleRate?: number;
   tags: TrackTags;
   cover?: string;
+  addedAt?: string;
 };
 
 export type PlaylistVisibility = "public" | "private";

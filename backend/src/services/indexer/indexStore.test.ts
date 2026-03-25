@@ -55,7 +55,8 @@ function createTrack(id: string, owner: string, artist: string, album: string): 
       title: id,
       artist,
       album
-    }
+    },
+    addedAt: "2026-01-01T00:00:00.000Z"
   };
 }
 

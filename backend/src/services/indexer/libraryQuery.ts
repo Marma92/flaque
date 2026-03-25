@@ -30,7 +30,8 @@ export type TrackSortBy =
   | "codec"
   | "bitrate"
   | "sampleRate"
-  | "path";
+  | "path"
+  | "addedAt";
 
 export type TrackSortDirection = "asc" | "desc";
 
@@ -203,6 +204,8 @@ function getSortValue(track: Track, sortBy: TrackSortBy): string | number {
       return toComparableNumber(track.sampleRate);
     case "path":
       return toComparableString(track.path);
+    case "addedAt":
+      return toComparableString(track.addedAt);
     default:
       return toComparableString(track.path);
   }

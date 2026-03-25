@@ -268,7 +268,8 @@ async function probeChangedTracks(
       bitrate: metadata.bitrate,
       sampleRate: metadata.sampleRate,
       tags,
-      cover
+      cover,
+      addedAt: new Date().toISOString()
     };
 
     await ensureTrackMediaMetadata(track, metadata.cover, processedArtists, processedAlbums);

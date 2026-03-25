@@ -75,7 +75,7 @@ async function writeAudioFile(relativePath: string, content: string): Promise<st
 function normalizeSnapshot(snapshot: LibraryIndex) {
   return {
     totalTracks: snapshot.totalTracks,
-    tracks: snapshot.tracks,
+    tracks: snapshot.tracks.map(({ addedAt, ...rest }) => rest),
     playlists: snapshot.playlists ?? []
   };
 }

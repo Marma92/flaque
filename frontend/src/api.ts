@@ -179,6 +179,42 @@ export async function getLibrary(filters: {
   return requestJson<LibraryResponse>(path);
 }
 
+export type TracksResponse = {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  sortBy: string;
+  sortDir: string;
+  tracks: Track[];
+};
+
+export async function getTracks(params: {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
+  addedAfter?: string;
+  owner?: string;
+  artist?: string;
+  album?: string;
+  q?: string;
+}): Promise<TracksResponse> {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === "") {
+      continue;
+    }
+    searchParams.set(key, String(value));
+  }
+
+  const query = searchParams.toString();
+  const path = query ? `/api/tracks?${query}` : "/api/tracks";
+
+  return requestJson<TracksResponse>(path);
+}
+
 export async function getArtists(filters: {
   owner?: string;
   q?: string;
