@@ -24,6 +24,7 @@ type LibraryWorkspaceProps = {
   selectedAlbumTracksError: string | null;
   currentTrackId?: string;
   onAlbumSelect: (album: AlbumEntry) => void;
+  onAlbumBack: () => void;
   onAlbumTrackSelect: (track: Track) => void;
   recentTracks: Track[];
   onRecentTrackReplay: (track: Track) => void;
@@ -56,6 +57,7 @@ export function LibraryWorkspace({
   selectedAlbumTracksError,
   currentTrackId,
   onAlbumSelect,
+  onAlbumBack,
   onAlbumTrackSelect,
   recentTracks,
   onRecentTrackReplay,
@@ -97,6 +99,7 @@ export function LibraryWorkspace({
           currentTrackId={currentTrackId}
           ownerNameById={ownerNameById}
           onAlbumSelect={onAlbumSelect}
+          onBack={onAlbumBack}
           onTrackSelect={onAlbumTrackSelect}
           playlists={manageablePlaylists}
           onAddTrackToPlaylist={onAddTrackToPlaylist}

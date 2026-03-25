@@ -47,6 +47,7 @@ type UseLibraryDataResult = {
   refreshCurrentLibrary: () => Promise<void>;
   refreshAllTracks: () => Promise<void>;
   selectAlbum: (album: AlbumEntry) => void;
+  clearSelectedAlbum: () => void;
 };
 
 /**
@@ -389,6 +390,13 @@ export function useLibraryData({
     setSelectedAlbumTracksError(null);
   }
 
+  function clearSelectedAlbum(): void {
+    setSelectedAlbum(null);
+    setSelectedAlbumTracks([]);
+    setSelectedAlbumTracksError(null);
+    setLoadingSelectedAlbumTracks(false);
+  }
+
   return {
     filters,
     setFilters,
@@ -412,6 +420,7 @@ export function useLibraryData({
     libraryMetadataError,
     refreshCurrentLibrary,
     refreshAllTracks,
-    selectAlbum
+    selectAlbum,
+    clearSelectedAlbum
   };
 }
