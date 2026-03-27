@@ -11,9 +11,7 @@ async function bootstrap() {
     (CSS.supports("animation-timeline: view()") ||
       CSS.supports("scroll-timeline-name: --timeline"));
 
-  if (!supports) {
-    await import("/scroll-timeline.js");
-  }
+  // No polyfill: rely on native Scroll Timelines when available
 
   const { default: App } = await import("./App");
 

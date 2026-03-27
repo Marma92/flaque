@@ -1,3 +1,3 @@
 /// <reference types="vite/client" />
 
-declare module "/scroll-timeline.js";
+// Removed: native Scroll Timelines support is relied upon; no polyfill declaration
