@@ -3,112 +3,84 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+
     <title>Flaque Hifi Player</title>
+
+    <!-- ✅ Early theme application (no FOUC) -->
     <script>
       (function () {
         var key = "flaque_theme_v1";
         var storedTheme = window.localStorage.getItem(key);
         var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        var theme = storedTheme === "dark" || storedTheme === "light" ? storedTheme : prefersDark ? "dark" : "light";
+
+        var theme =
+          storedTheme === "dark" || storedTheme === "light"
+            ? storedTheme
+            : prefersDark
+            ? "dark"
+            : "light";
 
         document.documentElement.setAttribute("data-theme", theme);
         document.documentElement.style.colorScheme = theme;
       })();
     </script>
   </head>
+
   <body>
-    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Enable dark mode" title="Enable dark mode">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <!-- UI shell (safe before React mounts) -->
+    <button
+      id="theme-toggle"
+      class="theme-toggle"
+      type="button"
+      aria-label="Toggle theme"
+      title="Toggle theme"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
         <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 1 0 9.8 9.8z" />
       </svg>
     </button>
+
     <div id="root"></div>
+
+    <!-- Optional: theme toggle logic (non-blocking) -->
     <script>
       (function () {
         var key = "flaque_theme_v1";
         var toggleButton = document.getElementById("theme-toggle");
-        var mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-        var moonIcon =
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 1 0 9.8 9.8z" /></svg>';
-        var sunIcon =
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2.3M12 19.7V22M4.22 4.22l1.64 1.64M18.14 18.14l1.64 1.64M2 12h2.3M19.7 12H22M4.22 19.78l1.64-1.64M18.14 5.86l1.64-1.64" /></svg>';
 
-        function getStoredTheme() {
-          var value = window.localStorage.getItem(key);
-          return value === "dark" || value === "light" ? value : null;
-        }
-
-        function getCurrentTheme() {
-          return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+        function getTheme() {
+          return document.documentElement.getAttribute("data-theme") === "dark"
+            ? "dark"
+            : "light";
         }
 
         function applyTheme(theme) {
           document.documentElement.setAttribute("data-theme", theme);
           document.documentElement.style.colorScheme = theme;
-
-          if (!toggleButton) {
-            return;
-          }
-
-          if (theme === "dark") {
-            toggleButton.innerHTML = sunIcon;
-            toggleButton.setAttribute("aria-label", "Enable light mode");
-            toggleButton.setAttribute("title", "Enable light mode");
-          } else {
-            toggleButton.innerHTML = moonIcon;
-            toggleButton.setAttribute("aria-label", "Enable dark mode");
-            toggleButton.setAttribute("title", "Enable dark mode");
-          }
         }
 
         if (toggleButton) {
           toggleButton.addEventListener("click", function () {
-            var nextTheme = getCurrentTheme() === "dark" ? "light" : "dark";
-            window.localStorage.setItem(key, nextTheme);
-            applyTheme(nextTheme);
+            var next = getTheme() === "dark" ? "light" : "dark";
+            localStorage.setItem(key, next);
+            applyTheme(next);
           });
         }
-
-        if (typeof mediaQuery.addEventListener === "function") {
-          mediaQuery.addEventListener("change", function () {
-            if (getStoredTheme()) {
-              return;
-            }
-
-            applyTheme(mediaQuery.matches ? "dark" : "light");
-          });
-        }
-
-        applyTheme(getCurrentTheme());
       })();
     </script>
-    <script>
-      (function () {
-        function supportsScrollDrivenAnimations() {
-          if (typeof window.CSS === "undefined" || typeof window.CSS.supports !== "function") {
-            return false;
-          }
 
-          return window.CSS.supports("animation-timeline: view()") || window.CSS.supports("scroll-timeline-name: --timeline");
-        }
-
-        function startApp() {
-          import("/src/main.tsx");
-        }
-
-        if (supportsScrollDrivenAnimations()) {
-          startApp();
-          return;
-        }
-
-        var polyfillScript = document.createElement("script");
-        polyfillScript.src = "/scroll-timeline.js";
-        polyfillScript.onload = startApp;
-        polyfillScript.onerror = startApp;
-        document.head.appendChild(polyfillScript);
-      })();
-    </script>
+    <!-- ✅ CRITICAL: Vite entry point -->
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
