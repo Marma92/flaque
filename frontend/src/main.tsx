@@ -11,7 +11,7 @@ async function bootstrap() {
     (CSS.supports("animation-timeline: view()") ||
       CSS.supports("scroll-timeline-name: --timeline"));
 
-  // No polyfill: rely on native Scroll Timelines when available
+  // Do not load polyfill: rely on native Scroll Timelines; render falls back gracefully
 
   const { default: App } = await import("./App");
 
