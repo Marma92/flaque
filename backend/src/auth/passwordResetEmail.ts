@@ -1,5 +1,8 @@
 import nodemailer from "nodemailer";
+import { createLogger } from "../utils/logger";
 import { parseBooleanField } from "../utils/validation";
+
+const log = createLogger("auth");
 
 type PasswordResetEmailInput = {
   to: string;
@@ -55,9 +58,7 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
   const transporter = getTransporter();
 
   if (!transporter) {
-    if (process.env.NODE_ENV !== "test") {
-      console.warn(`[auth] SMTP not configured. Password reset link for ${input.to}: ${input.resetUrl}`);
-    }
+    log.warn("SMTP not configured, cannot send password reset email", { to: input.to, resetUrl: input.resetUrl });
     return false;
   }
 
@@ -81,7 +82,7 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
     });
     return true;
   } catch (error) {
-    console.error("[auth] Failed to send password reset email", error);
+    log.error("Failed to send password reset email", { error: String(error) });
     return false;
   }
 }

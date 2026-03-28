@@ -20,7 +20,10 @@ import {
   listSessionsByUserId
 } from "../auth/sessionDb";
 import { getClientIp } from "./requestHelpers";
-import { normalizeOptionalString, parseBooleanField, validatePassword } from "../utils/validation";
+import { createLogger } from "../utils/logger";
+import { normalizeOptionalString, validatePassword } from "../utils/validation";
+
+const log = createLogger("auth");
 
 const DEFAULT_PASSWORD_RESET_TTL_MINUTES = 30;
 const DEFAULT_AUTH_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -50,22 +53,8 @@ function readNonNegativeIntEnv(name: string, fallback: number): number {
   return Math.floor(rawValue);
 }
 
-function isAuthAuditLogEnabled(): boolean {
-  const raw = process.env.AUTH_AUDIT_LOGS;
-  if (raw !== undefined) {
-    return parseBooleanField(raw);
-  }
-
-  return process.env.NODE_ENV !== "test";
-}
-
 function emitAuthAuditLog(level: "info" | "warn", event: string, details: Record<string, string | number | boolean>): void {
-  if (!isAuthAuditLogEnabled()) {
-    return;
-  }
-
-  const logger = level === "warn" ? console.warn : console.info;
-  logger(`[auth] ${event} ${JSON.stringify(details)}`);
+  log[level](event, details);
 }
 
 function fingerprintValue(value: string): string {
