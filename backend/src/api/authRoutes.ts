@@ -20,9 +20,8 @@ import {
   listSessionsByUserId
 } from "../auth/sessionDb";
 import { getClientIp } from "./requestHelpers";
+import { normalizeOptionalString, parseBooleanField, validatePassword } from "../utils/validation";
 
-const PASSWORD_MIN_LENGTH = 8;
-const PASSWORD_MAX_LENGTH = 256;
 const DEFAULT_PASSWORD_RESET_TTL_MINUTES = 30;
 const DEFAULT_AUTH_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const DEFAULT_AUTH_LOGIN_RATE_LIMIT_MAX = 20;
@@ -38,24 +37,8 @@ type RateLimitBucket = {
 const rateLimitBuckets = new Map<string, RateLimitBucket>();
 
 function parseDeviceLabel(value: unknown): string | undefined {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-
-  const label = value.trim();
-  if (!label) {
-    return undefined;
-  }
-
-  return label.slice(0, 128);
-}
-
-function parseLoginValue(value: unknown): string {
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  return value.trim();
+  const label = normalizeOptionalString(value);
+  return label ? label.slice(0, 128) : undefined;
 }
 
 function readNonNegativeIntEnv(name: string, fallback: number): number {
@@ -68,13 +51,9 @@ function readNonNegativeIntEnv(name: string, fallback: number): number {
 }
 
 function isAuthAuditLogEnabled(): boolean {
-  const rawValue = (process.env.AUTH_AUDIT_LOGS ?? "").trim().toLowerCase();
-  if (rawValue === "1" || rawValue === "true" || rawValue === "yes") {
-    return true;
-  }
-
-  if (rawValue === "0" || rawValue === "false" || rawValue === "no") {
-    return false;
+  const raw = process.env.AUTH_AUDIT_LOGS;
+  if (raw !== undefined) {
+    return parseBooleanField(raw);
   }
 
   return process.env.NODE_ENV !== "test";
@@ -228,7 +207,7 @@ export function createAuthRouter(): Router {
   const router = Router();
 
   router.post("/login", (req, res) => {
-    const login = parseLoginValue(req.body?.login ?? req.body?.username);
+    const login = normalizeOptionalString(req.body?.login ?? req.body?.username) ?? "";
     const password = typeof req.body?.password === "string" ? req.body.password : "";
     const ip = getClientIp(req) ?? "unknown";
     const loginFingerprint = login ? fingerprintValue(login.toLowerCase()) : "missing";
@@ -293,7 +272,7 @@ export function createAuthRouter(): Router {
 
   router.post("/forgot-password", async (req, res) => {
     const startedAt = Date.now();
-    const login = parseLoginValue(req.body?.login ?? req.body?.username ?? req.body?.email);
+    const login = normalizeOptionalString(req.body?.login ?? req.body?.username ?? req.body?.email) ?? "";
     const ip = getClientIp(req) ?? "unknown";
     const loginFingerprint = login ? fingerprintValue(login.toLowerCase()) : "missing";
 
@@ -356,7 +335,7 @@ export function createAuthRouter(): Router {
   });
 
   router.post("/reset-password", (req, res) => {
-    const token = parseLoginValue(req.body?.token);
+    const token = normalizeOptionalString(req.body?.token) ?? "";
     const newPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword : "";
     const ip = getClientIp(req) ?? "unknown";
 
@@ -384,10 +363,9 @@ export function createAuthRouter(): Router {
       return;
     }
 
-    if (newPassword.length < PASSWORD_MIN_LENGTH || newPassword.length > PASSWORD_MAX_LENGTH) {
-      res.status(400).json({
-        error: `Password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters`
-      });
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
+      res.status(400).json({ error: passwordError });
       return;
     }
 

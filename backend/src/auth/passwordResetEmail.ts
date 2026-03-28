@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { parseBooleanField } from "../utils/validation";
 
 type PasswordResetEmailInput = {
   to: string;
@@ -8,23 +9,6 @@ type PasswordResetEmailInput = {
 };
 
 let cachedTransporter: nodemailer.Transporter | null | undefined;
-
-function parseBooleanEnv(rawValue: string | undefined, fallback: boolean): boolean {
-  if (!rawValue) {
-    return fallback;
-  }
-
-  const normalized = rawValue.trim().toLowerCase();
-  if (normalized === "1" || normalized === "true" || normalized === "yes") {
-    return true;
-  }
-
-  if (normalized === "0" || normalized === "false" || normalized === "no") {
-    return false;
-  }
-
-  return fallback;
-}
 
 function getTransporter(): nodemailer.Transporter | null {
   if (cachedTransporter !== undefined) {
@@ -39,7 +23,7 @@ function getTransporter(): nodemailer.Transporter | null {
 
   const parsedPort = Number(process.env.SMTP_PORT ?? 587);
   const port = Number.isFinite(parsedPort) && parsedPort > 0 ? Math.floor(parsedPort) : 587;
-  const secure = parseBooleanEnv(process.env.SMTP_SECURE, port === 465);
+  const secure = process.env.SMTP_SECURE !== undefined ? parseBooleanField(process.env.SMTP_SECURE) : port === 465;
   const user = (process.env.SMTP_USER ?? "").trim();
   const pass = process.env.SMTP_PASS ?? "";
 

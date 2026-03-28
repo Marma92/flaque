@@ -25,13 +25,15 @@ import { createSession } from "../auth/sessionDb";
 import type { UserRole } from "../types/auth";
 import { ensureDir, fileExists } from "../utils/fs";
 import { usersStorageRoot } from "../utils/paths";
+import {
+  normalizeOptionalString,
+  parseRole,
+  validateEmail,
+  validatePassword,
+  validateUsername
+} from "../utils/validation";
 import { getClientIp, hasOwnProperty, isSqliteUniqueError } from "./requestHelpers";
 
-const USERNAME_MIN_LENGTH = 3;
-const USERNAME_MAX_LENGTH = 32;
-const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
-const PASSWORD_MIN_LENGTH = 8;
-const PASSWORD_MAX_LENGTH = 256;
 const PROFILE_DIR_NAME = "profile";
 const PROFILE_PHOTO_BASE_NAME = "avatar";
 const PROFILE_PHOTO_FILE_NAME = `${PROFILE_PHOTO_BASE_NAME}.webp`;
@@ -95,30 +97,6 @@ async function convertProfilePhotoToWebp(source: Buffer): Promise<Buffer> {
     })
     .webp({ quality: 90 })
     .toBuffer();
-}
-
-function parseRoleForCreate(value: unknown): UserRole | null {
-  if (value === undefined || value === null || value === "") {
-    return "user";
-  }
-
-  if (value === "user" || value === "admin") {
-    return value;
-  }
-
-  return null;
-}
-
-function parseRoleForPatch(value: unknown): UserRole | null {
-  if (value === undefined || value === null || value === "") {
-    return null;
-  }
-
-  if (value === "user" || value === "admin") {
-    return value;
-  }
-
-  return null;
 }
 
 export function createUserRouter(): Router {
@@ -209,10 +187,9 @@ export function createUserRouter(): Router {
       return;
     }
 
-    if (nextPassword.length < PASSWORD_MIN_LENGTH || nextPassword.length > PASSWORD_MAX_LENGTH) {
-      res.status(400).json({
-        error: `Password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters`
-      });
+    const passwordError = validatePassword(nextPassword);
+    if (passwordError) {
+      res.status(400).json({ error: passwordError });
       return;
     }
 
@@ -258,9 +235,10 @@ export function createUserRouter(): Router {
         return;
       }
 
-      const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
-      if (!email || !email.includes("@")) {
-        res.status(400).json({ error: "A valid email address is required" });
+      const email = normalizeOptionalString(req.body?.email) ?? "";
+      const emailError = validateEmail(email);
+      if (emailError) {
+        res.status(400).json({ error: emailError });
         return;
       }
 
@@ -287,31 +265,26 @@ export function createUserRouter(): Router {
 
   router.post("/users", requireAuth, requireAdmin, (req, res, next) => {
     try {
-      const username = typeof req.body?.username === "string" ? req.body.username.trim() : "";
+      const username = normalizeOptionalString(req.body?.username) ?? "";
       const password = typeof req.body?.password === "string" ? req.body.password : "";
-      const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
-      const role = parseRoleForCreate(req.body?.role);
+      const email = normalizeOptionalString(req.body?.email) ?? "";
+      const role = parseRole(req.body?.role, "user");
 
-      if (
-        username.length < USERNAME_MIN_LENGTH ||
-        username.length > USERNAME_MAX_LENGTH ||
-        !USERNAME_PATTERN.test(username)
-      ) {
-        res.status(400).json({
-          error: `Username must be ${USERNAME_MIN_LENGTH}-${USERNAME_MAX_LENGTH} chars and contain only letters, numbers, ., _, -`
-        });
+      const usernameError = validateUsername(username);
+      if (usernameError) {
+        res.status(400).json({ error: usernameError });
         return;
       }
 
-      if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
-        res.status(400).json({
-          error: `Password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters`
-        });
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        res.status(400).json({ error: passwordError });
         return;
       }
 
-      if (!email || !email.includes("@")) {
-        res.status(400).json({ error: "A valid email address is required" });
+      const emailError = validateEmail(email);
+      if (emailError) {
+        res.status(400).json({ error: emailError });
         return;
       }
 
@@ -363,20 +336,15 @@ export function createUserRouter(): Router {
 
       let nextUsername: string | undefined;
       if (hasUsername) {
-        if (typeof req.body?.username !== "string") {
+        const parsedUsername = normalizeOptionalString(req.body?.username);
+        if (!parsedUsername) {
           res.status(400).json({ error: "username must be a string" });
           return;
         }
 
-        const parsedUsername = req.body.username.trim();
-        if (
-          parsedUsername.length < USERNAME_MIN_LENGTH ||
-          parsedUsername.length > USERNAME_MAX_LENGTH ||
-          !USERNAME_PATTERN.test(parsedUsername)
-        ) {
-          res.status(400).json({
-            error: `Username must be ${USERNAME_MIN_LENGTH}-${USERNAME_MAX_LENGTH} chars and contain only letters, numbers, ., _, -`
-          });
+        const usernameError = validateUsername(parsedUsername);
+        if (usernameError) {
+          res.status(400).json({ error: usernameError });
           return;
         }
 
@@ -385,7 +353,7 @@ export function createUserRouter(): Router {
 
       let nextRole: UserRole | undefined;
       if (hasRole) {
-        nextRole = parseRoleForPatch(req.body?.role) ?? undefined;
+        nextRole = parseRole(req.body?.role) ?? undefined;
         if (!nextRole) {
           res.status(400).json({ error: "Role must be either user or admin" });
           return;
@@ -394,14 +362,15 @@ export function createUserRouter(): Router {
 
       let nextEmail: string | undefined;
       if (hasEmail) {
-        if (typeof req.body?.email !== "string") {
+        const parsedEmail = normalizeOptionalString(req.body?.email);
+        if (!parsedEmail) {
           res.status(400).json({ error: "email must be a string" });
           return;
         }
 
-        const parsedEmail = req.body.email.trim();
-        if (!parsedEmail || !parsedEmail.includes("@")) {
-          res.status(400).json({ error: "A valid email address is required" });
+        const emailError = validateEmail(parsedEmail);
+        if (emailError) {
+          res.status(400).json({ error: emailError });
           return;
         }
 
@@ -492,10 +461,9 @@ export function createUserRouter(): Router {
       return;
     }
 
-    if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
-      res.status(400).json({
-        error: `Password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters`
-      });
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      res.status(400).json({ error: passwordError });
       return;
     }
 
