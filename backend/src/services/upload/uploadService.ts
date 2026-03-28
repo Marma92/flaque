@@ -16,7 +16,7 @@ import type { Track } from "../../types/library";
 import { fileExists, moveFile, writeJsonAtomic } from "../../utils/fs";
 import { createTrackId, hashFile } from "../../utils/hash";
 import { getAudioMimeType, getSupportedAudioExtensions, isSupportedAudioFile } from "../../utils/mime";
-import { UNKNOWN_ARTIST, UNKNOWN_ALBUM, ARTIST_METADATA_FILE, ALBUM_METADATA_FILE } from "../../utils/music";
+import { UNKNOWN_ARTIST, UNKNOWN_ALBUM, ARTIST_METADATA_FILE, ALBUM_METADATA_FILE, extractPrimaryArtist } from "../../utils/music";
 const ALBUM_COVER_BASE_NAME = "album-cover";
 
 type ArtistMetadata = {
@@ -56,13 +56,14 @@ function resolveEffectiveNames(
   manualAlbum: string | undefined,
   override: UploadMetadataOverride
 ): { artistName: string; albumName: string } {
-  const artistName =
+  const rawArtist =
     override.artist ??
     manualArtist ??
     metadata.tags.artist ??
     metadata.tags.albumArtist ??
     metadata.tags.artists?.[0] ??
     UNKNOWN_ARTIST;
+  const artistName = extractPrimaryArtist(rawArtist);
 
   const albumName = override.album ?? manualAlbum ?? metadata.tags.album ?? UNKNOWN_ALBUM;
 

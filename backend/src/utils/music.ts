@@ -5,12 +5,21 @@ export const ALBUM_METADATA_FILE = "album.json";
 export const UNKNOWN_ARTIST = "Unknown Artist";
 export const UNKNOWN_ALBUM = "Unknown Album";
 
+const ARTIST_SEPARATOR_PATTERN = /\s*;\s*|\s+feat\.\s+|\s+ft\.\s+/i;
+
+export function extractPrimaryArtist(name: string): string {
+  const primary = name.split(ARTIST_SEPARATOR_PATTERN)[0]?.trim();
+  return primary || name;
+}
+
 export function getTrackArtist(track: Track): string {
-  return track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0] ?? "";
+  const raw = track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0] ?? "";
+  return extractPrimaryArtist(raw);
 }
 
 export function getTrackArtistName(track: Track): string | undefined {
-  return track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0];
+  const raw = track.tags.artist ?? track.tags.albumArtist ?? track.tags.artists?.[0];
+  return raw ? extractPrimaryArtist(raw) : undefined;
 }
 
 export function getTrackAlbum(track: Track): string {
