@@ -120,7 +120,7 @@ function PlaylistMenu({ canManage, onEdit, onDownload, onDelete }: PlaylistMenuP
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-8 z-20 min-w-[160px] overflow-hidden rounded-xl border border-flaque-clay/60 bg-white shadow-lg">
+        <div className="absolute bottom-full right-0 z-20 mb-1 min-w-[160px] overflow-hidden rounded-xl border border-flaque-clay/60 bg-white shadow-lg">
           {canManage ? (
             <button
               type="button"
@@ -468,11 +468,19 @@ function PlaylistCard({
                       </p>
                       <p className="truncate text-[10px] text-flaque-steel">
                         {getTrackDisplayArtist(track) ?? "Unknown artist"}
+                        {track.tags.album ? ` · ${track.tags.album}` : ""}
                       </p>
                     </div>
-                    <span className="shrink-0 font-mono text-[10px] text-flaque-steel/60">
-                      {formatDuration(track.duration)}
-                    </span>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {track.tags.extra?.lyrics ? (
+                        <span className="rounded px-1 py-px font-mono text-[9px] font-bold leading-none text-flaque-steel/70 ring-1 ring-flaque-clay/60">
+                          L
+                        </span>
+                      ) : null}
+                      <span className="font-mono text-[10px] text-flaque-steel/60">
+                        {formatDuration(track.duration)}
+                      </span>
+                    </div>
                   </li>
                 ))}
               </ul>
