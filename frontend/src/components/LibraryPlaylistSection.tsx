@@ -390,7 +390,7 @@ function PlaylistCard({
 
   return (
     <>
-      <div className="overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/85 shadow-sm">
+      <div className="rounded-2xl border border-flaque-clay/60 bg-white/85 shadow-sm">
         {/* Header row — cover + info + buttons */}
         <div
           className="flex cursor-pointer items-center gap-3 p-3 transition hover:bg-flaque-cream/50"
@@ -448,7 +448,7 @@ function PlaylistCard({
 
         {/* Expanded track list */}
         {expanded ? (
-          <div className="border-t border-flaque-clay/30">
+          <div className="overflow-hidden rounded-b-2xl border-t border-flaque-clay/30">
             {tracks.length === 0 ? (
               <p className="px-4 py-3 text-sm text-flaque-steel">No playable tracks.</p>
             ) : (
