@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { getLogFiles, getLogEntries, getStorageUsage, type LogFile, type LogEntry, type StorageUsage } from "../api";
+import { getLogFiles, getLogEntries, getStorageUsage, getVersionInfo, type LogFile, type LogEntry, type StorageUsage, type VersionInfo } from "../api";
 import type { User } from "../types";
 
 const PAGE_SIZE = 200;
@@ -12,6 +12,8 @@ type UseAdminServerArgs = {
 type UseAdminServerResult = {
   storageUsage: StorageUsage | null;
   loadingStorage: boolean;
+  versionInfo: VersionInfo | null;
+  loadingVersion: boolean;
   logFiles: LogFile[];
   loadingFiles: boolean;
   selectedFile: string | null;
@@ -30,6 +32,8 @@ type UseAdminServerResult = {
 export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResult {
   const [storageUsage, setStorageUsage] = useState<StorageUsage | null>(null);
   const [loadingStorage, setLoadingStorage] = useState(false);
+  const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
+  const [loadingVersion, setLoadingVersion] = useState(false);
   const [logFiles, setLogFiles] = useState<LogFile[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -46,6 +50,14 @@ export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResu
 
     setLoadingFiles(true);
     setLoadingStorage(true);
+    setLoadingVersion(true);
+
+    getVersionInfo()
+      .then(setVersionInfo)
+      .catch(() => {})
+      .finally(() => {
+        setLoadingVersion(false);
+      });
 
     getLogFiles()
       .then((files) => {
@@ -100,7 +112,15 @@ export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResu
   async function refreshServer(): Promise<void> {
     setLoadingFiles(true);
     setLoadingStorage(true);
+    setLoadingVersion(true);
     setServerError(null);
+
+    getVersionInfo()
+      .then(setVersionInfo)
+      .catch(() => {})
+      .finally(() => {
+        setLoadingVersion(false);
+      });
 
     getStorageUsage()
       .then(setStorageUsage)
@@ -178,6 +198,8 @@ export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResu
   return {
     storageUsage,
     loadingStorage,
+    versionInfo,
+    loadingVersion,
     logFiles,
     loadingFiles,
     selectedFile,

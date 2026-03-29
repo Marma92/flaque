@@ -1,8 +1,10 @@
 import { useState } from "react";
 
-import type { LogFile, LogEntry, StorageUsage } from "../api";
+import type { LogFile, LogEntry, StorageUsage, VersionInfo } from "../api";
 
 type AdminServerViewProps = {
+  versionInfo: VersionInfo | null;
+  loadingVersion: boolean;
   storageUsage: StorageUsage | null;
   loadingStorage: boolean;
   logFiles: LogFile[];
@@ -160,7 +162,63 @@ function StorageSection({ storageUsage, loading }: { storageUsage: StorageUsage 
   );
 }
 
+function VersionSection({ versionInfo, loading }: { versionInfo: VersionInfo | null; loading: boolean }): JSX.Element | null {
+  if (loading && !versionInfo) {
+    return (
+      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <p className="text-sm text-flaque-steel">Checking for updates...</p>
+      </section>
+    );
+  }
+
+  if (!versionInfo) {
+    return null;
+  }
+
+  if (versionInfo.isUpdateAvailable && versionInfo.latestVersion) {
+    return (
+      <section className="rounded-3xl border border-blue-200 bg-blue-50/80 p-5 shadow-panel backdrop-blur-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-display text-lg text-blue-900">
+              Update available: v{versionInfo.latestVersion}
+            </h3>
+            <p className="mt-1 text-sm text-blue-700">
+              You are running v{versionInfo.currentVersion}.
+              {versionInfo.releaseName ? ` Latest: ${versionInfo.releaseName}.` : ""}
+            </p>
+          </div>
+
+          {versionInfo.releaseUrl ? (
+            <a
+              href={versionInfo.releaseUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-xl border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
+            >
+              View release
+            </a>
+          ) : null}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 px-5 py-3 shadow-panel backdrop-blur-sm">
+      <p className="text-sm text-flaque-steel">
+        Running v{versionInfo.currentVersion}
+        {versionInfo.checkedAt
+          ? ` — last checked ${new Date(versionInfo.checkedAt).toLocaleString()}`
+          : ""}
+      </p>
+    </section>
+  );
+}
+
 export function AdminServerView({
+  versionInfo,
+  loadingVersion,
   storageUsage,
   loadingStorage,
   logFiles,
@@ -185,6 +243,7 @@ export function AdminServerView({
 
   return (
     <div className="space-y-6">
+      <VersionSection versionInfo={versionInfo} loading={loadingVersion} />
       <StorageSection storageUsage={storageUsage} loading={loadingStorage} />
 
       <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">

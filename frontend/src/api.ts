@@ -686,8 +686,22 @@ export type StorageUsage = {
   totalDataSize: number;
 };
 
+export type VersionInfo = {
+  currentVersion: string;
+  latestVersion: string | null;
+  isUpdateAvailable: boolean;
+  releaseUrl: string | null;
+  releaseName: string | null;
+  publishedAt: string | null;
+  checkedAt: string | null;
+};
+
 export async function getStorageUsage(): Promise<StorageUsage> {
   return requestJson<StorageUsage>("/api/logs/storage");
+}
+
+export async function getVersionInfo(): Promise<VersionInfo> {
+  return requestJson<VersionInfo>("/api/server/version");
 }
 
 export async function getLogFiles(): Promise<LogFile[]> {

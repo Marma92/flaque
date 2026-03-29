@@ -103,6 +103,7 @@ export function AuthenticatedApp({
   const { adminUsers, loadingAdminUsers, adminError, refreshAdminUsers, clearAdminState } = useAdminUsers({ user });
 
   const {
+    versionInfo, loadingVersion,
     storageUsage, loadingStorage,
     logFiles, loadingFiles: loadingLogFiles,
     selectedFile: selectedLogFile, setSelectedFile: setSelectedLogFile,
@@ -302,6 +303,8 @@ export function AuthenticatedApp({
         onPatchUser: handlePatchUser,
         onDeleteUser: handleDeleteUser,
         onResetUserPassword: handleResetUserPassword,
+        versionInfo,
+        loadingVersion,
         storageUsage,
         loadingStorage,
         logFiles,

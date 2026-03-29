@@ -4,6 +4,7 @@ import path from "node:path";
 import { Router } from "express";
 
 import { requireAdmin, requireAuth } from "../auth/middleware";
+import { getVersionCheckResult } from "../services/versionCheck";
 import { cacheRoot, configRoot, dataRoot, indexRoot, logsRoot, storageRoot } from "../utils/paths";
 
 const LOG_FILE_PATTERN = /^flaque\.log(\.\d{4}-\d{2}-\d{2}\.\d+)?$/;
@@ -181,6 +182,10 @@ export function createLogRouter(): Router {
     } catch (error) {
       next(error);
     }
+  });
+
+  router.get("/server/version", requireAuth, requireAdmin, (_req, res) => {
+    res.json(getVersionCheckResult());
   });
 
   return router;
