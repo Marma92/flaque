@@ -5,6 +5,7 @@ import { createAuthRouter } from "./authRoutes";
 import { createCoverRouter } from "./coverRoutes";
 import { createIndexRouter } from "./indexRoutes";
 import { createLibraryRouter } from "./libraryRoutes";
+import { createLogRouter } from "./logRoutes";
 import { createPlaylistRouter } from "./playlistRoutes";
 import { createStreamingRouter } from "./streamingRoutes";
 import { createUploadRouter } from "./uploadRoutes";
@@ -21,6 +22,7 @@ export function createApiRouter(indexStore: IndexStore): Router {
   router.use(createCoverRouter(indexStore));
   router.use(createIndexRouter(indexStore));
   router.use(createUserRouter());
+  router.use(createLogRouter());
 
   return router;
 }

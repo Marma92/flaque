@@ -1,4 +1,7 @@
 import type { AuthUser } from "../types/auth";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("auth");
 
 import {
   createUser,
@@ -74,7 +77,7 @@ export function ensureDefaultAdmin(): AuthUser | null {
   }
 
   if (!adminEmail) {
-    console.warn("ADMIN_EMAIL is required to create the default admin user. Set it in your environment.");
+    log.warn("ADMIN_EMAIL is required to create the default admin user. Set it in your environment.");
     return null;
   }
 

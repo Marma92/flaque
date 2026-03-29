@@ -20,9 +20,11 @@ import {
   listSessionsByUserId
 } from "../auth/sessionDb";
 import { getClientIp } from "./requestHelpers";
+import { createLogger } from "../utils/logger";
+import { normalizeOptionalString, validatePassword } from "../utils/validation";
 
-const PASSWORD_MIN_LENGTH = 8;
-const PASSWORD_MAX_LENGTH = 256;
+const log = createLogger("auth");
+
 const DEFAULT_PASSWORD_RESET_TTL_MINUTES = 30;
 const DEFAULT_AUTH_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const DEFAULT_AUTH_LOGIN_RATE_LIMIT_MAX = 20;
@@ -38,24 +40,8 @@ type RateLimitBucket = {
 const rateLimitBuckets = new Map<string, RateLimitBucket>();
 
 function parseDeviceLabel(value: unknown): string | undefined {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-
-  const label = value.trim();
-  if (!label) {
-    return undefined;
-  }
-
-  return label.slice(0, 128);
-}
-
-function parseLoginValue(value: unknown): string {
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  return value.trim();
+  const label = normalizeOptionalString(value);
+  return label ? label.slice(0, 128) : undefined;
 }
 
 function readNonNegativeIntEnv(name: string, fallback: number): number {
@@ -67,26 +53,8 @@ function readNonNegativeIntEnv(name: string, fallback: number): number {
   return Math.floor(rawValue);
 }
 
-function isAuthAuditLogEnabled(): boolean {
-  const rawValue = (process.env.AUTH_AUDIT_LOGS ?? "").trim().toLowerCase();
-  if (rawValue === "1" || rawValue === "true" || rawValue === "yes") {
-    return true;
-  }
-
-  if (rawValue === "0" || rawValue === "false" || rawValue === "no") {
-    return false;
-  }
-
-  return process.env.NODE_ENV !== "test";
-}
-
 function emitAuthAuditLog(level: "info" | "warn", event: string, details: Record<string, string | number | boolean>): void {
-  if (!isAuthAuditLogEnabled()) {
-    return;
-  }
-
-  const logger = level === "warn" ? console.warn : console.info;
-  logger(`[auth] ${event} ${JSON.stringify(details)}`);
+  log[level](event, details);
 }
 
 function fingerprintValue(value: string): string {
@@ -228,7 +196,7 @@ export function createAuthRouter(): Router {
   const router = Router();
 
   router.post("/login", (req, res) => {
-    const login = parseLoginValue(req.body?.login ?? req.body?.username);
+    const login = normalizeOptionalString(req.body?.login ?? req.body?.username) ?? "";
     const password = typeof req.body?.password === "string" ? req.body.password : "";
     const ip = getClientIp(req) ?? "unknown";
     const loginFingerprint = login ? fingerprintValue(login.toLowerCase()) : "missing";
@@ -293,7 +261,7 @@ export function createAuthRouter(): Router {
 
   router.post("/forgot-password", async (req, res) => {
     const startedAt = Date.now();
-    const login = parseLoginValue(req.body?.login ?? req.body?.username ?? req.body?.email);
+    const login = normalizeOptionalString(req.body?.login ?? req.body?.username ?? req.body?.email) ?? "";
     const ip = getClientIp(req) ?? "unknown";
     const loginFingerprint = login ? fingerprintValue(login.toLowerCase()) : "missing";
 
@@ -356,7 +324,7 @@ export function createAuthRouter(): Router {
   });
 
   router.post("/reset-password", (req, res) => {
-    const token = parseLoginValue(req.body?.token);
+    const token = normalizeOptionalString(req.body?.token) ?? "";
     const newPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword : "";
     const ip = getClientIp(req) ?? "unknown";
 
@@ -384,10 +352,9 @@ export function createAuthRouter(): Router {
       return;
     }
 
-    if (newPassword.length < PASSWORD_MIN_LENGTH || newPassword.length > PASSWORD_MAX_LENGTH) {
-      res.status(400).json({
-        error: `Password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters`
-      });
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
+      res.status(400).json({ error: passwordError });
       return;
     }
 
@@ -419,6 +386,11 @@ export function createAuthRouter(): Router {
   });
 
   router.post("/logout", requireAuth, (req, res) => {
+    emitAuthAuditLog("info", "logout", {
+      userId: req.authUser?.id ?? "unknown",
+      ip: getClientIp(req) ?? "unknown"
+    });
+
     if (req.sessionId) {
       deleteSession(req.sessionId);
     }
@@ -467,6 +439,13 @@ export function createAuthRouter(): Router {
       return;
     }
 
+    emitAuthAuditLog("info", "session-revoked", {
+      userId: authUser.id,
+      targetSessionId,
+      self: targetSessionId === currentSessionId,
+      ip: getClientIp(req) ?? "unknown"
+    });
+
     if (targetSessionId === currentSessionId) {
       clearSessionCookie(res);
     }
@@ -483,6 +462,13 @@ export function createAuthRouter(): Router {
     }
 
     const revoked = deleteOtherUserSessions(authUser.id, currentSessionId);
+
+    emitAuthAuditLog("info", "logout-others", {
+      userId: authUser.id,
+      revoked,
+      ip: getClientIp(req) ?? "unknown"
+    });
+
     res.json({ revoked });
   });
 

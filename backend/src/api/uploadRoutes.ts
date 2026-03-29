@@ -14,27 +14,13 @@ import { fileExists } from "../utils/fs";
 import { getAudioMimeType, getSupportedAudioExtensions, isSupportedAudioFile } from "../utils/mime";
 import { tmpUploadsRoot } from "../utils/paths";
 import { ensureSharedMusicDir } from "../services/storage/storageService";
+import { createLogger } from "../utils/logger";
+import { normalizeOptionalString, parseBooleanField } from "../utils/validation";
+
+const log = createLogger("upload");
 import fs from "node:fs/promises";
 
 const DEFAULT_MAX_UPLOAD_FILES = 50;
-
-function normalizeOptionalString(value: unknown): string | undefined {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-
-  const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function parseBooleanFormField(value: unknown): boolean {
-  if (typeof value !== "string") {
-    return false;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes";
-}
 
 function parseUploadMetadataOverrides(value: unknown): UploadMetadataOverride[] {
   if (typeof value !== "string") {
@@ -199,7 +185,7 @@ export function createUploadRouter(indexStore: IndexStore): Router {
 
         const manualArtist = normalizeOptionalString(req.body?.artist);
         const manualAlbum = normalizeOptionalString(req.body?.album);
-        const deferRebuild = parseBooleanFormField(req.body?.deferRebuild);
+        const deferRebuild = parseBooleanField(req.body?.deferRebuild);
         const metadataOverrides = parseUploadMetadataOverrides(req.body?.metadataOverrides);
 
         const musicDir = await ensureSharedMusicDir();
@@ -252,6 +238,12 @@ export function createUploadRouter(indexStore: IndexStore): Router {
         await appendTrackActivityLogEntries(newUploadTracks);
 
         const deduplicated = results.filter((r) => !r.isNew).length;
+        log.info("Upload complete", {
+          owner: ownerId,
+          processed: uploadedFiles.length,
+          uploaded: uploadedFiles.length - deduplicated,
+          deduplicated
+        });
         res.status(201).json({
           processed: uploadedFiles.length,
           uploaded: uploadedFiles.length - deduplicated,

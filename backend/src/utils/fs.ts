@@ -7,6 +7,7 @@ import {
   indexFilePath,
   metadataOverridesFilePath,
   indexRoot,
+  logsRoot,
   sharedMusicRoot,
   storageRoot,
   tmpUploadsRoot,
@@ -68,7 +69,8 @@ export async function ensureBaseDirectories(): Promise<void> {
     ensureDir(coversRoot),
     ensureDir(transcodesRoot),
     ensureDir(tmpUploadsRoot),
-    ensureDir(indexRoot)
+    ensureDir(indexRoot),
+    ensureDir(logsRoot)
   ]);
 
   const hasIndex = await fileExists(indexFilePath);

@@ -1,11 +1,13 @@
 import { FormEvent, useMemo, useState } from "react";
 
+import type { LogFile, LogEntry, StorageUsage, VersionInfo, UpdateStatus } from "../api";
 import type { Track, TrackMetadataPatch, User } from "../types";
 import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
   getTrackDisplayTitle
 } from "../utils/tracks";
+import { AdminServerView } from "./AdminServerView";
 import { AdminUsersView } from "./AdminUsersView";
 import { TrackDeleteModal } from "./TrackDeleteModal";
 import { TrackEditModal } from "./TrackEditModal";
@@ -40,11 +42,30 @@ type ConfigViewProps = {
   }) => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
   onResetUserPassword: (userId: string, password: string) => Promise<void>;
+  versionInfo: VersionInfo | null;
+  loadingVersion: boolean;
+  updateStatus: UpdateStatus | null;
+  onTriggerUpdate: () => Promise<void>;
+  storageUsage: StorageUsage | null;
+  loadingStorage: boolean;
+  logFiles: LogFile[];
+  loadingLogFiles: boolean;
+  selectedLogFile: string | null;
+  onLogFileChange: (file: string) => void;
+  logEntries: LogEntry[];
+  loadingLogEntries: boolean;
+  logsError: string | null;
+  logTotal: number;
+  logLevelFilter: number | null;
+  onLogLevelFilterChange: (level: number | null) => void;
+  onRefreshLogs: () => Promise<void>;
+  onLoadMoreLogs: () => Promise<void>;
+  hasMoreLogs: boolean;
   activeSection: ConfigSection;
   onSectionChange: (section: ConfigSection) => void;
 };
 
-export type ConfigSection = "index" | "files" | "users";
+export type ConfigSection = "index" | "files" | "users" | "server";
 
 function normalizeSearch(value: string): string {
   return value.trim().toLowerCase();
@@ -69,6 +90,25 @@ export function ConfigView({
   onPatchUser,
   onDeleteUser,
   onResetUserPassword,
+  versionInfo,
+  loadingVersion,
+  updateStatus,
+  onTriggerUpdate,
+  storageUsage,
+  loadingStorage,
+  logFiles,
+  loadingLogFiles,
+  selectedLogFile,
+  onLogFileChange,
+  logEntries,
+  loadingLogEntries,
+  logsError,
+  logTotal,
+  logLevelFilter,
+  onLogLevelFilterChange,
+  onRefreshLogs,
+  onLoadMoreLogs,
+  hasMoreLogs,
   activeSection,
   onSectionChange
 }: ConfigViewProps): JSX.Element {
@@ -366,6 +406,30 @@ export function ConfigView({
           onPatchUser={onPatchUser}
           onDeleteUser={onDeleteUser}
           onResetPassword={onResetUserPassword}
+        />
+      ) : null}
+
+      {activeSection === "server" ? (
+        <AdminServerView
+          versionInfo={versionInfo}
+          loadingVersion={loadingVersion}
+          updateStatus={updateStatus}
+          onTriggerUpdate={onTriggerUpdate}
+          storageUsage={storageUsage}
+          loadingStorage={loadingStorage}
+          logFiles={logFiles}
+          loadingFiles={loadingLogFiles}
+          selectedFile={selectedLogFile}
+          onFileChange={onLogFileChange}
+          entries={logEntries}
+          loadingEntries={loadingLogEntries}
+          error={logsError}
+          total={logTotal}
+          levelFilter={logLevelFilter}
+          onLevelFilterChange={onLogLevelFilterChange}
+          onRefresh={onRefreshLogs}
+          onLoadMore={onLoadMoreLogs}
+          hasMore={hasMoreLogs}
         />
       ) : null}
 

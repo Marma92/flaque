@@ -25,6 +25,9 @@ services:
       - type: bind
         source: ${FLAQUE_STATE_DIR}/cache
         target: /app/data/cache
+      - type: bind
+        source: ${FLAQUE_STATE_DIR}/logs
+        target: /app/data/logs
 
   frontend:
     build:
@@ -36,3 +39,20 @@ services:
       - backend
     ports:
       - "${FLAQUE_FRONTEND_PORT:-8080}:80"
+
+  updater:
+    build:
+      context: .
+      dockerfile: updater/Dockerfile
+    container_name: flaque-updater
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/app/repo
+      - type: bind
+        source: ${FLAQUE_STATE_DIR}/logs
+        target: /app/data/logs
+    environment:
+      UPDATE_SECRET: ${UPDATE_SECRET:-}
+      REPO_DIR: /app/repo
+      COMPOSE_PROJECT: ${COMPOSE_PROJECT_NAME:-}

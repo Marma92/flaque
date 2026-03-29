@@ -1,18 +1,22 @@
 import "dotenv/config";
 
+import type http from "node:http";
 import { createServer } from "node:http";
 
 import { createApp } from "./app";
 import { ensureDefaultAdmin } from "./auth/bootstrap";
 import { initializeAuthDatabase } from "./auth/dbConnection";
+import { createLogger } from "./utils/logger";
 import { deleteExpiredPasswordResetTokens } from "./auth/passwordResetDb";
 import { deleteExpiredSessions } from "./auth/sessionDb";
 import { migrateLegacyPlaylists } from "./services/playlists/playlistStore";
 import { IndexStore } from "./services/indexer/indexStore";
 import { migratePerUserUploadsToSharedMusic } from "./services/storage/storageService";
+import { startVersionCheckSchedule } from "./services/versionCheck";
 import { ensureBaseDirectories } from "./utils/fs";
 
 const SESSION_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 function readNonNegativeIntEnv(name: string, fallback: number): number {
   const raw = Number(process.env[name] ?? fallback);
@@ -23,20 +27,36 @@ function readNonNegativeIntEnv(name: string, fallback: number): number {
   return Math.floor(raw);
 }
 
+const log = createLogger("server");
+
+function gracefulShutdown(server: http.Server, signal: string): void {
+  log.info(`Received ${signal}, shutting down gracefully`);
+
+  server.close(() => {
+    log.info("All connections closed, exiting");
+    process.exit(0);
+  });
+
+  setTimeout(() => {
+    log.warn("Forcing exit after shutdown timeout");
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS).unref();
+}
+
 async function bootstrap(): Promise<void> {
   await ensureBaseDirectories();
   await migrateLegacyPlaylists();
 
   const migratedTracks = await migratePerUserUploadsToSharedMusic();
   if (migratedTracks > 0) {
-    console.log(`Migrated ${migratedTracks} track${migratedTracks === 1 ? "" : "s"} to shared music storage`);
+    log.info(`Migrated ${migratedTracks} track${migratedTracks === 1 ? "" : "s"} to shared music storage`);
   }
 
   initializeAuthDatabase();
 
   const seededAdmin = ensureDefaultAdmin();
   if (seededAdmin) {
-    console.log(`Admin user ready: ${seededAdmin.username}`);
+    log.info(`Admin user ready: ${seededAdmin.username}`);
   }
 
   const indexStore = new IndexStore();
@@ -54,16 +74,21 @@ async function bootstrap(): Promise<void> {
   server.timeout = readNonNegativeIntEnv("HTTP_SOCKET_TIMEOUT_MS", 0);
 
   server.listen(port, () => {
-    console.log(`flaque backend listening on http://localhost:${port}`);
+    log.info(`flaque backend listening on http://localhost:${port}`);
   });
+
+  process.on("SIGTERM", () => gracefulShutdown(server, "SIGTERM"));
+  process.on("SIGINT", () => gracefulShutdown(server, "SIGINT"));
 
   setInterval(() => {
     deleteExpiredSessions();
     deleteExpiredPasswordResetTokens();
   }, SESSION_CLEANUP_INTERVAL_MS).unref();
+
+  startVersionCheckSchedule();
 }
 
 bootstrap().catch((error: unknown) => {
-  console.error("Failed to start backend", error);
+  log.error("Failed to start backend", { error: String(error) });
   process.exit(1);
 });

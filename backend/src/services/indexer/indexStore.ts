@@ -1,7 +1,10 @@
 import type { LibraryIndex, Playlist, Track } from "../../types/library";
 import { fileExists, readJsonFile, writeJsonAtomic } from "../../utils/fs";
+import { createLogger } from "../../utils/logger";
 import { normalizeIndexKey, getTrackArtistName } from "../../utils/music";
 import { indexFilePath, playlistsIndexFilePath } from "../../utils/paths";
+
+const log = createLogger("indexer");
 import { pruneTrackMetadataOverrides } from "./metadataOverrideStore";
 import { scanFilesystemLibrary } from "../scanner/scannerService";
 import { scanFilesystemPlaylists } from "../playlists/playlistStore";
@@ -90,10 +93,14 @@ export class IndexStore {
     }
 
     this.rebuildPromise = (async () => {
+      const startTime = Date.now();
+      log.info("Rebuilding library index");
       const rebuilt = await scanFilesystemLibrary({ previousIndex: this.snapshot });
       await writeJsonAtomic(indexFilePath, this.toPersistedLibraryIndex(rebuilt));
       await pruneTrackMetadataOverrides(rebuilt.tracks.map((track) => track.id));
-      return this.updateSnapshot(rebuilt);
+      const result = this.updateSnapshot(rebuilt);
+      log.info("Library index rebuilt", { tracks: rebuilt.totalTracks, durationMs: Date.now() - startTime });
+      return result;
     })();
 
     try {

@@ -1,4 +1,8 @@
 import nodemailer from "nodemailer";
+import { createLogger } from "../utils/logger";
+import { parseBooleanField } from "../utils/validation";
+
+const log = createLogger("auth");
 
 type PasswordResetEmailInput = {
   to: string;
@@ -8,23 +12,6 @@ type PasswordResetEmailInput = {
 };
 
 let cachedTransporter: nodemailer.Transporter | null | undefined;
-
-function parseBooleanEnv(rawValue: string | undefined, fallback: boolean): boolean {
-  if (!rawValue) {
-    return fallback;
-  }
-
-  const normalized = rawValue.trim().toLowerCase();
-  if (normalized === "1" || normalized === "true" || normalized === "yes") {
-    return true;
-  }
-
-  if (normalized === "0" || normalized === "false" || normalized === "no") {
-    return false;
-  }
-
-  return fallback;
-}
 
 function getTransporter(): nodemailer.Transporter | null {
   if (cachedTransporter !== undefined) {
@@ -39,7 +26,7 @@ function getTransporter(): nodemailer.Transporter | null {
 
   const parsedPort = Number(process.env.SMTP_PORT ?? 587);
   const port = Number.isFinite(parsedPort) && parsedPort > 0 ? Math.floor(parsedPort) : 587;
-  const secure = parseBooleanEnv(process.env.SMTP_SECURE, port === 465);
+  const secure = process.env.SMTP_SECURE !== undefined ? parseBooleanField(process.env.SMTP_SECURE) : port === 465;
   const user = (process.env.SMTP_USER ?? "").trim();
   const pass = process.env.SMTP_PASS ?? "";
 
@@ -71,9 +58,7 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
   const transporter = getTransporter();
 
   if (!transporter) {
-    if (process.env.NODE_ENV !== "test") {
-      console.warn(`[auth] SMTP not configured. Password reset link for ${input.to}: ${input.resetUrl}`);
-    }
+    log.warn("SMTP not configured, cannot send password reset email", { to: input.to, resetUrl: input.resetUrl });
     return false;
   }
 
@@ -97,7 +82,7 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
     });
     return true;
   } catch (error) {
-    console.error("[auth] Failed to send password reset email", error);
+    log.error("Failed to send password reset email", { error: String(error) });
     return false;
   }
 }
