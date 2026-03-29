@@ -1,13 +1,13 @@
 import { FormEvent, useMemo, useState } from "react";
 
-import type { LogFile, LogEntry } from "../api";
+import type { LogFile, LogEntry, StorageUsage } from "../api";
 import type { Track, TrackMetadataPatch, User } from "../types";
 import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
   getTrackDisplayTitle
 } from "../utils/tracks";
-import { AdminServerLogsView } from "./AdminServerLogsView";
+import { AdminServerView } from "./AdminServerView";
 import { AdminUsersView } from "./AdminUsersView";
 import { TrackDeleteModal } from "./TrackDeleteModal";
 import { TrackEditModal } from "./TrackEditModal";
@@ -42,6 +42,8 @@ type ConfigViewProps = {
   }) => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
   onResetUserPassword: (userId: string, password: string) => Promise<void>;
+  storageUsage: StorageUsage | null;
+  loadingStorage: boolean;
   logFiles: LogFile[];
   loadingLogFiles: boolean;
   selectedLogFile: string | null;
@@ -84,6 +86,8 @@ export function ConfigView({
   onPatchUser,
   onDeleteUser,
   onResetUserPassword,
+  storageUsage,
+  loadingStorage,
   logFiles,
   loadingLogFiles,
   selectedLogFile,
@@ -398,7 +402,9 @@ export function ConfigView({
       ) : null}
 
       {activeSection === "server" ? (
-        <AdminServerLogsView
+        <AdminServerView
+          storageUsage={storageUsage}
+          loadingStorage={loadingStorage}
           logFiles={logFiles}
           loadingFiles={loadingLogFiles}
           selectedFile={selectedLogFile}

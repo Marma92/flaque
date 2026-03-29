@@ -680,6 +680,16 @@ export type LogEntry = {
   [key: string]: unknown;
 };
 
+export type StorageUsage = {
+  disk: { total: number; free: number; used: number };
+  directories: Array<{ name: string; path: string; size: number }>;
+  totalDataSize: number;
+};
+
+export async function getStorageUsage(): Promise<StorageUsage> {
+  return requestJson<StorageUsage>("/api/logs/storage");
+}
+
 export async function getLogFiles(): Promise<LogFile[]> {
   const payload = await requestJson<{ files: LogFile[] }>("/api/logs/files");
   return payload.files;

@@ -1,37 +1,41 @@
 import { useEffect, useState } from "react";
 
-import { getLogFiles, getLogEntries, type LogFile, type LogEntry } from "../api";
+import { getLogFiles, getLogEntries, getStorageUsage, type LogFile, type LogEntry, type StorageUsage } from "../api";
 import type { User } from "../types";
 
 const PAGE_SIZE = 200;
 
-type UseAdminLogsArgs = {
+type UseAdminServerArgs = {
   user: User | null;
 };
 
-type UseAdminLogsResult = {
+type UseAdminServerResult = {
+  storageUsage: StorageUsage | null;
+  loadingStorage: boolean;
   logFiles: LogFile[];
   loadingFiles: boolean;
   selectedFile: string | null;
   setSelectedFile: (file: string | null) => void;
   entries: LogEntry[];
   loadingEntries: boolean;
-  logsError: string | null;
+  serverError: string | null;
   total: number;
   levelFilter: number | null;
   setLevelFilter: (level: number | null) => void;
-  refreshLogs: () => Promise<void>;
+  refreshServer: () => Promise<void>;
   loadMore: () => Promise<void>;
   hasMore: boolean;
 };
 
-export function useAdminLogs({ user }: UseAdminLogsArgs): UseAdminLogsResult {
+export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResult {
+  const [storageUsage, setStorageUsage] = useState<StorageUsage | null>(null);
+  const [loadingStorage, setLoadingStorage] = useState(false);
   const [logFiles, setLogFiles] = useState<LogFile[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(false);
-  const [logsError, setLogsError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [levelFilter, setLevelFilter] = useState<number | null>(null);
 
@@ -41,6 +45,8 @@ export function useAdminLogs({ user }: UseAdminLogsArgs): UseAdminLogsResult {
     }
 
     setLoadingFiles(true);
+    setLoadingStorage(true);
+
     getLogFiles()
       .then((files) => {
         setLogFiles(files);
@@ -49,10 +55,19 @@ export function useAdminLogs({ user }: UseAdminLogsArgs): UseAdminLogsResult {
         }
       })
       .catch((error) => {
-        setLogsError(error instanceof Error ? error.message : "Failed to load log files");
+        setServerError(error instanceof Error ? error.message : "Failed to load log files");
       })
       .finally(() => {
         setLoadingFiles(false);
+      });
+
+    getStorageUsage()
+      .then(setStorageUsage)
+      .catch(() => {
+        // storage fetch failure is non-critical
+      })
+      .finally(() => {
+        setLoadingStorage(false);
       });
   }, [user]);
 
@@ -62,7 +77,7 @@ export function useAdminLogs({ user }: UseAdminLogsArgs): UseAdminLogsResult {
     }
 
     setLoadingEntries(true);
-    setLogsError(null);
+    setServerError(null);
 
     getLogEntries({
       file: selectedFile,
@@ -75,22 +90,30 @@ export function useAdminLogs({ user }: UseAdminLogsArgs): UseAdminLogsResult {
         setTotal(result.total);
       })
       .catch((error) => {
-        setLogsError(error instanceof Error ? error.message : "Failed to load log entries");
+        setServerError(error instanceof Error ? error.message : "Failed to load log entries");
       })
       .finally(() => {
         setLoadingEntries(false);
       });
   }, [selectedFile, levelFilter, user]);
 
-  async function refreshLogs(): Promise<void> {
+  async function refreshServer(): Promise<void> {
     setLoadingFiles(true);
-    setLogsError(null);
+    setLoadingStorage(true);
+    setServerError(null);
+
+    getStorageUsage()
+      .then(setStorageUsage)
+      .catch(() => {})
+      .finally(() => {
+        setLoadingStorage(false);
+      });
 
     try {
       const files = await getLogFiles();
       setLogFiles(files);
     } catch (error) {
-      setLogsError(error instanceof Error ? error.message : "Failed to load log files");
+      setServerError(error instanceof Error ? error.message : "Failed to load log files");
     } finally {
       setLoadingFiles(false);
     }
@@ -111,7 +134,7 @@ export function useAdminLogs({ user }: UseAdminLogsArgs): UseAdminLogsResult {
       setEntries(result.entries);
       setTotal(result.total);
     } catch (error) {
-      setLogsError(error instanceof Error ? error.message : "Failed to load log entries");
+      setServerError(error instanceof Error ? error.message : "Failed to load log entries");
     } finally {
       setLoadingEntries(false);
     }
@@ -134,7 +157,7 @@ export function useAdminLogs({ user }: UseAdminLogsArgs): UseAdminLogsResult {
       setEntries((prev) => [...prev, ...result.entries]);
       setTotal(result.total);
     } catch (error) {
-      setLogsError(error instanceof Error ? error.message : "Failed to load more entries");
+      setServerError(error instanceof Error ? error.message : "Failed to load more entries");
     } finally {
       setLoadingEntries(false);
     }
@@ -153,17 +176,19 @@ export function useAdminLogs({ user }: UseAdminLogsArgs): UseAdminLogsResult {
   }
 
   return {
+    storageUsage,
+    loadingStorage,
     logFiles,
     loadingFiles,
     selectedFile,
     setSelectedFile: handleSetSelectedFile,
     entries,
     loadingEntries,
-    logsError,
+    serverError,
     total,
     levelFilter,
     setLevelFilter: handleSetLevelFilter,
-    refreshLogs,
+    refreshServer,
     loadMore,
     hasMore: entries.length < total
   };

@@ -8,7 +8,7 @@ import type { LibrarySection } from "./types/library";
 import type { ViewName } from "./utils/appUtils";
 import { useAccountActions } from "./hooks/useAccountActions";
 import { useAdminCommands } from "./hooks/useAdminCommands";
-import { useAdminLogs } from "./hooks/useAdminLogs";
+import { useAdminServer } from "./hooks/useAdminServer";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import { useAppNotice } from "./hooks/useAppNotice";
 import { useDocumentTitle } from "./hooks/useDocumentTitle";
@@ -103,13 +103,14 @@ export function AuthenticatedApp({
   const { adminUsers, loadingAdminUsers, adminError, refreshAdminUsers, clearAdminState } = useAdminUsers({ user });
 
   const {
+    storageUsage, loadingStorage,
     logFiles, loadingFiles: loadingLogFiles,
     selectedFile: selectedLogFile, setSelectedFile: setSelectedLogFile,
     entries: logEntries, loadingEntries: loadingLogEntries,
-    logsError, total: logTotal,
+    serverError: logsError, total: logTotal,
     levelFilter: logLevelFilter, setLevelFilter: setLogLevelFilter,
-    refreshLogs, loadMore: loadMoreLogs, hasMore: hasMoreLogs
-  } = useAdminLogs({ user });
+    refreshServer: refreshLogs, loadMore: loadMoreLogs, hasMore: hasMoreLogs
+  } = useAdminServer({ user });
 
   const { handleCreateUser, handleDeleteUser, handleResetUserPassword, handlePatchUser } = useAdminCommands({
     user, setUser, setActiveView, clearAdminState, refreshAdminUsers
@@ -301,6 +302,8 @@ export function AuthenticatedApp({
         onPatchUser: handlePatchUser,
         onDeleteUser: handleDeleteUser,
         onResetUserPassword: handleResetUserPassword,
+        storageUsage,
+        loadingStorage,
         logFiles,
         loadingLogFiles,
         selectedLogFile,

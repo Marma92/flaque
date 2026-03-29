@@ -4,7 +4,7 @@ import path from "node:path";
 import { Router } from "express";
 
 import { requireAdmin, requireAuth } from "../auth/middleware";
-import { logsRoot } from "../utils/paths";
+import { cacheRoot, configRoot, dataRoot, indexRoot, logsRoot, storageRoot } from "../utils/paths";
 
 const LOG_FILE_PATTERN = /^flaque\.log(\.\d{4}-\d{2}-\d{2}\.\d+)?$/;
 const DEFAULT_LIMIT = 200;
@@ -48,6 +48,41 @@ function tryParseJsonLine(line: string): Record<string, unknown> | null {
     return null;
   }
 }
+
+async function getDirectorySize(dirPath: string): Promise<number> {
+  let total = 0;
+
+  let dirEntries: string[];
+  try {
+    dirEntries = await fs.readdir(dirPath);
+  } catch {
+    return 0;
+  }
+
+  for (const name of dirEntries) {
+    const fullPath = path.join(dirPath, name);
+    try {
+      const stat = await fs.stat(fullPath);
+      if (stat.isDirectory()) {
+        total += await getDirectorySize(fullPath);
+      } else if (stat.isFile()) {
+        total += stat.size;
+      }
+    } catch {
+      // skip inaccessible entries
+    }
+  }
+
+  return total;
+}
+
+const STORAGE_DIRECTORIES = [
+  { name: "Music", path: "storage/", root: storageRoot },
+  { name: "Cache", path: "cache/", root: cacheRoot },
+  { name: "Index", path: "index/", root: indexRoot },
+  { name: "Logs", path: "logs/", root: logsRoot },
+  { name: "Config", path: "config/", root: configRoot }
+] as const;
 
 export function createLogRouter(): Router {
   const router = Router();
@@ -112,6 +147,37 @@ export function createLogRouter(): Router {
       const paged = entries.slice(offset, offset + limit);
 
       res.json({ file: fileName, total, offset, limit, entries: paged });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/logs/storage", requireAuth, requireAdmin, async (_req, res, next) => {
+    try {
+      const fsStats = await fs.statfs(dataRoot);
+      const blockSize = fsStats.bsize;
+      const diskTotal = fsStats.blocks * blockSize;
+      const diskFree = fsStats.bavail * blockSize;
+
+      const directories = await Promise.all(
+        STORAGE_DIRECTORIES.map(async (dir) => ({
+          name: dir.name,
+          path: dir.path,
+          size: await getDirectorySize(dir.root)
+        }))
+      );
+
+      const totalDataSize = directories.reduce((sum, d) => sum + d.size, 0);
+
+      res.json({
+        disk: {
+          total: diskTotal,
+          free: diskFree,
+          used: diskTotal - diskFree
+        },
+        directories,
+        totalDataSize
+      });
     } catch (error) {
       next(error);
     }
