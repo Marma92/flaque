@@ -386,6 +386,11 @@ export function createAuthRouter(): Router {
   });
 
   router.post("/logout", requireAuth, (req, res) => {
+    emitAuthAuditLog("info", "logout", {
+      userId: req.authUser?.id ?? "unknown",
+      ip: getClientIp(req) ?? "unknown"
+    });
+
     if (req.sessionId) {
       deleteSession(req.sessionId);
     }
@@ -434,6 +439,13 @@ export function createAuthRouter(): Router {
       return;
     }
 
+    emitAuthAuditLog("info", "session-revoked", {
+      userId: authUser.id,
+      targetSessionId,
+      self: targetSessionId === currentSessionId,
+      ip: getClientIp(req) ?? "unknown"
+    });
+
     if (targetSessionId === currentSessionId) {
       clearSessionCookie(res);
     }
@@ -450,6 +462,13 @@ export function createAuthRouter(): Router {
     }
 
     const revoked = deleteOtherUserSessions(authUser.id, currentSessionId);
+
+    emitAuthAuditLog("info", "logout-others", {
+      userId: authUser.id,
+      revoked,
+      ip: getClientIp(req) ?? "unknown"
+    });
+
     res.json({ revoked });
   });
 

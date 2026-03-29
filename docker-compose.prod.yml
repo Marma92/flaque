@@ -25,6 +25,9 @@ services:
       - type: bind
         source: ${FLAQUE_STATE_DIR}/cache
         target: /app/data/cache
+      - type: bind
+        source: ${FLAQUE_STATE_DIR}/logs
+        target: /app/data/logs
 
   frontend:
     build:

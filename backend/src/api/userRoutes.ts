@@ -24,6 +24,7 @@ import { getSessionTtlMs, setSessionCookie } from "../auth/session";
 import { createSession } from "../auth/sessionDb";
 import type { UserRole } from "../types/auth";
 import { ensureDir, fileExists } from "../utils/fs";
+import { createLogger } from "../utils/logger";
 import { usersStorageRoot } from "../utils/paths";
 import {
   normalizeOptionalString,
@@ -33,6 +34,12 @@ import {
   validateUsername
 } from "../utils/validation";
 import { getClientIp, hasOwnProperty, isSqliteUniqueError } from "./requestHelpers";
+
+const log = createLogger("auth");
+
+function emitSecurityAuditLog(level: "info" | "warn", event: string, details: Record<string, string | number | boolean>): void {
+  log[level](event, details);
+}
 
 const PROFILE_DIR_NAME = "profile";
 const PROFILE_PHOTO_BASE_NAME = "avatar";
@@ -206,6 +213,11 @@ export function createUserRouter(): Router {
 
     const existingUser = findUserByUsername(authUser.username);
     if (!existingUser || !verifyPassword(currentPassword, existingUser.password_hash)) {
+      emitSecurityAuditLog("warn", "user-password-change-failed", {
+        userId: authUser.id,
+        reason: "invalid-current-password",
+        ip: getClientIp(req) ?? "unknown"
+      });
       res.status(401).json({ error: "Current password is invalid" });
       return;
     }
@@ -215,6 +227,11 @@ export function createUserRouter(): Router {
       res.status(404).json({ error: "User not found" });
       return;
     }
+
+    emitSecurityAuditLog("info", "user-password-changed", {
+      userId: authUser.id,
+      ip: getClientIp(req) ?? "unknown"
+    });
 
     const newSession = createSession({
       userId: authUser.id,
@@ -247,6 +264,11 @@ export function createUserRouter(): Router {
         res.status(404).json({ error: "User not found" });
         return;
       }
+
+      emitSecurityAuditLog("info", "user-email-changed", {
+        userId: authUser.id,
+        ip: getClientIp(req) ?? "unknown"
+      });
 
       const updatedUser = findUserById(authUser.id);
       res.json({ ok: true, user: updatedUser });
@@ -300,6 +322,15 @@ export function createUserRouter(): Router {
       }
 
       const user = createUser(username, password, role, email);
+
+      emitSecurityAuditLog("info", "admin-user-created", {
+        adminUserId: req.authUser!.id,
+        createdUserId: user.id,
+        createdUsername: user.username,
+        createdRole: user.role,
+        ip: getClientIp(req) ?? "unknown"
+      });
+
       res.status(201).json({ user });
     } catch (error) {
       if (isSqliteUniqueError(error)) {
@@ -430,6 +461,15 @@ export function createUserRouter(): Router {
         }
       }
 
+      emitSecurityAuditLog("info", "admin-user-updated", {
+        adminUserId: req.authUser!.id,
+        targetUserId: userId,
+        usernameChanged: shouldChangeUsername,
+        roleChanged: shouldChangeRole,
+        emailChanged: shouldChangeEmail,
+        ip: getClientIp(req) ?? "unknown"
+      });
+
       const updatedUser = findUserById(userId);
       if (!updatedUser) {
         res.status(404).json({ error: "User not found" });
@@ -479,6 +519,13 @@ export function createUserRouter(): Router {
       return;
     }
 
+    emitSecurityAuditLog("info", "admin-user-password-reset", {
+      adminUserId: req.authUser!.id,
+      targetUserId: userId,
+      targetUsername: existingUser.username,
+      ip: getClientIp(req) ?? "unknown"
+    });
+
     res.json({
       ok: true,
       user: {
@@ -518,6 +565,13 @@ export function createUserRouter(): Router {
       res.status(404).json({ error: "User not found" });
       return;
     }
+
+    emitSecurityAuditLog("info", "admin-user-deleted", {
+      adminUserId: req.authUser!.id,
+      deletedUserId: userId,
+      deletedUsername: existingUser.username,
+      ip: getClientIp(req) ?? "unknown"
+    });
 
     res.status(204).send();
   });

@@ -572,6 +572,7 @@ ensure_writable_directory "${STATE_DIR}/index"
 ensure_writable_directory "${STATE_DIR}/cache/covers"
 ensure_writable_directory "${STATE_DIR}/cache/transcodes"
 ensure_writable_directory "${STATE_DIR}/cache/tmp-uploads"
+ensure_writable_directory "${STATE_DIR}/logs"
 print_ok "Mount folders are ready"
 
 print_step "Writing ${ENV_FILE}"
