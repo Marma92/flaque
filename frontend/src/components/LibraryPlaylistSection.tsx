@@ -463,24 +463,22 @@ function PlaylistCard({
                       <img src={coverUrl(track.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-flaque-ink">
-                        {getTrackDisplayTitle(track)}
+                      <p className="flex items-center gap-1 truncate text-xs font-medium text-flaque-ink">
+                        {track.tags.extra?.lyrics ? (
+                          <span className="shrink-0 rounded px-1 py-px font-mono text-[9px] font-bold leading-none text-flaque-steel/70 ring-1 ring-flaque-clay/60">
+                            L
+                          </span>
+                        ) : null}
+                        <span className="truncate">{getTrackDisplayTitle(track)}</span>
                       </p>
                       <p className="truncate text-[10px] text-flaque-steel">
                         {getTrackDisplayArtist(track) ?? "Unknown artist"}
                         {track.tags.album ? ` · ${track.tags.album}` : ""}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {track.tags.extra?.lyrics ? (
-                        <span className="rounded px-1 py-px font-mono text-[9px] font-bold leading-none text-flaque-steel/70 ring-1 ring-flaque-clay/60">
-                          L
-                        </span>
-                      ) : null}
-                      <span className="font-mono text-[10px] text-flaque-steel/60">
-                        {formatDuration(track.duration)}
-                      </span>
-                    </div>
+                    <span className="shrink-0 font-mono text-[10px] text-flaque-steel/60">
+                      {formatDuration(track.duration)}
+                    </span>
                   </li>
                 ))}
               </ul>
