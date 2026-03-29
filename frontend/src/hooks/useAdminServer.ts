@@ -1,9 +1,14 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getLogFiles, getLogEntries, getStorageUsage, getVersionInfo, type LogFile, type LogEntry, type StorageUsage, type VersionInfo } from "../api";
+import {
+  getLogFiles, getLogEntries, getStorageUsage, getVersionInfo, triggerUpdate, getUpdateStatus,
+  type LogFile, type LogEntry, type StorageUsage, type VersionInfo, type UpdateStatus
+} from "../api";
 import type { User } from "../types";
 
 const PAGE_SIZE = 200;
+const UPDATE_POLL_INTERVAL_MS = 3_000;
+const UPDATE_POLL_TIMEOUT_MS = 180_000;
 
 type UseAdminServerArgs = {
   user: User | null;
@@ -14,6 +19,8 @@ type UseAdminServerResult = {
   loadingStorage: boolean;
   versionInfo: VersionInfo | null;
   loadingVersion: boolean;
+  updateStatus: UpdateStatus | null;
+  onTriggerUpdate: () => Promise<void>;
   logFiles: LogFile[];
   loadingFiles: boolean;
   selectedFile: string | null;
@@ -34,6 +41,7 @@ export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResu
   const [loadingStorage, setLoadingStorage] = useState(false);
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [loadingVersion, setLoadingVersion] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
   const [logFiles, setLogFiles] = useState<LogFile[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -42,6 +50,27 @@ export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResu
   const [serverError, setServerError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [levelFilter, setLevelFilter] = useState<number | null>(null);
+
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollStartRef = useRef<number>(0);
+  const previousVersionRef = useRef<string | null>(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current !== null) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
+
+  useEffect(() => {
+    if (versionInfo?.currentVersion) {
+      previousVersionRef.current = versionInfo.currentVersion;
+    }
+  }, [versionInfo]);
 
   useEffect(() => {
     if (!user || user.role !== "admin") {
@@ -75,9 +104,7 @@ export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResu
 
     getStorageUsage()
       .then(setStorageUsage)
-      .catch(() => {
-        // storage fetch failure is non-critical
-      })
+      .catch(() => {})
       .finally(() => {
         setLoadingStorage(false);
       });
@@ -108,6 +135,56 @@ export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResu
         setLoadingEntries(false);
       });
   }, [selectedFile, levelFilter, user]);
+
+  function startUpdatePolling(): void {
+    stopPolling();
+    pollStartRef.current = Date.now();
+
+    pollTimerRef.current = setInterval(async () => {
+      const elapsed = Date.now() - pollStartRef.current;
+
+      if (elapsed > UPDATE_POLL_TIMEOUT_MS) {
+        stopPolling();
+        setUpdateStatus({ status: "failed", message: "Update timed out — check server logs" });
+        return;
+      }
+
+      try {
+        // Try the version endpoint first — if the backend is back, it's healthy
+        const newVersion = await getVersionInfo();
+        setVersionInfo(newVersion);
+
+        // Also check update status from the updater sidecar
+        const status = await getUpdateStatus();
+        setUpdateStatus(status);
+
+        if (status.status === "complete" || status.status === "idle") {
+          stopPolling();
+        } else if (status.status === "failed") {
+          stopPolling();
+        }
+      } catch {
+        // Backend is likely restarting — keep polling
+        setUpdateStatus({ status: "updating", message: "Server is restarting..." });
+      }
+    }, UPDATE_POLL_INTERVAL_MS);
+  }
+
+  async function handleTriggerUpdate(): Promise<void> {
+    try {
+      const result = await triggerUpdate();
+      setUpdateStatus(result);
+
+      if (result.status === "updating") {
+        startUpdatePolling();
+      }
+    } catch (error) {
+      setUpdateStatus({
+        status: "failed",
+        message: error instanceof Error ? error.message : "Failed to trigger update"
+      });
+    }
+  }
 
   async function refreshServer(): Promise<void> {
     setLoadingFiles(true);
@@ -200,6 +277,8 @@ export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResu
     loadingStorage,
     versionInfo,
     loadingVersion,
+    updateStatus,
+    onTriggerUpdate: handleTriggerUpdate,
     logFiles,
     loadingFiles,
     selectedFile,

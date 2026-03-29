@@ -577,6 +577,7 @@ print_ok "Mount folders are ready"
 
 print_step "Writing ${ENV_FILE}"
 ADMIN_PASSWORD_LITERAL="$(quote_env_literal "${ADMIN_PASSWORD}")"
+UPDATE_SECRET="$(head -c 32 /dev/urandom | xxd -p -c 64 2>/dev/null || openssl rand -hex 32)"
 
 umask 077
 cat > "${ENV_FILE}" <<EOF
@@ -594,6 +595,9 @@ FLAQUE_STORAGE_DIR=${STORAGE_DIR}
 FLAQUE_STATE_DIR=${STATE_DIR}
 FLAQUE_FRONTEND_PORT=${FRONTEND_PORT}
 FLAQUE_BACKEND_PORT=${BACKEND_PORT}
+
+UPDATE_SECRET=${UPDATE_SECRET}
+COMPOSE_PROJECT_NAME=
 EOF
 chmod 600 "${ENV_FILE}"
 print_ok "Environment file generated"

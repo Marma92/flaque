@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from "react";
 
-import type { LogFile, LogEntry, StorageUsage, VersionInfo } from "../api";
+import type { LogFile, LogEntry, StorageUsage, VersionInfo, UpdateStatus } from "../api";
 import type { Track, TrackMetadataPatch, User } from "../types";
 import {
   getTrackDisplayAlbumWithYear,
@@ -44,6 +44,8 @@ type ConfigViewProps = {
   onResetUserPassword: (userId: string, password: string) => Promise<void>;
   versionInfo: VersionInfo | null;
   loadingVersion: boolean;
+  updateStatus: UpdateStatus | null;
+  onTriggerUpdate: () => Promise<void>;
   storageUsage: StorageUsage | null;
   loadingStorage: boolean;
   logFiles: LogFile[];
@@ -90,6 +92,8 @@ export function ConfigView({
   onResetUserPassword,
   versionInfo,
   loadingVersion,
+  updateStatus,
+  onTriggerUpdate,
   storageUsage,
   loadingStorage,
   logFiles,
@@ -409,6 +413,8 @@ export function ConfigView({
         <AdminServerView
           versionInfo={versionInfo}
           loadingVersion={loadingVersion}
+          updateStatus={updateStatus}
+          onTriggerUpdate={onTriggerUpdate}
           storageUsage={storageUsage}
           loadingStorage={loadingStorage}
           logFiles={logFiles}

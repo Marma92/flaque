@@ -704,6 +704,20 @@ export async function getVersionInfo(): Promise<VersionInfo> {
   return requestJson<VersionInfo>("/api/server/version");
 }
 
+export type UpdateStatus = {
+  status: "idle" | "updating" | "complete" | "failed" | "unavailable";
+  message?: string;
+  timestamp?: string;
+};
+
+export async function triggerUpdate(): Promise<UpdateStatus> {
+  return requestJson<UpdateStatus>("/api/server/update", { method: "POST" });
+}
+
+export async function getUpdateStatus(): Promise<UpdateStatus> {
+  return requestJson<UpdateStatus>("/api/server/update/status");
+}
+
 export async function getLogFiles(): Promise<LogFile[]> {
   const payload = await requestJson<{ files: LogFile[] }>("/api/logs/files");
   return payload.files;

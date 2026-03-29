@@ -1,10 +1,12 @@
 import { useState } from "react";
 
-import type { LogFile, LogEntry, StorageUsage, VersionInfo } from "../api";
+import type { LogFile, LogEntry, StorageUsage, VersionInfo, UpdateStatus } from "../api";
 
 type AdminServerViewProps = {
   versionInfo: VersionInfo | null;
   loadingVersion: boolean;
+  updateStatus: UpdateStatus | null;
+  onTriggerUpdate: () => Promise<void>;
   storageUsage: StorageUsage | null;
   loadingStorage: boolean;
   logFiles: LogFile[];
@@ -162,7 +164,16 @@ function StorageSection({ storageUsage, loading }: { storageUsage: StorageUsage 
   );
 }
 
-function VersionSection({ versionInfo, loading }: { versionInfo: VersionInfo | null; loading: boolean }): JSX.Element | null {
+type VersionSectionProps = {
+  versionInfo: VersionInfo | null;
+  loading: boolean;
+  updateStatus: UpdateStatus | null;
+  onTriggerUpdate: () => Promise<void>;
+};
+
+function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate }: VersionSectionProps): JSX.Element | null {
+  const isUpdating = updateStatus?.status === "updating";
+
   if (loading && !versionInfo) {
     return (
       <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
@@ -173,6 +184,53 @@ function VersionSection({ versionInfo, loading }: { versionInfo: VersionInfo | n
 
   if (!versionInfo) {
     return null;
+  }
+
+  // Update in progress or just completed/failed
+  if (isUpdating) {
+    return (
+      <section className="rounded-3xl border border-amber-200 bg-amber-50/80 p-5 shadow-panel backdrop-blur-sm">
+        <h3 className="font-display text-lg text-amber-900">Updating...</h3>
+        <p className="mt-1 text-sm text-amber-700">
+          {updateStatus.message ?? "Pulling latest code and rebuilding containers. This may take a few minutes."}
+        </p>
+      </section>
+    );
+  }
+
+  if (updateStatus?.status === "complete") {
+    return (
+      <section className="rounded-3xl border border-emerald-200 bg-emerald-50/80 p-5 shadow-panel backdrop-blur-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-display text-lg text-emerald-900">Update complete</h3>
+            <p className="mt-1 text-sm text-emerald-700">
+              Running v{versionInfo.currentVersion}.
+              {updateStatus.message ? ` ${updateStatus.message}.` : ""}
+              {" "}Reload the page to get the latest interface.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
+            onClick={() => window.location.reload()}
+          >
+            Reload page
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (updateStatus?.status === "failed") {
+    return (
+      <section className="rounded-3xl border border-red-200 bg-red-50/80 p-5 shadow-panel backdrop-blur-sm">
+        <h3 className="font-display text-lg text-red-900">Update failed</h3>
+        <p className="mt-1 text-sm text-red-700">
+          {updateStatus.message ?? "The update did not complete successfully. Check the server logs for details."}
+        </p>
+      </section>
+    );
   }
 
   if (versionInfo.isUpdateAvailable && versionInfo.latestVersion) {
@@ -189,16 +247,27 @@ function VersionSection({ versionInfo, loading }: { versionInfo: VersionInfo | n
             </p>
           </div>
 
-          {versionInfo.releaseUrl ? (
-            <a
-              href={versionInfo.releaseUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-xl border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
+          <div className="flex items-center gap-2">
+            {versionInfo.releaseUrl ? (
+              <a
+                href={versionInfo.releaseUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
+              >
+                View release
+              </a>
+            ) : null}
+            <button
+              type="button"
+              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+              onClick={() => {
+                void onTriggerUpdate();
+              }}
             >
-              View release
-            </a>
-          ) : null}
+              Update now
+            </button>
+          </div>
         </div>
       </section>
     );
@@ -219,6 +288,8 @@ function VersionSection({ versionInfo, loading }: { versionInfo: VersionInfo | n
 export function AdminServerView({
   versionInfo,
   loadingVersion,
+  updateStatus,
+  onTriggerUpdate,
   storageUsage,
   loadingStorage,
   logFiles,
@@ -243,7 +314,12 @@ export function AdminServerView({
 
   return (
     <div className="space-y-6">
-      <VersionSection versionInfo={versionInfo} loading={loadingVersion} />
+      <VersionSection
+        versionInfo={versionInfo}
+        loading={loadingVersion}
+        updateStatus={updateStatus}
+        onTriggerUpdate={onTriggerUpdate}
+      />
       <StorageSection storageUsage={storageUsage} loading={loadingStorage} />
 
       <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">

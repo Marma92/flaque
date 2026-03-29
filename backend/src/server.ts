@@ -1,5 +1,6 @@
 import "dotenv/config";
 
+import type http from "node:http";
 import { createServer } from "node:http";
 
 import { createApp } from "./app";
@@ -15,6 +16,7 @@ import { startVersionCheckSchedule } from "./services/versionCheck";
 import { ensureBaseDirectories } from "./utils/fs";
 
 const SESSION_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 function readNonNegativeIntEnv(name: string, fallback: number): number {
   const raw = Number(process.env[name] ?? fallback);
@@ -26,6 +28,20 @@ function readNonNegativeIntEnv(name: string, fallback: number): number {
 }
 
 const log = createLogger("server");
+
+function gracefulShutdown(server: http.Server, signal: string): void {
+  log.info(`Received ${signal}, shutting down gracefully`);
+
+  server.close(() => {
+    log.info("All connections closed, exiting");
+    process.exit(0);
+  });
+
+  setTimeout(() => {
+    log.warn("Forcing exit after shutdown timeout");
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS).unref();
+}
 
 async function bootstrap(): Promise<void> {
   await ensureBaseDirectories();
@@ -60,6 +76,9 @@ async function bootstrap(): Promise<void> {
   server.listen(port, () => {
     log.info(`flaque backend listening on http://localhost:${port}`);
   });
+
+  process.on("SIGTERM", () => gracefulShutdown(server, "SIGTERM"));
+  process.on("SIGINT", () => gracefulShutdown(server, "SIGINT"));
 
   setInterval(() => {
     deleteExpiredSessions();
