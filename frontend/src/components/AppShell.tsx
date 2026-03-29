@@ -68,7 +68,7 @@ export function AppShell({
     ["music", "Music"], ["artists", "Artists"], ["albums", "Albums"], ["playlists", "Playlists"]
   ];
   const configSections: Array<[ConfigSection, string]> = [
-    ["index", "Index"], ["files", "Files"], ["users", "Users"]
+    ["index", "Index"], ["files", "Files"], ["users", "Users"], ["server", "Server"]
   ];
 
   const sectionSwitcher = activeView === "library" ? (
