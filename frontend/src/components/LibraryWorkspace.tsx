@@ -14,6 +14,9 @@ type LibraryWorkspaceProps = {
   ownerNameById: Record<string, string>;
   onCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility }) => Promise<void>;
   onPlayPlaylist: (playlist: Playlist) => void;
+  onPatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[] }) => Promise<void>;
+  onDeletePlaylist: (playlistId: string) => Promise<void>;
+  allTracksById: Map<string, Track>;
   libraryMetadataError: string | null;
   loadingLibraryArtists: boolean;
   libraryArtists: ArtistEntry[];
@@ -71,6 +74,9 @@ export function LibraryWorkspace({
   ownerNameById,
   onCreatePlaylist,
   onPlayPlaylist,
+  onPatchPlaylist,
+  onDeletePlaylist,
+  allTracksById,
   libraryMetadataError,
   loadingLibraryArtists,
   libraryArtists,
@@ -120,9 +126,13 @@ export function LibraryWorkspace({
       {activeLibrarySection === "playlists" ? (
         <LibraryPlaylistSection
           availablePlaylists={availablePlaylists}
+          manageablePlaylists={manageablePlaylists}
           ownerNameById={ownerNameById}
+          allTracksById={allTracksById}
           onCreatePlaylist={onCreatePlaylist}
           onPlayPlaylist={onPlayPlaylist}
+          onPatchPlaylist={onPatchPlaylist}
+          onDeletePlaylist={onDeletePlaylist}
         />
       ) : null}
 

@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 
 import {
   createPlaylist,
+  deletePlaylist,
   deleteTrackFile,
   inspectUploadFile,
   patchPlaylist,
@@ -45,6 +46,8 @@ type UseLibraryCommandsResult = {
   handleUpdateTrackMetadata: (trackId: string, patch: TrackMetadataPatch) => Promise<void>;
   handleCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility }) => Promise<void>;
   handleAddTrackToPlaylist: (input: { trackId: string; playlistId: string }) => Promise<void>;
+  handlePatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[] }) => Promise<void>;
+  handleDeletePlaylist: (playlistId: string) => Promise<void>;
 };
 
 /**
@@ -184,6 +187,24 @@ export function useLibraryCommands({
     refreshPaginatedLibrary();
   }
 
+  async function handlePatchPlaylist(
+    playlistId: string,
+    patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[] }
+  ): Promise<void> {
+    await patchPlaylist(playlistId, patch);
+    await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+    refreshRecentlyUploaded();
+    refreshPaginatedLibrary();
+  }
+
+  async function handleDeletePlaylist(playlistId: string): Promise<void> {
+    await deletePlaylist(playlistId);
+    setAppNotice({ tone: "success", message: "Playlist deleted." });
+    await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+    refreshRecentlyUploaded();
+    refreshPaginatedLibrary();
+  }
+
   return {
     handleUpload,
     handleInspectUploadFile,
@@ -191,6 +212,8 @@ export function useLibraryCommands({
     handleDeleteTrack,
     handleUpdateTrackMetadata,
     handleCreatePlaylist,
-    handleAddTrackToPlaylist
+    handleAddTrackToPlaylist,
+    handlePatchPlaylist,
+    handleDeletePlaylist
   };
 }

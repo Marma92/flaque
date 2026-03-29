@@ -146,7 +146,8 @@ export function AuthenticatedApp({
   const {
     handleUpload, handleInspectUploadFile, handleRebuildIndex,
     handleDeleteTrack, handleUpdateTrackMetadata,
-    handleCreatePlaylist, handleAddTrackToPlaylist
+    handleCreatePlaylist, handleAddTrackToPlaylist,
+    handlePatchPlaylist, handleDeletePlaylist
   } = useLibraryCommands({
     manageablePlaylists, refreshCurrentLibrary, refreshAllTracks,
     refreshRecentlyUploaded, refreshPaginatedLibrary,
@@ -235,6 +236,9 @@ export function AuthenticatedApp({
         ownerNameById,
         onCreatePlaylist: handleCreatePlaylist,
         onPlayPlaylist: handlePlayPlaylist,
+        onPatchPlaylist: handlePatchPlaylist,
+        onDeletePlaylist: handleDeletePlaylist,
+        allTracksById,
         libraryMetadataError,
         loadingLibraryArtists,
         libraryArtists,

@@ -82,7 +82,7 @@ export function LibraryArtistsSection({
           </p>
         </>
       ) : (
-        <p className="mt-1 text-sm text-flaque-steel">Artist list from `/api/artists` based on your current owner/search filters.</p>
+        <p className="mt-1 text-sm text-flaque-steel"></p>
       )}
 
       {libraryMetadataError ? (
