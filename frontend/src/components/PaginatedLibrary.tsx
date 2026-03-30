@@ -80,7 +80,7 @@ export function PaginatedLibrary({
   }, [filters, onFilterChange, searchDraft]);
 
   return (
-    <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+    <section className="border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
       <div>
         <h2 className="font-display text-2xl text-flaque-ink">
           Library

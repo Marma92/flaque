@@ -47,7 +47,7 @@ export function LibraryPlaylistSection({
   }
 
   return (
-    <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+    <section className="border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
       <h2 className="font-display text-xl text-flaque-ink">Create Playlist</h2>
       <p className="mt-1 text-sm text-flaque-steel">
         Create a file-based playlist folder in `playlists` with a `playlist.json` and symlinks.

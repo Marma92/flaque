@@ -115,7 +115,7 @@ export function AppSidebar({
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-start rounded-2xl border border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:hidden">
+      <div className="mb-3 flex items-center justify-start border border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:hidden">
         <button
           className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/70 bg-white/80 text-flaque-ink transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
           type="button"
@@ -153,13 +153,13 @@ export function AppSidebar({
               </div>
 
               <button
-                className="flex w-full items-center gap-3 rounded-2xl border border-flaque-clay/60 bg-white/70 p-2 text-left transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
+                className="flex w-full items-center gap-3 bg-white/70 p-2 text-left transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
                 type="button"
                 aria-label="Go to home"
                 title="Home"
                 onClick={() => handleLibraryEntryClick("home")}
               >
-                <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl">
+                <span className="relative h-12 w-12 shrink-0 overflow-hidden">
                   <img className="header-logo-light absolute inset-0 h-full w-full object-contain" src="/logo-light.png" alt="Flaque logo" />
                   <img className="header-logo-dark absolute inset-0 h-full w-full object-contain" src="/logo-dark.png" alt="Flaque logo (dark mode)" />
                 </span>
@@ -177,7 +177,7 @@ export function AppSidebar({
                 </span>
               </button>
 
-              <nav className="rounded-2xl border border-flaque-clay/50 bg-white/70 p-2" aria-label="Music navigation">
+              <nav className="border border-flaque-clay/50 bg-white/70 p-2" aria-label="Music navigation">
                 <ul className="space-y-1">
                   {LIBRARY_ITEMS.map((item) => {
                     const isActive = activeView === "library" && activeLibrarySection === item.key;
@@ -276,16 +276,16 @@ export function AppSidebar({
         </div>
       ) : null}
 
-      <aside className="hidden rounded-3xl border border-flaque-clay/60 bg-white/80 shadow-panel backdrop-blur-sm md:sticky md:top-6 md:block md:h-[calc(100dvh-3.5rem)] md:w-72 md:shrink-0">
+      <aside className="hidden border border-flaque-clay/60 bg-white/80 shadow-panel backdrop-blur-sm md:sticky md:top-6 md:block md:h-[calc(100dvh-3.5rem)] md:w-72 md:shrink-0">
         <div className="flex h-full flex-col gap-3 p-4">
           <button
-            className="flex w-full items-center gap-3 rounded-2xl border border-flaque-clay/60 bg-white/70 p-2 text-left transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
+            className="flex w-full items-center gap-3 bg-white/70 p-2 text-left transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
             type="button"
             aria-label="Go to home"
             title="Home"
             onClick={() => handleLibraryEntryClick("home")}
           >
-            <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl">
+            <span className="relative h-12 w-12 shrink-0 overflow-hidden">
               <img className="header-logo-light absolute inset-0 h-full w-full object-contain" src="/logo-light.png" alt="Flaque logo" />
               <img className="header-logo-dark absolute inset-0 h-full w-full object-contain" src="/logo-dark.png" alt="Flaque logo (dark mode)" />
             </span>
@@ -303,7 +303,7 @@ export function AppSidebar({
             </span>
           </button>
 
-          <nav className="rounded-2xl border border-flaque-clay/50 bg-white/70 p-2" aria-label="Music navigation">
+          <nav className="border border-flaque-clay/50 bg-white/70 p-2" aria-label="Music navigation">
             <ul className="space-y-1">
               {LIBRARY_ITEMS.map((item) => {
                 const isActive = activeView === "library" && activeLibrarySection === item.key;

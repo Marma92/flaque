@@ -18,7 +18,7 @@ export function RecentTracksPanel({ tracks, onTrackReplay, gridClassName }: Rece
   const visibleTracks = tracks.slice(0, 12);
 
   return (
-    <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+    <section className="border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
       <h2 className="font-display text-xl text-flaque-ink">Played Recently</h2>
       <TrackCardGrid tracks={visibleTracks} onTrackSelect={onTrackReplay} gridClassName={gridClassName} />
     </section>

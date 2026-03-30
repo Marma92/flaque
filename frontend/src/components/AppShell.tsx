@@ -103,7 +103,7 @@ export function AppShell({
 
       <div className="min-w-0 flex-1">
         {sectionSwitcher ? (
-          <div className="mb-3 flex flex-wrap items-center gap-1 rounded-3xl border border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:px-4 md:py-3">
+          <div className="mb-3 flex flex-wrap items-center gap-1 border border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:px-4 md:py-3">
             {sectionSwitcher}
           </div>
         ) : null}

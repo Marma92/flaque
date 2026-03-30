@@ -13,7 +13,7 @@ export function LibrarySectionSwitcher({
   onSectionChange
 }: LibrarySectionSwitcherProps): JSX.Element {
   return (
-    <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-3 shadow-panel backdrop-blur-sm md:p-5">
+    <section className="border border-flaque-clay/60 bg-white/85 p-3 shadow-panel backdrop-blur-sm md:p-5">
       <div className="flex flex-wrap items-center justify-center gap-1.5">
           {([
             ["home", "Home"],
