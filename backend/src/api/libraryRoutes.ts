@@ -323,7 +323,7 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
         (track) => getTrackArtistDirectorySegment(track) === normalizedArtist
       );
       const tracks = filterTracks(tracksForArtist, { owner: filter.owner, q: filter.q });
-      const albums = await attachCollaborativeAlbumCovers(tracks);
+      const albums = await attachCollaborativeAlbumCovers(tracks, "year-desc");
       res.json({ total: tracks.length, artist: normalizedArtist, albums });
     } catch (error) {
       next(error);

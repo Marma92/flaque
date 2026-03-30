@@ -7,11 +7,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AlbumEntry, ArtistEntry, Track } from "../types";
 import { LibraryArtistsSection } from "./LibraryArtistsSection";
 
-function createArtist(input: { name: string; trackCount: number; previewTrackId?: string }): ArtistEntry {
+function createArtist(input: { name: string; albumCount?: number; trackCount: number; totalDuration?: number; previewTrackId?: string }): ArtistEntry {
   return {
     name: input.name,
     normalizedName: input.name.trim().toLowerCase(),
+    albumCount: input.albumCount ?? 1,
     trackCount: input.trackCount,
+    totalDuration: input.totalDuration ?? 0,
     previewTrackId: input.previewTrackId
   };
 }
@@ -92,9 +94,9 @@ describe("LibraryArtistsSection", () => {
 
     expect(screen.getByText("Metadata endpoint unavailable")).toBeTruthy();
     expect(screen.getByText("Boards of Canada")).toBeTruthy();
-    expect(screen.getByText("2 tracks")).toBeTruthy();
+    expect(screen.getByText(/2 tracks/)).toBeTruthy();
     expect(screen.getByText("Nujabes")).toBeTruthy();
-    expect(screen.getByText("1 track")).toBeTruthy();
+    expect(screen.getByText(/1 track/)).toBeTruthy();
   });
 
   it("shows selected artist albums with AlbumList", () => {

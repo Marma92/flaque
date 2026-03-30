@@ -166,8 +166,21 @@ export function parseCollaborativeAlbumId(
   return { normalizedAlbumName };
 }
 
+function getTrackYear(track: Track): number | undefined {
+  if (typeof track.tags.year === "number" && Number.isFinite(track.tags.year)) {
+    return Math.trunc(track.tags.year);
+  }
+  const dateStr = track.tags.date ?? track.tags.originalDate;
+  if (!dateStr) return undefined;
+  const match = dateStr.match(/(?:^|\D)(\d{4})(?:\D|$)/);
+  return match ? Number(match[1]) : undefined;
+}
+
+export type AlbumSortOrder = "name" | "year-desc";
+
 export async function attachCollaborativeAlbumCovers(
-  tracks: Track[]
+  tracks: Track[],
+  sortOrder: AlbumSortOrder = "name"
 ): Promise<
   Array<{
     id?: string;
@@ -175,6 +188,8 @@ export async function attachCollaborativeAlbumCovers(
     artist?: string;
     artists?: string[];
     trackCount: number;
+    year?: number;
+    totalDuration: number;
     cover?: string;
     previewTrackId?: string;
   }>
@@ -186,6 +201,8 @@ export async function attachCollaborativeAlbumCovers(
       name: string;
       artists: Set<string>;
       trackCount: number;
+      year?: number;
+      totalDuration: number;
       cover?: string;
       previewTrackId?: string;
     }
@@ -208,12 +225,16 @@ export async function attachCollaborativeAlbumCovers(
     const artistName = getTrackArtistName(track)?.trim();
     const displayName = metadata?.name?.trim() ? metadata.name : albumName;
 
+    const trackYear = getTrackYear(track);
+
     if (!current) {
       grouped.set(albumKey, {
         id: collaborative ? albumKey : metadata?.id,
         name: displayName,
         artists: artistName ? new Set([artistName]) : new Set<string>(),
         trackCount: 1,
+        year: trackYear,
+        totalDuration: track.duration ?? 0,
         cover: metadata?.coverPath,
         previewTrackId: track.id
       });
@@ -221,6 +242,10 @@ export async function attachCollaborativeAlbumCovers(
     }
 
     current.trackCount += 1;
+    current.totalDuration += track.duration ?? 0;
+    if (trackYear !== undefined && current.year === undefined) {
+      current.year = trackYear;
+    }
     if (artistName) {
       current.artists.add(artistName);
     }
@@ -238,6 +263,8 @@ export async function attachCollaborativeAlbumCovers(
     artist?: string;
     artists?: string[];
     trackCount: number;
+    year?: number;
+    totalDuration: number;
     cover?: string;
     previewTrackId?: string;
   }> = [];
@@ -251,8 +278,19 @@ export async function attachCollaborativeAlbumCovers(
       artist: artists.length > 0 ? artists.join(", ") : undefined,
       artists: artists.length > 0 ? artists : undefined,
       trackCount: groupedAlbum.trackCount,
+      year: groupedAlbum.year,
+      totalDuration: groupedAlbum.totalDuration,
       cover: groupedAlbum.cover,
       previewTrackId: groupedAlbum.previewTrackId
+    });
+  }
+
+  if (sortOrder === "year-desc") {
+    return entries.sort((a, b) => {
+      const yearA = a.year ?? 0;
+      const yearB = b.year ?? 0;
+      if (yearA !== yearB) return yearB - yearA;
+      return a.name.localeCompare(b.name);
     });
   }
 

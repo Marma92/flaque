@@ -19,6 +19,7 @@ type TrackListProps = {
   onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
   emptyMessage?: string;
   constrainHeight?: boolean;
+  showTrackNumber?: boolean;
 };
 
 export function TrackList({
@@ -29,7 +30,8 @@ export function TrackList({
   playlists = [],
   onAddTrackToPlaylist,
   emptyMessage = "No tracks match this filter yet.",
-  constrainHeight = true
+  constrainHeight = true,
+  showTrackNumber = false
 }: TrackListProps): JSX.Element {
   const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
   const [playlistPickerTrackId, setPlaylistPickerTrackId] = useState<string | null>(null);
@@ -154,9 +156,10 @@ export function TrackList({
         <table className="w-full min-w-[780px] border-collapse text-left text-sm">
           <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
             <tr>
-              <th className="w-14 px-2 py-3 font-medium text-center" aria-label="Playlist actions">
+              <th className="w-10 px-1 py-3 font-medium text-center" aria-label="Playlist actions">
               </th>
-              <th className="px-4 py-3 font-medium">Title</th>
+              {showTrackNumber ? <th className="w-8 px-0 py-3 text-center font-medium">#</th> : null}
+              <th className="pl-1 pr-4 py-3 font-medium">Title</th>
               <th className="px-4 py-3 font-medium">Artist</th>
               <th className="px-4 py-3 font-medium">Album</th>
               <th className="px-4 py-3 font-medium">Owner</th>
@@ -185,7 +188,7 @@ export function TrackList({
                     onClick={() => handleTrackSelect(track)}
                     onKeyDown={(event) => handleTrackRowKeyDown(event, track)}
                   >
-                    <td className="px-2 py-3 text-center">
+                    <td className="px-1 py-3 text-center">
                       {hasPlaylistAction ? (
                         <button
                           className={`inline-flex h-6 w-6 items-center justify-center rounded-lg border border-flaque-clay bg-white text-sm font-semibold text-flaque-ink transition hover:bg-flaque-cream ${
@@ -204,7 +207,10 @@ export function TrackList({
                         </button>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3 text-flaque-ink">
+                    {showTrackNumber ? (
+                      <td className="px-0 py-3 text-center text-xs text-flaque-steel">{track.tags.trackNumber ?? ""}</td>
+                    ) : null}
+                    <td className="pl-1 pr-4 py-3 text-flaque-ink">
                       <span className="flex max-w-[24rem] min-w-0 items-center gap-1.5">
                         {hasLyrics ? <span className={getLyricsBadgeClassName(false)}>L</span> : null}
                         <span className="min-w-0 truncate" title={trackTitle}>
@@ -221,7 +227,7 @@ export function TrackList({
 
                   {showPlaylistPicker && onAddTrackToPlaylist ? (
                     <tr className="border-t border-flaque-clay/30 bg-flaque-cream/30">
-                      <td className="px-4 pb-3 pt-1" colSpan={7}>
+                      <td className="px-4 pb-3 pt-1" colSpan={showTrackNumber ? 8 : 7}>
                         {hasPlayablePlaylists ? (
                           <PlaylistPicker
                             trackId={track.id}
@@ -240,7 +246,7 @@ export function TrackList({
             })}
             {tracks.length === 0 ? (
               <tr>
-                <td className="px-4 py-4 text-flaque-steel" colSpan={7}>
+                <td className="px-4 py-4 text-flaque-steel" colSpan={showTrackNumber ? 8 : 7}>
                   {emptyMessage}
                 </td>
               </tr>

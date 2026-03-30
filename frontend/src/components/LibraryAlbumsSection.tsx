@@ -17,6 +17,7 @@ type LibraryAlbumsSectionProps = {
   currentTrackId?: string;
   ownerNameById: Record<string, string>;
   onAlbumSelect: (album: AlbumEntry) => void;
+  onPlayAlbum: (album: AlbumEntry) => void;
   onBack: () => void;
   onTrackSelect: (track: Track) => void;
   playlists?: Playlist[];
@@ -39,6 +40,7 @@ export function LibraryAlbumsSection({
   currentTrackId,
   ownerNameById,
   onAlbumSelect,
+  onPlayAlbum,
   onBack,
   onTrackSelect,
   playlists,
@@ -110,6 +112,7 @@ export function LibraryAlbumsSection({
               albums={albums}
               selectedAlbum={selectedAlbum}
               onAlbumSelect={onAlbumSelect}
+              onPlayAlbum={onPlayAlbum}
               getAlbumCoverSrc={getAlbumCoverSrc}
             />
           ) : null}
@@ -122,8 +125,11 @@ export function LibraryAlbumsSection({
                     className="mb-2 inline-flex items-center rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-2.5 py-1 text-xs font-medium text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
                     type="button"
                     onClick={onBack}
+                    aria-label="Back"
                   >
-                    back
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+                    </svg>
                   </button>
                 ) : null}
                 <p className="text-xs uppercase tracking-[0.14em] text-flaque-steel">Album tracks</p>
@@ -149,6 +155,8 @@ export function LibraryAlbumsSection({
                 playlists={playlists}
                 onAddTrackToPlaylist={onAddTrackToPlaylist}
                 emptyMessage="No tracks found for this album."
+                constrainHeight={false}
+                showTrackNumber
               />
             </div>
           ) : null}

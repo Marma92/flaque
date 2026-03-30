@@ -1,6 +1,7 @@
 import { coverPathUrl, coverUrl } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
 import type { AlbumEntry, ArtistEntry, Playlist, Track } from "../types";
+import { formatDurationHuman } from "../utils/format";
 import { AlbumList } from "./AlbumList";
 import { TrackList } from "./TrackList";
 
@@ -22,6 +23,7 @@ type LibraryArtistsSectionProps = {
   onArtistAlbumSelect: (album: AlbumEntry) => void;
   onArtistAlbumBack: () => void;
   onArtistAlbumTrackSelect: (track: Track) => void;
+  onPlayAlbum?: (album: AlbumEntry) => void;
   playlists?: Playlist[];
   onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
 };
@@ -47,6 +49,7 @@ export function LibraryArtistsSection({
   onArtistAlbumSelect,
   onArtistAlbumBack,
   onArtistAlbumTrackSelect,
+  onPlayAlbum,
   playlists,
   onAddTrackToPlaylist
 }: LibraryArtistsSectionProps): JSX.Element {
@@ -74,8 +77,11 @@ export function LibraryArtistsSection({
             className="mt-2 inline-flex items-center rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-2.5 py-1 text-xs font-medium text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
             type="button"
             onClick={onArtistBack}
+            aria-label="Back"
           >
-            back
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+            </svg>
           </button>
           <p className="mt-2 text-sm text-flaque-steel" title={selectedArtist.name}>
             Albums for <span className="font-medium text-flaque-ink">{selectedArtist.name}</span>
@@ -100,8 +106,11 @@ export function LibraryArtistsSection({
               className="mb-2 inline-flex items-center rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-2.5 py-1 text-xs font-medium text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
               type="button"
               onClick={onArtistAlbumBack}
+            aria-label="Back"
             >
-              back
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+              </svg>
             </button>
             <p className="text-xs uppercase tracking-[0.14em] text-flaque-steel">Album tracks</p>
             <p
@@ -126,6 +135,8 @@ export function LibraryArtistsSection({
             playlists={playlists}
             onAddTrackToPlaylist={onAddTrackToPlaylist}
             emptyMessage="No tracks found for this album."
+            constrainHeight={false}
+            showTrackNumber
           />
         </div>
       ) : isArtistSelected && loadingArtistAlbums ? (
@@ -137,10 +148,11 @@ export function LibraryArtistsSection({
           albums={artistAlbums}
           selectedAlbum={selectedArtistAlbum}
           onAlbumSelect={onArtistAlbumSelect}
+          onPlayAlbum={onPlayAlbum}
           getAlbumCoverSrc={getAlbumCoverSrc}
         />
       ) : (
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {artists.map((artist) => {
             const artistPhoto = artist.photo
               ? coverPathUrl(artist.photo)
@@ -151,26 +163,28 @@ export function LibraryArtistsSection({
             return (
               <button
                 key={artist.name}
-                className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 px-3 py-2 text-left transition hover:bg-flaque-cream"
+                className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 p-3 text-center transition hover:bg-flaque-cream"
                 title={artist.name}
                 type="button"
                 onClick={() => onArtistSelect(artist)}
               >
-                <div className="flex items-center gap-2.5">
-                  <img
-                    className="h-11 w-11 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
-                    src={artistPhoto}
-                    alt={`Artwork for ${artist.name}`}
-                    onError={(event) => {
-                      event.currentTarget.src = defaultCoverImage;
-                    }}
-                  />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-flaque-ink">{artist.name}</p>
-                    <p className="text-xs text-flaque-steel">
-                      {artist.trackCount} track{artist.trackCount > 1 ? "s" : ""}
-                    </p>
-                  </div>
+                <img
+                  className="mx-auto h-24 w-24 rounded-full border border-flaque-clay/50 object-cover"
+                  src={artistPhoto}
+                  alt={`Artwork for ${artist.name}`}
+                  onError={(event) => {
+                    event.currentTarget.src = defaultCoverImage;
+                  }}
+                />
+                <div className="mt-2 min-w-0">
+                  <p className="truncate text-sm font-medium text-flaque-ink">{artist.name}</p>
+                  <p className="text-xs text-flaque-steel">
+                    {artist.albumCount} album{artist.albumCount !== 1 ? "s" : ""}
+                    {" · "}
+                    {artist.trackCount} track{artist.trackCount !== 1 ? "s" : ""}
+                    {" · "}
+                    {formatDurationHuman(artist.totalDuration)}
+                  </p>
                 </div>
               </button>
             );
