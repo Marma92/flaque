@@ -191,9 +191,9 @@ export function AudioPlayer({
             />
 
             {showLyricsOverlay && displayLyrics ? (
-              <div className="absolute inset-0 z-20 overflow-hidden bg-black/70 p-5">
+              <div className="absolute inset-0 z-20 overflow-hidden bg-black/60 dark:bg-flaque-cream/95 p-5">
                 <button
-                  className="absolute right-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-white/15 text-flaque-cream/80 transition hover:bg-white/25 hover:text-white"
+                  className="absolute right-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-white/15 text-flaque-cream/80 transition hover:bg-white/25 hover:text-white dark:text-flaque-ink dark:hover:text-flaque-ink"
                   type="button"
                   onClick={() => setShowLyricsOverlay(false)}
                   aria-label="Close lyrics"
@@ -205,7 +205,7 @@ export function AudioPlayer({
                 {syncedLyrics ? (
                   <SyncedLyricsOverlay lines={syncedLyrics} currentTime={currentTime} />
                 ) : (
-                  <div className="h-full overflow-y-auto overflow-x-hidden whitespace-pre-wrap text-left text-sm leading-relaxed text-flaque-cream/90">
+                  <div className="h-full overflow-y-auto overflow-x-hidden whitespace-pre-wrap text-left text-sm leading-relaxed text-flaque-cream/90 dark:text-flaque-ink/90">
                     {displayLyrics}
                   </div>
                 )}
@@ -263,7 +263,7 @@ export function AudioPlayer({
             <p className={metaTextClassName}>
               {codecLabel}
               {hasLyrics ? (
-                <span className="ml-2 rounded bg-flaque-ink/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-flaque-ink/70">
+                <span className="ml-2 rounded bg-flaque-ink/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-flaque-ink/70 dark:bg-flaque-cream/10 dark:text-flaque-cream/70">
                   Lyrics
                 </span>
               ) : null}
