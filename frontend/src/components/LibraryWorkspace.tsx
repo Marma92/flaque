@@ -116,7 +116,7 @@ export function LibraryWorkspace({
   paginatedSentinelRef
 }: LibraryWorkspaceProps): JSX.Element {
   return (
-    <div className="space-y-4">
+    <div className="h-full min-h-0 space-y-4 overflow-y-auto">
       {activeLibrarySection === "playlists" ? (
         <LibraryPlaylistSection
           availablePlaylists={availablePlaylists}

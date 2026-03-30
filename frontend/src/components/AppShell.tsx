@@ -84,7 +84,7 @@ export function AppShell({
 
   return (
     <main
-      className={`flex min-h-[100dvh] w-full flex-col md:flex-row ${
+      className={`flex h-[100dvh] w-full flex-col overflow-hidden md:flex-row ${
         hasStickyPlayer
           ? "pb-[calc(18rem+env(safe-area-inset-bottom))]"
           : activeView === "player"
@@ -101,7 +101,7 @@ export function AppShell({
         onLibrarySectionChange={libraryWorkspaceProps.onSectionChange}
       />
 
-      <div className="min-h-0 min-w-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {sectionSwitcher ? (
           <div className="flex flex-wrap items-center gap-1 border border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:px-4 md:py-3">
             {sectionSwitcher}
@@ -114,13 +114,29 @@ export function AppShell({
           showLibraryRefreshing={activeView === "library" && loadingLibrary}
         />
 
-        {activeView === "library" ? <LibraryWorkspace {...libraryWorkspaceProps} /> : null}
+        {activeView === "library" ? (
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <LibraryWorkspace {...libraryWorkspaceProps} />
+          </div>
+        ) : null}
 
-        {activeView === "upload" ? <UploadView {...uploadViewProps} /> : null}
+        {activeView === "upload" ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <UploadView {...uploadViewProps} />
+          </div>
+        ) : null}
 
-        {activeView === "config" && user.role === "admin" ? <ConfigView {...configViewProps} /> : null}
+        {activeView === "config" && user.role === "admin" ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <ConfigView {...configViewProps} />
+          </div>
+        ) : null}
 
-        {activeView === "account" ? <AccountView {...accountViewProps} onLogout={onLogout} /> : null}
+        {activeView === "account" ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <AccountView {...accountViewProps} onLogout={onLogout} />
+          </div>
+        ) : null}
 
         {shouldRenderPlayer ? (
           <PlayerShell
