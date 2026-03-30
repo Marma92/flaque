@@ -12,7 +12,9 @@ export type LibraryFilter = {
 export type ArtistEntry = {
   name: string;
   normalizedName: string;
+  albumCount: number;
   trackCount: number;
+  totalDuration: number;
 };
 
 export type AlbumEntry = {
@@ -126,7 +128,7 @@ export function listOwners(tracks: Track[]): string[] {
 }
 
 export function listArtists(tracks: Track[]): ArtistEntry[] {
-  const map = new Map<string, ArtistEntry>();
+  const map = new Map<string, ArtistEntry & { albums: Set<string> }>();
 
   for (const track of tracks) {
     const name = getTrackArtist(track)?.trim();
@@ -135,24 +137,35 @@ export function listArtists(tracks: Track[]): ArtistEntry[] {
     }
 
     const normalizedName = getNormalizedArtistDirectoryName(track) ?? normalize(name);
+    const albumName = track.tags.album?.trim().toLowerCase() ?? "";
     const current = map.get(name);
 
     if (!current) {
+      const albums = new Set<string>();
+      if (albumName) albums.add(albumName);
       map.set(name, {
         name,
         normalizedName,
-        trackCount: 1
+        albumCount: albums.size,
+        trackCount: 1,
+        totalDuration: track.duration ?? 0,
+        albums
       });
       continue;
     }
 
     current.trackCount += 1;
+    current.totalDuration += track.duration ?? 0;
+    if (albumName) current.albums.add(albumName);
+    current.albumCount = current.albums.size;
     if (!current.normalizedName) {
       current.normalizedName = normalizedName;
     }
   }
 
-  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  return Array.from(map.values())
+    .map(({ albums: _albums, ...entry }) => entry)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function getNormalizedArtistDirectoryName(track: Track): string | undefined {

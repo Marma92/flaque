@@ -66,7 +66,9 @@ export type Track = {
 export type ArtistEntry = {
   name: string;
   normalizedName: string;
+  albumCount: number;
   trackCount: number;
+  totalDuration: number;
   photo?: string;
   previewTrackId?: string;
 };
@@ -77,6 +79,8 @@ export type AlbumEntry = {
   artist?: string;
   artists?: string[];
   trackCount: number;
+  year?: number;
+  totalDuration?: number;
   cover?: string;
   previewTrackId?: string;
 };

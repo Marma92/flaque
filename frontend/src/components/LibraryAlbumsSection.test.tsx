@@ -58,6 +58,7 @@ describe("LibraryAlbumsSection", () => {
         selectedAlbumTracksError={null}
         ownerNameById={{}}
         onAlbumSelect={onAlbumSelect}
+        onPlayAlbum={vi.fn()}
         onBack={onBack}
         onTrackSelect={onTrackSelect}
       />
@@ -76,6 +77,7 @@ describe("LibraryAlbumsSection", () => {
         selectedAlbumTracksError={null}
         ownerNameById={{}}
         onAlbumSelect={onAlbumSelect}
+        onPlayAlbum={vi.fn()}
         onBack={onBack}
         onTrackSelect={onTrackSelect}
       />
@@ -104,6 +106,7 @@ describe("LibraryAlbumsSection", () => {
         selectedAlbumTracksError={null}
         ownerNameById={{}}
         onAlbumSelect={onAlbumSelect}
+        onPlayAlbum={vi.fn()}
         onBack={vi.fn()}
         onTrackSelect={vi.fn()}
       />
@@ -140,6 +143,7 @@ describe("LibraryAlbumsSection", () => {
         selectedAlbumTracksError={null}
         ownerNameById={{ "user-1": "Alice" }}
         onAlbumSelect={vi.fn()}
+        onPlayAlbum={vi.fn()}
         onBack={vi.fn()}
         onTrackSelect={onTrackSelect}
       />
@@ -186,6 +190,7 @@ describe("LibraryAlbumsSection", () => {
         selectedAlbumTracksError={null}
         ownerNameById={{ "user-1": "Alice" }}
         onAlbumSelect={vi.fn()}
+        onPlayAlbum={vi.fn()}
         onBack={vi.fn()}
         onTrackSelect={onTrackSelect}
         playlists={[playlist]}
@@ -229,6 +234,7 @@ describe("LibraryAlbumsSection", () => {
         selectedAlbumTracksError={null}
         ownerNameById={{}}
         onAlbumSelect={vi.fn()}
+        onPlayAlbum={vi.fn()}
         onBack={onBack}
         onTrackSelect={vi.fn()}
       />

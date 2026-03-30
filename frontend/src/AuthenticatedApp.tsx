@@ -157,7 +157,7 @@ export function AuthenticatedApp({
 
   const {
     requestTrackPlaybackWithStatus, handleReplayRecentTrack,
-    handlePlayPlaylist, handleNavigateTrack
+    handlePlayPlaylist, handlePlayAlbum, handleNavigateTrack
   } = usePlaybackCommands({
     selectedTrackRefreshed, refreshedQueue, shuffleEnabled,
     allTracks: allTracksLibrary.tracks, filters, allTracksById,
@@ -254,6 +254,7 @@ export function AuthenticatedApp({
         onArtistAlbumSelect: selectArtistAlbum,
         onArtistAlbumBack: clearSelectedArtistAlbum,
         onArtistAlbumTrackSelect: (track) => requestTrackPlaybackWithStatus(track, selectedArtistAlbumTracks),
+        onPlayAlbum: handlePlayAlbum,
         loadingLibraryAlbums,
         libraryAlbums,
         selectedAlbum,

@@ -1,10 +1,10 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 
-import { getAdjacentTrack } from "../api";
+import { getAdjacentTrack, getAlbumTracks } from "../api";
 import type { AppNotice } from "../components/AppStatusBanners";
-import type { Playlist, Track } from "../types";
+import type { AlbumEntry, Playlist, Track } from "../types";
 import type { LibraryFilters } from "../types/library";
-import { getAdjacentTrackInQueue } from "../utils/appUtils";
+import { getAdjacentTrackInQueue, sortAlbumTracksByNumber } from "../utils/appUtils";
 
 type UsePlaybackCommandsArgs = {
   selectedTrackRefreshed: Track | null;
@@ -25,6 +25,7 @@ type UsePlaybackCommandsResult = {
   requestTrackPlaybackWithStatus: (track: Track, queueSource?: Track[]) => void;
   handleReplayRecentTrack: (track: Track) => void;
   handlePlayPlaylist: (playlist: Playlist) => void;
+  handlePlayAlbum: (album: AlbumEntry) => void;
   handleNavigateTrack: (direction: "next" | "previous", wrap?: boolean) => Promise<void>;
 };
 
@@ -68,6 +69,30 @@ export function usePlaybackCommands({
     setLibraryError(null);
     requestTrackPlaybackWithStatus(playlistTracks[0], playlistTracks);
   }, [allTracksById, requestTrackPlaybackWithStatus, setLibraryError]);
+
+  const handlePlayAlbum = useCallback(async (album: AlbumEntry): Promise<void> => {
+    try {
+      let tracks: Track[];
+      if (album.id) {
+        tracks = await getAlbumTracks(album.id);
+      } else {
+        setLibraryError("Cannot play this album: no album ID available.");
+        return;
+      }
+
+      const sorted = sortAlbumTracksByNumber(tracks);
+      if (sorted.length === 0) {
+        setLibraryError("This album has no playable tracks.");
+        return;
+      }
+
+      setLibraryError(null);
+      requestTrackPlaybackWithStatus(sorted[0], sorted);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to play album";
+      setLibraryError(message);
+    }
+  }, [requestTrackPlaybackWithStatus, setLibraryError]);
 
   const handleNavigateTrack = useCallback(async (direction: "next" | "previous", wrap = true): Promise<void> => {
     const currentTrack = selectedTrackRefreshed;
@@ -153,6 +178,7 @@ export function usePlaybackCommands({
     requestTrackPlaybackWithStatus,
     handleReplayRecentTrack,
     handlePlayPlaylist,
+    handlePlayAlbum,
     handleNavigateTrack
   };
 }

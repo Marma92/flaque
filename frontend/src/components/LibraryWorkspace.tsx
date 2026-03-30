@@ -33,6 +33,7 @@ type LibraryWorkspaceProps = {
   onArtistAlbumSelect: (album: AlbumEntry) => void;
   onArtistAlbumBack: () => void;
   onArtistAlbumTrackSelect: (track: Track) => void;
+  onPlayAlbum: (album: AlbumEntry) => void;
   manageablePlaylists: Playlist[];
   onAddTrackToPlaylist: (input: { trackId: string; playlistId: string }) => Promise<void>;
   loadingLibraryAlbums: boolean;
@@ -93,6 +94,7 @@ export function LibraryWorkspace({
   onArtistAlbumSelect,
   onArtistAlbumBack,
   onArtistAlbumTrackSelect,
+  onPlayAlbum,
   manageablePlaylists,
   onAddTrackToPlaylist,
   loadingLibraryAlbums,
@@ -155,6 +157,7 @@ export function LibraryWorkspace({
           onArtistAlbumSelect={onArtistAlbumSelect}
           onArtistAlbumBack={onArtistAlbumBack}
           onArtistAlbumTrackSelect={onArtistAlbumTrackSelect}
+          onPlayAlbum={onPlayAlbum}
           playlists={manageablePlaylists}
           onAddTrackToPlaylist={onAddTrackToPlaylist}
         />
@@ -172,6 +175,7 @@ export function LibraryWorkspace({
           currentTrackId={currentTrackId}
           ownerNameById={ownerNameById}
           onAlbumSelect={onAlbumSelect}
+          onPlayAlbum={onPlayAlbum}
           onBack={onAlbumBack}
           onTrackSelect={onAlbumTrackSelect}
           playlists={manageablePlaylists}
