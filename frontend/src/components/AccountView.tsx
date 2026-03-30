@@ -228,12 +228,11 @@ export function AccountView({
   const hasOtherSessions = sessions.some((session) => !session.current);
 
   return (
-    <div className="space-y-4">
-      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+    <div>
+      <section className="rounded-t-xl m-4 mb-0 border border-b-0 border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-flaque-steel">Account</p>
-            <h2 className="mt-1 font-display text-2xl text-flaque-ink">Your Profile</h2>
+            <h2 className="mt-1 font-display text-2xl text-flaque-ink">Account</h2>
           </div>
 
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
@@ -257,9 +256,7 @@ export function AccountView({
         </div>
       </section>
 
-      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-        <h3 className="font-display text-xl text-flaque-ink">Identity</h3>
-
+      <section className="rounded-b-xl m-4 mt-0 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <form className="mt-4 space-y-4" onSubmit={(event) => void handlePhotoSubmit(event)}>
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
             <div className="shrink-0">
@@ -396,7 +393,7 @@ export function AccountView({
         </form>
       </section>
 
-      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <h3 className="font-display text-xl text-flaque-ink">Password</h3>
 
         <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={(event) => void handlePasswordSubmit(event)}>
@@ -450,7 +447,7 @@ export function AccountView({
         {passwordMessage ? <p className="mt-3 text-sm text-flaque-steel">{passwordMessage}</p> : null}
       </section>
 
-      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-display text-xl text-flaque-ink">Sessions</h3>
 

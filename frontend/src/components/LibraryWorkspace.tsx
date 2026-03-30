@@ -122,7 +122,7 @@ export function LibraryWorkspace({
   paginatedSentinelRef
 }: LibraryWorkspaceProps): JSX.Element {
   return (
-    <div className="space-y-4">
+    <div className="h-full min-h-0 space-y-4 overflow-y-auto">
       {activeLibrarySection === "playlists" ? (
         <LibraryPlaylistSection
           availablePlaylists={availablePlaylists}
@@ -179,7 +179,7 @@ export function LibraryWorkspace({
         />
       ) : null}
 
-      {activeLibrarySection === "music" ? (
+      {activeLibrarySection === "home" ? (
         <>
           <HomePanels
             recentTracks={recentTracks}
@@ -192,25 +192,28 @@ export function LibraryWorkspace({
             ownerNameById={ownerNameById}
           />
 
-          <PaginatedLibrary
-            owners={library.owners}
-            ownerNameById={ownerNameById}
-            artists={library.artists}
-            albums={library.albums}
-            filters={filters}
-            onFilterChange={onFilterChange}
-            tracks={paginatedTracks}
-            total={paginatedTotal}
-            loading={paginatedLoading}
-            loadingMore={paginatedLoadingMore}
-            hasMore={paginatedHasMore}
-            sentinelRef={paginatedSentinelRef}
-            currentTrackId={currentTrackId}
-            onTrackSelect={onLibraryTrackSelect}
-            playlists={manageablePlaylists}
-            onAddTrackToPlaylist={onAddTrackToPlaylist}
-          />
         </>
+      ) : null}
+
+      {activeLibrarySection === "music" ? (
+        <PaginatedLibrary
+          owners={library.owners}
+          ownerNameById={ownerNameById}
+          artists={library.artists}
+          albums={library.albums}
+          filters={filters}
+          onFilterChange={onFilterChange}
+          tracks={paginatedTracks}
+          total={paginatedTotal}
+          loading={paginatedLoading}
+          loadingMore={paginatedLoadingMore}
+          hasMore={paginatedHasMore}
+          sentinelRef={paginatedSentinelRef}
+          currentTrackId={currentTrackId}
+          onTrackSelect={onLibraryTrackSelect}
+          playlists={manageablePlaylists}
+          onAddTrackToPlaylist={onAddTrackToPlaylist}
+        />
       ) : null}
     </div>
   );

@@ -118,7 +118,7 @@ export function AudioPlayer({
     ? "flex items-center justify-end gap-2"
     : "flex justify-self-end items-center gap-1";
   const sectionClassName = expanded
-    ? "flex min-h-0 flex-1 flex-col overflow-y-auto rounded-3xl border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
+    ? "flex min-h-0 flex-1 flex-col overflow-y-auto rounded-xl m-4 border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
     : "rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6";
   const artworkClassName = expanded
     ? `${artworkSize} shrink-0 rounded-2xl object-cover shadow-md`

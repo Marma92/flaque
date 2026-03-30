@@ -66,7 +66,7 @@ export function LibraryArtistsSection({
   const isTracklistVisible = selectedArtistAlbum !== null;
 
   return (
-    <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+    <section className="border m-4 rounded-xl border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
       <h2 className="font-display text-xl text-flaque-ink">Artists</h2>
       {isArtistSelected ? (
         <>

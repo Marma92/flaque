@@ -44,6 +44,13 @@ body {
   font-family: "IBM Plex Sans", sans-serif;
   color: rgb(var(--flaque-ink-rgb));
   background: var(--body-background);
+  overflow: hidden;
+}
+
+html,
+body,
+#root {
+  height: 100%;
 }
 
 h1,
@@ -74,61 +81,6 @@ input[type="range"]::-moz-range-thumb {
   cursor: pointer;
 }
 
-.theme-toggle {
-  position: fixed;
-  right: 1rem;
-  top: max(1rem, env(safe-area-inset-top));
-  z-index: 70;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border: 1px solid rgb(var(--flaque-clay-rgb) / 0.75);
-  border-radius: 9999px;
-  background: rgb(var(--surface-rgb) / 0.88);
-  color: rgb(var(--flaque-ink-rgb));
-  padding: 0;
-  font-family: "IBM Plex Sans", sans-serif;
-  font-size: 1rem;
-  line-height: 1;
-  font-weight: 600;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 10px 25px -20px rgb(var(--flaque-shadow-rgb) / 0.9);
-  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
-}
-
-.theme-toggle svg {
-  width: 1.1rem;
-  height: 1.1rem;
-  stroke: currentColor;
-  fill: none;
-}
-
-.theme-toggle:hover {
-  background: rgb(var(--flaque-cream-rgb) / 0.9);
-  border-color: rgb(var(--flaque-sand-rgb) / 0.85);
-}
-
-.theme-toggle:active {
-  transform: translateY(1px);
-}
-
-.theme-toggle:focus-visible {
-  outline: 2px solid rgb(var(--flaque-ink-rgb));
-  outline-offset: 2px;
-}
-
-@media (max-width: 640px) {
-  .theme-toggle {
-    right: 0.75rem;
-    top: max(0.75rem, env(safe-area-inset-top));
-    width: 2.25rem;
-    height: 2.25rem;
-  }
-}
-
 .header-logo-dark {
   display: none;
 }
@@ -147,9 +99,9 @@ input[type="range"]::-moz-range-thumb {
 
 :root[data-theme="dark"] .header-logo-dark {
   display: block;
-  filter:
+  /* filter:
     drop-shadow(0 0 10px rgb(114 230 255 / 0.65))
-    drop-shadow(0 0 24px rgb(40 168 255 / 0.55));
+    drop-shadow(0 0 24px rgb(40 168 255 / 0.55)); */
 }
 
 :root[data-theme="dark"] .nav-icon-dark {
@@ -159,8 +111,7 @@ input[type="range"]::-moz-range-thumb {
 .acronym {
     display: inline-flex;
     align-items: baseline;
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: 1rem;
     letter-spacing: 0.04em;
 }
 

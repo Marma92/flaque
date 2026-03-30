@@ -207,7 +207,7 @@ export function AuthenticatedApp({
     setUser(null);
     notifyAuthStateChanged("logout");
     resetAfterLogout();
-    setActiveLibrarySection("music");
+    setActiveLibrarySection("home");
     setPlayerReturnView("library");
     setAvatarVersion(0);
     setFilters({});

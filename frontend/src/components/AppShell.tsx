@@ -1,9 +1,8 @@
 import type { User } from "../types";
-import type { LibrarySection } from "../types/library";
 import type { ViewName } from "../utils/appUtils";
 import { AccountView } from "./AccountView";
 import { AudioPlayer } from "./AudioPlayer";
-import { AppHeader } from "./AppHeader";
+import { AppSidebar } from "./AppSidebar";
 import { AppStatusBanners, type AppNotice } from "./AppStatusBanners";
 import { ConfigView, type ConfigSection } from "./ConfigView";
 import { LibraryWorkspace } from "./LibraryWorkspace";
@@ -54,7 +53,6 @@ export function AppShell({
   playerStatusMessage,
   audioPlayerProps
 }: AppShellProps): JSX.Element {
-  const hasStickyPlayer = Boolean(audioPlayerProps.track) && activeView !== "player";
   const shouldRenderPlayer = Boolean(audioPlayerProps.track) || activeView === "player";
 
   const sectionButtonClassName = (isActive: boolean): string =>
@@ -64,27 +62,11 @@ export function AppShell({
         : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
     }`;
 
-  const librarySections: Array<[LibrarySection, string]> = [
-    ["music", "Music"], ["artists", "Artists"], ["albums", "Albums"], ["playlists", "Playlists"]
-  ];
   const configSections: Array<[ConfigSection, string]> = [
     ["index", "Index"], ["files", "Files"], ["users", "Users"], ["server", "Server"]
   ];
 
-  const sectionSwitcher = activeView === "library" ? (
-    <>
-      {librarySections.map(([key, label]) => (
-        <button
-          key={key}
-          className={sectionButtonClassName(libraryWorkspaceProps.activeLibrarySection === key)}
-          type="button"
-          onClick={() => libraryWorkspaceProps.onSectionChange(key)}
-        >
-          {label}
-        </button>
-      ))}
-    </>
-  ) : activeView === "config" && user.role === "admin" ? (
+  const sectionSwitcher = activeView === "config" && user.role === "admin" ? (
     <>
       {configSections.map(([key, label]) => (
         <button
@@ -100,47 +82,68 @@ export function AppShell({
   ) : null;
 
   return (
-    <main
-      className={`mx-auto flex min-h-[100dvh] w-full max-w-7xl flex-col px-4 pt-6 md:px-6 ${
-        hasStickyPlayer
-          ? "pb-[calc(18rem+env(safe-area-inset-bottom))]"
-          : activeView === "player"
-            ? "pb-0"
-            : "pb-[calc(2.5rem+env(safe-area-inset-bottom))]"
-      }`}
-    >
-      <AppHeader activeView={activeView} user={user} avatarUrl={avatarUrl} onViewChange={onViewChange}>
-        {sectionSwitcher}
-      </AppHeader>
-
-      <AppStatusBanners
-        appNotice={appNotice}
-        libraryError={libraryError}
-        showLibraryRefreshing={activeView === "library" && loadingLibrary}
+    <main className="flex h-[100dvh] w-full flex-col overflow-hidden md:flex-row">
+      <AppSidebar
+        activeView={activeView}
+        activeLibrarySection={libraryWorkspaceProps.activeLibrarySection}
+        user={user}
+        avatarUrl={avatarUrl}
+        onViewChange={onViewChange}
+        onLibrarySectionChange={libraryWorkspaceProps.onSectionChange}
       />
 
-      {activeView === "library" ? <LibraryWorkspace {...libraryWorkspaceProps} /> : null}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {sectionSwitcher ? (
+          <div className="flex flex-wrap items-center gap-1 border-b border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:px-4 md:py-3">
+            {sectionSwitcher}
+          </div>
+        ) : null}
 
-      {activeView === "upload" ? <UploadView {...uploadViewProps} /> : null}
+        <AppStatusBanners
+          appNotice={appNotice}
+          libraryError={libraryError}
+          showLibraryRefreshing={activeView === "library" && loadingLibrary}
+        />
 
-      {activeView === "config" && user.role === "admin" ? <ConfigView {...configViewProps} /> : null}
+        {activeView === "library" ? (
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <LibraryWorkspace {...libraryWorkspaceProps} />
+          </div>
+        ) : null}
 
-      {activeView === "account" ? <AccountView {...accountViewProps} onLogout={onLogout} /> : null}
+        {activeView === "upload" ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <UploadView {...uploadViewProps} />
+          </div>
+        ) : null}
 
-      {shouldRenderPlayer ? (
-        <PlayerShell
-          activeView={activeView}
-          playerStatusMessage={playerStatusMessage}
-          onExpandPlayer={() => onViewChange("player")}
-          onCollapsePlayer={onPlayerCollapse}
-        >
-          <AudioPlayer
-            {...audioPlayerProps}
-            expanded={activeView === "player"}
-            onArtworkClick={activeView === "player" ? undefined : () => onViewChange("player")}
-          />
-        </PlayerShell>
-      ) : null}
+        {activeView === "config" && user.role === "admin" ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <ConfigView {...configViewProps} />
+          </div>
+        ) : null}
+
+        {activeView === "account" ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <AccountView {...accountViewProps} onLogout={onLogout} />
+          </div>
+        ) : null}
+
+        {shouldRenderPlayer ? (
+          <PlayerShell
+            activeView={activeView}
+            playerStatusMessage={playerStatusMessage}
+            onExpandPlayer={() => onViewChange("player")}
+            onCollapsePlayer={onPlayerCollapse}
+          >
+            <AudioPlayer
+              {...audioPlayerProps}
+              expanded={activeView === "player"}
+              onArtworkClick={activeView === "player" ? undefined : () => onViewChange("player")}
+            />
+          </PlayerShell>
+        ) : null}
+      </div>
     </main>
   );
 }

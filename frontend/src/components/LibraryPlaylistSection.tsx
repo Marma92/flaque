@@ -536,7 +536,7 @@ export function LibraryPlaylistSection({
   }
 
   return (
-    <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+    <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
       <h2 className="font-display text-xl text-flaque-ink">Playlists</h2>
 
       <form
@@ -569,7 +569,7 @@ export function LibraryPlaylistSection({
 
       {statusMessage ? <p className="mt-2 text-sm text-flaque-steel">{statusMessage}</p> : null}
 
-      <div className="mt-5 space-y-2">
+      <div className="mt-4">
         {availablePlaylists.length === 0 ? (
           <p className="text-sm text-flaque-steel">No playlists yet.</p>
         ) : (

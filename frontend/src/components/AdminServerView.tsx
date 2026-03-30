@@ -103,7 +103,7 @@ const DIR_COLORS = [
 function StorageSection({ storageUsage, loading }: { storageUsage: StorageUsage | null; loading: boolean }): JSX.Element {
   if (loading && !storageUsage) {
     return (
-      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <h3 className="font-display text-xl text-flaque-ink">Storage</h3>
         <p className="mt-2 text-sm text-flaque-steel">Loading...</p>
       </section>
@@ -112,7 +112,7 @@ function StorageSection({ storageUsage, loading }: { storageUsage: StorageUsage 
 
   if (!storageUsage) {
     return (
-      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <h3 className="font-display text-xl text-flaque-ink">Storage</h3>
         <p className="mt-2 text-sm text-flaque-steel">Storage information unavailable.</p>
       </section>
@@ -123,7 +123,7 @@ function StorageSection({ storageUsage, loading }: { storageUsage: StorageUsage 
   const usedPercent = disk.total > 0 ? (disk.used / disk.total) * 100 : 0;
 
   return (
-    <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+    <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
       <h3 className="font-display text-xl text-flaque-ink">Storage</h3>
 
       <div className="mt-3">
@@ -176,7 +176,7 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate }:
 
   if (loading && !versionInfo) {
     return (
-      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <p className="text-sm text-flaque-steel">Checking for updates...</p>
       </section>
     );
@@ -189,7 +189,7 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate }:
   // Update in progress or just completed/failed
   if (isUpdating) {
     return (
-      <section className="rounded-3xl border border-amber-200 bg-amber-50/80 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 border border-amber-200 bg-amber-50/80 p-5 shadow-panel backdrop-blur-sm">
         <h3 className="font-display text-lg text-amber-900">Updating...</h3>
         <p className="mt-1 text-sm text-amber-700">
           {updateStatus.message ?? "Pulling latest code and rebuilding containers. This may take a few minutes."}
@@ -200,7 +200,7 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate }:
 
   if (updateStatus?.status === "complete") {
     return (
-      <section className="rounded-3xl border border-emerald-200 bg-emerald-50/80 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 border border-emerald-200 bg-emerald-50/80 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-display text-lg text-emerald-900">Update complete</h3>
@@ -224,7 +224,7 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate }:
 
   if (updateStatus?.status === "failed") {
     return (
-      <section className="rounded-3xl border border-red-200 bg-red-50/80 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 border border-red-200 bg-red-50/80 p-5 shadow-panel backdrop-blur-sm">
         <h3 className="font-display text-lg text-red-900">Update failed</h3>
         <p className="mt-1 text-sm text-red-700">
           {updateStatus.message ?? "The update did not complete successfully. Check the server logs for details."}
@@ -235,7 +235,7 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate }:
 
   if (versionInfo.isUpdateAvailable && versionInfo.latestVersion) {
     return (
-      <section className="rounded-3xl border border-blue-200 bg-blue-50/80 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 border border-blue-200 bg-blue-50/80 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-display text-lg text-blue-900">
@@ -274,7 +274,7 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate }:
   }
 
   return (
-    <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 px-5 py-3 shadow-panel backdrop-blur-sm">
+    <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 px-5 py-3 shadow-panel backdrop-blur-sm">
       <p className="text-sm text-flaque-steel">
         Running v{versionInfo.currentVersion}
         {versionInfo.checkedAt
@@ -322,7 +322,7 @@ export function AdminServerView({
       />
       <StorageSection storageUsage={storageUsage} loading={loadingStorage} />
 
-      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-display text-xl text-flaque-ink">Server logs</h3>
