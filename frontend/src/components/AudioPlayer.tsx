@@ -191,9 +191,9 @@ export function AudioPlayer({
             />
 
             {showLyricsOverlay && displayLyrics ? (
-              <div className="absolute inset-0 z-20 overflow-hidden bg-black/60 dark:bg-flaque-cream/95 p-5">
+              <div className="absolute inset-0 z-20 overflow-hidden bg-black/80 dark:bg-black/95 p-5">
                 <button
-                  className="absolute right-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-white/15 text-flaque-cream/80 transition hover:bg-white/25 hover:text-white dark:text-flaque-ink dark:hover:text-flaque-ink"
+                  className="absolute right-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
                   type="button"
                   onClick={() => setShowLyricsOverlay(false)}
                   aria-label="Close lyrics"
@@ -205,7 +205,7 @@ export function AudioPlayer({
                 {syncedLyrics ? (
                   <SyncedLyricsOverlay lines={syncedLyrics} currentTime={currentTime} />
                 ) : (
-                  <div className="h-full overflow-y-auto overflow-x-hidden whitespace-pre-wrap text-left text-sm leading-relaxed text-flaque-cream/90 dark:text-flaque-ink/90">
+                  <div className="h-full overflow-y-auto overflow-x-hidden whitespace-pre-wrap text-left text-sm leading-relaxed text-white">
                     {displayLyrics}
                   </div>
                 )}
