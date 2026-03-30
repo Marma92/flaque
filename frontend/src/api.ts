@@ -518,6 +518,13 @@ export async function patchPlaylist(
   return payload.playlist;
 }
 
+export async function deletePlaylist(playlistId: string): Promise<void> {
+  await requestJson(`/api/playlists/${encodeURIComponent(playlistId)}`, {
+    method: "DELETE",
+    skipJson: true
+  });
+}
+
 export async function getUsers(): Promise<User[]> {
   const payload = await requestJson<{ users: User[] }>("/api/users");
   return payload.users;
