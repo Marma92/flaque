@@ -81,7 +81,9 @@ export function LibraryArtistsSection({
             Albums for <span className="font-medium text-flaque-ink">{selectedArtist.name}</span>
           </p>
         </>
-      ) : null }
+      ) : (
+        <p className="mt-1 text-sm text-flaque-steel"></p>
+      )}
 
       {libraryMetadataError ? (
         <p className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{libraryMetadataError}</p>

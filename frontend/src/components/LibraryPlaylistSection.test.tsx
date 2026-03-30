@@ -22,6 +22,13 @@ function createPlaylist(input: {
   };
 }
 
+const defaultProps = {
+  manageablePlaylists: [] as Playlist[],
+  allTracksById: new Map(),
+  onPatchPlaylist: vi.fn().mockResolvedValue(undefined),
+  onDeletePlaylist: vi.fn().mockResolvedValue(undefined)
+};
+
 describe("LibraryPlaylistSection", () => {
   afterEach(() => {
     cleanup();
@@ -30,6 +37,7 @@ describe("LibraryPlaylistSection", () => {
   it("shows empty state when no playlists exist", () => {
     render(
       <LibraryPlaylistSection
+        {...defaultProps}
         availablePlaylists={[]}
         ownerNameById={{}}
         onCreatePlaylist={vi.fn().mockResolvedValue(undefined)}
@@ -45,6 +53,7 @@ describe("LibraryPlaylistSection", () => {
 
     render(
       <LibraryPlaylistSection
+        {...defaultProps}
         availablePlaylists={[]}
         ownerNameById={{}}
         onCreatePlaylist={onCreatePlaylist}
@@ -52,7 +61,7 @@ describe("LibraryPlaylistSection", () => {
       />
     );
 
-    const nameInput = screen.getByPlaceholderText("Playlist name") as HTMLInputElement;
+    const nameInput = screen.getByPlaceholderText("New playlist name") as HTMLInputElement;
     const visibilityInput = screen.getByRole("combobox") as HTMLSelectElement;
 
     fireEvent.change(nameInput, { target: { value: "Road Trip" } });
@@ -78,6 +87,7 @@ describe("LibraryPlaylistSection", () => {
 
     render(
       <LibraryPlaylistSection
+        {...defaultProps}
         availablePlaylists={[]}
         ownerNameById={{}}
         onCreatePlaylist={onCreatePlaylist}
@@ -85,7 +95,7 @@ describe("LibraryPlaylistSection", () => {
       />
     );
 
-    fireEvent.change(screen.getByPlaceholderText("Playlist name"), { target: { value: "Road Trip" } });
+    fireEvent.change(screen.getByPlaceholderText("New playlist name"), { target: { value: "Road Trip" } });
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
 
     await waitFor(() => {
@@ -93,7 +103,7 @@ describe("LibraryPlaylistSection", () => {
     });
   });
 
-  it("plays a playlist when a playlist card is clicked", () => {
+  it("plays a playlist when the play button is clicked", () => {
     const playlist = createPlaylist({
       id: "playlist-1",
       name: "Night Drive",
@@ -104,6 +114,7 @@ describe("LibraryPlaylistSection", () => {
 
     render(
       <LibraryPlaylistSection
+        {...defaultProps}
         availablePlaylists={[playlist]}
         ownerNameById={{ "user-1": "Alice" }}
         onCreatePlaylist={vi.fn().mockResolvedValue(undefined)}
@@ -111,7 +122,7 @@ describe("LibraryPlaylistSection", () => {
       />
     );
 
-    fireEvent.click(screen.getByTitle("Play playlist Night Drive"));
+    fireEvent.click(screen.getByRole("button", { name: "Play Night Drive" }));
 
     expect(onPlayPlaylist).toHaveBeenCalledWith(playlist);
   });
