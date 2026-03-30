@@ -270,11 +270,10 @@ export function AdminUsersView({
 
   return (
     <div className="space-y-4">
-      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-flaque-steel">Admin</p>
-            <h2 className="mt-1 font-display text-2xl text-flaque-ink">User Management</h2>
+            <h3 className="font-display text-xl text-flaque-ink">User Management</h3>
             <p className="mt-2 text-sm text-flaque-steel">
               Create user accounts, reset passwords, and remove access when needed.
             </p>
@@ -399,7 +398,7 @@ export function AdminUsersView({
         ) : null}
       </section>
 
-      <section className="overflow-hidden rounded-3xl border border-flaque-clay/60 bg-white/85 shadow-panel backdrop-blur-sm">
+      <section className="overflow-hidden rounded-xl m-4 border border-flaque-clay/60 bg-white/85 shadow-panel backdrop-blur-sm">
         <div className="space-y-3 p-4 lg:hidden">
           {filteredUsers.map((entry) => {
             const runningAction = activeUserActionId === entry.id;

@@ -47,11 +47,8 @@ export function LibraryPlaylistSection({
   }
 
   return (
-    <section className="border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      <h2 className="font-display text-xl text-flaque-ink">Create Playlist</h2>
-      <p className="mt-1 text-sm text-flaque-steel">
-        Create a file-based playlist folder in `playlists` with a `playlist.json` and symlinks.
-      </p>
+    <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <h2 className="font-display text-xl text-flaque-ink">Playlists</h2>
 
       <form
         className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]"
@@ -86,7 +83,6 @@ export function LibraryPlaylistSection({
       {statusMessage ? <p className="mt-2 text-sm text-flaque-steel">{statusMessage}</p> : null}
 
       <div className="mt-4">
-        <h3 className="font-display text-lg text-flaque-ink">Playlists</h3>
         {availablePlaylists.length === 0 ? (
           <p className="mt-2 text-sm text-flaque-steel">No playlists yet.</p>
         ) : (

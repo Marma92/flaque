@@ -235,7 +235,7 @@ export function ConfigView({
       ) : null}
 
       {activeSection === "index" ? (
-        <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
           <h3 className="font-display text-xl text-flaque-ink">Index operations</h3>
           <p className="mt-2 text-sm text-flaque-steel">
             Keep the search index synchronized with the file system and refresh global file listings.
@@ -267,7 +267,7 @@ export function ConfigView({
       ) : null}
 
       {activeSection === "files" ? (
-        <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-display text-xl text-flaque-ink">Global file management</h3>

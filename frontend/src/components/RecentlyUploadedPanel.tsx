@@ -31,7 +31,7 @@ export function RecentlyUploadedPanel({
   }
 
   return (
-    <section className="border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+    <section className="border border-flaque-clay/60 rounded-xl bg-white/85 p-5 shadow-panel backdrop-blur-sm">
       <div className="flex items-center justify-between gap-2">
         <h2 className="shrink-0 font-display text-xl text-flaque-ink">Recent Uploads</h2>
         <div className="flex gap-1">

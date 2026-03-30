@@ -47,7 +47,7 @@ export function PaginatedLibrary({
   const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
   const hasActiveFilters = Boolean(filters.owner || filters.artist || filters.album || filters.q);
   const [searchDraft, setSearchDraft] = useState(filters.q ?? "");
-  const [filtersExpanded, setFiltersExpanded] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   const filteredAlbums = useMemo(() => {
     if (!filters.artist) {
@@ -80,30 +80,26 @@ export function PaginatedLibrary({
   }, [filters, onFilterChange, searchDraft]);
 
   return (
-    <section className="border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      <div>
-        <h2 className="font-display text-2xl text-flaque-ink">
-          Library
-          {!loading && total > 0 ? (
-            <span className="ml-2 text-base font-normal text-flaque-steel">({total} tracks)</span>
-          ) : null}
-        </h2>
-      </div>
+    <section className="p-5">
 
-      <div className="mt-4 rounded-2xl border border-flaque-clay/55 bg-flaque-cream/45 p-3">
+      <div className="mt-4 rounded-t-xl border border-flaque-clay/55 bg-flaque-cream/45 p-3">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-flaque-steel">
-            Filters
+            Library
+            {!loading && total > 0 ? (
+              <span className="ml-2">({total} tracks)</span>
+            ) : null}
             {!filtersExpanded && hasActiveFilters ? (
               <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-flaque-ink/50" />
             ) : null}
           </p>
           <button
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-flaque-steel transition hover:bg-flaque-cream/70 hover:text-flaque-ink"
+            className="flex items-center text-xs font-medium uppercase tracking-[0.14em] rounded-lg text-flaque-steel transition hover:bg-flaque-cream/70 hover:text-flaque-ink"
             type="button"
             aria-label={filtersExpanded ? "Collapse filters" : "Expand filters"}
             onClick={() => setFiltersExpanded((c) => !c)}
           >
+            Filters
             <svg className={`h-4 w-4 transition-transform ${filtersExpanded ? "" : "-rotate-90"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M6 10l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -205,7 +201,7 @@ export function PaginatedLibrary({
         ) : null}
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-flaque-clay/55 bg-white/75">
+      <div className="overflow-hidden rounded-b-2xl border border-flaque-clay/55 bg-white/75">
         {loading && tracks.length === 0 ? (
           <p className="px-4 py-6 text-sm text-flaque-steel">Loading library...</p>
         ) : (

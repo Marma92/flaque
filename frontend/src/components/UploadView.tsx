@@ -248,7 +248,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
 
   return (
     <div className="space-y-4">
-      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <h2 className="font-display text-2xl text-flaque-ink">Upload</h2>
         <p className="mt-2 text-sm text-flaque-steel">
           Select audio files to preview metadata and embedded cover before storing them in your library.
@@ -377,7 +377,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
       </section>
 
       {pendingFiles.length > 0 ? (
-        <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
           <h3 className="font-display text-xl text-flaque-ink">Metadata preview</h3>
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             {pendingFiles.map((file) => {

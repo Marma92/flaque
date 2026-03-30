@@ -38,7 +38,7 @@ export function HomePanels({
   const cardGridClass = "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 m-4">
       {hasRecent ? (
         <RecentTracksPanel
           tracks={recentTracks}

@@ -25,7 +25,7 @@ export function PlayerShell({
         className={
           activeView === "player"
             ? "flex min-h-0 flex-1 flex-col pb-[env(safe-area-inset-bottom)]"
-            : "mt-2 flex shrink-0 flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"
+            : "flex shrink-0 flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"
         }
       >
       <div
@@ -65,7 +65,7 @@ export function PlayerShell({
       {activeView === "player" ? (
         <div className="mt-2 flex justify-center">
           <button
-            className="flex h-8 w-12 items-center justify-center rounded-full border border-flaque-clay/70 bg-white/90 text-flaque-steel transition hover:bg-flaque-cream"
+            className="flex h-8 w-12 mb-4 items-center justify-center rounded-full border border-flaque-clay/70 bg-white/90 text-flaque-steel transition hover:bg-flaque-cream"
             type="button"
             aria-label="Collapse player"
             title="Collapse player"

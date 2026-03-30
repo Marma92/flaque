@@ -66,7 +66,7 @@ export function LibraryArtistsSection({
   const isTracklistVisible = selectedArtistAlbum !== null;
 
   return (
-    <section className="border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+    <section className="border m-4 rounded-xl border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
       <h2 className="font-display text-xl text-flaque-ink">Artists</h2>
       {isArtistSelected ? (
         <>
@@ -81,9 +81,7 @@ export function LibraryArtistsSection({
             Albums for <span className="font-medium text-flaque-ink">{selectedArtist.name}</span>
           </p>
         </>
-      ) : (
-        <p className="mt-1 text-sm text-flaque-steel">Artist list from `/api/artists` based on your current owner/search filters.</p>
-      )}
+      ) : null }
 
       {libraryMetadataError ? (
         <p className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{libraryMetadataError}</p>

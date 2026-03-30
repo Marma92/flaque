@@ -99,9 +99,9 @@ input[type="range"]::-moz-range-thumb {
 
 :root[data-theme="dark"] .header-logo-dark {
   display: block;
-  filter:
+  /* filter:
     drop-shadow(0 0 10px rgb(114 230 255 / 0.65))
-    drop-shadow(0 0 24px rgb(40 168 255 / 0.55));
+    drop-shadow(0 0 24px rgb(40 168 255 / 0.55)); */
 }
 
 :root[data-theme="dark"] .nav-icon-dark {
@@ -111,8 +111,7 @@ input[type="range"]::-moz-range-thumb {
 .acronym {
     display: inline-flex;
     align-items: baseline;
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: 1rem;
     letter-spacing: 0.04em;
 }
 
