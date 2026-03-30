@@ -107,16 +107,16 @@ export function AudioPlayer({
   const contentLayoutClass = expanded ? "w-full max-w-4xl space-y-4" : "min-w-0 flex-1 space-y-1";
   const controlsLayoutClass = expanded
     ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-3"
-    : "flex w-full items-center justify-between gap-2 md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]";
+    : "grid w-full grid-cols-[1fr_auto_1fr] items-center justify-items-center";
   const primaryControlsClassName = expanded
     ? "flex items-center gap-2"
-    : "flex shrink-0 items-center gap-1 md:min-w-0 md:flex-1 md:gap-2";
+    : "flex justify-self-start items-center gap-1";
   const centerControlsClassName = expanded
     ? "flex shrink-0 items-center gap-2"
-    : "flex shrink-0 items-center justify-center gap-2";
+    : "flex justify-self-center items-center gap-3 md:-translate-x-[46px]";
   const trailingControlsClassName = expanded
     ? "flex items-center justify-end gap-2"
-    : "flex shrink-0 items-center justify-end gap-1 md:min-w-0 md:flex-1 md:gap-2";
+    : "flex justify-self-end items-center gap-1";
   const sectionClassName = expanded
     ? "flex min-h-0 flex-1 flex-col overflow-y-auto rounded-3xl border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
     : "rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6";
@@ -325,6 +325,7 @@ export function AudioPlayer({
             </div>
 
             <div className={centerControlsClassName}>
+              <div className="flex justify-center">
               <button
                 className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
                   repeatMode === "off"
@@ -387,6 +388,7 @@ export function AudioPlayer({
                   <path d="M15 16l2 2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
+              </div>
 
 
             </div>
