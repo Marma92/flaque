@@ -115,7 +115,7 @@ export function AppSidebar({
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-start border border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:hidden">
+      <div className="flex items-center justify-start border border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:hidden">
         <button
           className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/70 bg-white/80 text-flaque-ink transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
           type="button"
@@ -276,7 +276,7 @@ export function AppSidebar({
         </div>
       ) : null}
 
-      <aside className="hidden border border-flaque-clay/60 bg-white/80 shadow-panel backdrop-blur-sm md:sticky md:top-6 md:block md:h-[calc(100dvh-3.5rem)] md:w-72 md:shrink-0">
+      <aside className="hidden border border-flaque-clay/60 bg-white/80 shadow-panel backdrop-blur-sm md:sticky md:top-0 md:block md:h-[100dvh] md:w-72 md:shrink-0">
         <div className="flex h-full flex-col gap-3 p-4">
           <button
             className="flex w-full items-center gap-3 bg-white/70 p-2 text-left transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"

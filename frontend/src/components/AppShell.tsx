@@ -84,7 +84,7 @@ export function AppShell({
 
   return (
     <main
-      className={`mx-auto flex min-h-[100dvh] w-full max-w-7xl flex-col px-4 pt-6 md:flex-row md:items-start md:gap-4 md:px-6 ${
+      className={`flex min-h-[100dvh] w-full flex-col md:flex-row ${
         hasStickyPlayer
           ? "pb-[calc(18rem+env(safe-area-inset-bottom))]"
           : activeView === "player"
@@ -101,9 +101,9 @@ export function AppShell({
         onLibrarySectionChange={libraryWorkspaceProps.onSectionChange}
       />
 
-      <div className="min-w-0 flex-1">
+      <div className="min-h-0 min-w-0 flex-1">
         {sectionSwitcher ? (
-          <div className="mb-3 flex flex-wrap items-center gap-1 border border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:px-4 md:py-3">
+          <div className="flex flex-wrap items-center gap-1 border border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:px-4 md:py-3">
             {sectionSwitcher}
           </div>
         ) : null}
