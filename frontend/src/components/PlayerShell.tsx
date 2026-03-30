@@ -25,14 +25,14 @@ export function PlayerShell({
         className={
           activeView === "player"
             ? "flex min-h-0 flex-1 flex-col pb-[env(safe-area-inset-bottom)]"
-            : "fixed bottom-0 left-0 right-0 z-40 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2"
+            : "mt-2 flex shrink-0 flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"
         }
       >
       <div
         className={
           activeView === "player"
             ? "relative mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col"
-            : "mx-auto max-w-7xl"
+            : "w-full"
         }
       >
         {playerStatusMessage ? (

@@ -53,7 +53,6 @@ export function AppShell({
   playerStatusMessage,
   audioPlayerProps
 }: AppShellProps): JSX.Element {
-  const hasStickyPlayer = Boolean(audioPlayerProps.track) && activeView !== "player";
   const shouldRenderPlayer = Boolean(audioPlayerProps.track) || activeView === "player";
 
   const sectionButtonClassName = (isActive: boolean): string =>
@@ -83,15 +82,7 @@ export function AppShell({
   ) : null;
 
   return (
-    <main
-      className={`flex h-[100dvh] w-full flex-col overflow-hidden md:flex-row ${
-        hasStickyPlayer
-          ? "pb-[calc(18rem+env(safe-area-inset-bottom))]"
-          : activeView === "player"
-            ? "pb-0"
-            : "pb-[calc(2.5rem+env(safe-area-inset-bottom))]"
-      }`}
-    >
+    <main className="flex h-[100dvh] w-full flex-col overflow-hidden md:flex-row">
       <AppSidebar
         activeView={activeView}
         activeLibrarySection={libraryWorkspaceProps.activeLibrarySection}
