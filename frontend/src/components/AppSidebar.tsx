@@ -22,6 +22,8 @@ const LIBRARY_ITEMS: Array<{ key: LibrarySection; label: string }> = [
   { key: "playlists", label: "Playlist" }
 ];
 
+const THEME_STORAGE_KEY = "flaque_theme_v1";
+
 export function AppSidebar({
   activeView,
   activeLibrarySection,
@@ -32,6 +34,7 @@ export function AppSidebar({
 }: AppSidebarProps): JSX.Element {
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const userInitial = useMemo(() => {
     const trimmed = user.username.trim();
     return (trimmed[0] ?? "U").toUpperCase();
@@ -40,6 +43,17 @@ export function AppSidebar({
   useEffect(() => {
     setAvatarLoadFailed(false);
   }, [avatarUrl, user.id]);
+
+  useEffect(() => {
+    const currentTheme = document.documentElement.getAttribute("data-theme");
+    if (currentTheme === "dark" || currentTheme === "light") {
+      setTheme(currentTheme);
+      return;
+    }
+
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    setTheme(prefersDark ? "dark" : "light");
+  }, []);
 
   useEffect(() => {
     if (!mobileMenuOpen) {
@@ -88,6 +102,16 @@ export function AppSidebar({
     onViewChange(view);
     setMobileMenuOpen(false);
   };
+
+  const handleThemeToggle = (): void => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    document.documentElement.setAttribute("data-theme", nextTheme);
+    document.documentElement.style.colorScheme = nextTheme;
+    window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  };
+
+  const themeToggleLabel = theme === "dark" ? "Switch to light theme" : "Switch to dark theme";
 
   return (
     <>
@@ -203,29 +227,49 @@ export function AppSidebar({
                   </span>
                 </button>
 
-                <button
-                  className={sidebarButtonClassName(activeView === "account")}
-                  type="button"
-                  onClick={() => handleViewEntryClick("account")}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-flaque-clay/60 bg-white">
-                      {avatarLoadFailed ? (
-                        <span className="font-display text-[11px] text-flaque-ink">{userInitial}</span>
-                      ) : (
-                        <img
-                          className="h-full w-full object-cover"
-                          src={avatarUrl}
-                          alt={`${user.username} profile`}
-                          onError={() => {
-                            setAvatarLoadFailed(true);
-                          }}
-                        />
-                      )}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    className={`${sidebarButtonClassName(activeView === "account")} flex-1`}
+                    type="button"
+                    onClick={() => handleViewEntryClick("account")}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-flaque-clay/60 bg-white">
+                        {avatarLoadFailed ? (
+                          <span className="font-display text-[11px] text-flaque-ink">{userInitial}</span>
+                        ) : (
+                          <img
+                            className="h-full w-full object-cover"
+                            src={avatarUrl}
+                            alt={`${user.username} profile`}
+                            onError={() => {
+                              setAvatarLoadFailed(true);
+                            }}
+                          />
+                        )}
+                      </span>
+                      <span>Account</span>
                     </span>
-                    <span>Account</span>
-                  </span>
-                </button>
+                  </button>
+                  <button
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/70 bg-white/80 text-flaque-ink transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
+                    type="button"
+                    aria-label={themeToggleLabel}
+                    title={themeToggleLabel}
+                    onClick={handleThemeToggle}
+                  >
+                    {theme === "dark" ? (
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                        <circle cx="12" cy="12" r="4" />
+                        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                        <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 1 0 9.8 9.8z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </aside>
@@ -309,29 +353,49 @@ export function AppSidebar({
               </span>
             </button>
 
-            <button
-              className={sidebarButtonClassName(activeView === "account")}
-              type="button"
-              onClick={() => handleViewEntryClick("account")}
-            >
-              <span className="inline-flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-flaque-clay/60 bg-white">
-                  {avatarLoadFailed ? (
-                    <span className="font-display text-[11px] text-flaque-ink">{userInitial}</span>
-                  ) : (
-                    <img
-                      className="h-full w-full object-cover"
-                      src={avatarUrl}
-                      alt={`${user.username} profile`}
-                      onError={() => {
-                        setAvatarLoadFailed(true);
-                      }}
-                    />
-                  )}
+            <div className="flex items-center gap-1.5">
+              <button
+                className={`${sidebarButtonClassName(activeView === "account")} flex-1`}
+                type="button"
+                onClick={() => handleViewEntryClick("account")}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-flaque-clay/60 bg-white">
+                    {avatarLoadFailed ? (
+                      <span className="font-display text-[11px] text-flaque-ink">{userInitial}</span>
+                    ) : (
+                      <img
+                        className="h-full w-full object-cover"
+                        src={avatarUrl}
+                        alt={`${user.username} profile`}
+                        onError={() => {
+                          setAvatarLoadFailed(true);
+                        }}
+                      />
+                    )}
+                  </span>
+                  <span>Account</span>
                 </span>
-                <span>Account</span>
-              </span>
-            </button>
+              </button>
+              <button
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/70 bg-white/80 text-flaque-ink transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
+                type="button"
+                aria-label={themeToggleLabel}
+                title={themeToggleLabel}
+                onClick={handleThemeToggle}
+              >
+                {theme === "dark" ? (
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 1 0 9.8 9.8z" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </aside>
