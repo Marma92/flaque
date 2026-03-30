@@ -38,10 +38,10 @@ export function SyncedLyricsOverlay({ lines, currentTime }: SyncedLyricsOverlayP
           key={index}
           className={`py-0.5 transition-all duration-300 ${
             index === activeIndex
-              ? "text-white font-medium scale-[1.02] origin-left"
+              ? "text-[#ffffff] font-medium scale-[1.02] origin-left"
               : index < activeIndex
-                ? "text-flaque-cream/50"
-                : "text-flaque-cream/30"
+                ? "text-[#ffffff]/50"
+                : "text-[#ffffff]/30"
           }`}
         >
           {line.text}
