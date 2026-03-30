@@ -16,7 +16,7 @@ type HomePanelsProps = {
 
 /**
  * Layout wrapper for the Recently Played and Recently Uploaded panels.
- * Side-by-side on desktop when both are visible, full-width when only one is.
+ * Panels are always stacked vertically to preserve reading flow.
  */
 export function HomePanels({
   recentTracks,
@@ -30,23 +30,15 @@ export function HomePanels({
 }: HomePanelsProps): JSX.Element | null {
   const hasRecent = recentTracks.length > 0;
   const hasUploaded = recentlyUploadedTracks.length > 0 || recentlyUploadedLoading;
-  const bothVisible = hasRecent && hasUploaded;
 
   if (!hasRecent && !hasUploaded) {
     return null;
   }
 
-  // 3 cols when side-by-side (3×4=12), 4 cols when alone (4×3=12)
-  const cardGridClass = bothVisible
-    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
-
-  const containerClass = bothVisible
-    ? "grid grid-cols-1 gap-4 lg:grid-cols-2"
-    : "";
+  const cardGridClass = "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
   return (
-    <div className={containerClass}>
+    <div className="space-y-4">
       {hasRecent ? (
         <RecentTracksPanel
           tracks={recentTracks}

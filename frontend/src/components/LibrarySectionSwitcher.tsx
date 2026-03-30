@@ -16,7 +16,8 @@ export function LibrarySectionSwitcher({
     <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-3 shadow-panel backdrop-blur-sm md:p-5">
       <div className="flex flex-wrap items-center justify-center gap-1.5">
           {([
-            ["music", "Music"],
+            ["home", "Home"],
+            ["music", "Library"],
             ["artists", "Artists"],
             ["albums", "Albums"],
             ["playlists", "Playlists"]

@@ -169,7 +169,7 @@ export function LibraryWorkspace({
         />
       ) : null}
 
-      {activeLibrarySection === "music" ? (
+      {activeLibrarySection === "home" ? (
         <>
           <HomePanels
             recentTracks={recentTracks}
@@ -182,25 +182,28 @@ export function LibraryWorkspace({
             ownerNameById={ownerNameById}
           />
 
-          <PaginatedLibrary
-            owners={library.owners}
-            ownerNameById={ownerNameById}
-            artists={library.artists}
-            albums={library.albums}
-            filters={filters}
-            onFilterChange={onFilterChange}
-            tracks={paginatedTracks}
-            total={paginatedTotal}
-            loading={paginatedLoading}
-            loadingMore={paginatedLoadingMore}
-            hasMore={paginatedHasMore}
-            sentinelRef={paginatedSentinelRef}
-            currentTrackId={currentTrackId}
-            onTrackSelect={onLibraryTrackSelect}
-            playlists={manageablePlaylists}
-            onAddTrackToPlaylist={onAddTrackToPlaylist}
-          />
         </>
+      ) : null}
+
+      {activeLibrarySection === "music" ? (
+        <PaginatedLibrary
+          owners={library.owners}
+          ownerNameById={ownerNameById}
+          artists={library.artists}
+          albums={library.albums}
+          filters={filters}
+          onFilterChange={onFilterChange}
+          tracks={paginatedTracks}
+          total={paginatedTotal}
+          loading={paginatedLoading}
+          loadingMore={paginatedLoadingMore}
+          hasMore={paginatedHasMore}
+          sentinelRef={paginatedSentinelRef}
+          currentTrackId={currentTrackId}
+          onTrackSelect={onLibraryTrackSelect}
+          playlists={manageablePlaylists}
+          onAddTrackToPlaylist={onAddTrackToPlaylist}
+        />
       ) : null}
     </div>
   );

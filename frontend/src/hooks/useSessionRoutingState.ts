@@ -39,7 +39,7 @@ export function useSessionRoutingState(): UseSessionRoutingStateResult {
   const [user, setUser] = useState<User | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [activeView, setActiveView] = useState<ViewName>(() => getViewFromLocation(VIEW_QUERY_PARAM));
-  const [activeLibrarySection, setActiveLibrarySection] = useState<LibrarySection>("music");
+  const [activeLibrarySection, setActiveLibrarySection] = useState<LibrarySection>("home");
 
   const sourceIdRef = useRef(createTabId());
   const channelRef = useRef<BroadcastChannel | null>(null);
@@ -160,7 +160,7 @@ export function useSessionRoutingState(): UseSessionRoutingStateResult {
     const authenticatedUser = await login(loginValue, password);
     setUser(authenticatedUser);
     setActiveView("library");
-    setActiveLibrarySection("music");
+    setActiveLibrarySection("home");
     notifyAuthStateChanged("login");
   }
 
