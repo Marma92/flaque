@@ -113,7 +113,7 @@ export function AudioPlayer({
     : "flex shrink-0 items-center gap-1 md:min-w-0 md:flex-1 md:gap-2";
   const centerControlsClassName = expanded
     ? "flex shrink-0 items-center gap-2"
-    : "hidden shrink-0 items-center gap-2 md:flex";
+    : "flex shrink-0 items-center justify-center gap-2";
   const trailingControlsClassName = expanded
     ? "flex items-center justify-end gap-2"
     : "flex shrink-0 items-center justify-end gap-1 md:min-w-0 md:flex-1 md:gap-2";
