@@ -1,6 +1,7 @@
 FROM docker:cli
 
-RUN apk add --no-cache bash curl git socat jq
+RUN apk add --no-cache bash curl git socat jq \
+ && git config --global --add safe.directory /app/repo
 
 WORKDIR /app
 
