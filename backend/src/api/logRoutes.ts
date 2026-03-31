@@ -7,7 +7,7 @@ import { requireAdmin, requireAuth } from "../auth/middleware";
 import { getVersionCheckResult } from "../services/versionCheck";
 import { cacheRoot, configRoot, dataRoot, indexRoot, logsRoot, storageRoot } from "../utils/paths";
 
-const LOG_FILE_PATTERN = /^flaque\.log(\.\d{4}-\d{2}-\d{2}\.\d+)?$/;
+const LOG_FILE_PATTERN = /^flaque\.(\d{4}-\d{2}-\d{2}\.)?\d+\.log$/;
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 1000;
 
