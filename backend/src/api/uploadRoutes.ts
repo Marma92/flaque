@@ -22,7 +22,7 @@ import fs from "node:fs/promises";
 
 const DEFAULT_MAX_UPLOAD_FILES = 50;
 
-function parseUploadMetadataOverrides(value: unknown): UploadMetadataOverride[] {
+export function parseUploadMetadataOverrides(value: unknown): UploadMetadataOverride[] {
   if (typeof value !== "string") {
     return [];
   }
@@ -49,7 +49,7 @@ function parseUploadMetadataOverrides(value: unknown): UploadMetadataOverride[] 
   }
 }
 
-function collectUploadedFiles(files: unknown): Express.Multer.File[] {
+export function collectUploadedFiles(files: unknown): Express.Multer.File[] {
   if (!files) {
     return [];
   }
