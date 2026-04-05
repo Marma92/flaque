@@ -8,7 +8,7 @@ type RangeBounds = {
   end: number;
 };
 
-function parseRangeHeader(rangeHeader: string, fileSize: number): RangeBounds | null {
+export function parseRangeHeader(rangeHeader: string, fileSize: number): RangeBounds | null {
   const matches = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim());
   if (!matches) {
     return null;
