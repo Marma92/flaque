@@ -24,7 +24,8 @@ vi.mock("../../utils/fs", () => ({
   writeJsonAtomic: mockWriteJsonAtomic
 }));
 
-vi.mock("../../utils/paths", () => ({
+vi.mock("../../utils/paths", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/paths")>()),
   indexFilePath: "/data/index/library-index.json",
   playlistsIndexFilePath: "/data/index/playlists-index.json"
 }));
