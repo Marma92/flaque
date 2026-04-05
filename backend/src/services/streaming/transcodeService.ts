@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 
 import type { Request, Response } from "express";
 
@@ -26,6 +26,48 @@ const TRANSCODE_PROFILE: Record<
     mimeType: "audio/mpeg"
   }
 };
+
+// ── Concurrency control ─────────────────────────────────────────────────
+
+const DEFAULT_MAX_CONCURRENT_TRANSCODES = 4;
+const GRACEFUL_KILL_TIMEOUT_MS = 2000;
+
+const maxConcurrent = Math.max(
+  1,
+  Number(process.env.MAX_CONCURRENT_TRANSCODES ?? DEFAULT_MAX_CONCURRENT_TRANSCODES) || DEFAULT_MAX_CONCURRENT_TRANSCODES
+);
+
+let activeCount = 0;
+
+export function getTranscodeCapacity(): { active: number; max: number; available: boolean } {
+  return { active: activeCount, max: maxConcurrent, available: activeCount < maxConcurrent };
+}
+
+function acquireSlot(): boolean {
+  if (activeCount >= maxConcurrent) {
+    return false;
+  }
+  activeCount++;
+  return true;
+}
+
+function releaseSlot(): void {
+  activeCount = Math.max(0, activeCount - 1);
+}
+
+function gracefulKill(process: ChildProcess): void {
+  if (process.killed) {
+    return;
+  }
+
+  process.kill("SIGTERM");
+
+  setTimeout(() => {
+    if (!process.killed) {
+      process.kill("SIGKILL");
+    }
+  }, GRACEFUL_KILL_TIMEOUT_MS);
+}
 
 export function parseTranscodeFormat(value: unknown): TranscodeFormat | null | undefined {
   if (value === undefined || value === null) {
@@ -58,6 +100,13 @@ export async function streamTranscodedAudio(
   sourceFilePath: string,
   format: TranscodeFormat
 ): Promise<void> {
+  if (!acquireSlot()) {
+    res.status(503);
+    res.setHeader("Retry-After", "5");
+    res.json({ error: "Transcoding capacity reached, please retry shortly" });
+    return;
+  }
+
   const profile = TRANSCODE_PROFILE[format];
   const ffmpegArgs = [
     "-v",
@@ -95,55 +144,57 @@ export async function streamTranscodedAudio(
   res.setHeader("X-Flaque-Transcode", format);
 
   const cleanup = (): void => {
-    if (!ffmpeg.killed) {
-      ffmpeg.kill("SIGKILL");
-    }
+    gracefulKill(ffmpeg);
   };
 
   req.on("close", cleanup);
   res.on("close", cleanup);
 
-  await new Promise<void>((resolve, reject) => {
-    let settled = false;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
 
-    const finish = (error?: Error): void => {
-      if (settled) {
-        return;
-      }
-      settled = true;
+      const finish = (error?: Error): void => {
+        if (settled) {
+          return;
+        }
+        settled = true;
 
-      req.off("close", cleanup);
-      res.off("close", cleanup);
+        req.off("close", cleanup);
+        res.off("close", cleanup);
 
-      if (error) {
-        reject(error);
-        return;
-      }
+        if (error) {
+          reject(error);
+          return;
+        }
 
-      resolve();
-    };
+        resolve();
+      };
 
-    ffmpeg.on("error", (error) => {
-      finish(new Error(`Unable to start ffmpeg transcoding process: ${error.message}`));
-    });
+      ffmpeg.on("error", (error) => {
+        finish(new Error(`Unable to start ffmpeg transcoding process: ${error.message}`));
+      });
 
-    ffmpeg.on("close", (code, signal) => {
-      if (code === 0 || res.writableEnded || req.destroyed || signal === "SIGKILL") {
+      ffmpeg.on("close", (code, signal) => {
+        if (code === 0 || res.writableEnded || req.destroyed || signal === "SIGTERM" || signal === "SIGKILL") {
+          finish();
+          return;
+        }
+
+        finish(new Error(`ffmpeg transcoding failed with code ${code ?? "unknown"}: ${stderr.trim()}`));
+      });
+
+      ffmpeg.stdout.on("error", (error) => {
+        finish(new Error(`Transcoded audio stream failed: ${error.message}`));
+      });
+
+      res.on("finish", () => {
         finish();
-        return;
-      }
+      });
 
-      finish(new Error(`ffmpeg transcoding failed with code ${code ?? "unknown"}: ${stderr.trim()}`));
+      ffmpeg.stdout.pipe(res);
     });
-
-    ffmpeg.stdout.on("error", (error) => {
-      finish(new Error(`Transcoded audio stream failed: ${error.message}`));
-    });
-
-    res.on("finish", () => {
-      finish();
-    });
-
-    ffmpeg.stdout.pipe(res);
-  });
+  } finally {
+    releaseSlot();
+  }
 }
