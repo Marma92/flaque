@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseTranscodeFormat } from "./transcodeService";
+import { getTranscodeCapacity, parseTranscodeFormat } from "./transcodeService";
 
 describe("parseTranscodeFormat", () => {
   it("parses supported values", () => {
@@ -19,5 +19,18 @@ describe("parseTranscodeFormat", () => {
     expect(parseTranscodeFormat("flac")).toBeNull();
     expect(parseTranscodeFormat("aac")).toBeNull();
     expect(parseTranscodeFormat(123)).toBeNull();
+  });
+});
+
+describe("getTranscodeCapacity", () => {
+  it("reports capacity status", () => {
+    const capacity = getTranscodeCapacity();
+    expect(capacity).toHaveProperty("active");
+    expect(capacity).toHaveProperty("max");
+    expect(capacity).toHaveProperty("available");
+    expect(typeof capacity.active).toBe("number");
+    expect(typeof capacity.max).toBe("number");
+    expect(capacity.max).toBeGreaterThanOrEqual(1);
+    expect(capacity.available).toBe(capacity.active < capacity.max);
   });
 });
