@@ -132,57 +132,60 @@ export function createUserRouter(): Router {
     }
   });
 
-  router.post("/users/me/photo", requireAuth, (req, res, next) => {
-    profilePhotoUpload.single("photo")(req, res, (error: unknown) => {
-      if (error) {
-        if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
-          res.status(400).json({ error: `Profile photo must be <= ${Math.floor(PROFILE_PHOTO_MAX_BYTES / (1024 * 1024))} MB` });
-          return;
-        }
+  router.post("/users/me/photo", requireAuth, async (req, res, next) => {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        profilePhotoUpload.single("photo")(req, res, (err: unknown) => (err ? reject(err) : resolve()));
+      });
+    } catch (error) {
+      if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+        res.status(400).json({ error: `Profile photo must be <= ${Math.floor(PROFILE_PHOTO_MAX_BYTES / (1024 * 1024))} MB` });
+        return;
+      }
+      next(error);
+      return;
+    }
 
-        next(error);
+    try {
+      const authUser = req.authUser;
+      if (!authUser) {
+        res.status(401).json({ error: "Unauthorized" });
         return;
       }
 
-      void (async () => {
-        const authUser = req.authUser;
-        if (!authUser) {
-          res.status(401).json({ error: "Unauthorized" });
-          return;
-        }
+      const file = req.file;
+      if (!file) {
+        res.status(400).json({ error: "photo file is required" });
+        return;
+      }
 
-        const file = req.file;
-        if (!file) {
-          res.status(400).json({ error: "photo file is required" });
-          return;
-        }
+      if (!file.mimetype.toLowerCase().startsWith("image/")) {
+        res.status(400).json({ error: "Unsupported image format" });
+        return;
+      }
 
-        if (!file.mimetype.toLowerCase().startsWith("image/")) {
-          res.status(400).json({ error: "Unsupported image format" });
-          return;
-        }
+      let convertedBuffer: Buffer;
+      try {
+        convertedBuffer = await convertProfilePhotoToWebp(file.buffer);
+      } catch {
+        res.status(400).json({ error: "Invalid image file" });
+        return;
+      }
 
-        let convertedBuffer: Buffer;
-        try {
-          convertedBuffer = await convertProfilePhotoToWebp(file.buffer);
-        } catch {
-          res.status(400).json({ error: "Invalid image file" });
-          return;
-        }
+      const profileDir = getUserProfileDir(authUser.id);
+      await ensureDir(profileDir);
 
-        const profileDir = getUserProfileDir(authUser.id);
-        await ensureDir(profileDir);
+      const tmpPath = path.join(profileDir, `profile-photo-upload.${process.pid}.${Date.now()}.tmp`);
+      const targetPath = path.join(profileDir, PROFILE_PHOTO_FILE_NAME);
 
-        const tmpPath = path.join(profileDir, `profile-photo-upload.${process.pid}.${Date.now()}.tmp`);
-        const targetPath = path.join(profileDir, PROFILE_PHOTO_FILE_NAME);
+      await fs.writeFile(tmpPath, convertedBuffer);
+      await removeExistingProfilePhotos(authUser.id);
+      await fs.rename(tmpPath, targetPath);
 
-        await fs.writeFile(tmpPath, convertedBuffer);
-        await removeExistingProfilePhotos(authUser.id);
-        await fs.rename(tmpPath, targetPath);
-
-        res.json({ ok: true });
-      })().catch(next);
-    });
+      res.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
   });
 
   router.post("/users/me/password", requireAuth, (req, res) => {
