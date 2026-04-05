@@ -2,6 +2,8 @@ import path from "node:path";
 
 import pino from "pino";
 
+import { logsRoot } from "./paths";
+
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export type Logger = {
@@ -20,26 +22,17 @@ function resolveLogLevel(): LogLevel {
   return process.env.NODE_ENV === "test" ? "error" : "info";
 }
 
-function resolveLogFilePath(): string | undefined {
+function resolveLogFilePath(): string {
   const explicit = (process.env.LOG_FILE ?? "").trim();
   if (explicit) {
     return explicit;
   }
 
-  const dataRoot = (process.env.DATA_ROOT ?? "").trim();
-  if (dataRoot && process.env.NODE_ENV === "production") {
-    return path.join(path.resolve(dataRoot), "logs", "flaque.log");
-  }
-
-  return undefined;
+  return path.join(logsRoot, "flaque.log");
 }
 
-function buildTransport(): pino.TransportMultiOptions | undefined {
+function buildTransport(): pino.TransportMultiOptions {
   const logFile = resolveLogFilePath();
-  if (!logFile) {
-    return undefined;
-  }
-
   const level = resolveLogLevel();
   const rotationFrequency = (process.env.LOG_ROTATION_FREQUENCY ?? "daily").trim();
   const parsedMaxFiles = Number(process.env.LOG_ROTATION_MAX_FILES ?? 14);
@@ -68,10 +61,9 @@ let rootLogger: pino.Logger | undefined;
 
 function getRootLogger(): pino.Logger {
   if (!rootLogger) {
-    const transport = buildTransport();
     rootLogger = pino({
       level: resolveLogLevel(),
-      ...(transport ? { transport } : {})
+      transport: buildTransport()
     });
   }
 
