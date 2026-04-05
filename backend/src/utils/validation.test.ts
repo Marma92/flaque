@@ -56,17 +56,36 @@ describe("parseBooleanField", () => {
 
 describe("validatePassword", () => {
   it("returns null for valid passwords", () => {
-    expect(validatePassword("abcdefgh")).toBeNull();
-    expect(validatePassword("a".repeat(256))).toBeNull();
+    expect(validatePassword("xK9mw2Lp")).toBeNull();
+    expect(validatePassword("MyStr0ngP@ss")).toBeNull();
+    expect(validatePassword("a1" + "x".repeat(254))).toBeNull();
   });
 
   it("returns error for too short passwords", () => {
-    expect(validatePassword("short")).toEqual(expect.stringContaining("between"));
+    expect(validatePassword("short1")).toEqual(expect.stringContaining("between"));
     expect(validatePassword("")).toEqual(expect.stringContaining("between"));
   });
 
   it("returns error for too long passwords", () => {
-    expect(validatePassword("a".repeat(257))).toEqual(expect.stringContaining("between"));
+    expect(validatePassword("a1" + "x".repeat(256))).toEqual(expect.stringContaining("between"));
+  });
+
+  it("returns error when missing letters", () => {
+    expect(validatePassword("12345678")).toEqual(expect.stringContaining("letter"));
+  });
+
+  it("returns error when missing digits", () => {
+    expect(validatePassword("abcdefgh")).toEqual(expect.stringContaining("digit"));
+  });
+
+  it("returns error for common passwords", () => {
+    expect(validatePassword("password1")).toEqual(expect.stringContaining("common"));
+    expect(validatePassword("qwerty123")).toEqual(expect.stringContaining("common"));
+    expect(validatePassword("Password1")).toEqual(expect.stringContaining("common"));
+  });
+
+  it("rejects common passwords case-insensitively", () => {
+    expect(validatePassword("PASSWORD1")).toEqual(expect.stringContaining("common"));
   });
 });
 
