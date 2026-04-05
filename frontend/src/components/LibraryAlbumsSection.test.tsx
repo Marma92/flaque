@@ -242,7 +242,7 @@ describe("LibraryAlbumsSection", () => {
 
     expect(screen.queryByAltText("Cover for Daft Punk - Discovery")).toBeNull();
 
-    const backButton = screen.getByRole("button", { name: "back" });
+    const backButton = screen.getByRole("button", { name: "Back" });
     fireEvent.click(backButton);
     expect(onBack).toHaveBeenCalledTimes(1);
   });
