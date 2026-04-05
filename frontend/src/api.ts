@@ -13,6 +13,17 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly endpoint: string,
+    message: string
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 type RequestOptions = RequestInit & {
   skipJson?: boolean;
 };
@@ -40,10 +51,10 @@ async function requestJson<T>(path: string, options: RequestOptions = {}): Promi
       if (payload.error) {
         message = payload.error;
       }
-    } catch {
-      // ignore malformed errors
+    } catch (parseError) {
+      console.warn(`Failed to parse error response from ${options.method ?? "GET"} ${path}:`, parseError);
     }
-    throw new Error(message);
+    throw new ApiError(response.status, path, message);
   }
 
   if (options.skipJson || response.status === 204) {
@@ -386,7 +397,7 @@ function uploadSingleTrack(input: UploadSingleTrackInput): Promise<UploadTracksR
           ? payload.error
           : null) ?? `Request failed (${request.status})`;
 
-      reject(new Error(message));
+      reject(new ApiError(request.status, "/api/upload", message));
     };
 
     request.onerror = () => {
