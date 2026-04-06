@@ -1,8 +1,106 @@
+import { useCallback, useEffect, useRef } from "react";
+
 import type { AlbumListProps } from "./AlbumList";
 import { getAlbumKey } from "../utils/appUtils";
 
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+/**
+ * Map a scroll-based progress value (0..1) to the coverflow transform.
+ *
+ * Matches the original CSS animation-timeline keyframes:
+ *   0%  → translateX(-100%) rotateY(-45deg)          (entering from right)
+ *  35%  → translateX(0)     rotateY(-45deg)
+ *  50%  → rotateY(0)        translateZ(1em) scale(1.5) (center)
+ *  65%  → translateX(0)     rotateY(45deg)
+ * 100%  → translateX(100%)  rotateY(45deg)            (exiting to left)
+ */
+function coverTransform(progress: number): string {
+  const p = Math.max(0, Math.min(1, progress));
+
+  let tx: number;
+  let ry: number;
+  let tz: number;
+  let s: number;
+
+  if (p <= 0.35) {
+    const t = p / 0.35;
+    tx = lerp(-100, 0, t);
+    ry = -45;
+    tz = 0;
+    s = 1;
+  } else if (p <= 0.5) {
+    const t = (p - 0.35) / 0.15;
+    tx = 0;
+    ry = lerp(-45, 0, t);
+    tz = lerp(0, 1, t);
+    s = lerp(1, 1.5, t);
+  } else if (p <= 0.65) {
+    const t = (p - 0.5) / 0.15;
+    tx = 0;
+    ry = lerp(0, 45, t);
+    tz = lerp(1, 0, t);
+    s = lerp(1.5, 1, t);
+  } else {
+    const t = (p - 0.65) / 0.35;
+    tx = lerp(0, 100, t);
+    ry = 45;
+    tz = 0;
+    s = 1;
+  }
+
+  return `translateX(${tx.toFixed(1)}%) rotateY(${ry.toFixed(1)}deg) translateZ(${tz.toFixed(2)}em) scale(${s.toFixed(3)})`;
+}
+
 export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverSrc }: AlbumListProps): JSX.Element {
   const selectedKey = selectedAlbum ? getAlbumKey(selectedAlbum) : null;
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
+
+  const updateTransforms = useCallback(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const covers = wrapper.querySelectorAll<HTMLElement>(".cover-transform");
+    const scrollLeft = wrapper.scrollLeft;
+    const viewWidth = wrapper.clientWidth;
+    const centerX = scrollLeft + viewWidth / 2;
+
+    for (const cover of covers) {
+      const li = cover.closest("li");
+      if (!li) continue;
+
+      const liCenter = li.offsetLeft + li.offsetWidth / 2;
+      const halfRange = viewWidth / 2 + li.offsetWidth / 2;
+      const offset = liCenter - centerX;
+
+      // Invert: element to the right (positive offset) → low progress (entering),
+      // element to the left (negative offset) → high progress (exiting)
+      const progress = 0.5 - (offset / halfRange) * 0.5;
+
+      cover.style.transform = coverTransform(progress);
+    }
+  }, []);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    function onScroll() {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(updateTransforms);
+    }
+
+    wrapper.addEventListener("scroll", onScroll, { passive: true });
+    updateTransforms();
+
+    return () => {
+      wrapper.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [updateTransforms, albums]);
 
   return (
     <>
@@ -39,7 +137,7 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverS
         .cards-wrapper {
           overflow-x: scroll;
           --size: 6;
-          min-height: calc(var(--cover-size) * 2.35);
+          min-height: calc(var(--cover-size) * 2.6);
           width: calc(var(--cover-size) * var(--size));
           margin: 0;
           padding: calc(var(--cover-size) / 2.4) 0;
@@ -67,21 +165,35 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverS
           transform-style: preserve-3d;
         }
 
-        .cards li img {
+        .cover-transform {
+          transform-style: preserve-3d;
+          will-change: transform;
+          transform: translateX(-100%) rotateY(-45deg);
+        }
+
+        .cover-transform img {
           display: block;
           width: var(--cover-size);
           height: var(--cover-size);
           border: 1px solid rgb(var(--flaque-clay-rgb) / 0.65);
           border-radius: 0.6rem;
-          -webkit-box-reflect: below 0.5em linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.25));
-          animation: linear rotate-cover both;
-          animation-timeline: view(inline);
-          transform: translateX(-100%) rotateY(-45deg);
-          transform-style: preserve-3d;
-          will-change: transform;
           position: relative;
           user-select: none;
           transition: border-color 160ms ease;
+          cursor: pointer;
+        }
+
+        .cover-reflection {
+          width: var(--cover-size);
+          height: calc(var(--cover-size) * 0.45);
+          margin-top: 0.5em;
+          background-size: var(--cover-size) var(--cover-size);
+          background-position: bottom;
+          transform: scaleY(-1);
+          -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,0.22), transparent);
+          mask-image: linear-gradient(to top, rgba(0,0,0,0.22), transparent);
+          border-radius: 0.6rem;
+          pointer-events: none;
         }
 
         .cards li button {
@@ -109,50 +221,39 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverS
           margin-right: calc(50% - (var(--cover-size) / 2));
         }
 
-        @keyframes rotate-cover {
-          0% {
-            transform: translateX(-100%) rotateY(-45deg);
-          }
-          35% {
-            transform: translateX(0) rotateY(-45deg);
-          }
-          50% {
-            transform: rotateY(0deg) translateZ(1em) scale(1.5);
-          }
-          65% {
-            transform: translateX(0) rotateY(45deg);
-          }
-          100% {
-            transform: translateX(100%) rotateY(45deg);
-          }
-        }
-
         @media (prefers-reduced-motion: reduce) {
-          .cards li img {
-            animation: none;
-            transform: none;
+          .cover-transform {
+            transform: none !important;
           }
         }
       `}</style>
 
       <section className="coverflow">
-        <div className="cards-wrapper">
+        <div className="cards-wrapper" ref={wrapperRef}>
           <ul className="cards">
             {albums.map((album) => {
               const albumKey = getAlbumKey(album);
               const isSelected = selectedKey === albumKey;
               const albumTitle = album.artist ? `${album.artist} - ${album.name}` : album.name;
+              const coverSrc = getAlbumCoverSrc(album);
 
               return (
                 <li key={albumKey} className={isSelected ? "selected" : undefined}>
-                  {/* <button
-                    type="button"
-                    onClick={() => onAlbumSelect(album)}
-                    title={albumTitle}
-                    aria-pressed={isSelected}
-                  > */}
-                    <img draggable={false} src={getAlbumCoverSrc(album)} width={1200} height={1200} alt={`Cover for ${albumTitle}`} onClick={() => onAlbumSelect(album)} />
-                  {/* </button> */}
+                  <div className="cover-transform">
+                    <img
+                      draggable={false}
+                      src={coverSrc}
+                      width={1200}
+                      height={1200}
+                      alt={`Cover for ${albumTitle}`}
+                      onClick={() => onAlbumSelect(album)}
+                    />
+                    <div
+                      className="cover-reflection"
+                      style={{ backgroundImage: `url("${coverSrc}")` }}
+                      aria-hidden="true"
+                    />
+                  </div>
                 </li>
               );
             })}
