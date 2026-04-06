@@ -379,18 +379,33 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       }
 
       const tracksWithOwnerNames = mapTrackOwners(indexStore.getTracks(), ownerNamesById);
+
+      // Group tracks by album directory so we only resolve metadata once per directory
+      const tracksByDir = new Map<string, Track[]>();
+      for (const track of tracksWithOwnerNames) {
+        const trackAbsolutePath = resolveDataRelativePath(track.path);
+        const dir = path.dirname(trackAbsolutePath);
+        const existing = tracksByDir.get(dir);
+        if (existing) {
+          existing.push(track);
+        } else {
+          tracksByDir.set(dir, [track]);
+        }
+      }
+
       const metadataCache = new Map<string, ResolvedAlbumMetadata | undefined>();
       const albumTracks: Track[] = [];
       let albumName: string | undefined;
       let cover: string | undefined;
 
-      for (const track of tracksWithOwnerNames) {
-        const metadata = await resolveAlbumMetadataForTrack(track, metadataCache);
+      for (const [, dirTracks] of tracksByDir) {
+        const representative = dirTracks[0]!;
+        const metadata = await resolveAlbumMetadataForTrack(representative, metadataCache);
         if (metadata?.id !== albumId) {
           continue;
         }
-        albumTracks.push(track);
-        albumName = albumName ?? metadata.name ?? track.tags.album;
+        albumTracks.push(...dirTracks);
+        albumName = albumName ?? metadata.name ?? representative.tags.album;
         cover = cover ?? metadata.coverPath;
       }
 
