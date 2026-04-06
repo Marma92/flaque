@@ -399,12 +399,13 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       let cover: string | undefined;
 
       for (const [, dirTracks] of tracksByDir) {
-        const metadata = await resolveAlbumMetadataForTrack(dirTracks[0], metadataCache);
+        const representative = dirTracks[0]!;
+        const metadata = await resolveAlbumMetadataForTrack(representative, metadataCache);
         if (metadata?.id !== albumId) {
           continue;
         }
         albumTracks.push(...dirTracks);
-        albumName = albumName ?? metadata.name ?? dirTracks[0].tags.album;
+        albumName = albumName ?? metadata.name ?? representative.tags.album;
         cover = cover ?? metadata.coverPath;
       }
 
