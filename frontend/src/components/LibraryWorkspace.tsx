@@ -194,6 +194,7 @@ export function LibraryWorkspace({
             onRecentlyUploadedPeriodChange={onRecentlyUploadedPeriodChange}
             onRecentlyUploadedTrackSelect={onLibraryTrackSelect}
             ownerNameById={ownerNameById}
+            onNavigateToLibrary={() => onSectionChange("music")}
           />
 
         </>

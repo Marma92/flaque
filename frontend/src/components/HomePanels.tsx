@@ -12,6 +12,7 @@ type HomePanelsProps = {
   onRecentlyUploadedPeriodChange: (period: UploadPeriod) => void;
   onRecentlyUploadedTrackSelect: (track: Track) => void;
   ownerNameById?: Record<string, string>;
+  onNavigateToLibrary?: () => void;
 };
 
 /**
@@ -26,13 +27,30 @@ export function HomePanels({
   recentlyUploadedPeriod,
   onRecentlyUploadedPeriodChange,
   onRecentlyUploadedTrackSelect,
-  ownerNameById
+  ownerNameById,
+  onNavigateToLibrary
 }: HomePanelsProps): JSX.Element | null {
   const hasRecent = recentTracks.length > 0;
   const hasUploaded = recentlyUploadedTracks.length > 0 || recentlyUploadedLoading;
 
   if (!hasRecent && !hasUploaded) {
-    return null;
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
+        <div className="text-sm text-flaque-steel">
+          <p className="font-bold text-flaque-ink">Oh flaque !</p>
+          <p className="mt-1">Nothing to play here at the moment, maybe you should browse your library ?</p>
+        </div>
+        {onNavigateToLibrary ? (
+          <button
+            className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/80 px-4 py-2 text-sm font-medium text-flaque-ink transition hover:bg-flaque-cream"
+            type="button"
+            onClick={onNavigateToLibrary}
+          >
+            Browse library
+          </button>
+        ) : null}
+      </div>
+    );
   }
 
   const cardGridClass = "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
