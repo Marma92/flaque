@@ -117,9 +117,16 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverS
           font-family: "IBM Plex Sans", sans-serif;
           display: flex;
           flex-direction: column;
+          align-items: center;
           gap: 1em;
           padding: 0.25rem 0;
           overscroll-behavior: contain;
+        }
+
+        @media (min-width: 1280px) {
+          .coverflow {
+            --cover-size: 14rem;
+          }
         }
 
         @media (max-width: 1024px) {
@@ -136,13 +143,11 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverS
 
         .cards-wrapper {
           overflow-x: scroll;
-          --size: 6;
           min-height: calc(var(--cover-size) * 2.6);
-          width: calc(var(--cover-size) * var(--size));
-          margin: 0;
+          width: 100%;
+          margin: 0 auto;
           padding: calc(var(--cover-size) / 2.4) 0;
           position: relative;
-          max-width: 100%;
           perspective: 40em;
           scroll-snap-type: x mandatory;
           scrollbar-width: thin;
