@@ -57,32 +57,50 @@ function coverTransform(progress: number): string {
 export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverSrc }: AlbumListProps): JSX.Element {
   const selectedKey = selectedAlbum ? getAlbumKey(selectedAlbum) : null;
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const labelRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
 
   const updateTransforms = useCallback(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
 
-    const covers = wrapper.querySelectorAll<HTMLElement>(".cover-transform");
+    const items = wrapper.querySelectorAll<HTMLElement>(".cards li");
     const scrollLeft = wrapper.scrollLeft;
     const viewWidth = wrapper.clientWidth;
     const centerX = scrollLeft + viewWidth / 2;
 
-    for (const cover of covers) {
-      const li = cover.closest("li");
-      if (!li) continue;
+    let closestIdx = 0;
+    let closestDist = Infinity;
+
+    for (let i = 0; i < items.length; i++) {
+      const li = items[i];
+      const cover = li.querySelector<HTMLElement>(".cover-transform");
+      if (!cover) continue;
 
       const liCenter = li.offsetLeft + li.offsetWidth / 2;
       const halfRange = viewWidth / 2 + li.offsetWidth / 2;
       const offset = liCenter - centerX;
 
-      // Invert: element to the right (positive offset) → low progress (entering),
-      // element to the left (negative offset) → high progress (exiting)
-      const progress = 0.5 - (offset / halfRange) * 0.5;
+      const dist = Math.abs(offset);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestIdx = i;
+      }
 
+      const progress = 0.5 - (offset / halfRange) * 0.5;
       cover.style.transform = coverTransform(progress);
     }
-  }, []);
+
+    // Update the label with the centered album info
+    const label = labelRef.current;
+    if (label && albums[closestIdx]) {
+      const album = albums[closestIdx];
+      const titleEl = label.querySelector<HTMLElement>(".coverflow-title");
+      const artistEl = label.querySelector<HTMLElement>(".coverflow-artist");
+      if (titleEl) titleEl.textContent = album.name;
+      if (artistEl) artistEl.textContent = album.artist ?? "";
+    }
+  }, [albums]);
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
@@ -226,6 +244,43 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverS
           margin-right: calc(50% - (var(--cover-size) / 2));
         }
 
+        .coverflow {
+          position: relative;
+        }
+
+        .coverflow-label {
+          position: absolute;
+          top: calc(0.25rem + var(--cover-size) * 1.667);
+          left: 0;
+          right: 0;
+          text-align: center;
+          line-height: 1.3;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          pointer-events: none;
+          z-index: 1;
+        }
+
+        .coverflow-title {
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: rgb(var(--flaque-ink-rgb));
+          max-width: 20rem;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .coverflow-artist {
+          font-size: 0.8rem;
+          color: rgb(var(--flaque-steel-rgb));
+          max-width: 20rem;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .cover-transform {
             transform: none !important;
@@ -273,6 +328,10 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverS
               );
             })}
           </ul>
+        </div>
+        <div className="coverflow-label" ref={labelRef}>
+          <span className="coverflow-title">{albums[0]?.name ?? ""}</span>
+          <span className="coverflow-artist">{albums[0]?.artist ?? ""}</span>
         </div>
       </section>
     </>
