@@ -534,6 +534,7 @@ export function useLibraryData({
   }
 
   function selectAlbum(album: AlbumEntry): void {
+    if (selectedAlbum && getAlbumKey(album) === getAlbumKey(selectedAlbum)) return;
     setSelectedAlbum(album);
     setSelectedAlbumTracks([]);
     setSelectedAlbumTracksError(null);

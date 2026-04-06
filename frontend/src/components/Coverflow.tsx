@@ -251,7 +251,17 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverS
                       width={1200}
                       height={1200}
                       alt={`Cover for ${albumTitle}`}
-                      onClick={() => onAlbumSelect(album)}
+                      onClick={(e) => {
+                        const li = (e.currentTarget as HTMLElement).closest("li");
+                        const wrapper = wrapperRef.current;
+                        if (li && wrapper) {
+                          wrapper.scrollTo({
+                            left: li.offsetLeft - wrapper.clientWidth / 2 + li.offsetWidth / 2,
+                            behavior: "smooth",
+                          });
+                        }
+                        onAlbumSelect(album);
+                      }}
                     />
                     <div
                       className="cover-reflection"
