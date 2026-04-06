@@ -105,7 +105,7 @@ export function AuthenticatedApp({
 
   const {
     versionInfo, loadingVersion,
-    updateStatus, onTriggerUpdate,
+    updateStatus, onTriggerUpdate, onCheckForUpdates,
     storageUsage, loadingStorage,
     logFiles, loadingFiles: loadingLogFiles,
     selectedFile: selectedLogFile, setSelectedFile: setSelectedLogFile,
@@ -330,6 +330,7 @@ export function AuthenticatedApp({
         loadingVersion,
         updateStatus,
         onTriggerUpdate,
+        onCheckForUpdates,
         storageUsage,
         loadingStorage,
         logFiles,

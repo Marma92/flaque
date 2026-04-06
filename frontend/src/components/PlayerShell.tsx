@@ -31,7 +31,7 @@ export function PlayerShell({
       <div
         className={
           activeView === "player"
-            ? "relative mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col"
+            ? "relative mx-auto flex min-h-0 w-full flex-1 flex-col"
             : "w-full"
         }
       >
@@ -45,7 +45,7 @@ export function PlayerShell({
           {children}
 
           {activeView !== "player" ? (
-            <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center">
+            <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-end pr-2 md:justify-center md:pr-0">
               <button
                 className="pointer-events-auto flex h-8 w-10 items-center justify-center rounded-full border border-flaque-clay/60 bg-white/90 text-flaque-steel transition hover:bg-flaque-cream"
                 type="button"

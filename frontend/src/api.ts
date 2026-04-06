@@ -722,6 +722,10 @@ export async function getVersionInfo(): Promise<VersionInfo> {
   return requestJson<VersionInfo>("/api/server/version");
 }
 
+export async function checkForUpdates(): Promise<VersionInfo> {
+  return requestJson<VersionInfo>("/api/server/version/check", { method: "POST" });
+}
+
 export type UpdateStatus = {
   status: "idle" | "updating" | "complete" | "failed" | "unavailable";
   message?: string;
