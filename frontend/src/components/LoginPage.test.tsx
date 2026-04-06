@@ -27,7 +27,7 @@ describe("LoginPage", () => {
     );
 
     fireEvent.change(screen.getByLabelText("Username or email"), { target: { value: "admin@example.com" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret" } });
+    fireEvent.change(screen.getByLabelText("Password", { selector: "input" }), { target: { value: "secret" } });
     fireEvent.click(screen.getByRole("button", { name: "Login" }));
 
     await waitFor(() => {
@@ -68,8 +68,8 @@ describe("LoginPage", () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText("New password"), { target: { value: "new-password-123" } });
-    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "new-password-123" } });
+    fireEvent.change(screen.getByLabelText("New password", { selector: "input" }), { target: { value: "new-password-123" } });
+    fireEvent.change(screen.getByLabelText("Confirm new password", { selector: "input" }), { target: { value: "new-password-123" } });
     fireEvent.click(screen.getByRole("button", { name: "Reset password" }));
 
     await waitFor(() => {

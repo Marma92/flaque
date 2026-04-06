@@ -236,7 +236,7 @@ describe("userRoutes", () => {
     const createdUser = await createUserAsAdmin({
       adminCookie,
       username: "alice",
-      password: "strong-password",
+      password: "strong-password-1",
       role: "user"
     });
 
@@ -270,11 +270,11 @@ describe("userRoutes", () => {
     await createUserAsAdmin({
       adminCookie,
       username: "bob",
-      password: "another-strong-password",
+      password: "another-strong-password-2-1",
       role: "user"
     });
 
-    const userCookie = await login("bob", "another-strong-password");
+    const userCookie = await login("bob", "another-strong-password-2-1");
 
     const listResponse = await apiRequest("/api/users", {
       method: "GET",
@@ -291,7 +291,7 @@ describe("userRoutes", () => {
     const created = await createUserAsAdmin({
       adminCookie,
       username: "grace",
-      password: "grace-password",
+      password: "grace-password-3",
       role: "user"
     });
 
@@ -314,7 +314,7 @@ describe("userRoutes", () => {
       method: "POST",
       body: JSON.stringify({
         username: "grace",
-        password: "grace-password"
+        password: "grace-password-3"
       })
     });
     expect(oldLoginResponse.status).toBe(401);
@@ -323,7 +323,7 @@ describe("userRoutes", () => {
       method: "POST",
       body: JSON.stringify({
         username: "grace-renamed",
-        password: "grace-password"
+        password: "grace-password-3"
       })
     });
     expect(newLoginResponse.status).toBe(200);
@@ -351,13 +351,13 @@ describe("userRoutes", () => {
     const first = await createUserAsAdmin({
       adminCookie,
       username: "hannah",
-      password: "hannah-password",
+      password: "hannah-password-4",
       role: "user"
     });
     const second = await createUserAsAdmin({
       adminCookie,
       username: "ivan",
-      password: "ivan-password",
+      password: "ivan-password-5",
       role: "user"
     });
 
@@ -379,11 +379,11 @@ describe("userRoutes", () => {
     const created = await createUserAsAdmin({
       adminCookie,
       username: "carol",
-      password: "carol-old-password",
+      password: "carol-old-password-6",
       role: "user"
     });
 
-    const oldCookie = await login("carol", "carol-old-password");
+    const oldCookie = await login("carol", "carol-old-password-6");
 
     const resetResponse = await apiRequest(`/api/users/${created.id}/reset-password`, {
       method: "POST",
@@ -391,7 +391,7 @@ describe("userRoutes", () => {
         Cookie: adminCookie
       },
       body: JSON.stringify({
-        password: "carol-new-password"
+        password: "carol-new-password-7"
       })
     });
     expect(resetResponse.status).toBe(200);
@@ -400,7 +400,7 @@ describe("userRoutes", () => {
       method: "POST",
       body: JSON.stringify({
         username: "carol",
-        password: "carol-old-password"
+        password: "carol-old-password-6"
       })
     });
     expect(oldLoginResponse.status).toBe(401);
@@ -413,7 +413,7 @@ describe("userRoutes", () => {
     });
     expect(meWithOldCookie.status).toBe(401);
 
-    const newCookie = await login("carol", "carol-new-password");
+    const newCookie = await login("carol", "carol-new-password-7");
     expect(newCookie).toContain("flaque_session=");
   });
 
@@ -422,11 +422,11 @@ describe("userRoutes", () => {
     await createUserAsAdmin({
       adminCookie,
       username: "marie",
-      password: "marie-old-password",
+      password: "marie-old-password-8",
       role: "user"
     });
 
-    const userCookie = await login("marie", "marie-old-password");
+    const userCookie = await login("marie", "marie-old-password-8");
 
     const changeResponse = await apiRequest("/api/users/me/password", {
       method: "POST",
@@ -434,8 +434,8 @@ describe("userRoutes", () => {
         Cookie: userCookie
       },
       body: JSON.stringify({
-        currentPassword: "marie-old-password",
-        newPassword: "marie-new-password"
+        currentPassword: "marie-old-password-8",
+        newPassword: "marie-new-password-9"
       })
     });
 
@@ -465,7 +465,7 @@ describe("userRoutes", () => {
       method: "POST",
       body: JSON.stringify({
         username: "marie",
-        password: "marie-old-password"
+        password: "marie-old-password-8"
       })
     });
     expect(oldLoginResponse.status).toBe(401);
@@ -474,7 +474,7 @@ describe("userRoutes", () => {
       method: "POST",
       body: JSON.stringify({
         username: "marie",
-        password: "marie-new-password"
+        password: "marie-new-password-9"
       })
     });
     expect(newLoginResponse.status).toBe(200);
@@ -485,11 +485,11 @@ describe("userRoutes", () => {
     await createUserAsAdmin({
       adminCookie,
       username: "nina",
-      password: "nina-password",
+      password: "nina-password-10",
       role: "user"
     });
 
-    const userCookie = await login("nina", "nina-password");
+    const userCookie = await login("nina", "nina-password-10");
     const userId = await currentUserId(userCookie);
     const profileDir = path.join(dataRoot, "storage", "users", userId, "profile");
     await fs.mkdir(profileDir, { recursive: true });
@@ -540,7 +540,7 @@ describe("userRoutes", () => {
     const created = await createUserAsAdmin({
       adminCookie,
       username: "dave",
-      password: "dave-password",
+      password: "dave-password-11",
       role: "user"
     });
 
@@ -564,7 +564,7 @@ describe("userRoutes", () => {
       method: "POST",
       body: JSON.stringify({
         username: "dave",
-        password: "dave-password"
+        password: "dave-password-11"
       })
     });
     expect(deletedLoginResponse.status).toBe(401);
@@ -575,17 +575,17 @@ describe("userRoutes", () => {
     const target = await createUserAsAdmin({
       adminCookie,
       username: "eve",
-      password: "eve-password",
+      password: "eve-password-12",
       role: "user"
     });
     await createUserAsAdmin({
       adminCookie,
       username: "frank",
-      password: "frank-password",
+      password: "frank-password-13",
       role: "user"
     });
 
-    const userCookie = await login("frank", "frank-password");
+    const userCookie = await login("frank", "frank-password-13");
 
     const patchResponse = await apiRequest(`/api/users/${target.id}`, {
       method: "PATCH",
@@ -604,7 +604,7 @@ describe("userRoutes", () => {
         Cookie: userCookie
       },
       body: JSON.stringify({
-        password: "eve-password-new"
+        password: "eve-password-12-new"
       })
     });
     expect(resetResponse.status).toBe(403);
