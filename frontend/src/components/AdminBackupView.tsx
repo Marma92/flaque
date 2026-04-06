@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import type { BackupConfig, BackupEntry } from "../api";
 import { getBackupDownloadUrl } from "../api";
+import { formatDate, formatSize } from "../utils/format";
 
 type AdminBackupViewProps = {
   backups: BackupEntry[];
@@ -19,18 +20,6 @@ type AdminBackupViewProps = {
   onPurgeExpired: () => Promise<void>;
   onRefresh: () => Promise<void>;
 };
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
-
-function formatDate(isoString: string): string {
-  const d = new Date(isoString);
-  return d.toLocaleString();
-}
 
 function formatBackupId(id: string): string {
   // 20260406_091500 -> 2026-04-06 09:15:00

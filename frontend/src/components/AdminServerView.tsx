@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type { LogFile, LogEntry, StorageUsage, VersionInfo, UpdateStatus } from "../api";
+import { formatSize } from "../utils/format";
 
 type AdminServerViewProps = {
   versionInfo: VersionInfo | null;
@@ -23,13 +24,6 @@ type AdminServerViewProps = {
   onLoadMore: () => Promise<void>;
   hasMore: boolean;
 };
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
 
 function formatLogTime(epochMs: number): string {
   const d = new Date(epochMs);

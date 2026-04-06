@@ -1,147 +1,19 @@
-import fs from "node:fs/promises";
-import { createServer, type Server } from "node:http";
-import os from "node:os";
-import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-let dataRoot = "";
-let baseUrl = "";
-let server: Server | null = null;
-
-async function bootstrapServer(): Promise<void> {
-  vi.resetModules();
-
-  const { ensureBaseDirectories } = await import("../utils/fs");
-  const { initializeAuthDatabase, ensureDefaultAdmin } = await import("../auth/db");
-  const { IndexStore } = await import("../services/indexer/indexStore");
-  const { createApp } = await import("../app");
-
-  await ensureBaseDirectories();
-  initializeAuthDatabase();
-  ensureDefaultAdmin();
-
-  const indexStore = new IndexStore();
-  await indexStore.initialize();
-
-  const app = createApp(indexStore);
-  server = createServer(app);
-
-  await new Promise<void>((resolve, reject) => {
-    if (!server) {
-      reject(new Error("Missing HTTP server"));
-      return;
-    }
-
-    server.listen(0, "127.0.0.1", () => {
-      const address = server?.address();
-      if (!address || typeof address === "string") {
-        reject(new Error("Unable to resolve test server address"));
-        return;
-      }
-
-      baseUrl = `http://127.0.0.1:${address.port}`;
-      resolve();
-    });
-  });
-}
-
-async function apiRequest(pathname: string, options: RequestInit = {}) {
-  const response = await fetch(`${baseUrl}${pathname}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers ?? {})
-    }
-  });
-
-  const text = await response.text();
-  let payload: unknown = undefined;
-
-  if (text) {
-    try {
-      payload = JSON.parse(text) as unknown;
-    } catch {
-      payload = text;
-    }
-  }
-
-  return {
-    status: response.status,
-    payload,
-    cookie: response.headers.get("set-cookie"),
-    retryAfter: response.headers.get("retry-after")
-  };
-}
-
-async function login(input: {
-  login: string;
-  password: string;
-  userAgent?: string;
-  deviceLabel?: string;
-}): Promise<string> {
-  const response = await apiRequest("/api/auth/login", {
-    method: "POST",
-    headers: input.userAgent
-      ? {
-          "User-Agent": input.userAgent
-        }
-      : undefined,
-    body: JSON.stringify({
-      login: input.login,
-      password: input.password,
-      deviceLabel: input.deviceLabel
-    })
-  });
-
-  expect(response.status).toBe(200);
-  const cookie = response.cookie;
-  if (!cookie) {
-    throw new Error("Missing session cookie");
-  }
-
-  return cookie.split(";", 1)[0] ?? "";
-}
+import { apiRequest, loginWithOptions, setupTestServer, teardownTestServer } from "./testHelpers";
 
 beforeEach(async () => {
-  dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "flaque-auth-api-"));
-  process.env.DATA_ROOT = dataRoot;
-  process.env.ADMIN_USERNAME = "admin";
-  process.env.ADMIN_PASSWORD = "admin-secret-123";
-  process.env.ADMIN_EMAIL = "admin@example.com";
-  process.env.CORS_ORIGIN = "http://localhost:5173";
-
-  await bootstrapServer();
+  await setupTestServer({ tempDirPrefix: "flaque-auth-api-" });
 });
 
 afterEach(async () => {
-  if (server) {
-    await new Promise<void>((resolve, reject) => {
-      server?.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
-  }
-
-  await fs.rm(dataRoot, { recursive: true, force: true });
-  delete process.env.DATA_ROOT;
-  delete process.env.ADMIN_USERNAME;
-  delete process.env.ADMIN_PASSWORD;
-  delete process.env.ADMIN_EMAIL;
-  delete process.env.CORS_ORIGIN;
+  await teardownTestServer();
   delete process.env.AUTH_RATE_LIMIT_WINDOW_MS;
   delete process.env.AUTH_LOGIN_RATE_LIMIT_MAX;
   delete process.env.AUTH_FORGOT_PASSWORD_RATE_LIMIT_MAX;
   delete process.env.AUTH_RESET_PASSWORD_RATE_LIMIT_MAX;
   delete process.env.AUTH_FORGOT_PASSWORD_MIN_RESPONSE_MS;
   delete process.env.AUTH_AUDIT_LOGS;
-  server = null;
-  baseUrl = "";
-  vi.resetModules();
 });
 
 describe("authRoutes", () => {
@@ -175,7 +47,7 @@ describe("authRoutes", () => {
     const byEmail = await apiRequest("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({
-        login: "admin@example.com",
+        login: "admin@test.local",
         password: "admin-secret-123"
       })
     });
@@ -223,7 +95,7 @@ describe("authRoutes", () => {
     const first = await apiRequest("/api/auth/forgot-password", {
       method: "POST",
       body: JSON.stringify({
-        login: "admin@example.com"
+        login: "admin@test.local"
       })
     });
     expect(first.status).toBe(200);
@@ -231,7 +103,7 @@ describe("authRoutes", () => {
     const blocked = await apiRequest("/api/auth/forgot-password", {
       method: "POST",
       body: JSON.stringify({
-        login: "admin@example.com"
+        login: "admin@test.local"
       })
     });
     expect(blocked.status).toBe(429);
@@ -240,7 +112,7 @@ describe("authRoutes", () => {
   });
 
   it("supports forgot password and token reset flow", async () => {
-    const currentCookie = await login({
+    const currentCookie = await loginWithOptions({
       login: "admin",
       password: "admin-secret-123",
       userAgent: "Session Test Agent"
@@ -258,7 +130,7 @@ describe("authRoutes", () => {
     const forgotKnown = await apiRequest("/api/auth/forgot-password", {
       method: "POST",
       body: JSON.stringify({
-        login: "admin@example.com"
+        login: "admin@test.local"
       })
     });
     expect(forgotKnown.status).toBe(200);
@@ -297,7 +169,7 @@ describe("authRoutes", () => {
     const oldPasswordLogin = await apiRequest("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({
-        login: "admin@example.com",
+        login: "admin@test.local",
         password: "admin-secret-123"
       })
     });
@@ -306,7 +178,7 @@ describe("authRoutes", () => {
     const newPasswordLogin = await apiRequest("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({
-        login: "admin@example.com",
+        login: "admin@test.local",
         password: "admin-reset-password-456"
       })
     });
@@ -323,13 +195,13 @@ describe("authRoutes", () => {
   });
 
   it("lists active sessions and revokes a targeted session", async () => {
-    const currentCookie = await login({
+    const currentCookie = await loginWithOptions({
       login: "admin",
       password: "admin-secret-123",
       userAgent: "Session Test Agent A",
       deviceLabel: "Laptop"
     });
-    const otherCookie = await login({
+    const otherCookie = await loginWithOptions({
       login: "admin",
       password: "admin-secret-123",
       userAgent: "Session Test Agent B",
@@ -373,19 +245,19 @@ describe("authRoutes", () => {
   });
 
   it("logs out other sessions while keeping current session active", async () => {
-    const currentCookie = await login({
+    const currentCookie = await loginWithOptions({
       login: "admin",
       password: "admin-secret-123",
       userAgent: "Session Test Agent A",
       deviceLabel: "Desktop"
     });
-    const otherCookieOne = await login({
+    const otherCookieOne = await loginWithOptions({
       login: "admin",
       password: "admin-secret-123",
       userAgent: "Session Test Agent B",
       deviceLabel: "Tablet"
     });
-    const otherCookieTwo = await login({
+    const otherCookieTwo = await loginWithOptions({
       login: "admin",
       password: "admin-secret-123",
       userAgent: "Session Test Agent C",
@@ -427,7 +299,7 @@ describe("authRoutes", () => {
   });
 
   it("allows revoking current session and clears cookie", async () => {
-    const currentCookie = await login({
+    const currentCookie = await loginWithOptions({
       login: "admin",
       password: "admin-secret-123",
       userAgent: "Session Test Agent Current",

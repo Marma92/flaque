@@ -1,77 +1,9 @@
 import fs from "node:fs/promises";
-import { createServer, type Server } from "node:http";
-import os from "node:os";
 import path from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-let dataRoot = "";
-let baseUrl = "";
-let server: Server | null = null;
-
-async function bootstrapServer(): Promise<void> {
-  vi.resetModules();
-
-  const { ensureBaseDirectories } = await import("../utils/fs");
-  const { initializeAuthDatabase, ensureDefaultAdmin } = await import("../auth/db");
-  const { IndexStore } = await import("../services/indexer/indexStore");
-  const { createApp } = await import("../app");
-
-  await ensureBaseDirectories();
-  initializeAuthDatabase();
-  ensureDefaultAdmin();
-
-  const indexStore = new IndexStore();
-  await indexStore.initialize();
-
-  const app = createApp(indexStore);
-  server = createServer(app);
-
-  await new Promise<void>((resolve, reject) => {
-    if (!server) {
-      reject(new Error("Missing HTTP server"));
-      return;
-    }
-
-    server.listen(0, "127.0.0.1", () => {
-      const address = server?.address();
-      if (!address || typeof address === "string") {
-        reject(new Error("Unable to resolve test server address"));
-        return;
-      }
-
-      baseUrl = `http://127.0.0.1:${address.port}`;
-      resolve();
-    });
-  });
-}
-
-async function apiRequest(pathname: string, options: RequestInit = {}) {
-  const response = await fetch(`${baseUrl}${pathname}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers ?? {})
-    }
-  });
-
-  const text = await response.text();
-  let payload: unknown = undefined;
-
-  if (text) {
-    try {
-      payload = JSON.parse(text) as unknown;
-    } catch {
-      payload = text;
-    }
-  }
-
-  return {
-    status: response.status,
-    payload,
-    cookie: response.headers.get("set-cookie")
-  };
-}
+import { apiRequest, getBaseUrl, getDataRoot, login, setupTestServer, teardownTestServer } from "./testHelpers";
 
 async function apiMultipartRequest(input: {
   pathname: string;
@@ -85,7 +17,7 @@ async function apiMultipartRequest(input: {
   const binary = Uint8Array.from(input.bytes);
   formData.append(input.fileFieldName, new Blob([binary.buffer as ArrayBuffer], { type: input.mimeType }), input.fileName);
 
-  const response = await fetch(`${baseUrl}${input.pathname}`, {
+  const response = await fetch(`${getBaseUrl()}${input.pathname}`, {
     method: "POST",
     headers: {
       Cookie: input.cookie
@@ -112,27 +44,10 @@ async function apiMultipartRequest(input: {
   };
 }
 
-async function login(username: string, password: string): Promise<string> {
-  const response = await apiRequest("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ username, password })
-  });
-
-  expect(response.status).toBe(200);
-  const cookie = response.cookie;
-  if (!cookie) {
-    throw new Error("Missing session cookie");
-  }
-
-  return cookie.split(";", 1)[0] ?? "";
-}
-
 async function currentUserId(cookie: string): Promise<string> {
   const response = await apiRequest("/api/auth/me", {
     method: "GET",
-    headers: {
-      Cookie: cookie
-    }
+    headers: { Cookie: cookie }
   });
 
   expect(response.status).toBe(200);
@@ -149,9 +64,7 @@ async function createUserAsAdmin(input: {
 }): Promise<{ id: string; username: string; role: "user" | "admin" }> {
   const response = await apiRequest("/api/users", {
     method: "POST",
-    headers: {
-      Cookie: input.adminCookie
-    },
+    headers: { Cookie: input.adminCookie },
     body: JSON.stringify({
       username: input.username,
       password: input.password,
@@ -168,16 +81,11 @@ async function createUserAsAdmin(input: {
 async function patchUserAsAdmin(input: {
   adminCookie: string;
   userId: string;
-  payload: {
-    username?: string;
-    role?: "user" | "admin";
-  };
+  payload: { username?: string; role?: "user" | "admin" };
 }): Promise<{ id: string; username: string; role: "user" | "admin" }> {
   const response = await apiRequest(`/api/users/${input.userId}`, {
     method: "PATCH",
-    headers: {
-      Cookie: input.adminCookie
-    },
+    headers: { Cookie: input.adminCookie },
     body: JSON.stringify(input.payload)
   });
 
@@ -187,38 +95,11 @@ async function patchUserAsAdmin(input: {
 }
 
 beforeEach(async () => {
-  dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "flaque-users-api-"));
-  process.env.DATA_ROOT = dataRoot;
-  process.env.ADMIN_USERNAME = "admin";
-  process.env.ADMIN_PASSWORD = "admin-secret-123";
-  process.env.ADMIN_EMAIL = "admin@test.local";
-  process.env.CORS_ORIGIN = "http://localhost:5173";
-
-  await bootstrapServer();
+  await setupTestServer({ tempDirPrefix: "flaque-users-api-" });
 });
 
 afterEach(async () => {
-  if (server) {
-    await new Promise<void>((resolve, reject) => {
-      server?.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
-  }
-
-  await fs.rm(dataRoot, { recursive: true, force: true });
-  delete process.env.DATA_ROOT;
-  delete process.env.ADMIN_USERNAME;
-  delete process.env.ADMIN_PASSWORD;
-  delete process.env.ADMIN_EMAIL;
-  delete process.env.CORS_ORIGIN;
-  server = null;
-  baseUrl = "";
-  vi.resetModules();
+  await teardownTestServer();
 });
 
 describe("userRoutes", () => {
@@ -491,6 +372,7 @@ describe("userRoutes", () => {
 
     const userCookie = await login("nina", "nina-password-10");
     const userId = await currentUserId(userCookie);
+    const dataRoot = getDataRoot();
     const profileDir = path.join(dataRoot, "storage", "users", userId, "profile");
     await fs.mkdir(profileDir, { recursive: true });
     await fs.writeFile(path.join(profileDir, "avatar.png"), "legacy-avatar");
@@ -516,10 +398,10 @@ describe("userRoutes", () => {
     expect(storedAvatar.length).toBeGreaterThan(0);
 
     const profileEntries = await fs.readdir(profileDir);
-    const avatarFiles = profileEntries.filter((entry) => entry.startsWith("avatar."));
+    const avatarFiles = profileEntries.filter((entry: string) => entry.startsWith("avatar."));
     expect(avatarFiles).toEqual(["avatar.webp"]);
 
-    const photoResponse = await fetch(`${baseUrl}/api/users/me/photo`, {
+    const photoResponse = await fetch(`${getBaseUrl()}/api/users/me/photo`, {
       method: "GET",
       headers: {
         Cookie: userCookie

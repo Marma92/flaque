@@ -1,15 +1,10 @@
 import fs from "node:fs/promises";
-import { createServer, type Server } from "node:http";
-import os from "node:os";
 import path from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { LibraryIndex, Track } from "../types/library";
-
-let dataRoot = "";
-let baseUrl = "";
-let server: Server | null = null;
+import { apiRequest, getDataRoot, login, setupTestServer, teardownTestServer } from "./testHelpers";
 
 function createTrack(id: string, relativePath: string): Track {
   return {
@@ -59,118 +54,24 @@ class FakeIndexStore {
   }
 }
 
-async function bootstrapServer(indexStore: FakeIndexStore): Promise<void> {
-  vi.resetModules();
-
-  const { ensureBaseDirectories } = await import("../utils/fs");
-  const { createUser, ensureDefaultAdmin, initializeAuthDatabase } = await import("../auth/db");
-  const { createApp } = await import("../app");
-
-  await ensureBaseDirectories();
-  initializeAuthDatabase();
-  ensureDefaultAdmin();
-  createUser("alice", "alice-password", "user", "alice@test.local");
-
-  const app = createApp(indexStore as unknown as import("../services/indexer/indexStore").IndexStore);
-  server = createServer(app);
-
-  await new Promise<void>((resolve, reject) => {
-    if (!server) {
-      reject(new Error("Missing HTTP server"));
-      return;
-    }
-
-    server.listen(0, "127.0.0.1", () => {
-      const address = server?.address();
-      if (!address || typeof address === "string") {
-        reject(new Error("Unable to resolve test server address"));
-        return;
-      }
-
-      baseUrl = `http://127.0.0.1:${address.port}`;
-      resolve();
-    });
-  });
-}
-
-async function apiRequest(pathname: string, options: RequestInit = {}) {
-  const response = await fetch(`${baseUrl}${pathname}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers ?? {})
-    }
-  });
-
-  const text = await response.text();
-  let payload: unknown = undefined;
-
-  if (text) {
-    try {
-      payload = JSON.parse(text) as unknown;
-    } catch {
-      payload = text;
-    }
-  }
-
-  return {
-    status: response.status,
-    payload,
-    cookie: response.headers.get("set-cookie")
-  };
-}
-
-async function login(username: string, password: string): Promise<string> {
-  const response = await apiRequest("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ username, password })
-  });
-
-  expect(response.status).toBe(200);
-  const cookie = response.cookie;
-  if (!cookie) {
-    throw new Error("Missing session cookie");
-  }
-
-  return cookie.split(";", 1)[0] ?? "";
-}
+let indexStore: FakeIndexStore;
 
 beforeEach(async () => {
-  dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "flaque-playlist-routes-"));
-  process.env.DATA_ROOT = dataRoot;
-  process.env.ADMIN_USERNAME = "admin";
-  process.env.ADMIN_PASSWORD = "admin-secret-123";
-  process.env.ADMIN_EMAIL = "admin@test.local";
-  process.env.CORS_ORIGIN = "http://localhost:5173";
+  indexStore = new FakeIndexStore({
+    generatedAt: new Date().toISOString(),
+    totalTracks: 0,
+    tracks: [],
+    playlists: []
+  });
 });
 
 afterEach(async () => {
-  if (server) {
-    await new Promise<void>((resolve, reject) => {
-      server?.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
-  }
-
-  await fs.rm(dataRoot, { recursive: true, force: true });
-  delete process.env.DATA_ROOT;
-  delete process.env.ADMIN_USERNAME;
-  delete process.env.ADMIN_PASSWORD;
-  delete process.env.ADMIN_EMAIL;
-  delete process.env.CORS_ORIGIN;
-  server = null;
-  baseUrl = "";
-  vi.resetModules();
+  await teardownTestServer();
 });
 
 describe("playlistRoutes", () => {
   it("supports playlist CRUD with file-based storage", async () => {
-    const indexStore = new FakeIndexStore({
+    indexStore = new FakeIndexStore({
       generatedAt: new Date().toISOString(),
       totalTracks: 2,
       tracks: [
@@ -180,7 +81,14 @@ describe("playlistRoutes", () => {
       playlists: []
     });
 
-    await bootstrapServer(indexStore);
+    await setupTestServer({
+      tempDirPrefix: "flaque-playlist-routes-",
+      indexStore,
+      beforeInit: async () => {
+        const { createUser } = await import("../auth/db");
+        createUser("alice", "alice-password", "user", "alice@test.local");
+      }
+    });
 
     const adminCookie = await login("admin", "admin-secret-123");
 
@@ -207,6 +115,7 @@ describe("playlistRoutes", () => {
       })
     );
 
+    const dataRoot = getDataRoot();
     const metadataPath = path.join(
       dataRoot,
       "storage",
@@ -263,14 +172,21 @@ describe("playlistRoutes", () => {
   });
 
   it("hides private playlists from other users", async () => {
-    const indexStore = new FakeIndexStore({
+    indexStore = new FakeIndexStore({
       generatedAt: new Date().toISOString(),
       totalTracks: 1,
       tracks: [createTrack("track-a", "storage/users/owner-1/uploads/a.mp3")],
       playlists: []
     });
 
-    await bootstrapServer(indexStore);
+    await setupTestServer({
+      tempDirPrefix: "flaque-playlist-routes-",
+      indexStore,
+      beforeInit: async () => {
+        const { createUser } = await import("../auth/db");
+        createUser("alice", "alice-password", "user", "alice@test.local");
+      }
+    });
 
     const adminCookie = await login("admin", "admin-secret-123");
     const aliceCookie = await login("alice", "alice-password");
