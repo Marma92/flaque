@@ -283,7 +283,7 @@ export function AdminBackupView({
                           type="button"
                           disabled={restoring}
                           onClick={() => {
-                            void onRestoreBackup(backup.id).then(() => setConfirmRestoreId(null));
+                            void onRestoreBackup(backup.id).finally(() => setConfirmRestoreId(null));
                           }}
                         >
                           {restoring ? "Restoring..." : "Confirm restore"}
@@ -317,7 +317,7 @@ export function AdminBackupView({
                           className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-700"
                           type="button"
                           onClick={() => {
-                            void onDeleteBackup(backup.id).then(() => setConfirmDeleteId(null));
+                            void onDeleteBackup(backup.id).finally(() => setConfirmDeleteId(null));
                           }}
                         >
                           Confirm delete

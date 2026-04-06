@@ -20,6 +20,21 @@ import { createLogger } from "../utils/logger";
 
 const log = createLogger("backup-routes");
 
+const BACKUP_ID_PATTERN = /^[\w-]+$/;
+
+function sanitizeBackupId(raw: string | undefined): string | null {
+  if (!raw) {
+    return null;
+  }
+
+  const id = path.basename(raw);
+  if (!id || !BACKUP_ID_PATTERN.test(id)) {
+    return null;
+  }
+
+  return id;
+}
+
 export function createBackupRouter(): Router {
   const router = Router();
 
@@ -62,7 +77,7 @@ export function createBackupRouter(): Router {
   });
 
   // POST /backup — create a manual backup
-  router.post("/backup", requireAuth, requireAdmin, async (req, res, next) => {
+  router.post("/backup", requireAuth, requireAdmin, async (_req, res, next) => {
     try {
       const config = await readBackupConfig();
       const manifest = await createBackup("manual", { includeIndex: config.includeIndex });
@@ -85,9 +100,9 @@ export function createBackupRouter(): Router {
   // GET /backups/:id/download — download the database backup file
   router.get("/backups/:id/download", requireAuth, requireAdmin, async (req, res, next) => {
     try {
-      const safeId = path.basename(req.params.id ?? "");
+      const safeId = sanitizeBackupId(req.params.id);
       if (!safeId) {
-        res.status(400).json({ error: "Backup id is required" });
+        res.status(400).json({ error: "Invalid backup id" });
         return;
       }
 
@@ -111,9 +126,9 @@ export function createBackupRouter(): Router {
   // DELETE /backups/:id — delete a backup
   router.delete("/backups/:id", requireAuth, requireAdmin, async (req, res, next) => {
     try {
-      const safeId = path.basename(req.params.id ?? "");
+      const safeId = sanitizeBackupId(req.params.id);
       if (!safeId) {
-        res.status(400).json({ error: "Backup id is required" });
+        res.status(400).json({ error: "Invalid backup id" });
         return;
       }
 
@@ -132,9 +147,9 @@ export function createBackupRouter(): Router {
   // POST /backups/:id/restore — restore database from a backup
   router.post("/backups/:id/restore", requireAuth, requireAdmin, async (req, res, next) => {
     try {
-      const safeId = path.basename(req.params.id ?? "");
+      const safeId = sanitizeBackupId(req.params.id);
       if (!safeId) {
-        res.status(400).json({ error: "Backup id is required" });
+        res.status(400).json({ error: "Invalid backup id" });
         return;
       }
 

@@ -4,7 +4,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 import { requireDb } from "../../auth/dbConnection";
-import { ensureDir } from "../../utils/fs";
+import { ensureDir, writeJsonAtomic } from "../../utils/fs";
 import { createLogger } from "../../utils/logger";
 import {
   backupsRoot,
@@ -76,9 +76,10 @@ export async function readBackupConfig(): Promise<BackupConfig> {
 }
 
 export async function writeBackupConfig(config: BackupConfig): Promise<void> {
-  const payload = JSON.stringify(config, null, 2) + "\n";
-  await fs.writeFile(configPath(), payload, "utf8");
+  await writeJsonAtomic(configPath(), config);
 }
+
+let backupIdCounter = 0;
 
 function generateBackupId(): string {
   const now = new Date();
@@ -88,7 +89,8 @@ function generateBackupId(): string {
   const h = String(now.getHours()).padStart(2, "0");
   const mi = String(now.getMinutes()).padStart(2, "0");
   const s = String(now.getSeconds()).padStart(2, "0");
-  return `${y}${mo}${d}_${h}${mi}${s}`;
+  const seq = String(backupIdCounter++).padStart(3, "0");
+  return `${y}${mo}${d}_${h}${mi}${s}_${seq}`;
 }
 
 async function copyFileIfExists(src: string, dest: string): Promise<boolean> {
@@ -117,50 +119,56 @@ export async function createBackup(
   const backupDir = path.join(backupsRoot, id);
   await ensureDir(backupDir);
 
-  const files: string[] = [];
-  let totalSize = 0;
+  try {
+    const files: string[] = [];
+    let totalSize = 0;
 
-  // SQLite hot backup using the .backup() API
-  const db = requireDb();
-  const dbBackupPath = path.join(backupDir, "users.db");
-  await db.backup(dbBackupPath);
-  files.push("users.db");
-  totalSize += await getFileSize(dbBackupPath);
+    // SQLite hot backup using the .backup() API
+    const db = requireDb();
+    const dbBackupPath = path.join(backupDir, "users.db");
+    await db.backup(dbBackupPath);
+    files.push("users.db");
+    totalSize += await getFileSize(dbBackupPath);
 
-  // Copy index files
-  const includeIndex = options?.includeIndex ?? true;
-  if (includeIndex) {
-    const indexDir = path.join(backupDir, "index");
-    await ensureDir(indexDir);
+    // Copy index files
+    const includeIndex = options?.includeIndex ?? true;
+    if (includeIndex) {
+      const indexDir = path.join(backupDir, "index");
+      await ensureDir(indexDir);
 
-    for (const entry of INDEX_FILES) {
-      const dest = path.join(indexDir, entry.name);
-      const copied = await copyFileIfExists(entry.source, dest);
-      if (copied) {
-        files.push(`index/${entry.name}`);
-        totalSize += await getFileSize(dest);
+      for (const entry of INDEX_FILES) {
+        const dest = path.join(indexDir, entry.name);
+        const copied = await copyFileIfExists(entry.source, dest);
+        if (copied) {
+          files.push(`index/${entry.name}`);
+          totalSize += await getFileSize(dest);
+        }
       }
     }
+
+    const manifest: BackupManifest = {
+      id,
+      createdAt: new Date().toISOString(),
+      trigger,
+      includesDatabase: true,
+      includesIndex: includeIndex,
+      sizeBytes: totalSize,
+      files
+    };
+
+    await fs.writeFile(
+      path.join(backupDir, MANIFEST_FILE),
+      JSON.stringify(manifest, null, 2) + "\n",
+      "utf8"
+    );
+
+    log.info("Backup created", { id, trigger, files: files.length, sizeBytes: totalSize });
+    return manifest;
+  } catch (error) {
+    // Clean up partial backup directory on failure
+    await fs.rm(backupDir, { recursive: true, force: true }).catch(() => {});
+    throw error;
   }
-
-  const manifest: BackupManifest = {
-    id,
-    createdAt: new Date().toISOString(),
-    trigger,
-    includesDatabase: true,
-    includesIndex: includeIndex,
-    sizeBytes: totalSize,
-    files
-  };
-
-  await fs.writeFile(
-    path.join(backupDir, MANIFEST_FILE),
-    JSON.stringify(manifest, null, 2) + "\n",
-    "utf8"
-  );
-
-  log.info("Backup created", { id, trigger, files: files.length, sizeBytes: totalSize });
-  return manifest;
 }
 
 export async function listBackups(): Promise<BackupEntry[]> {
@@ -188,49 +196,59 @@ export async function listBackups(): Promise<BackupEntry[]> {
   return backups;
 }
 
-export function getBackupDbPath(backupId: string): string | null {
-  const safeId = path.basename(backupId);
-  const dbPath = path.join(backupsRoot, safeId, "users.db");
-  return dbPath;
-}
-
 export async function deleteBackup(backupId: string): Promise<boolean> {
   const safeId = path.basename(backupId);
   const backupDir = path.join(backupsRoot, safeId);
 
   try {
-    await fs.rm(backupDir, { recursive: true, force: true });
-    log.info("Backup deleted", { id: safeId });
-    return true;
+    await fs.access(backupDir);
   } catch {
     return false;
   }
+
+  await fs.rm(backupDir, { recursive: true, force: true });
+  log.info("Backup deleted", { id: safeId });
+  return true;
 }
 
 export async function restoreDatabase(backupId: string): Promise<void> {
   const safeId = path.basename(backupId);
   const backupDbPath = path.join(backupsRoot, safeId, "users.db");
 
-  const stat = await fs.stat(backupDbPath);
-  if (!stat.isFile()) {
-    throw new Error("Backup database file not found");
+  try {
+    const stat = await fs.stat(backupDbPath);
+    if (!stat.isFile()) {
+      throw new Error("Backup database file not found");
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new Error("Backup database file not found");
+    }
+    throw error;
   }
 
   // Validate backup database is a valid SQLite file
-  const backupDb = new Database(backupDbPath, { readonly: true });
-  const tables = backupDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>;
-  const tableNames = new Set(tables.map((t) => t.name));
-  backupDb.close();
+  let backupDb: Database.Database | null = null;
+  try {
+    backupDb = new Database(backupDbPath, { readonly: true });
+    const tables = backupDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>;
+    const tableNames = new Set(tables.map((t) => t.name));
 
-  if (!tableNames.has("users")) {
-    throw new Error("Backup database is invalid: missing users table");
+    if (!tableNames.has("users")) {
+      throw new Error("Backup database is invalid: missing users table");
+    }
+  } finally {
+    backupDb?.close();
   }
 
   // Restore by backing up the source file over the live database path
   const db = requireDb();
   const source = new Database(backupDbPath, { readonly: true });
-  await source.backup(db.name);
-  source.close();
+  try {
+    await source.backup(db.name);
+  } finally {
+    source.close();
+  }
 
   // Re-apply WAL mode and foreign keys
   db.pragma("journal_mode = WAL");
@@ -279,14 +297,12 @@ async function runScheduledBackup(): Promise<void> {
       return;
     }
 
-    // Enforce max backups
     const existing = await listBackups();
     if (existing.length >= MAX_BACKUPS) {
       await purgeExpiredBackups(config.retentionDays);
     }
 
     await createBackup("scheduled", { includeIndex: config.includeIndex });
-    await purgeExpiredBackups(config.retentionDays);
   } catch (error) {
     log.error("Scheduled backup failed", { error: String(error) });
   }
