@@ -71,7 +71,7 @@ test("login and forgot-password flow works in browser", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Flaque login" })).toBeVisible();
 
   await page.getByLabel("Username or email").fill("admin");
-  await page.getByLabel("Password").fill("admin-secret-123");
+  await page.getByLabel("Password", { exact: true }).fill("admin-secret-123");
   await page.getByRole("button", { name: "Login" }).click();
 
   await expect(page.getByRole("button", { name: "Account" })).toBeVisible();
@@ -81,7 +81,7 @@ test("login and forgot-password flow works in browser", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Flaque login" })).toBeVisible();
 
   await page.getByLabel("Username or email").fill("admin@example.com");
-  await page.getByLabel("Password").fill("admin-secret-123");
+  await page.getByLabel("Password", { exact: true }).fill("admin-secret-123");
   await page.getByRole("button", { name: "Login" }).click();
 
   await expect(page.getByRole("button", { name: "Account" })).toBeVisible();
@@ -108,11 +108,11 @@ test("login and forgot-password flow works in browser", async ({ page }) => {
   await expect(page.getByText("Password reset successful. You can now log in.")).toBeVisible();
 
   await page.getByLabel("Username or email").fill("admin@example.com");
-  await page.getByLabel("Password").fill("admin-secret-123");
+  await page.getByLabel("Password", { exact: true }).fill("admin-secret-123");
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page.getByText("Invalid credentials")).toBeVisible();
 
-  await page.getByLabel("Password").fill(newPassword);
+  await page.getByLabel("Password", { exact: true }).fill(newPassword);
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page.getByRole("button", { name: "Account" })).toBeVisible();
 });
