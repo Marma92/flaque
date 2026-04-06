@@ -44,6 +44,8 @@ export function ConfigView({
   activeSection
 }: ConfigViewProps): JSX.Element {
   const [searchText, setSearchText] = useState("");
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 50;
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [activeTrackActionId, setActiveTrackActionId] = useState<string | null>(null);
   const [deleteTrackCandidate, setDeleteTrackCandidate] = useState<Track | null>(null);
@@ -77,6 +79,10 @@ export function ConfigView({
       return searchable.includes(query);
     });
   }, [tracks, searchText, ownerNameById]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTracks.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paginatedTracks = filteredTracks.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   function openDeleteTrackModal(track: Track): void {
     setDeleteTrackCandidate(track);
@@ -198,7 +204,7 @@ export function ConfigView({
       ) : null}
 
       {activeSection === "files" ? (
-        <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <section className="flex flex-col rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm lg:h-[calc(100vh-6rem)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-display text-xl text-flaque-ink">Global file management</h3>
@@ -212,12 +218,12 @@ export function ConfigView({
             type="search"
             placeholder="Search by title, file name, artist, path"
             value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
+            onChange={(event) => { setSearchText(event.target.value); setPage(0); }}
           />
         </div>
 
         <div className="mt-4 space-y-3 lg:hidden">
-          {filteredTracks.map((track) => {
+          {paginatedTracks.map((track) => {
             const runningAction = activeTrackActionId === track.id;
             const title = getTrackDisplayTitle(track);
 
@@ -259,7 +265,7 @@ export function ConfigView({
           {filteredTracks.length === 0 ? <p className="text-sm text-flaque-steel">No tracks match this search.</p> : null}
         </div>
 
-        <div className="mt-4 hidden max-h-[48vh] overflow-auto rounded-2xl border border-flaque-clay/40 lg:block">
+        <div className="mt-4 hidden min-h-0 flex-1 overflow-auto rounded-2xl border border-flaque-clay/40 lg:block">
           <table className="w-full min-w-[980px] border-collapse text-left text-sm">
             <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
               <tr>
@@ -272,7 +278,7 @@ export function ConfigView({
               </tr>
             </thead>
             <tbody>
-              {filteredTracks.map((track) => {
+              {paginatedTracks.map((track) => {
                 const runningAction = activeTrackActionId === track.id;
                 const title = getTrackDisplayTitle(track);
 
@@ -323,6 +329,35 @@ export function ConfigView({
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 ? (
+          <div className="mt-3 flex shrink-0 items-center justify-between text-sm text-flaque-steel">
+            <span>
+              {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filteredTracks.length)} of {filteredTracks.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="rounded-lg border border-flaque-clay/60 bg-flaque-cream/80 px-3 py-1 text-xs font-medium text-flaque-ink transition hover:bg-flaque-cream disabled:opacity-40"
+                disabled={safePage === 0}
+                onClick={() => setPage(safePage - 1)}
+              >
+                Previous
+              </button>
+              <span className="px-2 text-xs">
+                {safePage + 1} / {totalPages}
+              </span>
+              <button
+                type="button"
+                className="rounded-lg border border-flaque-clay/60 bg-flaque-cream/80 px-3 py-1 text-xs font-medium text-flaque-ink transition hover:bg-flaque-cream disabled:opacity-40"
+                disabled={safePage >= totalPages - 1}
+                onClick={() => setPage(safePage + 1)}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        ) : null}
         </section>
       ) : null}
 
