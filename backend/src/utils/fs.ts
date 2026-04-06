@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 
 import {
+  backupsRoot,
   cacheRoot,
   configRoot,
   coversRoot,
@@ -70,7 +71,8 @@ export async function ensureBaseDirectories(): Promise<void> {
     ensureDir(transcodesRoot),
     ensureDir(tmpUploadsRoot),
     ensureDir(indexRoot),
-    ensureDir(logsRoot)
+    ensureDir(logsRoot),
+    ensureDir(backupsRoot)
   ]);
 
   const hasIndex = await fileExists(indexFilePath);

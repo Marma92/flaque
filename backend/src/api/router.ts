@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import { IndexStore } from "../services/indexer/indexStore";
 import { createAuthRouter } from "./authRoutes";
+import { createBackupRouter } from "./backupRoutes";
 import { createCoverRouter } from "./coverRoutes";
 import { createIndexRouter } from "./indexRoutes";
 import { createLibraryRouter } from "./libraryRoutes";
@@ -23,6 +24,7 @@ export function createApiRouter(indexStore: IndexStore): Router {
   router.use(createIndexRouter(indexStore));
   router.use(createUserRouter());
   router.use(createLogRouter());
+  router.use(createBackupRouter());
 
   return router;
 }
