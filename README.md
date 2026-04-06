@@ -25,6 +25,42 @@ Current Player view with active playback:
 
 ![Flaque Player Screenshot](docs/screenshots/player-view.png)
 
+## Features
+
+### Library and browsing
+- Browse by **artists**, **albums**, or full track list with search and filtering
+- **Coverflow** album browser with 3D transforms, reflections, and scroll-to-center (cross-browser, works in Firefox and Chrome)
+- **Recently played** and **recently uploaded** panels on the home view
+- Paginated track list for large libraries
+
+### Playback
+- Hi-fi streaming with FLAC byte-range seek support (no transcoding by default)
+- Optional fallback transcoding to Opus or MP3 via FFmpeg
+- Queue management, shuffle, repeat (all / one)
+- Synced lyrics overlay on album artwork
+- Responsive mini-player with expandable full-screen view
+
+### Playlists
+- Create, edit, rename, reorder, and delete playlists
+- Mosaic cover art generated from playlist tracks
+- Playlist download as zip
+- Add tracks to playlists from anywhere in the UI
+
+### Administration
+- Multi-user auth with admin/user roles and durable sessions (SQLite)
+- Password complexity requirements and common password check
+- Admin panel with server logs, storage usage, and version info
+- Manual update check and self-update trigger from the admin UI
+- Backup and restore from the admin panel
+- Global file management with search, metadata editing, and track deletion
+
+### Operations
+- Structured logging with pino (file rotation via pino-roll)
+- Automatic version checks against GitHub releases
+- Docker deployment with self-update sidecar
+- CI/CD pipeline via GitHub Actions
+- FFmpeg concurrency limiter and graceful shutdown
+
 ## Key Challenges
 
 - **Data ownership**: keep full control over music files and metadata.
@@ -123,7 +159,10 @@ npm run prod:authdb:reset
 - **SQLite (`better-sqlite3`)** for auth/session persistence with zero external infra.
 - **Frontend: React + Vite + Tailwind** for fast UX iteration and lightweight builds.
 - **Audio metadata extraction via `music-metadata` + `ffprobe`** for tags, codec info, and covers.
+- **Structured logging via `pino`** with file rotation (`pino-roll`) for production observability.
 - **Filesystem runtime storage** (`data/`) for portability, inspectability, and straightforward backups.
+- **Docker Compose** for production deployment with an optional self-update sidecar.
+- **GitHub Actions CI** for automated build, lint, and test on every push.
 
 Default runtime layout:
 
