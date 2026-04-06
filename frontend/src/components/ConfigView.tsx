@@ -1,12 +1,13 @@
 import { FormEvent, useMemo, useState } from "react";
 
-import type { LogFile, LogEntry, StorageUsage, VersionInfo, UpdateStatus } from "../api";
+import type { BackupConfig, BackupEntry, LogFile, LogEntry, StorageUsage, VersionInfo, UpdateStatus } from "../api";
 import type { Track, TrackMetadataPatch, User } from "../types";
 import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
   getTrackDisplayTitle
 } from "../utils/tracks";
+import { AdminBackupView } from "./AdminBackupView";
 import { AdminServerView } from "./AdminServerView";
 import { AdminUsersView } from "./AdminUsersView";
 import { TrackDeleteModal } from "./TrackDeleteModal";
@@ -61,11 +62,25 @@ type ConfigViewProps = {
   onRefreshLogs: () => Promise<void>;
   onLoadMoreLogs: () => Promise<void>;
   hasMoreLogs: boolean;
+  backups: BackupEntry[];
+  loadingBackups: boolean;
+  backupConfig: BackupConfig | null;
+  loadingBackupConfig: boolean;
+  backupError: string | null;
+  backupMessage: string | null;
+  creatingBackup: boolean;
+  restoringBackup: boolean;
+  onCreateBackup: () => Promise<void>;
+  onDeleteBackup: (id: string) => Promise<void>;
+  onRestoreBackup: (id: string) => Promise<void>;
+  onUpdateBackupConfig: (config: Partial<BackupConfig>) => Promise<void>;
+  onPurgeExpiredBackups: () => Promise<void>;
+  onRefreshBackups: () => Promise<void>;
   activeSection: ConfigSection;
   onSectionChange: (section: ConfigSection) => void;
 };
 
-export type ConfigSection = "index" | "files" | "users" | "server";
+export type ConfigSection = "index" | "files" | "users" | "server" | "backup";
 
 function normalizeSearch(value: string): string {
   return value.trim().toLowerCase();
@@ -109,6 +124,20 @@ export function ConfigView({
   onRefreshLogs,
   onLoadMoreLogs,
   hasMoreLogs,
+  backups,
+  loadingBackups,
+  backupConfig,
+  loadingBackupConfig,
+  backupError,
+  backupMessage,
+  creatingBackup,
+  restoringBackup,
+  onCreateBackup,
+  onDeleteBackup,
+  onRestoreBackup,
+  onUpdateBackupConfig,
+  onPurgeExpiredBackups,
+  onRefreshBackups,
   activeSection,
   onSectionChange
 }: ConfigViewProps): JSX.Element {
@@ -430,6 +459,25 @@ export function ConfigView({
           onRefresh={onRefreshLogs}
           onLoadMore={onLoadMoreLogs}
           hasMore={hasMoreLogs}
+        />
+      ) : null}
+
+      {activeSection === "backup" ? (
+        <AdminBackupView
+          backups={backups}
+          loadingBackups={loadingBackups}
+          config={backupConfig}
+          loadingConfig={loadingBackupConfig}
+          error={backupError}
+          message={backupMessage}
+          creating={creatingBackup}
+          restoring={restoringBackup}
+          onCreateBackup={onCreateBackup}
+          onDeleteBackup={onDeleteBackup}
+          onRestoreBackup={onRestoreBackup}
+          onUpdateConfig={onUpdateBackupConfig}
+          onPurgeExpired={onPurgeExpiredBackups}
+          onRefresh={onRefreshBackups}
         />
       ) : null}
 

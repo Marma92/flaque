@@ -7,6 +7,7 @@ import type { User } from "./types";
 import type { LibrarySection } from "./types/library";
 import type { ViewName } from "./utils/appUtils";
 import { useAccountActions } from "./hooks/useAccountActions";
+import { useAdminBackup } from "./hooks/useAdminBackup";
 import { useAdminCommands } from "./hooks/useAdminCommands";
 import { useAdminServer } from "./hooks/useAdminServer";
 import { useAdminUsers } from "./hooks/useAdminUsers";
@@ -113,6 +114,17 @@ export function AuthenticatedApp({
     levelFilter: logLevelFilter, setLevelFilter: setLogLevelFilter,
     refreshServer: refreshLogs, loadMore: loadMoreLogs, hasMore: hasMoreLogs
   } = useAdminServer({ user });
+
+  const {
+    backups, loadingBackups,
+    config: backupConfig, loadingConfig: loadingBackupConfig,
+    backupError, backupMessage,
+    creating: creatingBackup, restoring: restoringBackup,
+    onCreateBackup, onDeleteBackup, onRestoreBackup,
+    onUpdateConfig: onUpdateBackupConfig,
+    onPurgeExpired: onPurgeExpiredBackups,
+    refreshBackups
+  } = useAdminBackup({ user });
 
   const { handleCreateUser, handleDeleteUser, handleResetUserPassword, handlePatchUser } = useAdminCommands({
     user, setUser, setActiveView, clearAdminState, refreshAdminUsers
@@ -327,7 +339,21 @@ export function AuthenticatedApp({
         onLogLevelFilterChange: setLogLevelFilter,
         onRefreshLogs: refreshLogs,
         onLoadMoreLogs: loadMoreLogs,
-        hasMoreLogs
+        hasMoreLogs,
+        backups,
+        loadingBackups,
+        backupConfig,
+        loadingBackupConfig,
+        backupError,
+        backupMessage,
+        creatingBackup,
+        restoringBackup,
+        onCreateBackup,
+        onDeleteBackup,
+        onRestoreBackup,
+        onUpdateBackupConfig,
+        onPurgeExpiredBackups,
+        onRefreshBackups: refreshBackups
       }}
       accountViewProps={{
         user,

@@ -12,6 +12,7 @@ import { deleteExpiredSessions } from "./auth/sessionDb";
 import { migrateLegacyPlaylists } from "./services/playlists/playlistStore";
 import { IndexStore } from "./services/indexer/indexStore";
 import { migratePerUserUploadsToSharedMusic } from "./services/storage/storageService";
+import { startBackupScheduler } from "./services/backup/backupService";
 import { startVersionCheckSchedule } from "./services/versionCheck";
 import { ensureBaseDirectories } from "./utils/fs";
 
@@ -86,6 +87,7 @@ async function bootstrap(): Promise<void> {
   }, SESSION_CLEANUP_INTERVAL_MS).unref();
 
   startVersionCheckSchedule();
+  void startBackupScheduler();
 }
 
 bootstrap().catch((error: unknown) => {

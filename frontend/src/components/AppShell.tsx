@@ -63,7 +63,7 @@ export function AppShell({
     }`;
 
   const configSections: Array<[ConfigSection, string]> = [
-    ["index", "Index"], ["files", "Files"], ["users", "Users"], ["server", "Server"]
+    ["index", "Index"], ["files", "Files"], ["users", "Users"], ["server", "Server"], ["backup", "Backup"]
   ];
 
   const sectionSwitcher = activeView === "config" && user.role === "admin" ? (

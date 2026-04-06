@@ -16,6 +16,7 @@ export const coversRoot = path.join(cacheRoot, "covers");
 export const transcodesRoot = path.join(cacheRoot, "transcodes");
 export const tmpUploadsRoot = path.join(cacheRoot, "tmp-uploads");
 export const logsRoot = path.join(dataRoot, "logs");
+export const backupsRoot = path.join(dataRoot, "backups");
 export const indexRoot = path.join(dataRoot, "index");
 export const indexFilePath = path.join(indexRoot, "library-index.json");
 export const scannerStateFilePath = path.join(indexRoot, "scanner-state.json");

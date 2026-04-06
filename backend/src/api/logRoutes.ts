@@ -5,7 +5,7 @@ import { Router } from "express";
 
 import { requireAdmin, requireAuth } from "../auth/middleware";
 import { getVersionCheckResult } from "../services/versionCheck";
-import { cacheRoot, configRoot, dataRoot, indexRoot, logsRoot, storageRoot } from "../utils/paths";
+import { backupsRoot, cacheRoot, configRoot, dataRoot, indexRoot, logsRoot, storageRoot } from "../utils/paths";
 
 const LOG_FILE_PATTERN = /^flaque\.(\d{4}-\d{2}-\d{2}\.)?\d+\.log$/;
 const DEFAULT_LIMIT = 200;
@@ -82,7 +82,8 @@ const STORAGE_DIRECTORIES = [
   { name: "Cache", path: "cache/", root: cacheRoot },
   { name: "Index", path: "index/", root: indexRoot },
   { name: "Logs", path: "logs/", root: logsRoot },
-  { name: "Config", path: "config/", root: configRoot }
+  { name: "Config", path: "config/", root: configRoot },
+  { name: "Backups", path: "backups/", root: backupsRoot }
 ] as const;
 
 export function createLogRouter(): Router {
