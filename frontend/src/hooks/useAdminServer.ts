@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
-  getLogFiles, getLogEntries, getStorageUsage, getVersionInfo, triggerUpdate, getUpdateStatus,
+  getLogFiles, getLogEntries, getStorageUsage, getVersionInfo, checkForUpdates as apiCheckForUpdates, triggerUpdate, getUpdateStatus,
   type LogFile, type LogEntry, type StorageUsage, type VersionInfo, type UpdateStatus
 } from "../api";
 import type { User } from "../types";
@@ -21,6 +21,7 @@ type UseAdminServerResult = {
   loadingVersion: boolean;
   updateStatus: UpdateStatus | null;
   onTriggerUpdate: () => Promise<void>;
+  onCheckForUpdates: () => Promise<void>;
   logFiles: LogFile[];
   loadingFiles: boolean;
   selectedFile: string | null;
@@ -186,6 +187,18 @@ export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResu
     }
   }
 
+  async function checkForUpdates(): Promise<void> {
+    setLoadingVersion(true);
+    try {
+      const info = await apiCheckForUpdates();
+      setVersionInfo(info);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingVersion(false);
+    }
+  }
+
   async function refreshServer(): Promise<void> {
     setLoadingFiles(true);
     setLoadingStorage(true);
@@ -279,6 +292,7 @@ export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResu
     loadingVersion,
     updateStatus,
     onTriggerUpdate: handleTriggerUpdate,
+    onCheckForUpdates: checkForUpdates,
     logFiles,
     loadingFiles,
     selectedFile,

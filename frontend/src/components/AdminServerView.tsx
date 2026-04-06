@@ -8,6 +8,7 @@ type AdminServerViewProps = {
   loadingVersion: boolean;
   updateStatus: UpdateStatus | null;
   onTriggerUpdate: () => Promise<void>;
+  onCheckForUpdates: () => Promise<void>;
   storageUsage: StorageUsage | null;
   loadingStorage: boolean;
   logFiles: LogFile[];
@@ -163,9 +164,10 @@ type VersionSectionProps = {
   loading: boolean;
   updateStatus: UpdateStatus | null;
   onTriggerUpdate: () => Promise<void>;
+  onCheckForUpdates: () => Promise<void>;
 };
 
-function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate }: VersionSectionProps): JSX.Element | null {
+function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate, onCheckForUpdates }: VersionSectionProps): JSX.Element | null {
   const isUpdating = updateStatus?.status === "updating";
 
   if (loading && !versionInfo) {
@@ -269,12 +271,22 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate }:
 
   return (
     <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 px-5 py-3 shadow-panel backdrop-blur-sm">
-      <p className="text-sm text-flaque-steel">
-        Running v{versionInfo.currentVersion}
-        {versionInfo.checkedAt
-          ? ` — last checked ${new Date(versionInfo.checkedAt).toLocaleString()}`
-          : ""}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-flaque-steel">
+          Running v{versionInfo.currentVersion}
+          {versionInfo.checkedAt
+            ? ` — last checked ${new Date(versionInfo.checkedAt).toLocaleString()}`
+            : ""}
+        </p>
+        <button
+          type="button"
+          className="rounded-lg border border-flaque-clay/60 bg-flaque-cream/80 px-3 py-1.5 text-xs font-medium text-flaque-ink transition hover:bg-flaque-cream disabled:opacity-50"
+          disabled={loading}
+          onClick={() => { void onCheckForUpdates(); }}
+        >
+          {loading ? "Checking..." : "Check for updates"}
+        </button>
+      </div>
     </section>
   );
 }
@@ -284,6 +296,7 @@ export function AdminServerView({
   loadingVersion,
   updateStatus,
   onTriggerUpdate,
+  onCheckForUpdates,
   storageUsage,
   loadingStorage,
   logFiles,
@@ -313,6 +326,7 @@ export function AdminServerView({
         loading={loadingVersion}
         updateStatus={updateStatus}
         onTriggerUpdate={onTriggerUpdate}
+        onCheckForUpdates={onCheckForUpdates}
       />
       <StorageSection storageUsage={storageUsage} loading={loadingStorage} />
 

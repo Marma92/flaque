@@ -154,3 +154,8 @@ export function startVersionCheckSchedule(): void {
 export function getVersionCheckResult(): VersionCheckResult {
   return { ...cachedResult };
 }
+
+export async function forceVersionCheck(): Promise<VersionCheckResult> {
+  await fetchLatestRelease();
+  return { ...cachedResult };
+}

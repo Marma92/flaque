@@ -1,13 +1,22 @@
 import { Router } from "express";
 
 import { requireAdmin, requireAuth } from "../auth/middleware";
-import { getVersionCheckResult } from "../services/versionCheck";
+import { getVersionCheckResult, forceVersionCheck } from "../services/versionCheck";
 
 export function createServerRouter(): Router {
   const router = Router();
 
   router.get("/server/version", requireAuth, requireAdmin, (_req, res) => {
     res.json(getVersionCheckResult());
+  });
+
+  router.post("/server/version/check", requireAuth, requireAdmin, async (_req, res, next) => {
+    try {
+      const result = await forceVersionCheck();
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
   });
 
   router.post("/server/update", requireAuth, requireAdmin, async (_req, res, next) => {
