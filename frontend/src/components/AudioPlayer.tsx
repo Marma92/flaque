@@ -41,6 +41,7 @@ type AudioPlayerProps = {
   currentQueueTrackId?: string | null;
   onQueueTrackSelect?: (track: Track) => void;
   onArtworkClick?: () => void;
+  onNavigateToLibrary?: () => void;
 };
 
 export function AudioPlayer({
@@ -61,7 +62,8 @@ export function AudioPlayer({
   queueTracks = [],
   currentQueueTrackId = null,
   onQueueTrackSelect,
-  onArtworkClick
+  onArtworkClick,
+  onNavigateToLibrary
 }: AudioPlayerProps): JSX.Element {
   const {
     audioRef, streamSource,
@@ -96,15 +98,29 @@ export function AudioPlayer({
 
   if (!track) {
     return (
-      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-6 shadow-panel backdrop-blur-sm">
+      <section className={expanded
+        ? "flex min-h-0 flex-1 flex-col items-center justify-center rounded-xl m-4 border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm"
+        : "rounded-3xl border border-flaque-clay/60 bg-white/85 p-6 shadow-panel backdrop-blur-sm"
+      }>
         <h2 className="font-display text-xl text-flaque-ink">Player</h2>
-        <p className="mt-2 text-sm text-flaque-steel">Select a track from the library to start streaming.</p>
+        <p className="mt-2 text-sm text-flaque-steel">
+          Select a track from the library to start streaming.
+        </p>
+        {onNavigateToLibrary ? (
+          <button
+            className="mt-4 rounded-xl border border-flaque-clay/60 bg-flaque-cream/80 px-4 py-2 text-sm font-medium text-flaque-ink transition hover:bg-flaque-cream"
+            type="button"
+            onClick={onNavigateToLibrary}
+          >
+            Browse library
+          </button>
+        ) : null}
       </section>
     );
   }
 
   const artworkSize = expanded ? "h-80 w-80 md:h-96 md:w-96" : "h-16 w-16 md:h-20 md:w-20";
-  const contentLayoutClass = expanded ? "w-full max-w-4xl space-y-4" : "min-w-0 flex-1 space-y-1";
+  const contentLayoutClass = expanded ? "w-full space-y-4" : "min-w-0 flex-1 space-y-1";
   const controlsLayoutClass = expanded
     ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-3"
     : "grid w-full grid-cols-[1fr_auto_1fr] items-center justify-items-center";
@@ -118,7 +134,7 @@ export function AudioPlayer({
     ? "flex items-center justify-end gap-2"
     : "flex justify-self-end items-center gap-1";
   const sectionClassName = expanded
-    ? "flex min-h-0 flex-1 flex-col overflow-y-auto rounded-xl m-4 border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
+    ? "flex min-h-0 flex-1 flex-col overflow-y-auto rounded-xl mx-4 my-4 xl:mx-2 xl:my-2 border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
     : "rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6";
   const artworkClassName = expanded
     ? `${artworkSize} shrink-0 rounded-2xl object-cover shadow-md`

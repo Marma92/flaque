@@ -166,6 +166,7 @@ export function AppShell({
               {...audioPlayerProps}
               expanded={activeView === "player"}
               onArtworkClick={activeView === "player" ? undefined : () => onViewChange("player")}
+              onNavigateToLibrary={() => onViewChange("library")}
             />
           </PlayerShell>
         ) : null}
