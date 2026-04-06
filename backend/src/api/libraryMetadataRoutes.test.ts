@@ -1,15 +1,10 @@
 import fs from "node:fs/promises";
-import { createServer, type Server } from "node:http";
-import os from "node:os";
 import path from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { LibraryIndex, Track } from "../types/library";
-
-let dataRoot = "";
-let baseUrl = "";
-let server: Server | null = null;
+import { apiRequest, getDataRoot, login, setupTestServer, teardownTestServer } from "./testHelpers";
 
 type FakeIndexStoreOptions = {
   initialSnapshot: LibraryIndex;
@@ -107,81 +102,6 @@ class FakeIndexStore {
   }
 }
 
-async function bootstrapServer(indexStore: FakeIndexStore): Promise<void> {
-  vi.resetModules();
-
-  const { ensureBaseDirectories } = await import("../utils/fs");
-  const { initializeAuthDatabase, ensureDefaultAdmin } = await import("../auth/db");
-  const { createApp } = await import("../app");
-
-  await ensureBaseDirectories();
-  initializeAuthDatabase();
-  ensureDefaultAdmin();
-
-  const app = createApp(indexStore as unknown as import("../services/indexer/indexStore").IndexStore);
-  server = createServer(app);
-
-  await new Promise<void>((resolve, reject) => {
-    if (!server) {
-      reject(new Error("Missing HTTP server"));
-      return;
-    }
-
-    server.listen(0, "127.0.0.1", () => {
-      const address = server?.address();
-      if (!address || typeof address === "string") {
-        reject(new Error("Unable to resolve test server address"));
-        return;
-      }
-
-      baseUrl = `http://127.0.0.1:${address.port}`;
-      resolve();
-    });
-  });
-}
-
-async function apiRequest(pathname: string, options: RequestInit = {}) {
-  const response = await fetch(`${baseUrl}${pathname}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers ?? {})
-    }
-  });
-
-  const text = await response.text();
-  let payload: unknown = undefined;
-
-  if (text) {
-    try {
-      payload = JSON.parse(text) as unknown;
-    } catch {
-      payload = text;
-    }
-  }
-
-  return {
-    status: response.status,
-    payload,
-    cookie: response.headers.get("set-cookie")
-  };
-}
-
-async function login(username: string, password: string): Promise<string> {
-  const response = await apiRequest("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ username, password })
-  });
-
-  expect(response.status).toBe(200);
-  const cookie = response.cookie;
-  if (!cookie) {
-    throw new Error("Missing session cookie");
-  }
-
-  return cookie.split(";", 1)[0] ?? "";
-}
-
 function createTrack(id: string, title: string): Track {
   return {
     id,
@@ -216,37 +136,8 @@ function createNestedTrack(id: string, title: string, artist: string, album: str
   };
 }
 
-beforeEach(async () => {
-  dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "flaque-metadata-routes-"));
-  process.env.DATA_ROOT = dataRoot;
-  process.env.ADMIN_USERNAME = "admin";
-  process.env.ADMIN_PASSWORD = "admin-secret-123";
-  process.env.ADMIN_EMAIL = "admin@test.local";
-  process.env.CORS_ORIGIN = "http://localhost:5173";
-});
-
 afterEach(async () => {
-  if (server) {
-    await new Promise<void>((resolve, reject) => {
-      server?.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
-  }
-
-  await fs.rm(dataRoot, { recursive: true, force: true });
-  delete process.env.DATA_ROOT;
-  delete process.env.ADMIN_USERNAME;
-  delete process.env.ADMIN_PASSWORD;
-  delete process.env.ADMIN_EMAIL;
-  delete process.env.CORS_ORIGIN;
-  server = null;
-  baseUrl = "";
-  vi.resetModules();
+  await teardownTestServer();
 });
 
 describe("library metadata routes", () => {
@@ -284,7 +175,7 @@ describe("library metadata routes", () => {
       rebuildSnapshot: snapshot
     });
 
-    await bootstrapServer(indexStore);
+    await setupTestServer({ tempDirPrefix: "flaque-metadata-routes-", indexStore });
     const cookie = await login("admin", "admin-secret-123");
 
     const libraryResponse = await apiRequest("/api/library?artist=Artist%20A", {
@@ -333,7 +224,7 @@ describe("library metadata routes", () => {
       rebuildSnapshot: snapshot
     });
 
-    await bootstrapServer(indexStore);
+    await setupTestServer({ tempDirPrefix: "flaque-metadata-routes-", indexStore });
 
     const cookie = await login("admin", "admin-secret-123");
 
@@ -373,7 +264,7 @@ describe("library metadata routes", () => {
       rebuildSnapshot: rebuiltWithoutTrack
     });
 
-    await bootstrapServer(indexStore);
+    await setupTestServer({ tempDirPrefix: "flaque-metadata-routes-", indexStore });
 
     const cookie = await login("admin", "admin-secret-123");
 
@@ -412,7 +303,7 @@ describe("library metadata routes", () => {
       rebuildSnapshot: snapshot
     });
 
-    await bootstrapServer(indexStore);
+    await setupTestServer({ tempDirPrefix: "flaque-metadata-routes-", indexStore });
 
     const cookie = await login("admin", "admin-secret-123");
 
@@ -456,6 +347,15 @@ describe("library metadata routes", () => {
       tracks: [track]
     };
 
+    const indexStore = new FakeIndexStore({
+      initialSnapshot: snapshot,
+      rebuildSnapshot: snapshot
+    });
+
+    // Start server first, then write fixture files (they only need to exist when API reads them)
+    await setupTestServer({ tempDirPrefix: "flaque-metadata-routes-", indexStore });
+
+    const dataRoot = getDataRoot();
     const artistDir = path.join(dataRoot, "storage", "users", "owner-1", "uploads", artistSlug);
     const albumDir = path.join(artistDir, albumSlug);
     await fs.mkdir(albumDir, { recursive: true });
@@ -467,12 +367,6 @@ describe("library metadata routes", () => {
     await fs.writeFile(path.join(artistDir, "artist-photo.jpg"), "artist-photo");
     await fs.writeFile(path.join(albumDir, "album-cover.jpg"), "album-cover");
 
-    const indexStore = new FakeIndexStore({
-      initialSnapshot: snapshot,
-      rebuildSnapshot: snapshot
-    });
-
-    await bootstrapServer(indexStore);
     const cookie = await login("admin", "admin-secret-123");
 
     const artistsResponse = await apiRequest("/api/artists", {
@@ -544,6 +438,14 @@ describe("library metadata routes", () => {
       tracks: [trackOne, trackTwo]
     };
 
+    const indexStore = new FakeIndexStore({
+      initialSnapshot: snapshot,
+      rebuildSnapshot: snapshot
+    });
+
+    await setupTestServer({ tempDirPrefix: "flaque-metadata-routes-", indexStore });
+
+    const dataRoot = getDataRoot();
     const albumDir = path.join(dataRoot, "storage", "users", "owner-1", "uploads", artistSlug, albumSlug);
     await fs.mkdir(albumDir, { recursive: true });
     await fs.writeFile(
@@ -556,12 +458,6 @@ describe("library metadata routes", () => {
     );
     await fs.writeFile(path.join(albumDir, "album-cover.jpg"), "album-cover");
 
-    const indexStore = new FakeIndexStore({
-      initialSnapshot: snapshot,
-      rebuildSnapshot: snapshot
-    });
-
-    await bootstrapServer(indexStore);
     const cookie = await login("admin", "admin-secret-123");
 
     const albumResponse = await apiRequest(`/api/album/${encodeURIComponent(albumId)}`, {
@@ -621,6 +517,14 @@ describe("library metadata routes", () => {
       tracks: [trackOne, trackTwo]
     };
 
+    const indexStore = new FakeIndexStore({
+      initialSnapshot: snapshot,
+      rebuildSnapshot: snapshot
+    });
+
+    await setupTestServer({ tempDirPrefix: "flaque-metadata-routes-", indexStore });
+
+    const dataRoot = getDataRoot();
     const artistOneAlbumDir = path.join(dataRoot, "storage", "users", owner, "uploads", artistOneSlug, albumSlug);
     const artistTwoAlbumDir = path.join(dataRoot, "storage", "users", owner, "uploads", artistTwoSlug, albumSlug);
     await fs.mkdir(artistOneAlbumDir, { recursive: true });
@@ -628,12 +532,6 @@ describe("library metadata routes", () => {
     await fs.writeFile(path.join(artistOneAlbumDir, "album.json"), JSON.stringify({ name: album }));
     await fs.writeFile(path.join(artistTwoAlbumDir, "album.json"), JSON.stringify({ name: album }));
 
-    const indexStore = new FakeIndexStore({
-      initialSnapshot: snapshot,
-      rebuildSnapshot: snapshot
-    });
-
-    await bootstrapServer(indexStore);
     const cookie = await login("admin", "admin-secret-123");
 
     const albumResponse = await apiRequest(`/api/album/${encodeURIComponent(collaborativeAlbumId)}`, {
@@ -706,7 +604,7 @@ describe("library metadata routes", () => {
       rebuildSnapshot: snapshot
     });
 
-    await bootstrapServer(indexStore);
+    await setupTestServer({ tempDirPrefix: "flaque-metadata-routes-", indexStore });
     const cookie = await login("admin", "admin-secret-123");
 
     const albumsResponse = await apiRequest(`/api/artists/${artistSlug}/albums`, {
@@ -766,6 +664,14 @@ describe("library metadata routes", () => {
       tracks: [unknownTrack]
     };
 
+    const indexStore = new FakeIndexStore({
+      initialSnapshot: snapshot,
+      rebuildSnapshot: snapshot
+    });
+
+    await setupTestServer({ tempDirPrefix: "flaque-metadata-routes-", indexStore });
+
+    const dataRoot = getDataRoot();
     const albumDir = path.join(dataRoot, "storage", "users", owner, "uploads", artistSlug, albumSlug);
     await fs.mkdir(albumDir, { recursive: true });
     await fs.writeFile(
@@ -776,12 +682,6 @@ describe("library metadata routes", () => {
       })
     );
 
-    const indexStore = new FakeIndexStore({
-      initialSnapshot: snapshot,
-      rebuildSnapshot: snapshot
-    });
-
-    await bootstrapServer(indexStore);
     const cookie = await login("admin", "admin-secret-123");
 
     const albumsResponse = await apiRequest("/api/albums", {

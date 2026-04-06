@@ -1,103 +1,10 @@
-import fs from "node:fs/promises";
-import { createServer, type Server } from "node:http";
-import os from "node:os";
-import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-let dataRoot = "";
-let baseUrl = "";
-let server: Server | null = null;
-
-async function bootstrapServer(): Promise<void> {
-  vi.resetModules();
-
-  const { ensureBaseDirectories } = await import("../utils/fs");
-  const { initializeAuthDatabase, ensureDefaultAdmin } = await import("../auth/db");
-  const { IndexStore } = await import("../services/indexer/indexStore");
-  const { createApp } = await import("../app");
-
-  await ensureBaseDirectories();
-  initializeAuthDatabase();
-  ensureDefaultAdmin();
-
-  const indexStore = new IndexStore();
-  await indexStore.initialize();
-
-  const app = createApp(indexStore);
-  server = createServer(app);
-
-  await new Promise<void>((resolve, reject) => {
-    if (!server) {
-      reject(new Error("Missing HTTP server"));
-      return;
-    }
-
-    server.listen(0, "127.0.0.1", () => {
-      const address = server?.address();
-      if (!address || typeof address === "string") {
-        reject(new Error("Unable to resolve test server address"));
-        return;
-      }
-
-      baseUrl = `http://127.0.0.1:${address.port}`;
-      resolve();
-    });
-  });
-}
-
-async function apiRequest(pathname: string, options: RequestInit = {}) {
-  const response = await fetch(`${baseUrl}${pathname}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers ?? {})
-    }
-  });
-
-  const text = await response.text();
-  let payload: unknown = undefined;
-
-  if (text) {
-    try {
-      payload = JSON.parse(text) as unknown;
-    } catch {
-      payload = text;
-    }
-  }
-
-  return {
-    status: response.status,
-    payload,
-    cookie: response.headers.get("set-cookie")
-  };
-}
-
-async function login(username: string, password: string): Promise<string> {
-  const response = await apiRequest("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ username, password })
-  });
-
-  expect(response.status).toBe(200);
-  const cookie = response.cookie;
-  if (!cookie) {
-    throw new Error("Missing session cookie");
-  }
-
-  return cookie.split(";", 1)[0] ?? "";
-}
+import { apiRequest, getBaseUrl, login, setupTestServer, teardownTestServer } from "./testHelpers";
 
 describe("backupRoutes", () => {
   beforeEach(async () => {
-    dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "flaque-backup-api-"));
-    process.env.DATA_ROOT = dataRoot;
-    process.env.ADMIN_USERNAME = "admin";
-    process.env.ADMIN_PASSWORD = "admin-secret-123";
-    process.env.ADMIN_EMAIL = "admin@test.local";
-    process.env.CORS_ORIGIN = "http://localhost:5173";
-
-    await bootstrapServer();
+    await setupTestServer({ tempDirPrefix: "flaque-backup-api-" });
   });
 
   afterEach(async () => {
@@ -108,20 +15,7 @@ describe("backupRoutes", () => {
       // ignore if module was not loaded
     }
 
-    if (server) {
-      await new Promise<void>((resolve, reject) => {
-        server?.close((error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve();
-        });
-      });
-      server = null;
-    }
-
-    await fs.rm(dataRoot, { recursive: true, force: true });
+    await teardownTestServer();
   });
 
   it("creates a backup with index files, lists it, and deletes it", async () => {
@@ -306,7 +200,7 @@ describe("backupRoutes", () => {
     expect(createRes.status).toBe(201);
     const manifest = createRes.payload as { id: string };
 
-    const downloadRes = await fetch(`${baseUrl}/api/backups/${encodeURIComponent(manifest.id)}/download`, {
+    const downloadRes = await fetch(`${getBaseUrl()}/api/backups/${encodeURIComponent(manifest.id)}/download`, {
       headers: { Cookie: cookie }
     });
 

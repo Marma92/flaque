@@ -1,20 +1,16 @@
 import { FormEvent, useMemo, useState } from "react";
 
-import type { BackupConfig, BackupEntry, LogFile, LogEntry, StorageUsage, VersionInfo, UpdateStatus } from "../api";
 import type { Track, TrackMetadataPatch, User } from "../types";
 import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
   getTrackDisplayTitle
 } from "../utils/tracks";
-import { AdminBackupView } from "./AdminBackupView";
-import { AdminServerView } from "./AdminServerView";
-import { AdminUsersView } from "./AdminUsersView";
 import { TrackDeleteModal } from "./TrackDeleteModal";
 import { TrackEditModal } from "./TrackEditModal";
 import type { EditTrackState } from "./TrackEditModal";
 
-type ConfigViewProps = {
+export type ConfigViewProps = {
   currentUser: User;
   tracks: Track[];
   ownerNameById?: Record<string, string>;
@@ -25,57 +21,6 @@ type ConfigViewProps = {
   onRefreshTracks: () => Promise<void>;
   onDeleteTrack: (trackId: string) => Promise<void>;
   onUpdateTrackMetadata: (trackId: string, patch: TrackMetadataPatch) => Promise<void>;
-  users: User[];
-  loadingUsers: boolean;
-  usersError: string | null;
-  onRefreshUsers: () => Promise<void>;
-  onCreateUser: (input: {
-    username: string;
-    password: string;
-    email: string;
-    role: "user" | "admin";
-  }) => Promise<void>;
-  onPatchUser: (input: {
-    userId: string;
-    username?: string;
-    email?: string;
-    role?: "user" | "admin";
-  }) => Promise<void>;
-  onDeleteUser: (userId: string) => Promise<void>;
-  onResetUserPassword: (userId: string, password: string) => Promise<void>;
-  versionInfo: VersionInfo | null;
-  loadingVersion: boolean;
-  updateStatus: UpdateStatus | null;
-  onTriggerUpdate: () => Promise<void>;
-  storageUsage: StorageUsage | null;
-  loadingStorage: boolean;
-  logFiles: LogFile[];
-  loadingLogFiles: boolean;
-  selectedLogFile: string | null;
-  onLogFileChange: (file: string) => void;
-  logEntries: LogEntry[];
-  loadingLogEntries: boolean;
-  logsError: string | null;
-  logTotal: number;
-  logLevelFilter: number | null;
-  onLogLevelFilterChange: (level: number | null) => void;
-  onRefreshLogs: () => Promise<void>;
-  onLoadMoreLogs: () => Promise<void>;
-  hasMoreLogs: boolean;
-  backups: BackupEntry[];
-  loadingBackups: boolean;
-  backupConfig: BackupConfig | null;
-  loadingBackupConfig: boolean;
-  backupError: string | null;
-  backupMessage: string | null;
-  creatingBackup: boolean;
-  restoringBackup: boolean;
-  onCreateBackup: () => Promise<void>;
-  onDeleteBackup: (id: string) => Promise<void>;
-  onRestoreBackup: (id: string) => Promise<void>;
-  onUpdateBackupConfig: (config: Partial<BackupConfig>) => Promise<void>;
-  onPurgeExpiredBackups: () => Promise<void>;
-  onRefreshBackups: () => Promise<void>;
   activeSection: ConfigSection;
   onSectionChange: (section: ConfigSection) => void;
 };
@@ -87,7 +32,6 @@ function normalizeSearch(value: string): string {
 }
 
 export function ConfigView({
-  currentUser,
   tracks,
   ownerNameById,
   loadingTracks,
@@ -97,49 +41,7 @@ export function ConfigView({
   onRefreshTracks,
   onDeleteTrack,
   onUpdateTrackMetadata,
-  users,
-  loadingUsers,
-  usersError,
-  onRefreshUsers,
-  onCreateUser,
-  onPatchUser,
-  onDeleteUser,
-  onResetUserPassword,
-  versionInfo,
-  loadingVersion,
-  updateStatus,
-  onTriggerUpdate,
-  storageUsage,
-  loadingStorage,
-  logFiles,
-  loadingLogFiles,
-  selectedLogFile,
-  onLogFileChange,
-  logEntries,
-  loadingLogEntries,
-  logsError,
-  logTotal,
-  logLevelFilter,
-  onLogLevelFilterChange,
-  onRefreshLogs,
-  onLoadMoreLogs,
-  hasMoreLogs,
-  backups,
-  loadingBackups,
-  backupConfig,
-  loadingBackupConfig,
-  backupError,
-  backupMessage,
-  creatingBackup,
-  restoringBackup,
-  onCreateBackup,
-  onDeleteBackup,
-  onRestoreBackup,
-  onUpdateBackupConfig,
-  onPurgeExpiredBackups,
-  onRefreshBackups,
-  activeSection,
-  onSectionChange
+  activeSection
 }: ConfigViewProps): JSX.Element {
   const [searchText, setSearchText] = useState("");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -422,63 +324,6 @@ export function ConfigView({
           </table>
         </div>
         </section>
-      ) : null}
-
-      {activeSection === "users" ? (
-        <AdminUsersView
-          currentUser={currentUser}
-          users={users}
-          loading={loadingUsers}
-          error={usersError}
-          onRefresh={onRefreshUsers}
-          onCreateUser={onCreateUser}
-          onPatchUser={onPatchUser}
-          onDeleteUser={onDeleteUser}
-          onResetPassword={onResetUserPassword}
-        />
-      ) : null}
-
-      {activeSection === "server" ? (
-        <AdminServerView
-          versionInfo={versionInfo}
-          loadingVersion={loadingVersion}
-          updateStatus={updateStatus}
-          onTriggerUpdate={onTriggerUpdate}
-          storageUsage={storageUsage}
-          loadingStorage={loadingStorage}
-          logFiles={logFiles}
-          loadingFiles={loadingLogFiles}
-          selectedFile={selectedLogFile}
-          onFileChange={onLogFileChange}
-          entries={logEntries}
-          loadingEntries={loadingLogEntries}
-          error={logsError}
-          total={logTotal}
-          levelFilter={logLevelFilter}
-          onLevelFilterChange={onLogLevelFilterChange}
-          onRefresh={onRefreshLogs}
-          onLoadMore={onLoadMoreLogs}
-          hasMore={hasMoreLogs}
-        />
-      ) : null}
-
-      {activeSection === "backup" ? (
-        <AdminBackupView
-          backups={backups}
-          loadingBackups={loadingBackups}
-          config={backupConfig}
-          loadingConfig={loadingBackupConfig}
-          error={backupError}
-          message={backupMessage}
-          creating={creatingBackup}
-          restoring={restoringBackup}
-          onCreateBackup={onCreateBackup}
-          onDeleteBackup={onDeleteBackup}
-          onRestoreBackup={onRestoreBackup}
-          onUpdateConfig={onUpdateBackupConfig}
-          onPurgeExpired={onPurgeExpiredBackups}
-          onRefresh={onRefreshBackups}
-        />
       ) : null}
 
       {editState ? (

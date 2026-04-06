@@ -1,6 +1,9 @@
 import type { User } from "../types";
 import type { ViewName } from "../utils/appUtils";
 import { AccountView } from "./AccountView";
+import { AdminBackupView } from "./AdminBackupView";
+import { AdminServerView } from "./AdminServerView";
+import { AdminUsersView } from "./AdminUsersView";
 import { AudioPlayer } from "./AudioPlayer";
 import { AppSidebar } from "./AppSidebar";
 import { AppStatusBanners, type AppNotice } from "./AppStatusBanners";
@@ -12,6 +15,9 @@ import { UploadView } from "./UploadView";
 type LibraryWorkspaceProps = Parameters<typeof LibraryWorkspace>[0];
 type UploadViewProps = Parameters<typeof UploadView>[0];
 type ConfigViewProps = Parameters<typeof ConfigView>[0];
+type AdminUsersViewProps = Parameters<typeof AdminUsersView>[0];
+type AdminServerViewProps = Parameters<typeof AdminServerView>[0];
+type AdminBackupViewProps = Parameters<typeof AdminBackupView>[0];
 type AccountViewProps = Omit<Parameters<typeof AccountView>[0], "onLogout">;
 type AudioPlayerBaseProps = Omit<Parameters<typeof AudioPlayer>[0], "expanded" | "onArtworkClick">;
 
@@ -28,6 +34,9 @@ type AppShellProps = {
   libraryWorkspaceProps: LibraryWorkspaceProps;
   uploadViewProps: UploadViewProps;
   configViewProps: ConfigViewProps;
+  usersViewProps: AdminUsersViewProps;
+  serverViewProps: AdminServerViewProps;
+  backupViewProps: AdminBackupViewProps;
   accountViewProps: AccountViewProps;
   playerStatusMessage: string | null;
   audioPlayerProps: AudioPlayerBaseProps;
@@ -49,6 +58,9 @@ export function AppShell({
   libraryWorkspaceProps,
   uploadViewProps,
   configViewProps,
+  usersViewProps,
+  serverViewProps,
+  backupViewProps,
   accountViewProps,
   playerStatusMessage,
   audioPlayerProps
@@ -119,7 +131,21 @@ export function AppShell({
 
         {activeView === "config" && user.role === "admin" ? (
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <ConfigView {...configViewProps} />
+            {configViewProps.activeSection === "index" || configViewProps.activeSection === "files" ? (
+              <ConfigView {...configViewProps} />
+            ) : null}
+
+            {configViewProps.activeSection === "users" ? (
+              <AdminUsersView {...usersViewProps} />
+            ) : null}
+
+            {configViewProps.activeSection === "server" ? (
+              <AdminServerView {...serverViewProps} />
+            ) : null}
+
+            {configViewProps.activeSection === "backup" ? (
+              <AdminBackupView {...backupViewProps} />
+            ) : null}
           </div>
         ) : null}
 
