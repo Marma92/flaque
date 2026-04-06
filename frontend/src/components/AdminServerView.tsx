@@ -25,13 +25,13 @@ type AdminServerViewProps = {
   hasMore: boolean;
 };
 
-function formatLogTime(epochMs: number): string {
+function formatLogTime(epochMs: number): { hm: string; s: string; ms: string } {
   const d = new Date(epochMs);
   const h = String(d.getHours()).padStart(2, "0");
   const m = String(d.getMinutes()).padStart(2, "0");
   const s = String(d.getSeconds()).padStart(2, "0");
   const ms = String(d.getMilliseconds()).padStart(3, "0");
-  return `${h}:${m}:${s}.${ms}`;
+  return { hm: `${h}:${m}`, s: `:${s}`, ms: `.${ms}` };
 }
 
 function formatLogDate(epochMs: number): string {
@@ -389,34 +389,50 @@ export function AdminServerView({
             const extra = extractExtraFields(entry);
             const isExpanded = expandedIndex === index;
             const level = typeof entry.level === "number" ? entry.level : 30;
+            const time = typeof entry.time === "number" ? formatLogTime(entry.time) : null;
+
+            const currentDate = typeof entry.time === "number" ? formatLogDate(entry.time) : "";
+            const prevEntry = index > 0 ? entries[index - 1] : undefined;
+            const prevDate = prevEntry && typeof prevEntry.time === "number" ? formatLogDate(prevEntry.time) : "";
+            const showDateSeparator = currentDate !== "" && currentDate !== prevDate;
 
             return (
-              <div key={index} className="border-b border-flaque-clay/20 last:border-b-0">
-                <button
-                  type="button"
-                  className={`flex w-full items-start gap-2 px-3 py-1.5 text-left font-mono text-xs transition hover:bg-flaque-cream/60 ${levelTextClassName(level)}`}
-                  onClick={() => toggleExpanded(index)}
-                >
-                  <span className="shrink-0 text-flaque-steel/60">
-                    {typeof entry.time === "number" ? formatLogDate(entry.time) : ""}{" "}
-                    {typeof entry.time === "number" ? formatLogTime(entry.time) : ""}
-                  </span>
-                  <span
-                    className={`inline-block shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold leading-tight ${levelBadgeClassName(level)}`}
-                  >
-                    {formatLevelLabel(level)}
-                  </span>
-                  {entry.context ? (
-                    <span className="shrink-0 text-flaque-steel">[{entry.context}]</span>
-                  ) : null}
-                  <span className="min-w-0 break-all">{entry.msg}</span>
-                </button>
-
-                {isExpanded && extra ? (
-                  <pre className="mx-3 mb-2 overflow-auto rounded-lg bg-flaque-ink/5 px-3 py-2 font-mono text-[11px] text-flaque-steel">
-                    {JSON.stringify(extra, null, 2)}
-                  </pre>
+              <div key={index}>
+                {showDateSeparator ? (
+                  <div className="sticky top-0 z-10 flex justify-center py-1.5 md:hidden">
+                    <span className="rounded-full bg-flaque-clay/70 px-3 py-0.5 text-[10px] font-medium text-white shadow-sm">
+                      {currentDate}
+                    </span>
+                  </div>
                 ) : null}
+                <div className="border-b border-flaque-clay/20 last:border-b-0">
+                  <button
+                    type="button"
+                    className={`flex w-full items-start gap-2 px-3 py-1.5 text-left font-mono text-xs transition hover:bg-flaque-cream/60 ${levelTextClassName(level)}`}
+                    onClick={() => toggleExpanded(index)}
+                  >
+                    <span className="shrink-0 text-flaque-steel/60">
+                      <span className="hidden md:inline">{currentDate} </span>
+                      {time ? time.hm : ""}
+                      <span className="hidden md:inline">{time ? `${time.s}${time.ms}` : ""}</span>
+                    </span>
+                    <span
+                      className={`inline-block shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold leading-tight ${levelBadgeClassName(level)}`}
+                    >
+                      {formatLevelLabel(level)}
+                    </span>
+                    {entry.context ? (
+                      <span className="hidden shrink-0 text-flaque-steel sm:inline">[{entry.context}]</span>
+                    ) : null}
+                    <span className="min-w-0 break-all">{entry.msg}</span>
+                  </button>
+
+                  {isExpanded && extra ? (
+                    <pre className="mx-3 mb-2 overflow-auto rounded-lg bg-flaque-ink/5 px-3 py-2 font-mono text-[11px] text-flaque-steel">
+                      {JSON.stringify(extra, null, 2)}
+                    </pre>
+                  ) : null}
+                </div>
               </div>
             );
           })}

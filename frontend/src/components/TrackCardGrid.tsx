@@ -15,7 +15,7 @@ type TrackCardGridProps = {
   showOwner?: boolean;
 };
 
-const DEFAULT_GRID = "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+const DEFAULT_GRID = "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
 export function TrackCardGrid({
   tracks,
@@ -26,7 +26,7 @@ export function TrackCardGrid({
 }: TrackCardGridProps): JSX.Element {
   const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
   return (
-    <div className={`mt-3 grid gap-2 ${gridClassName ?? DEFAULT_GRID}`}>
+    <div className={`mt-3 grid gap-2.5 ${gridClassName ?? DEFAULT_GRID}`}>
       {tracks.map((track) => {
         const title = getTrackDisplayTitle(track);
         const artist = getTrackDisplayArtist(track) ?? "Unknown artist";
@@ -35,38 +35,29 @@ export function TrackCardGrid({
         return (
           <button
             key={track.id}
-            className="w-full justify-self-start rounded-xl border border-flaque-clay/60 bg-flaque-cream/50 px-2.5 py-2 text-left transition hover:bg-flaque-cream sm:max-w-[18.5rem]"
+            className="w-full rounded-xl border border-flaque-clay/60 bg-flaque-cream/50 p-2.5 text-left transition hover:bg-flaque-cream"
             type="button"
             onClick={() => onTrackSelect(track)}
             title={title}
           >
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-start gap-3">
               <img
-                className="h-10 w-10 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
+                className="h-14 w-14 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
                 src={coverUrl(track.id, track.cover)}
                 alt={albumWithYear ? `Cover for ${albumWithYear}` : `Cover for ${title}`}
                 onError={(event) => {
                   event.currentTarget.src = defaultCoverImage;
                 }}
               />
-              <div className="min-w-0">
+              <div className="min-w-0 pt-0.5">
                 <p className="truncate text-sm font-medium text-flaque-ink">{title}</p>
+                <p className="mt-0.5 truncate text-xs text-flaque-steel">{artist}</p>
+                {albumWithYear ? (
+                  <p className="truncate text-[11px] text-flaque-steel/70">{albumWithYear}</p>
+                ) : null}
                 {showOwner ? (
-                  <>
-                    <p className="truncate text-xs text-flaque-steel">
-                      {artist}
-                      {albumWithYear ? ` - ${albumWithYear}` : ""}
-                    </p>
-                    <p className="truncate text-[11px] text-flaque-steel/70">{resolveOwnerLabel(track.owner)}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="truncate text-xs text-flaque-steel">{artist}</p>
-                    {albumWithYear ? (
-                      <p className="truncate text-[11px] text-flaque-steel/70">{albumWithYear}</p>
-                    ) : null}
-                  </>
-                )}
+                  <p className="truncate text-[11px] text-flaque-steel/50">{resolveOwnerLabel(track.owner)}</p>
+                ) : null}
               </div>
             </div>
           </button>
