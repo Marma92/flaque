@@ -20,7 +20,7 @@ export type VersionCheckResult = {
 
 function readCurrentVersion(): string {
   try {
-    const pkgPath = path.resolve(__dirname, "../../package.json");
+    const pkgPath = path.resolve(process.cwd(), "package.json");
     const raw = fs.readFileSync(pkgPath, "utf8");
     const pkg = JSON.parse(raw) as { version?: string };
     return pkg.version ?? "0.0.0";
@@ -52,10 +52,8 @@ function isNewerVersion(latest: string, current: string): boolean {
   return false;
 }
 
-const currentVersion = readCurrentVersion();
-
 let cachedResult: VersionCheckResult = {
-  currentVersion,
+  currentVersion: readCurrentVersion(),
   latestVersion: null,
   isUpdateAvailable: false,
   releaseUrl: null,
@@ -67,6 +65,8 @@ let cachedResult: VersionCheckResult = {
 let hasLoggedError = false;
 
 async function fetchLatestRelease(): Promise<void> {
+  const currentVersion = readCurrentVersion();
+
   try {
     const response = await fetch(GITHUB_API_URL, {
       headers: {
