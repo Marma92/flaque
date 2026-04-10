@@ -55,7 +55,12 @@ export function HomePanels({
           disabled={!canStartRadio}
           onClick={() => onStartRadioPlayback?.()}
         >
-          <p className="font-display text-xl">Launch radio</p>
+          <p className="flex items-center gap-2 font-display text-xl">
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M8 6v12l10-6-10-6z" />
+            </svg>
+            <span>Launch radio</span>
+          </p>
         </button>
 
         <button
