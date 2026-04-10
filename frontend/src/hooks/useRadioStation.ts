@@ -7,6 +7,7 @@ const RELOAD_BEFORE_NEXT_TRACK_END_MS = 40_000;
 
 type RadioSnapshot = {
   serverNow: string;
+  receivedAtMs: number;
   stationId: string;
   currentTrack: RadioTrack | null;
   nextTrack: RadioTrack | null;
@@ -32,11 +33,16 @@ function clampOffsetSec(offsetSec: number, durationSec: number): number {
   return Math.max(0, Math.min(durationSec, offsetSec));
 }
 
-function computeOffsetSec(serverNowIso: string, startsAtIso: string, durationSec: number): number {
-  const serverNowMs = Date.parse(serverNowIso);
+function computeOffsetSec(serverNowMs: number, startsAtIso: string, durationSec: number): number {
   const startsAtMs = Date.parse(startsAtIso);
   const expectedOffsetSec = (serverNowMs - startsAtMs) / 1_000;
   return clampOffsetSec(expectedOffsetSec, durationSec);
+}
+
+function getEstimatedServerNowMs(snapshot: RadioSnapshot): number {
+  const baseServerNowMs = Date.parse(snapshot.serverNow);
+  const elapsedMs = Date.now() - snapshot.receivedAtMs;
+  return baseServerNowMs + Math.max(0, elapsedMs);
 }
 
 function mapRadioTrackToPlayableTrack(track: RadioTrack): Track {
@@ -63,6 +69,7 @@ function toSnapshotFromState(payload: RadioStateResponse): RadioSnapshot | null 
 
   return {
     serverNow: payload.serverNow,
+    receivedAtMs: Date.now(),
     stationId: payload.station.id,
     currentTrack: payload.station.currentTrack,
     nextTrack: payload.station.nextTrack
@@ -76,6 +83,7 @@ function toSnapshotFromCreate(payload: RadioCreateResponse): RadioSnapshot | nul
 
   return {
     serverNow: payload.serverNow,
+    receivedAtMs: Date.now(),
     stationId: payload.station.id,
     currentTrack: payload.station.currentTrack,
     nextTrack: payload.station.nextTrack
@@ -101,7 +109,11 @@ export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArg
     }
 
     const playableTrack = mapRadioTrackToPlayableTrack(input.currentTrack);
-    const offsetSec = computeOffsetSec(input.serverNow, input.currentTrack.startsAt, input.currentTrack.durationSec);
+    const offsetSec = computeOffsetSec(
+      getEstimatedServerNowMs(input),
+      input.currentTrack.startsAt,
+      input.currentTrack.durationSec
+    );
     onPlayRadioTrack(playableTrack, offsetSec);
   }, [onPlayRadioTrack]);
 
@@ -151,6 +163,9 @@ export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArg
 
       if (!nextSnapshot) {
         nextSnapshot = await createAndUseStation();
+      } else if (nextSnapshot.nextTrack === null) {
+        const rebuilt = await rebuildRadioStation(nextSnapshot.stationId);
+        nextSnapshot = toSnapshotFromCreate(rebuilt) ?? nextSnapshot;
       } else {
         setSnapshot(nextSnapshot);
       }
@@ -172,7 +187,11 @@ export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArg
 
     radioPlaybackActiveRef.current = true;
     const playableTrack = mapRadioTrackToPlayableTrack(snapshot.currentTrack);
-    const offsetSec = computeOffsetSec(snapshot.serverNow, snapshot.currentTrack.startsAt, snapshot.currentTrack.durationSec);
+    const offsetSec = computeOffsetSec(
+      getEstimatedServerNowMs(snapshot),
+      snapshot.currentTrack.startsAt,
+      snapshot.currentTrack.durationSec
+    );
     onPlayRadioTrack(playableTrack, offsetSec);
   }, [onPlayRadioTrack, snapshot]);
 
@@ -193,7 +212,7 @@ export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArg
     }
 
     const refreshAtMs = Date.parse(snapshot.nextTrack.endsAt) - RELOAD_BEFORE_NEXT_TRACK_END_MS;
-    const delayMs = Math.max(0, refreshAtMs - Date.parse(snapshot.serverNow));
+    const delayMs = Math.max(0, refreshAtMs - getEstimatedServerNowMs(snapshot));
 
     refreshTimeoutRef.current = window.setTimeout(() => {
       void refreshStation();
