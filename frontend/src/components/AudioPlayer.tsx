@@ -200,8 +200,8 @@ export function AudioPlayer({
         {expanded ? (
           <div className="relative shrink-0 overflow-hidden rounded-2xl">
             {isRadioMode ? (
-              <div className="absolute left-4 top-4 z-30 rounded-lg border border-white/70 bg-white p-1 shadow-sm dark:bg-white">
-                <img className="h-5 w-5" src="/radio.png" alt="Radio mode" />
+              <div className="absolute left-4 top-4 z-30 rounded-md border border-[rgba(255,255,255,0.5)] bg-[#ffffff] p-1 shadow-sm">
+                <img className="h-10 w-10" src="/radio.png" alt="Radio mode" />
               </div>
             ) : null}
             {hasLyrics ? (
@@ -248,7 +248,7 @@ export function AudioPlayer({
           <div className="flex shrink-0 flex-col items-center gap-0.5">
             <div className="relative">
               {isRadioMode ? (
-                <div className="absolute left-2 top-2 z-20 rounded-md border border-white/70 bg-white p-1 shadow-sm dark:bg-white">
+                <div className="absolute left-2 top-2 z-20 rounded-md border border-[rgba(255,255,255,0.5)] bg-[#ffffff] p-1 shadow-sm">
                   <img className="h-3.5 w-3.5" src="/radio.png" alt="Radio mode" />
                 </div>
               ) : null}
