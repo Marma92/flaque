@@ -95,6 +95,11 @@ export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArg
   const [snapshot, setSnapshot] = useState<RadioSnapshot | null>(null);
   const refreshTimeoutRef = useRef<number | null>(null);
   const radioPlaybackActiveRef = useRef(false);
+  const onPlayRadioTrackRef = useRef(onPlayRadioTrack);
+
+  useEffect(() => {
+    onPlayRadioTrackRef.current = onPlayRadioTrack;
+  }, [onPlayRadioTrack]);
 
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimeoutRef.current !== null) {
@@ -114,8 +119,8 @@ export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArg
       input.currentTrack.startsAt,
       input.currentTrack.durationSec
     );
-    onPlayRadioTrack(playableTrack, offsetSec);
-  }, [onPlayRadioTrack]);
+    onPlayRadioTrackRef.current(playableTrack, offsetSec);
+  }, []);
 
   const playSnapshotNow = useCallback((input: RadioSnapshot | null): void => {
     if (!input?.currentTrack) {
@@ -128,8 +133,8 @@ export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArg
       input.currentTrack.startsAt,
       input.currentTrack.durationSec
     );
-    onPlayRadioTrack(playableTrack, offsetSec);
-  }, [onPlayRadioTrack]);
+    onPlayRadioTrackRef.current(playableTrack, offsetSec);
+  }, []);
 
   const createAndUseStation = useCallback(async (): Promise<RadioSnapshot | null> => {
     const created = await createRadioStation();
@@ -160,6 +165,17 @@ export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArg
       setSnapshot(nextSnapshot);
       syncPlaybackFromSnapshot(nextSnapshot);
     } catch {
+      try {
+        const createdSnapshot = await createAndUseStation();
+        if (createdSnapshot) {
+          setSnapshot(createdSnapshot);
+          syncPlaybackFromSnapshot(createdSnapshot);
+          return;
+        }
+      } catch {
+        // ignore fallback create errors
+      }
+
       setSnapshot(null);
     }
   }, [createAndUseStation, syncPlaybackFromSnapshot]);
@@ -188,6 +204,17 @@ export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArg
         syncPlaybackFromSnapshot(nextSnapshot);
       }
     } catch {
+      try {
+        const createdSnapshot = await createAndUseStation();
+        if (createdSnapshot) {
+          setSnapshot(createdSnapshot);
+          syncPlaybackFromSnapshot(createdSnapshot);
+          return;
+        }
+      } catch {
+        // ignore fallback create errors
+      }
+
       setSnapshot(null);
     } finally {
       setLoading(false);
