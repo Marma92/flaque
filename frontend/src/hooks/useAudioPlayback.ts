@@ -51,6 +51,7 @@ type UseAudioPlaybackInput = {
   shuffleEnabled: boolean;
   onShuffleEnabledChange?: (enabled: boolean) => void;
   playRequestNonce: number;
+  playRequestOffsetSec?: number;
   onNext?: (options?: NavigateOptions) => Promise<void> | void;
   onPrevious?: (options?: NavigateOptions) => Promise<void> | void;
   onTrackPlayed?: (track: Track) => void;
@@ -91,6 +92,7 @@ export function useAudioPlayback({
   shuffleEnabled,
   onShuffleEnabledChange,
   playRequestNonce,
+  playRequestOffsetSec = 0,
   onNext,
   onPrevious,
   onTrackPlayed
@@ -205,7 +207,11 @@ export function useAudioPlayback({
     lastPlayRequestHandledRef.current = playRequestNonce;
     autoplayOnTrackChangeRef.current = true;
 
-    audioRef.current.currentTime = 0;
+    const maxSeek = Math.max(0, (track.duration || 0) - 0.25);
+    const boundedOffset = Math.min(Math.max(0, playRequestOffsetSec), maxSeek || playRequestOffsetSec);
+    audioRef.current.currentTime = boundedOffset;
+    currentTimeRef.current = boundedOffset;
+    setCurrentTime(boundedOffset);
     audioRef.current
       .play()
       .then(() => {
@@ -214,7 +220,7 @@ export function useAudioPlayback({
       .catch(() => {
         setIsPlaying(false);
       });
-  }, [playRequestNonce, track?.id]);
+  }, [playRequestNonce, playRequestOffsetSec, track?.id, track?.duration]);
 
   // ── Volume sync ───────────────────────────────────────────────────────
   useEffect(() => {

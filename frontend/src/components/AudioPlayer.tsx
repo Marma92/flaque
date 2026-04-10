@@ -35,6 +35,7 @@ type AudioPlayerProps = {
   shuffleEnabled?: boolean;
   onShuffleEnabledChange?: (enabled: boolean) => void;
   playRequestNonce?: number;
+  playRequestOffsetSec?: number;
   playlists?: Playlist[];
   onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
   queueTracks?: Track[];
@@ -57,6 +58,7 @@ export function AudioPlayer({
   shuffleEnabled = false,
   onShuffleEnabledChange,
   playRequestNonce = 0,
+  playRequestOffsetSec = 0,
   playlists = [],
   onAddTrackToPlaylist,
   queueTracks = [],
@@ -77,7 +79,7 @@ export function AudioPlayer({
     track, transcodeMode, onTranscodeModeChange,
     repeatMode, onRepeatModeChange,
     shuffleEnabled, onShuffleEnabledChange,
-    playRequestNonce, onNext, onPrevious, onTrackPlayed
+    playRequestNonce, playRequestOffsetSec, onNext, onPrevious, onTrackPlayed
   });
 
   const [showPlaylistPicker, setShowPlaylistPicker] = useState(false);

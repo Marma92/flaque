@@ -13,7 +13,7 @@ type UsePlaybackCommandsArgs = {
   allTracks: Track[];
   filters: LibraryFilters;
   allTracksById: Map<string, Track>;
-  requestTrackPlayback: (track: Track, queueSource?: Track[]) => void;
+  requestTrackPlayback: (track: Track, queueSource?: Track[], options?: { startOffsetSec?: number }) => void;
   replayRecentTrack: (track: Track) => void;
   setSelectedTrack: Dispatch<SetStateAction<Track | null>>;
   setPlayerStatusMessage: Dispatch<SetStateAction<string | null>>;
