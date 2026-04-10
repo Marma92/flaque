@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { User } from "../types";
 import type { LibrarySection } from "../types/library";
-import type { ViewName } from "../utils/appUtils";
+import { navigateTo, type ViewName } from "../utils/appUtils";
 import { Acronym } from "./HeaderAcronym";
 
 type AppSidebarProps = {
@@ -93,12 +93,14 @@ export function AppSidebar({
     }`;
 
   const handleLibraryEntryClick = (section: LibrarySection): void => {
+    navigateTo("library", section);
     onViewChange("library");
     onLibrarySectionChange(section);
     setMobileMenuOpen(false);
   };
 
   const handleViewEntryClick = (view: ViewName): void => {
+    navigateTo(view);
     onViewChange(view);
     setMobileMenuOpen(false);
   };

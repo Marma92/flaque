@@ -9,6 +9,7 @@ export default function App(): JSX.Element {
     sessionChecked,
     activeView, setActiveView,
     activeLibrarySection, setActiveLibrarySection,
+    activeConfigSection, setActiveConfigSection,
     handleLogin, notifyAuthStateChanged
   } = useSessionRoutingState();
 
@@ -34,6 +35,8 @@ export default function App(): JSX.Element {
       setActiveView={setActiveView}
       activeLibrarySection={activeLibrarySection}
       setActiveLibrarySection={setActiveLibrarySection}
+      activeConfigSection={activeConfigSection}
+      setActiveConfigSection={setActiveConfigSection}
       notifyAuthStateChanged={notifyAuthStateChanged}
     />
   );

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { getCurrentUser, login } from "../api";
+import type { ConfigSection } from "../components/ConfigView";
 import type { User } from "../types";
 import type { LibrarySection } from "../types/library";
-import { getViewFromLocation, syncViewToLocation, type ViewName } from "../utils/appUtils";
+import { getRouteFromLocation, syncRouteToLocation, type ViewName } from "../utils/appUtils";
 
-const VIEW_QUERY_PARAM = "view";
 const AUTH_SYNC_CHANNEL = "flaque-auth-sync-v1";
 const AUTH_SYNC_STORAGE_KEY = "flaque_auth_sync_v1";
 
@@ -23,6 +23,8 @@ type UseSessionRoutingStateResult = {
   setActiveView: Dispatch<SetStateAction<ViewName>>;
   activeLibrarySection: LibrarySection;
   setActiveLibrarySection: Dispatch<SetStateAction<LibrarySection>>;
+  activeConfigSection: ConfigSection;
+  setActiveConfigSection: Dispatch<SetStateAction<ConfigSection>>;
   handleLogin: (login: string, password: string) => Promise<void>;
   notifyAuthStateChanged: (kind: AuthSyncEvent["kind"]) => void;
 };
@@ -38,8 +40,19 @@ function createTabId(): string {
 export function useSessionRoutingState(): UseSessionRoutingStateResult {
   const [user, setUser] = useState<User | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
-  const [activeView, setActiveView] = useState<ViewName>(() => getViewFromLocation(VIEW_QUERY_PARAM));
-  const [activeLibrarySection, setActiveLibrarySection] = useState<LibrarySection>("home");
+  const [activeView, setActiveView] = useState<ViewName>(() => getRouteFromLocation().view);
+  const [activeLibrarySection, setActiveLibrarySection] = useState<LibrarySection>(() => {
+    const route = getRouteFromLocation();
+    return route.view === "library" && route.section
+      ? (route.section as LibrarySection)
+      : "home";
+  });
+  const [activeConfigSection, setActiveConfigSection] = useState<ConfigSection>(() => {
+    const route = getRouteFromLocation();
+    return route.view === "config" && route.section
+      ? (route.section as ConfigSection)
+      : "index";
+  });
 
   const sourceIdRef = useRef(createTabId());
   const channelRef = useRef<BroadcastChannel | null>(null);
@@ -127,13 +140,21 @@ export function useSessionRoutingState(): UseSessionRoutingStateResult {
 
   useEffect(() => {
     const onPopState = () => {
-      const requestedView = getViewFromLocation(VIEW_QUERY_PARAM);
-      if (requestedView === "config" && user?.role !== "admin") {
+      const route = getRouteFromLocation();
+
+      if (route.view === "config" && user?.role !== "admin") {
         setActiveView("library");
         return;
       }
 
-      setActiveView(requestedView);
+      setActiveView(route.view);
+
+      if (route.view === "library" && route.section) {
+        setActiveLibrarySection(route.section as LibrarySection);
+      }
+      if (route.view === "config" && route.section) {
+        setActiveConfigSection(route.section as ConfigSection);
+      }
     };
 
     window.addEventListener("popstate", onPopState);
@@ -153,8 +174,13 @@ export function useSessionRoutingState(): UseSessionRoutingStateResult {
       return;
     }
 
-    syncViewToLocation(resolvedView, VIEW_QUERY_PARAM);
-  }, [activeView, sessionChecked, user?.role]);
+    const section = resolvedView === "library"
+      ? activeLibrarySection
+      : resolvedView === "config"
+        ? activeConfigSection
+        : null;
+    syncRouteToLocation(resolvedView, section);
+  }, [activeView, activeLibrarySection, activeConfigSection, sessionChecked, user?.role]);
 
   async function handleLogin(loginValue: string, password: string): Promise<void> {
     const authenticatedUser = await login(loginValue, password);
@@ -172,6 +198,8 @@ export function useSessionRoutingState(): UseSessionRoutingStateResult {
     setActiveView,
     activeLibrarySection,
     setActiveLibrarySection,
+    activeConfigSection,
+    setActiveConfigSection,
     handleLogin,
     notifyAuthStateChanged
   };
