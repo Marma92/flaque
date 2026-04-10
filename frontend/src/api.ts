@@ -704,6 +704,11 @@ export type StorageUsage = {
   totalDataSize: number;
 };
 
+export type SystemStats = {
+  cpu: { usagePercent: number; cores: number };
+  memory: { total: number; used: number; free: number; usagePercent: number };
+};
+
 export type VersionInfo = {
   currentVersion: string;
   latestVersion: string | null;
@@ -716,6 +721,10 @@ export type VersionInfo = {
 
 export async function getStorageUsage(): Promise<StorageUsage> {
   return requestJson<StorageUsage>("/api/logs/storage");
+}
+
+export async function getSystemStats(): Promise<SystemStats> {
+  return requestJson<SystemStats>("/api/logs/system-stats");
 }
 
 export async function getVersionInfo(): Promise<VersionInfo> {

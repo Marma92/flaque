@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 
 import { Router } from "express";
@@ -74,6 +75,21 @@ async function getDirectorySize(dirPath: string): Promise<number> {
   }
 
   return total;
+}
+
+type CpuTimeSample = { idle: number; total: number };
+
+let previousCpuSample: CpuTimeSample | null = null;
+
+function sampleCpuTimes(): CpuTimeSample {
+  const cpus = os.cpus();
+  let idle = 0;
+  let total = 0;
+  for (const cpu of cpus) {
+    idle += cpu.times.idle;
+    total += cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.idle + cpu.times.irq;
+  }
+  return { idle, total };
 }
 
 const STORAGE_DIRECTORIES = [
@@ -182,6 +198,38 @@ export function createLogRouter(): Router {
     } catch (error) {
       next(error);
     }
+  });
+
+  router.get("/logs/system-stats", requireAuth, requireAdmin, (_req, res) => {
+    const currentSample = sampleCpuTimes();
+    let cpuUsagePercent = 0;
+
+    if (previousCpuSample) {
+      const idleDelta = currentSample.idle - previousCpuSample.idle;
+      const totalDelta = currentSample.total - previousCpuSample.total;
+      cpuUsagePercent = totalDelta > 0
+        ? Math.round((1 - idleDelta / totalDelta) * 1000) / 10
+        : 0;
+    }
+
+    previousCpuSample = currentSample;
+
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+
+    res.json({
+      cpu: {
+        usagePercent: cpuUsagePercent,
+        cores: os.cpus().length
+      },
+      memory: {
+        total: totalMem,
+        used: usedMem,
+        free: freeMem,
+        usagePercent: Math.round((usedMem / totalMem) * 1000) / 10
+      }
+    });
   });
 
   return router;
