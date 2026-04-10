@@ -38,6 +38,7 @@ type AudioPlayerProps = {
   playRequestOffsetSec?: number;
   seekLocked?: boolean;
   onStopRadioPlayback?: () => void;
+  onResumeRadioPlayback?: () => Promise<void> | void;
   playlists?: Playlist[];
   onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
   queueTracks?: Track[];
@@ -63,6 +64,7 @@ export function AudioPlayer({
   playRequestOffsetSec = 0,
   seekLocked = false,
   onStopRadioPlayback,
+  onResumeRadioPlayback,
   playlists = [],
   onAddTrackToPlaylist,
   queueTracks = [],
@@ -340,6 +342,14 @@ export function AudioPlayer({
                   onStopRadioPlayback?.();
                   return;
                 }
+
+                if (isRadioMode && !isPlaying) {
+                  if (onResumeRadioPlayback) {
+                    void onResumeRadioPlayback();
+                    return;
+                  }
+                }
+
                 onTogglePlayback();
               }}
             >
