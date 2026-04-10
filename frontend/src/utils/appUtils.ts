@@ -3,6 +3,11 @@ import { getTrackDisplayTitle } from "./tracks";
 
 export type ViewName = "library" | "upload" | "player" | "config" | "account";
 
+export type AppRoute = {
+  view: ViewName;
+  section: string | null;
+};
+
 export type StoredQueueSnapshot = {
   userId: string;
   trackIds: string[];
@@ -153,44 +158,100 @@ export function getAdjacentTrackInQueue(
   return queue[targetIndex] ?? null;
 }
 
-/**
- * Parse and validate the URL `view` query parameter.
- */
-export function parseViewParam(rawValue: string | null): ViewName | null {
-  if (rawValue === "library" || rawValue === "upload" || rawValue === "player" || rawValue === "config" || rawValue === "account") {
-    return rawValue;
-  }
+const PATH_MAP: Record<string, AppRoute> = {
+  "": { view: "library", section: "home" },
+  "library": { view: "library", section: "home" },
+  "library/home": { view: "library", section: "home" },
+  "library/music": { view: "library", section: "music" },
+  "library/artists": { view: "library", section: "artists" },
+  "library/albums": { view: "library", section: "albums" },
+  "library/playlists": { view: "library", section: "playlists" },
+  "upload": { view: "upload", section: null },
+  "player": { view: "player", section: null },
+  "account": { view: "account", section: null },
+  "settings": { view: "config", section: "index" },
+  "settings/index": { view: "config", section: "index" },
+  "settings/files": { view: "config", section: "files" },
+  "settings/users": { view: "config", section: "users" },
+  "settings/server": { view: "config", section: "server" },
+  "settings/backup": { view: "config", section: "backup" }
+};
 
-  return null;
+const VALID_VIEWS = new Set<string>(["library", "upload", "player", "config", "account"]);
+
+/**
+ * Build a URL path for a given view and optional section.
+ */
+export function buildPathForRoute(view: ViewName, section?: string | null): string {
+  if (view === "library") {
+    const s = section ?? "home";
+    return s === "home" ? "/" : `/library/${s}`;
+  }
+  if (view === "config") {
+    const s = section ?? "index";
+    return s === "index" ? "/settings" : `/settings/${s}`;
+  }
+  return `/${view}`;
 }
 
 /**
- * Read the current app view from location query params.
+ * Read the current app route from the URL pathname.
+ * Handles legacy `?view=` query params by redirecting to the path equivalent.
  */
-export function getViewFromLocation(queryParam: string): ViewName {
+export function getRouteFromLocation(): AppRoute {
   if (typeof window === "undefined") {
-    return "library";
+    return { view: "library", section: "home" };
   }
 
-  const view = parseViewParam(new URLSearchParams(window.location.search).get(queryParam));
-  return view ?? "library";
+  const params = new URLSearchParams(window.location.search);
+  const legacyView = params.get("view");
+  if (legacyView && VALID_VIEWS.has(legacyView)) {
+    params.delete("view");
+    const search = params.toString() ? `?${params.toString()}` : "";
+    const path = buildPathForRoute(legacyView as ViewName);
+    window.history.replaceState(null, "", `${path}${search}${window.location.hash}`);
+    return {
+      view: legacyView as ViewName,
+      section: legacyView === "config" ? "index" : legacyView === "library" ? "home" : null
+    };
+  }
+
+  const raw = window.location.pathname.replace(/^\/+/, "").replace(/\/+$/, "");
+  return PATH_MAP[raw] ?? { view: "library", section: "home" };
 }
 
 /**
- * Synchronize app view state to the location query params.
+ * Synchronize app route state to the URL pathname via replaceState.
+ * Preserves existing query params and hash.
  */
-export function syncViewToLocation(view: ViewName, queryParam: string): void {
+export function syncRouteToLocation(view: ViewName, section?: string | null): void {
   if (typeof window === "undefined") {
     return;
   }
 
-  const url = new URL(window.location.href);
-  if (url.searchParams.get(queryParam) === view) {
+  const targetPath = buildPathForRoute(view, section);
+  if (window.location.pathname === targetPath) {
     return;
   }
 
-  url.searchParams.set(queryParam, view);
-  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  window.history.replaceState(null, "", `${targetPath}${window.location.search}${window.location.hash}`);
+}
+
+/**
+ * Navigate to a route via pushState (adds a history entry for back/forward).
+ * Preserves existing query params and hash.
+ */
+export function navigateTo(view: ViewName, section?: string | null): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const targetPath = buildPathForRoute(view, section);
+  if (window.location.pathname === targetPath) {
+    return;
+  }
+
+  window.history.pushState(null, "", `${targetPath}${window.location.search}${window.location.hash}`);
 }
 
 /**

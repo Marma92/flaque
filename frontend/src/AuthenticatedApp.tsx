@@ -27,6 +27,8 @@ type AuthenticatedAppProps = {
   setActiveView: Dispatch<SetStateAction<ViewName>>;
   activeLibrarySection: LibrarySection;
   setActiveLibrarySection: Dispatch<SetStateAction<LibrarySection>>;
+  activeConfigSection: ConfigSection;
+  setActiveConfigSection: Dispatch<SetStateAction<ConfigSection>>;
   notifyAuthStateChanged: (kind: "login" | "logout" | "session-change") => void;
 };
 
@@ -37,11 +39,12 @@ export function AuthenticatedApp({
   setActiveView,
   activeLibrarySection,
   setActiveLibrarySection,
+  activeConfigSection,
+  setActiveConfigSection,
   notifyAuthStateChanged
 }: AuthenticatedAppProps): JSX.Element {
   // ── UI state ──────────────────────────────────────────────────────────
   const [rebuilding, setRebuilding] = useState(false);
-  const [activeConfigSection, setActiveConfigSection] = useState<ConfigSection>("index");
   const [playerStatusMessage, setPlayerStatusMessage] = useState<string | null>(null);
   const { appNotice, setAppNotice } = useAppNotice();
   const [playerReturnView, setPlayerReturnView] = useState<ViewName>("library");
@@ -220,6 +223,7 @@ export function AuthenticatedApp({
     notifyAuthStateChanged("logout");
     resetAfterLogout();
     setActiveLibrarySection("home");
+    setActiveConfigSection("index");
     setPlayerReturnView("library");
     setAvatarVersion(0);
     setFilters({});

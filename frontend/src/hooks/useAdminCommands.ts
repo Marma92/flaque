@@ -7,7 +7,7 @@ import {
   resetUserPassword
 } from "../api";
 import type { User } from "../types";
-import type { ViewName } from "../utils/appUtils";
+import { navigateTo, type ViewName } from "../utils/appUtils";
 
 type UseAdminCommandsArgs = {
   user: User | null;
@@ -79,6 +79,7 @@ export function useAdminCommands({
       setUser(patchedUser);
 
       if (patchedUser.role !== "admin") {
+        navigateTo("library");
         setActiveView("library");
         clearAdminState();
         return;

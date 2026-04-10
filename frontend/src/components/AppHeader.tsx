@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type { User } from "../types";
-import type { ViewName } from "../utils/appUtils";
+import { navigateTo, type ViewName } from "../utils/appUtils";
 import { Acronym } from "./HeaderAcronym";
 
 type AppHeaderProps = {
@@ -42,7 +42,7 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange, children 
             type="button"
             aria-label="Go to library"
             title="Library"
-            onClick={() => onViewChange("library")}
+            onClick={() => { navigateTo("library"); onViewChange("library"); }}
           >
             <img
               className="header-logo-light absolute inset-0 h-full w-full object-contain"
@@ -83,7 +83,7 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange, children 
             type="button"
             aria-label="Library"
             title="Library"
-            onClick={() => onViewChange("library")}
+            onClick={() => { navigateTo("library"); onViewChange("library"); }}
           >
             <span className="relative block h-10 w-10" aria-hidden="true">
               <img className="nav-icon-light absolute inset-0 h-full w-full" src="/library-light.png" alt="" />
@@ -96,7 +96,7 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange, children 
             type="button"
             aria-label="Upload"
             title="Upload"
-            onClick={() => onViewChange("upload")}
+            onClick={() => { navigateTo("upload"); onViewChange("upload"); }}
           >
             <span className="relative block h-10 w-10" aria-hidden="true">
               <img className="nav-icon-light absolute inset-0 h-full w-full" src="/upload-light.png" alt="" />
@@ -110,7 +110,7 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange, children 
               type="button"
               aria-label="Configuration"
               title="Configuration"
-              onClick={() => onViewChange("config")}
+              onClick={() => { navigateTo("config"); onViewChange("config"); }}
             >
               <span className="relative block h-10 w-10" aria-hidden="true">
                 <img className="nav-icon-light absolute inset-0 h-full w-full" src="/settings-light.png" alt="" />
@@ -128,7 +128,7 @@ export function AppHeader({ activeView, user, avatarUrl, onViewChange, children 
             type="button"
             aria-label="Account"
             title={user.username}
-            onClick={() => onViewChange("account")}
+            onClick={() => { navigateTo("account"); onViewChange("account"); }}
           >
             {avatarLoadFailed ? (
               <span className="font-display text-sm text-flaque-ink">{userInitial}</span>
