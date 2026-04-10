@@ -35,6 +35,11 @@ type AudioPlayerProps = {
   shuffleEnabled?: boolean;
   onShuffleEnabledChange?: (enabled: boolean) => void;
   playRequestNonce?: number;
+  playRequestOffsetSec?: number;
+  seekLocked?: boolean;
+  radioStopped?: boolean;
+  onStopRadioPlayback?: () => void;
+  onResumeRadioPlayback?: () => Promise<void> | void;
   playlists?: Playlist[];
   onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
   queueTracks?: Track[];
@@ -57,6 +62,11 @@ export function AudioPlayer({
   shuffleEnabled = false,
   onShuffleEnabledChange,
   playRequestNonce = 0,
+  playRequestOffsetSec = 0,
+  seekLocked = false,
+  radioStopped = false,
+  onStopRadioPlayback,
+  onResumeRadioPlayback,
   playlists = [],
   onAddTrackToPlaylist,
   queueTracks = [],
@@ -69,7 +79,7 @@ export function AudioPlayer({
     audioRef, streamSource,
     isPlaying, currentTime, duration, volume, muted,
     canTranscode, effectiveTranscode,
-    onTogglePlayback, onSeek, onEnded,
+    pausePlayback, onTogglePlayback, onSeek, onEnded,
     onCycleRepeatMode, onToggleShuffle,
     handleTranscodeModeChange, handleVolumeChange, setMuted,
     handleAudioPlay, handleAudioPause, handleAudioTimeUpdate, handleAudioLoadedMetadata
@@ -77,7 +87,7 @@ export function AudioPlayer({
     track, transcodeMode, onTranscodeModeChange,
     repeatMode, onRepeatModeChange,
     shuffleEnabled, onShuffleEnabledChange,
-    playRequestNonce, onNext, onPrevious, onTrackPlayed
+    playRequestNonce, playRequestOffsetSec, onNext, onPrevious, onTrackPlayed
   });
 
   const [showPlaylistPicker, setShowPlaylistPicker] = useState(false);
@@ -95,6 +105,12 @@ export function AudioPlayer({
       setShowLyricsOverlay(false);
     }
   }, [expanded]);
+
+  useEffect(() => {
+    if (seekLocked) {
+      setShowQueuePanel(false);
+    }
+  }, [seekLocked]);
 
   if (!track) {
     return (
@@ -160,6 +176,8 @@ export function AudioPlayer({
   const displayLyrics = getTrackDisplayLyrics(track);
   const syncedLyrics = useMemo(() => getTrackSyncedLyrics(track), [track]);
   const hasLyrics = Boolean(displayLyrics);
+  const isRadioMode = track.owner === "radio";
+  const isRadioStopped = isRadioMode && radioStopped;
   const codecLabel = `${track.codec}${track.sampleRate ? ` - ${Math.round(track.sampleRate / 1000)} kHz` : ""}`;
 
   const hasPlayablePlaylists = playlists.length > 0;
@@ -188,7 +206,12 @@ export function AudioPlayer({
       >
         {expanded ? (
           <div className="relative shrink-0 overflow-hidden rounded-2xl">
-            {hasLyrics ? (
+            {isRadioMode && !isRadioStopped ? (
+              <div className="absolute left-4 top-4 z-30 rounded-md border border-[rgba(255,255,255,0.5)] bg-[#ffffff] p-1 shadow-sm">
+                <img className="h-10 w-10" src="/radio.png" alt="Radio mode" />
+              </div>
+            ) : null}
+            {hasLyrics && !isRadioStopped ? (
               <button
                 className="absolute inset-0 z-10 cursor-pointer"
                 type="button"
@@ -197,16 +220,22 @@ export function AudioPlayer({
                 aria-label={showLyricsOverlay ? "Hide lyrics" : "Show lyrics"}
               />
             ) : null}
-            <img
-              className={artworkClassName}
-              src={coverUrl(track.id, track.cover)}
-              alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
-              onError={(event) => {
-                event.currentTarget.src = defaultCoverImage;
-              }}
-            />
+            {isRadioStopped ? (
+              <div className={`${artworkClassName} border border-[rgba(255,255,255,0.5)] bg-[#ffffff] flex items-center justify-center`}>
+                <img className="h-30 w-30" src="/radio.png" alt="Radio" />
+              </div>
+            ) : (
+              <img
+                className={artworkClassName}
+                src={coverUrl(track.id, track.cover)}
+                alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
+                onError={(event) => {
+                  event.currentTarget.src = defaultCoverImage;
+                }}
+              />
+            )}
 
-            {showLyricsOverlay && displayLyrics ? (
+            {showLyricsOverlay && displayLyrics && !isRadioStopped ? (
               <div className="absolute inset-0 z-20 overflow-hidden bg-black/80 p-5">
                 <button
                   className="absolute right-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
@@ -231,7 +260,16 @@ export function AudioPlayer({
         ) : (
           <div className="flex shrink-0 flex-col items-center gap-0.5">
             <div className="relative">
-              {onArtworkClick ? (
+              {isRadioMode && !isRadioStopped ? (
+                <div className="absolute left-2 top-2 z-20 rounded-md border border-[rgba(255,255,255,0.5)] bg-[#ffffff] p-1 shadow-sm">
+                  <img className="h-3.5 w-3.5" src="/radio.png" alt="Radio mode" />
+                </div>
+              ) : null}
+              {isRadioStopped ? (
+                <div className={`${artworkClassName} flex items-center justify-center border border-[rgba(255,255,255,0.5)] bg-[#ffffff]`}>
+                  <img className="h-10 w-10" src="/radio.png" alt="Radio" />
+                </div>
+              ) : onArtworkClick ? (
                 <button
                   className="shrink-0 rounded-2xl"
                   type="button"
@@ -266,52 +304,81 @@ export function AudioPlayer({
 
         <div className={contentLayoutClass}>
           <div className={textBlockClassName}>
-            <p
-              className={`font-display text-flaque-ink leading-tight ${expanded ? "text-2xl truncate" : "text-lg overflow-x-auto scrollbar-hide whitespace-nowrap"}`}
-              title={displayTitle}
-            >
-              {displayTitle}
-            </p>
-            <p className={secondaryTextClassName}>{displayArtist}</p>
-            {displayAlbumWithYear ? (
-              <p className={expanded ? "truncate text-xs text-flaque-steel/80" : "overflow-x-auto scrollbar-hide whitespace-nowrap text-xs text-flaque-steel/80"}>{displayAlbumWithYear}</p>
-            ) : null}
-            <p className={metaTextClassName}>
-              {codecLabel}
-              {hasLyrics ? (
-                <span className="ml-2 rounded bg-flaque-ink/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-flaque-ink/70 dark:bg-flaque-cream/10 dark:text-flaque-cream/70">
-                  Lyrics
-                </span>
-              ) : null}
-            </p>
+            {isRadioStopped ? (
+              <p className={`font-display text-flaque-ink leading-tight ${expanded ? "text-2xl" : "text-lg"}`}>
+                Radio stopped
+              </p>
+            ) : (
+              <>
+                <p
+                  className={`font-display text-flaque-ink leading-tight ${expanded ? "text-2xl truncate" : "text-lg overflow-x-auto scrollbar-hide whitespace-nowrap"}`}
+                  title={displayTitle}
+                >
+                  {displayTitle}
+                </p>
+                <p className={secondaryTextClassName}>{displayArtist}</p>
+                {displayAlbumWithYear ? (
+                  <p className={expanded ? "truncate text-xs text-flaque-steel/80" : "overflow-x-auto scrollbar-hide whitespace-nowrap text-xs text-flaque-steel/80"}>{displayAlbumWithYear}</p>
+                ) : null}
+                <p className={metaTextClassName}>
+                  {codecLabel}
+                  {hasLyrics ? (
+                    <span className="ml-2 rounded bg-flaque-ink/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-flaque-ink/70 dark:bg-flaque-cream/10 dark:text-flaque-cream/70">
+                      Lyrics
+                    </span>
+                  ) : null}
+                </p>
+              </>
+            )}
           </div>
 
           <div className={controlsLayoutClass}>
             <div className={primaryControlsClassName}>
-            <button
-              className={ghostControlButtonClassName}
-              type="button"
-              aria-label="Previous track"
-              title="Previous"
-              onClick={() => {
-                if (onPrevious) {
-                  void onPrevious({ wrap: false });
-                }
-              }}
-              disabled={!onPrevious}
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M7 6h2v12H7zM19 6v12l-8.5-6L19 6z" />
-              </svg>
-            </button>
+            {isRadioMode ? null : (
+              <button
+                className={ghostControlButtonClassName}
+                type="button"
+                aria-label="Previous track"
+                title="Previous"
+                onClick={() => {
+                  if (onPrevious) {
+                    void onPrevious({ wrap: false });
+                  }
+                }}
+                disabled={!onPrevious || seekLocked}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M7 6h2v12H7zM19 6v12l-8.5-6L19 6z" />
+                </svg>
+              </button>
+            )}
             <button
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-flaque-ink text-flaque-cream transition hover:bg-black"
               type="button"
-              aria-label={isPlaying ? "Pause playback" : "Play playback"}
-              title={isPlaying ? "Pause" : "Play"}
-              onClick={onTogglePlayback}
+              aria-label={isRadioMode && isPlaying ? "Stop radio" : isPlaying ? "Pause playback" : "Play playback"}
+              title={isRadioMode && isPlaying ? "Stop" : isPlaying ? "Pause" : "Play"}
+              onClick={() => {
+                if (isRadioMode && isPlaying) {
+                  pausePlayback();
+                  onStopRadioPlayback?.();
+                  return;
+                }
+
+                if (isRadioMode && !isPlaying) {
+                  if (onResumeRadioPlayback) {
+                    void onResumeRadioPlayback();
+                    return;
+                  }
+                }
+
+                onTogglePlayback();
+              }}
             >
-              {isPlaying ? (
+              {isRadioMode && isPlaying ? (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M7 7h10v10H7z" />
+                </svg>
+              ) : isPlaying ? (
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M8 6h3v12H8zM13 6h3v12h-3z" />
                 </svg>
@@ -321,89 +388,95 @@ export function AudioPlayer({
                 </svg>
               )}
             </button>
-            <button
-              className={ghostControlButtonClassName}
-              type="button"
-              aria-label="Next track"
-              title="Next"
-              onClick={() => {
-                if (onNext) {
-                  void onNext({ wrap: false });
-                }
-              }}
-              disabled={!onNext}
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M15 6h2v12h-2zM5 6v12l8.5-6L5 6z" />
-              </svg>
-            </button>
+            {isRadioMode ? null : (
+              <button
+                className={ghostControlButtonClassName}
+                type="button"
+                aria-label="Next track"
+                title="Next"
+                onClick={() => {
+                  if (onNext) {
+                    void onNext({ wrap: false });
+                  }
+                }}
+                disabled={!onNext || seekLocked}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M15 6h2v12h-2zM5 6v12l8.5-6L5 6z" />
+                </svg>
+              </button>
+            )}
 
             </div>
 
             <div className={centerControlsClassName}>
               <div className="flex justify-center">
-              <button
-                className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
-                  repeatMode === "off"
-                    ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
-                    : "bg-flaque-ink text-flaque-cream hover:bg-black"
-                }`}
-                type="button"
-                aria-label={
-                  repeatMode === "off"
-                    ? "Enable repeat all"
-                    : repeatMode === "all"
-                      ? "Enable repeat one"
-                      : "Disable repeat"
-                }
-                title={
-                  repeatMode === "off"
-                    ? "Repeat off"
-                    : repeatMode === "all"
-                      ? "Repeat all"
-                      : "Repeat one"
-                }
-                onClick={onCycleRepeatMode}
-              >
-                {repeatMode === "one" ? (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                    <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M12 9v6" strokeLinecap="round" />
-                    <path d="M10.5 10.5L12 9l1.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                ) : (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                    <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </button>
+              {isRadioMode ? null : (
+                <button
+                  className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
+                    repeatMode === "off"
+                      ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
+                      : "bg-flaque-ink text-flaque-cream hover:bg-black"
+                  }`}
+                  type="button"
+                  aria-label={
+                    repeatMode === "off"
+                      ? "Enable repeat all"
+                      : repeatMode === "all"
+                        ? "Enable repeat one"
+                        : "Disable repeat"
+                  }
+                  title={
+                    repeatMode === "off"
+                      ? "Repeat off"
+                      : repeatMode === "all"
+                        ? "Repeat all"
+                        : "Repeat one"
+                  }
+                  onClick={onCycleRepeatMode}
+                >
+                  {repeatMode === "one" ? (
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M12 9v6" strokeLinecap="round" />
+                      <path d="M10.5 10.5L12 9l1.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              )}
 
-              <button
-                className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
-                  shuffleEnabled
-                    ? "bg-flaque-ink text-flaque-cream hover:bg-black"
-                    : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
-                }`}
-                type="button"
-                aria-label={shuffleEnabled ? "Disable shuffle" : "Enable shuffle"}
-                title={shuffleEnabled ? "Shuffle on" : "Shuffle off"}
-                onClick={onToggleShuffle}
-                disabled={!onShuffleEnabledChange}
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                  <path d="M16 3h5v5" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M4 20l8-8" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M21 3l-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M4 4l6 6" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M15 16l2 2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
+              {isRadioMode ? null : (
+                <button
+                  className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
+                    shuffleEnabled
+                      ? "bg-flaque-ink text-flaque-cream hover:bg-black"
+                      : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
+                  }`}
+                  type="button"
+                  aria-label={shuffleEnabled ? "Disable shuffle" : "Enable shuffle"}
+                  title={shuffleEnabled ? "Shuffle on" : "Shuffle off"}
+                  onClick={onToggleShuffle}
+                  disabled={!onShuffleEnabledChange}
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <path d="M16 3h5v5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M4 20l8-8" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M21 3l-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M4 4l6 6" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M15 16l2 2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              )}
               </div>
 
 
@@ -415,6 +488,7 @@ export function AudioPlayer({
                 type="button"
                 aria-label={showQueuePanel ? "Hide queue" : "Show queue"}
                 title={showQueuePanel ? "Hide queue" : "Show queue"}
+                disabled={seekLocked}
                 onClick={() => setShowQueuePanel((current) => !current)}
               >
                 <svg
@@ -687,12 +761,13 @@ export function AudioPlayer({
           ) : null}
 
           <input
-            className="h-2 w-full cursor-pointer appearance-none rounded-full bg-flaque-clay/60"
+            className={`h-2 w-full appearance-none rounded-full bg-flaque-clay/60 ${seekLocked ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
             type="range"
             min={0}
             max={Math.max(duration || track.duration, 1)}
             step={0.1}
             value={Math.min(currentTime, duration || track.duration || 0)}
+            disabled={seekLocked}
             onChange={(event) => onSeek(Number(event.target.value))}
           />
 

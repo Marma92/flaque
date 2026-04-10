@@ -112,3 +112,42 @@ export type TrackMetadataPatch = {
   artist?: string | null;
   album?: string | null;
 };
+
+export type RadioTrack = {
+  trackId: string;
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  durationSec: number;
+  startsAt: string;
+  endsAt: string;
+  coverUrl?: string | null;
+  streamUrl: string;
+};
+
+export type RadioStationNowPlaying = {
+  id: string;
+  currentTrack: RadioTrack | null;
+  nextTrack: RadioTrack | null;
+};
+
+export type RadioStateResponse = {
+  serverNow: string;
+  status: "running" | "stopped";
+  station: RadioStationNowPlaying | null;
+};
+
+export type RadioCreateResponse = {
+  serverNow: string;
+  success: boolean;
+  message: string;
+  station: RadioStationNowPlaying | null;
+};
+
+export type RadioQueueResponse = {
+  serverNow: string;
+  station: {
+    id: string;
+    trackList: RadioTrack[];
+  } | null;
+};

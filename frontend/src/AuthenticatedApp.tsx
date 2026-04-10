@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 
 import { logout, myProfilePhotoUrl } from "./api";
 import { AppShell } from "./components/AppShell";
 import type { ConfigSection } from "./components/ConfigView";
-import type { User } from "./types";
+import type { Track, User } from "./types";
 import type { LibrarySection } from "./types/library";
 import type { ViewName } from "./utils/appUtils";
 import { useAccountActions } from "./hooks/useAccountActions";
@@ -19,6 +19,7 @@ import { useLibraryData } from "./hooks/useLibraryData";
 import { usePlaybackCommands } from "./hooks/usePlaybackCommands";
 import { usePlaybackState } from "./hooks/usePlaybackState";
 import { useRecentlyUploaded } from "./hooks/useRecentlyUploaded";
+import { useRadioStation } from "./hooks/useRadioStation";
 
 type AuthenticatedAppProps = {
   user: User;
@@ -95,6 +96,7 @@ export function AuthenticatedApp({
   // ── Playback ──────────────────────────────────────────────────────────
   const {
     selectedTrackRefreshed, refreshedQueue, playRequestNonce,
+    playRequestOffsetSec,
     transcodeMode, setTranscodeMode,
     repeatMode, setRepeatMode,
     shuffleEnabled, setShuffleEnabled,
@@ -102,6 +104,38 @@ export function AuthenticatedApp({
     recordTrackPlayed, removeTrackFromPlayback,
     setSelectedTrack, resetAfterLogout
   } = usePlaybackState({ user, allTracksById, allTracks: allTracksLibrary.tracks, loadingAllTracks });
+
+  const handlePlayRadioTrack = useCallback((track: Track, startOffsetSec: number): void => {
+    requestTrackPlayback(track, [track], { startOffsetSec });
+  }, [requestTrackPlayback]);
+
+  const {
+    loading: loadingRadio,
+    stationId: radioStationId,
+    currentTrack: radioCurrentTrack,
+    nextTrack: radioNextTrack,
+    isRadioPlaybackActive,
+    startRadioPlayback,
+    stopRadioPlayback
+  } = useRadioStation({
+    userId: user?.id,
+    onPlayRadioTrack: handlePlayRadioTrack
+  });
+
+  useEffect(() => {
+    if (!isRadioPlaybackActive) {
+      return;
+    }
+
+    if (!selectedTrackRefreshed || selectedTrackRefreshed.owner === "radio") {
+      return;
+    }
+
+    stopRadioPlayback();
+  }, [isRadioPlaybackActive, selectedTrackRefreshed, stopRadioPlayback]);
+
+  const isRadioPlaybackLocked = isRadioPlaybackActive && selectedTrackRefreshed?.owner === "radio";
+  const isRadioStopped = !isRadioPlaybackActive && selectedTrackRefreshed?.owner === "radio";
 
   // ── Admin ─────────────────────────────────────────────────────────────
   const { adminUsers, loadingAdminUsers, adminError, refreshAdminUsers, clearAdminState } = useAdminUsers({ user });
@@ -294,6 +328,14 @@ export function AuthenticatedApp({
         recentlyUploadedLoading,
         recentlyUploadedPeriod,
         onRecentlyUploadedPeriodChange: setRecentlyUploadedPeriod,
+        radioLoading: loadingRadio,
+        radioStationId,
+        radioCurrentTrack,
+        radioNextTrack,
+        onStartRadioPlayback: () => {
+          setActiveView("player");
+          startRadioPlayback();
+        },
         paginatedTracks,
         paginatedTotal,
         paginatedLoading,
@@ -384,8 +426,12 @@ export function AuthenticatedApp({
       playerStatusMessage={playerStatusMessage}
       audioPlayerProps={{
         track: selectedTrackRefreshed,
-        onNext: (options) => handleNavigateTrack("next", options?.wrap ?? true),
-        onPrevious: (options) => handleNavigateTrack("previous", options?.wrap ?? true),
+        onNext: isRadioPlaybackLocked
+          ? undefined
+          : (options) => handleNavigateTrack("next", options?.wrap ?? true),
+        onPrevious: isRadioPlaybackLocked
+          ? undefined
+          : (options) => handleNavigateTrack("previous", options?.wrap ?? true),
         onTrackPlayed: recordTrackPlayed,
         transcodeMode,
         onTranscodeModeChange: setTranscodeMode,
@@ -394,13 +440,22 @@ export function AuthenticatedApp({
         shuffleEnabled,
         onShuffleEnabledChange: setShuffleEnabled,
         playRequestNonce,
+        playRequestOffsetSec,
+        seekLocked: isRadioPlaybackLocked,
+        radioStopped: isRadioStopped,
+        onStopRadioPlayback: stopRadioPlayback,
+        onResumeRadioPlayback: startRadioPlayback,
         playlists: manageablePlaylists,
         onAddTrackToPlaylist: handleAddTrackToPlaylist,
-        queueTracks: refreshedQueue,
+        queueTracks: isRadioPlaybackLocked
+          ? (selectedTrackRefreshed ? [selectedTrackRefreshed] : [])
+          : refreshedQueue,
         currentQueueTrackId: selectedTrackRefreshed?.id ?? null,
-        onQueueTrackSelect: (queueTrack) => {
-          requestTrackPlaybackWithStatus(queueTrack, refreshedQueue.length > 0 ? refreshedQueue : undefined);
-        }
+        onQueueTrackSelect: isRadioPlaybackLocked
+          ? undefined
+          : (queueTrack) => {
+            requestTrackPlaybackWithStatus(queueTrack, refreshedQueue.length > 0 ? refreshedQueue : undefined);
+          }
       }}
     />
   );

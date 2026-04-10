@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 
 import type { RepeatMode, TranscodeMode } from "../components/AudioPlayer";
 import type { Track, User } from "../types";
@@ -21,6 +21,7 @@ type UsePlaybackStateResult = {
   selectedTrackRefreshed: Track | null;
   refreshedQueue: Track[];
   playRequestNonce: number;
+  playRequestOffsetSec: number;
   transcodeMode: TranscodeMode;
   setTranscodeMode: Dispatch<SetStateAction<TranscodeMode>>;
   repeatMode: RepeatMode;
@@ -28,7 +29,7 @@ type UsePlaybackStateResult = {
   shuffleEnabled: boolean;
   setShuffleEnabled: Dispatch<SetStateAction<boolean>>;
   recentTracks: Track[];
-  requestTrackPlayback: (track: Track, queueSource?: Track[]) => void;
+  requestTrackPlayback: (track: Track, queueSource?: Track[], options?: { startOffsetSec?: number }) => void;
   replayRecentTrack: (track: Track) => void;
   recordTrackPlayed: (track: Track) => void;
   removeTrackFromPlayback: (trackId: string) => void;
@@ -48,6 +49,7 @@ export function usePlaybackState({
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [playQueue, setPlayQueue] = useState<Track[]>([]);
   const [playRequestNonce, setPlayRequestNonce] = useState(0);
+  const [playRequestOffsetSec, setPlayRequestOffsetSec] = useState(0);
   const [transcodeMode, setTranscodeMode] = useState<TranscodeMode>(() => readTranscodeMode(TRANSCODE_MODE_STORAGE_KEY));
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");
   const [shuffleEnabled, setShuffleEnabled] = useState<boolean>(() => readShuffleMode(SHUFFLE_MODE_STORAGE_KEY));
@@ -59,6 +61,10 @@ export function usePlaybackState({
       return null;
     }
 
+    if (selectedTrack.owner === "radio") {
+      return selectedTrack;
+    }
+
     return allTracksById.get(selectedTrack.id) ?? selectedTrack;
   }, [allTracksById, selectedTrack]);
 
@@ -67,7 +73,12 @@ export function usePlaybackState({
       return [] as Track[];
     }
 
-    return playQueue.map((track) => allTracksById.get(track.id) ?? track);
+    return playQueue.map((track) => {
+      if (track.owner === "radio") {
+        return track;
+      }
+      return allTracksById.get(track.id) ?? track;
+    });
   }, [allTracksById, playQueue]);
 
   useEffect(() => {
@@ -205,45 +216,57 @@ export function usePlaybackState({
     window.localStorage.setItem(SHUFFLE_MODE_STORAGE_KEY, shuffleEnabled ? "on" : "off");
   }, [shuffleEnabled]);
 
-  function requestTrackPlayback(track: Track, queueSource?: Track[]): void {
+  const requestTrackPlayback = useCallback((
+    track: Track,
+    queueSource?: Track[],
+    options?: { startOffsetSec?: number }
+  ): void => {
     const source = queueSource && queueSource.length > 0 ? queueSource : allTracks;
+    const requestedOffset = options?.startOffsetSec;
+    const boundedOffset =
+      typeof requestedOffset === "number" && Number.isFinite(requestedOffset)
+        ? Math.max(0, Math.min(track.duration || 0, requestedOffset))
+        : 0;
+
     setPlayQueue(source.length > 0 ? source : [track]);
     setSelectedTrack(track);
+    setPlayRequestOffsetSec(boundedOffset);
     setPlayRequestNonce((current) => current + 1);
-  }
+  }, [allTracks]);
 
-  function replayRecentTrack(track: Track): void {
+  const replayRecentTrack = useCallback((track: Track): void => {
     const fullTrack = allTracksById.get(track.id) ?? track;
     requestTrackPlayback(fullTrack, allTracks.length > 0 ? allTracks : undefined);
-  }
+  }, [allTracks, allTracksById, requestTrackPlayback]);
 
-  function recordTrackPlayed(track: Track): void {
+  const recordTrackPlayed = useCallback((track: Track): void => {
     setRecentTracks((current) => {
       const withoutCurrent = current.filter((entry) => entry.id !== track.id);
       return [track, ...withoutCurrent].slice(0, MAX_RECENT_TRACKS);
     });
-  }
+  }, []);
 
-  function removeTrackFromPlayback(trackId: string): void {
+  const removeTrackFromPlayback = useCallback((trackId: string): void => {
     if (selectedTrackRefreshed?.id === trackId) {
       setSelectedTrack(null);
     }
 
     setPlayQueue((current) => current.filter((track) => track.id !== trackId));
     setRecentTracks((current) => current.filter((track) => track.id !== trackId));
-  }
+  }, [selectedTrackRefreshed?.id]);
 
-  function resetAfterLogout(): void {
+  const resetAfterLogout = useCallback((): void => {
     setSelectedTrack(null);
     setPlayQueue([]);
     setRepeatMode("off");
     setShuffleEnabled(false);
-  }
+  }, []);
 
   return {
     selectedTrackRefreshed,
     refreshedQueue,
     playRequestNonce,
+    playRequestOffsetSec,
     transcodeMode,
     setTranscodeMode,
     repeatMode,
