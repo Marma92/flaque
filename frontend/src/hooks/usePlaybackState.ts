@@ -61,6 +61,10 @@ export function usePlaybackState({
       return null;
     }
 
+    if (selectedTrack.owner === "radio") {
+      return selectedTrack;
+    }
+
     return allTracksById.get(selectedTrack.id) ?? selectedTrack;
   }, [allTracksById, selectedTrack]);
 
@@ -69,7 +73,12 @@ export function usePlaybackState({
       return [] as Track[];
     }
 
-    return playQueue.map((track) => allTracksById.get(track.id) ?? track);
+    return playQueue.map((track) => {
+      if (track.owner === "radio") {
+        return track;
+      }
+      return allTracksById.get(track.id) ?? track;
+    });
   }, [allTracksById, playQueue]);
 
   useEffect(() => {
