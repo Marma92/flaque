@@ -170,6 +170,7 @@ export function AudioPlayer({
   const displayLyrics = getTrackDisplayLyrics(track);
   const syncedLyrics = useMemo(() => getTrackSyncedLyrics(track), [track]);
   const hasLyrics = Boolean(displayLyrics);
+  const isRadioMode = track.owner === "radio";
   const codecLabel = `${track.codec}${track.sampleRate ? ` - ${Math.round(track.sampleRate / 1000)} kHz` : ""}`;
 
   const hasPlayablePlaylists = playlists.length > 0;
@@ -198,6 +199,11 @@ export function AudioPlayer({
       >
         {expanded ? (
           <div className="relative shrink-0 overflow-hidden rounded-2xl">
+            {isRadioMode ? (
+              <div className="absolute left-2 top-2 z-30 rounded-lg border border-white/70 bg-white/90 p-1 shadow-sm">
+                <img className="h-5 w-5" src="/radio.png" alt="Radio mode" />
+              </div>
+            ) : null}
             {hasLyrics ? (
               <button
                 className="absolute inset-0 z-10 cursor-pointer"
@@ -241,6 +247,11 @@ export function AudioPlayer({
         ) : (
           <div className="flex shrink-0 flex-col items-center gap-0.5">
             <div className="relative">
+              {isRadioMode ? (
+                <div className="absolute left-1 top-1 z-20 rounded-md border border-white/70 bg-white/90 p-1 shadow-sm">
+                  <img className="h-3.5 w-3.5" src="/radio.png" alt="Radio mode" />
+                </div>
+              ) : null}
               {onArtworkClick ? (
                 <button
                   className="shrink-0 rounded-2xl"
