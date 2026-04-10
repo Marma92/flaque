@@ -23,7 +23,7 @@ type UseRadioStationResult = {
   stationId: string | null;
   currentTrack: RadioTrack | null;
   nextTrack: RadioTrack | null;
-  startRadioPlayback: () => void;
+  startRadioPlayback: () => Promise<void>;
 };
 
 function clampOffsetSec(offsetSec: number, durationSec: number): number {
@@ -117,6 +117,20 @@ export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArg
     onPlayRadioTrack(playableTrack, offsetSec);
   }, [onPlayRadioTrack]);
 
+  const playSnapshotNow = useCallback((input: RadioSnapshot | null): void => {
+    if (!input?.currentTrack) {
+      return;
+    }
+
+    const playableTrack = mapRadioTrackToPlayableTrack(input.currentTrack);
+    const offsetSec = computeOffsetSec(
+      getEstimatedServerNowMs(input),
+      input.currentTrack.startsAt,
+      input.currentTrack.durationSec
+    );
+    onPlayRadioTrack(playableTrack, offsetSec);
+  }, [onPlayRadioTrack]);
+
   const createAndUseStation = useCallback(async (): Promise<RadioSnapshot | null> => {
     const created = await createRadioStation();
     const nextSnapshot = toSnapshotFromCreate(created);
@@ -180,20 +194,31 @@ export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArg
     }
   }, [createAndUseStation, syncPlaybackFromSnapshot, userId]);
 
-  const startRadioPlayback = useCallback(() => {
-    if (!snapshot?.currentTrack) {
+  const startRadioPlayback = useCallback(async (): Promise<void> => {
+    radioPlaybackActiveRef.current = true;
+
+    if (snapshot?.currentTrack) {
+      playSnapshotNow(snapshot);
       return;
     }
 
-    radioPlaybackActiveRef.current = true;
-    const playableTrack = mapRadioTrackToPlayableTrack(snapshot.currentTrack);
-    const offsetSec = computeOffsetSec(
-      getEstimatedServerNowMs(snapshot),
-      snapshot.currentTrack.startsAt,
-      snapshot.currentTrack.durationSec
-    );
-    onPlayRadioTrack(playableTrack, offsetSec);
-  }, [onPlayRadioTrack, snapshot]);
+    try {
+      const statePayload = await getRadioState();
+      let nextSnapshot = toSnapshotFromState(statePayload);
+      if (!nextSnapshot) {
+        nextSnapshot = await createAndUseStation();
+      }
+
+      if (!nextSnapshot) {
+        return;
+      }
+
+      setSnapshot(nextSnapshot);
+      playSnapshotNow(nextSnapshot);
+    } catch {
+      // ignore network errors; UI keeps previous station state
+    }
+  }, [createAndUseStation, playSnapshotNow, snapshot]);
 
   useEffect(() => {
     clearRefreshTimer();

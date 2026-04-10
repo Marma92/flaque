@@ -42,7 +42,7 @@ export function HomePanels({
 }: HomePanelsProps): JSX.Element | null {
   const hasRecent = recentTracks.length > 0;
   const hasUploaded = recentlyUploadedTracks.length > 0 || recentlyUploadedLoading;
-  const canStartRadio = Boolean(radioCurrentTrack && onStartRadioPlayback);
+  const canStartRadio = Boolean(onStartRadioPlayback && !radioLoading);
 
   const cardGridClass = "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
