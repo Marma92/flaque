@@ -12,7 +12,7 @@ export function getTrackDisplayTitle(track: Pick<Track, "path" | "tags">): strin
     return title;
   }
 
-  return fileNameFromPath(track.path);
+  return "Unknown Track";
 }
 
 function normalizeTagText(value: unknown): string | undefined {
