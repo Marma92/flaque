@@ -311,23 +311,24 @@ export function AudioPlayer({
 
           <div className={controlsLayoutClass}>
             <div className={primaryControlsClassName}>
-            <button
-              className={ghostControlButtonClassName}
-              type="button"
-              aria-label="Previous track"
-              title="Previous"
-              onClick={() => {
-                if (onPrevious) {
-                  void onPrevious({ wrap: false });
-                }
-              }}
-              disabled={!onPrevious || seekLocked}
-              hidden={isRadioMode}
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M7 6h2v12H7zM19 6v12l-8.5-6L19 6z" />
-              </svg>
-            </button>
+            {isRadioMode ? null : (
+              <button
+                className={ghostControlButtonClassName}
+                type="button"
+                aria-label="Previous track"
+                title="Previous"
+                onClick={() => {
+                  if (onPrevious) {
+                    void onPrevious({ wrap: false });
+                  }
+                }}
+                disabled={!onPrevious || seekLocked}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M7 6h2v12H7zM19 6v12l-8.5-6L19 6z" />
+                </svg>
+              </button>
+            )}
             <button
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-flaque-ink text-flaque-cream transition hover:bg-black"
               type="button"
@@ -356,92 +357,95 @@ export function AudioPlayer({
                 </svg>
               )}
             </button>
-            <button
-              className={ghostControlButtonClassName}
-              type="button"
-              aria-label="Next track"
-              title="Next"
-              onClick={() => {
-                if (onNext) {
-                  void onNext({ wrap: false });
-                }
-              }}
-              disabled={!onNext || seekLocked}
-              hidden={isRadioMode}
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M15 6h2v12h-2zM5 6v12l8.5-6L5 6z" />
-              </svg>
-            </button>
+            {isRadioMode ? null : (
+              <button
+                className={ghostControlButtonClassName}
+                type="button"
+                aria-label="Next track"
+                title="Next"
+                onClick={() => {
+                  if (onNext) {
+                    void onNext({ wrap: false });
+                  }
+                }}
+                disabled={!onNext || seekLocked}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M15 6h2v12h-2zM5 6v12l8.5-6L5 6z" />
+                </svg>
+              </button>
+            )}
 
             </div>
 
             <div className={centerControlsClassName}>
               <div className="flex justify-center">
-              <button
-                className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
-                  repeatMode === "off"
-                    ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
-                    : "bg-flaque-ink text-flaque-cream hover:bg-black"
-                }`}
-                type="button"
-                aria-label={
-                  repeatMode === "off"
-                    ? "Enable repeat all"
-                    : repeatMode === "all"
-                      ? "Enable repeat one"
-                      : "Disable repeat"
-                }
-                title={
-                  repeatMode === "off"
-                    ? "Repeat off"
-                    : repeatMode === "all"
-                      ? "Repeat all"
-                      : "Repeat one"
-                }
-                onClick={onCycleRepeatMode}
-                hidden={isRadioMode}
-              >
-                {repeatMode === "one" ? (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                    <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M12 9v6" strokeLinecap="round" />
-                    <path d="M10.5 10.5L12 9l1.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                ) : (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                    <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </button>
+              {isRadioMode ? null : (
+                <button
+                  className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
+                    repeatMode === "off"
+                      ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
+                      : "bg-flaque-ink text-flaque-cream hover:bg-black"
+                  }`}
+                  type="button"
+                  aria-label={
+                    repeatMode === "off"
+                      ? "Enable repeat all"
+                      : repeatMode === "all"
+                        ? "Enable repeat one"
+                        : "Disable repeat"
+                  }
+                  title={
+                    repeatMode === "off"
+                      ? "Repeat off"
+                      : repeatMode === "all"
+                        ? "Repeat all"
+                        : "Repeat one"
+                  }
+                  onClick={onCycleRepeatMode}
+                >
+                  {repeatMode === "one" ? (
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M12 9v6" strokeLinecap="round" />
+                      <path d="M10.5 10.5L12 9l1.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path d="M17 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M3 11V9a4 4 0 014-4h13" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M7 22l-3-3 3-3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M21 13v2a4 4 0 01-4 4H4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              )}
 
-              <button
-                className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
-                  shuffleEnabled
-                    ? "bg-flaque-ink text-flaque-cream hover:bg-black"
-                    : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
-                }`}
-                type="button"
-                aria-label={shuffleEnabled ? "Disable shuffle" : "Enable shuffle"}
-                title={shuffleEnabled ? "Shuffle on" : "Shuffle off"}
-                onClick={onToggleShuffle}
-                disabled={!onShuffleEnabledChange}
-                hidden={isRadioMode}
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                  <path d="M16 3h5v5" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M4 20l8-8" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M21 3l-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M4 4l6 6" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M15 16l2 2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
+              {isRadioMode ? null : (
+                <button
+                  className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
+                    shuffleEnabled
+                      ? "bg-flaque-ink text-flaque-cream hover:bg-black"
+                      : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
+                  }`}
+                  type="button"
+                  aria-label={shuffleEnabled ? "Disable shuffle" : "Enable shuffle"}
+                  title={shuffleEnabled ? "Shuffle on" : "Shuffle off"}
+                  onClick={onToggleShuffle}
+                  disabled={!onShuffleEnabledChange}
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <path d="M16 3h5v5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M4 20l8-8" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M21 3l-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M4 4l6 6" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M15 16l2 2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              )}
               </div>
 
 
