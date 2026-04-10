@@ -1,5 +1,5 @@
 import type { User } from "../types";
-import type { ViewName } from "../utils/appUtils";
+import { navigateTo, type ViewName } from "../utils/appUtils";
 import { AccountView } from "./AccountView";
 import { AdminBackupView } from "./AdminBackupView";
 import { AdminServerView } from "./AdminServerView";
@@ -85,7 +85,7 @@ export function AppShell({
           key={key}
           className={sectionButtonClassName(configViewProps.activeSection === key)}
           type="button"
-          onClick={() => configViewProps.onSectionChange(key)}
+          onClick={() => { navigateTo("config", key); configViewProps.onSectionChange(key); }}
         >
           {label}
         </button>

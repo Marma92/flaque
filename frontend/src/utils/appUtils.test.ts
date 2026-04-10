@@ -1,12 +1,15 @@
+/* @vitest-environment happy-dom */
+
 import { describe, expect, it } from "vitest";
 
 import type { Track } from "../types";
 import {
+  buildPathForRoute,
   getAdjacentTrackInQueue,
   getAlbumKey,
+  getRouteFromLocation,
   isTrackLike,
   parseStoredQueueSnapshot,
-  parseViewParam,
   sortAlbumTracksByNumber
 } from "./appUtils";
 
@@ -67,11 +70,42 @@ describe("appUtils", () => {
     expect(getAdjacentTrackInQueue(queue, "a", "previous", true)?.id).toBe("c");
   });
 
-  it("parses supported view params", () => {
-    expect(parseViewParam("library")).toBe("library");
-    expect(parseViewParam("upload")).toBe("upload");
-    expect(parseViewParam("config")).toBe("config");
-    expect(parseViewParam("invalid")).toBeNull();
+  it("builds path for route from view and section", () => {
+    expect(buildPathForRoute("library", "home")).toBe("/");
+    expect(buildPathForRoute("library", "music")).toBe("/library/music");
+    expect(buildPathForRoute("library", "artists")).toBe("/library/artists");
+    expect(buildPathForRoute("library")).toBe("/");
+    expect(buildPathForRoute("config", "index")).toBe("/settings");
+    expect(buildPathForRoute("config", "server")).toBe("/settings/server");
+    expect(buildPathForRoute("config")).toBe("/settings");
+    expect(buildPathForRoute("upload")).toBe("/upload");
+    expect(buildPathForRoute("player")).toBe("/player");
+    expect(buildPathForRoute("account")).toBe("/account");
+  });
+
+  it("reads route from location pathname", () => {
+    window.history.replaceState({}, "", "/settings/server");
+    expect(getRouteFromLocation()).toEqual({ view: "config", section: "server" });
+
+    window.history.replaceState({}, "", "/library/artists");
+    expect(getRouteFromLocation()).toEqual({ view: "library", section: "artists" });
+
+    window.history.replaceState({}, "", "/upload");
+    expect(getRouteFromLocation()).toEqual({ view: "upload", section: null });
+
+    window.history.replaceState({}, "", "/");
+    expect(getRouteFromLocation()).toEqual({ view: "library", section: "home" });
+
+    window.history.replaceState({}, "", "/unknown-path");
+    expect(getRouteFromLocation()).toEqual({ view: "library", section: "home" });
+  });
+
+  it("redirects legacy view query param to path", () => {
+    window.history.replaceState({}, "", "/?view=config");
+    const route = getRouteFromLocation();
+    expect(route).toEqual({ view: "config", section: "index" });
+    expect(window.location.pathname).toBe("/settings");
+    expect(window.location.search).toBe("");
   });
 
   it("builds album keys with id fallback", () => {

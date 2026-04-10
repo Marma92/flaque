@@ -87,6 +87,15 @@ export function listUsers(): AuthUser[] {
     .all() as AuthUser[];
 }
 
+export function listAdminUsersWithEmail(): AuthUser[] {
+  const database = requireDb();
+  return database
+    .prepare(
+      "SELECT id, username, COALESCE(email, '') AS email, role FROM users WHERE role = 'admin' AND email IS NOT NULL AND TRIM(email) != ''"
+    )
+    .all() as AuthUser[];
+}
+
 export function countUsersByRole(role: UserRole): number {
   const database = requireDb();
   const row = database

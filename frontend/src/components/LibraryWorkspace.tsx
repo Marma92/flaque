@@ -5,6 +5,7 @@ import { LibraryPlaylistSection } from "./LibraryPlaylistSection";
 import { PaginatedLibrary } from "./PaginatedLibrary";
 import type { AlbumEntry, ArtistEntry, LibraryResponse, Playlist, PlaylistVisibility, RadioTrack, Track } from "../types";
 import type { LibraryFilters, LibrarySection } from "../types/library";
+import { navigateTo } from "../utils/appUtils";
 import type { UploadPeriod } from "../hooks/useRecentlyUploaded";
 
 type LibraryWorkspaceProps = {
@@ -204,12 +205,12 @@ export function LibraryWorkspace({
             onRecentlyUploadedPeriodChange={onRecentlyUploadedPeriodChange}
             onRecentlyUploadedTrackSelect={onLibraryTrackSelect}
             ownerNameById={ownerNameById}
-            onNavigateToLibrary={() => onSectionChange("music")}
             radioLoading={radioLoading}
             radioStationId={radioStationId}
             radioCurrentTrack={radioCurrentTrack}
             radioNextTrack={radioNextTrack}
             onStartRadioPlayback={onStartRadioPlayback}
+            onNavigateToLibrary={() => { navigateTo("library", "music"); onSectionChange("music"); }}
           />
 
         </>

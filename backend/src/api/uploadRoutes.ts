@@ -14,6 +14,7 @@ import { fileExists } from "../utils/fs";
 import { getAudioMimeType, getSupportedAudioExtensions, isSupportedAudioFile } from "../utils/mime";
 import { tmpUploadsRoot } from "../utils/paths";
 import { ensureSharedMusicDir } from "../services/storage/storageService";
+import { checkStorageAndWarnAdmins } from "../services/storage/storageWarningService";
 import { createLogger } from "../utils/logger";
 import { normalizeOptionalString, parseBooleanField } from "../utils/validation";
 
@@ -255,6 +256,7 @@ export function createUploadRouter(indexStore: IndexStore): Router {
             album: manualAlbum
           }
         });
+        void checkStorageAndWarnAdmins();
       } catch (error) {
         await cleanupTemporaryFiles(tempFilePaths);
         next(error);
