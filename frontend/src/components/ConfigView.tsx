@@ -46,7 +46,6 @@ export function ConfigView({
   const [searchText, setSearchText] = useState("");
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [activeTrackActionId, setActiveTrackActionId] = useState<string | null>(null);
   const [deleteTrackCandidate, setDeleteTrackCandidate] = useState<Track | null>(null);
   const [deletingTrack, setDeletingTrack] = useState(false);
@@ -98,15 +97,13 @@ export function ConfigView({
 
   async function handleDeleteTrack(track: Track): Promise<void> {
     setActiveTrackActionId(track.id);
-    setActionMessage(null);
     setDeletingTrack(true);
 
     try {
       await onDeleteTrack(track.id);
-      setActionMessage(`Deleted ${getTrackDisplayTitle(track)}.`);
       setDeleteTrackCandidate(null);
     } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : "Track deletion failed");
+      void error;
     } finally {
       setActiveTrackActionId(null);
       setDeletingTrack(false);
@@ -136,7 +133,6 @@ export function ConfigView({
     }
 
     setSavingEdit(true);
-    setActionMessage(null);
 
     try {
       await onUpdateTrackMetadata(editState.track.id, {
@@ -144,10 +140,9 @@ export function ConfigView({
         artist: editState.artist.trim() || null,
         album: editState.album.trim() || null
       });
-      setActionMessage(`Metadata updated for ${getTrackDisplayTitle(editState.track)}.`);
       setEditState(null);
     } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : "Metadata update failed");
+      void error;
     } finally {
       setSavingEdit(false);
     }
@@ -162,12 +157,6 @@ export function ConfigView({
           aria-live="polite"
         >
           {trackError}
-        </p>
-      ) : null}
-
-      {actionMessage ? (
-        <p className="text-sm text-flaque-steel" role="status" aria-live="polite">
-          {actionMessage}
         </p>
       ) : null}
 
