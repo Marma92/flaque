@@ -349,7 +349,153 @@ type UploadSingleTrackInput = {
   onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
 };
 
-function uploadSingleTrack(input: UploadSingleTrackInput): Promise<UploadTracksResult> {
+const CHUNK_SIZE = 99 * 1024 * 1024;
+
+async function getChunkSize(): Promise<number> {
+  const response = await requestJson<{ chunkSize: number }>("/api/upload/chunk-size");
+  return response.chunkSize;
+}
+
+type ChunkedUploadSession = {
+  sessionId: string;
+  chunkSize: number;
+  totalChunks: number;
+};
+
+async function initChunkedUpload(fileName: string, fileSize: number): Promise<ChunkedUploadSession> {
+  return requestJson<ChunkedUploadSession>("/api/upload/chunked/init", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fileName, fileSize })
+  });
+}
+
+async function uploadChunk(sessionId: string, chunkIndex: number, chunk: Blob): Promise<void> {
+  const formData = new FormData();
+  formData.append("sessionId", sessionId);
+  formData.append("chunkIndex", String(chunkIndex));
+  formData.append("chunk", chunk);
+
+  await requestJson<{ received: number }>("/api/upload/chunked/chunk", {
+    method: "POST",
+    body: formData
+  });
+}
+
+async function completeChunkedUpload(sessionId: string): Promise<{ tempPath: string; fileName: string; size: number }> {
+  return requestJson<{ tempPath: string; fileName: string; size: number }>("/api/upload/chunked/complete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId })
+  });
+}
+
+async function cancelChunkedUpload(sessionId: string): Promise<void> {
+  await requestJson("/api/upload/chunked/cancel", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId })
+  });
+}
+
+async function uploadChunked(
+  file: File,
+  onProgress?: (input: { loaded: number; total: number; percent: number }) => void
+): Promise<{ tempPath: string }> {
+  const { sessionId, chunkSize, totalChunks } = await initChunkedUpload(file.name, file.size);
+  let uploadedBytes = 0;
+
+  try {
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * chunkSize;
+      const end = Math.min(start + chunkSize, file.size);
+      const chunk = file.slice(start, end);
+
+      await uploadChunk(sessionId, i, chunk);
+      uploadedBytes += chunk.size;
+
+      if (onProgress) {
+        onProgress({
+          loaded: uploadedBytes,
+          total: file.size,
+          percent: Math.round((uploadedBytes / file.size) * 100)
+        });
+      }
+    }
+
+    const result = await completeChunkedUpload(sessionId);
+    return { tempPath: result.tempPath };
+  } catch (error) {
+    await cancelChunkedUpload(sessionId);
+    throw error;
+  }
+}
+
+async function uploadSingleTrack(input: UploadSingleTrackInput): Promise<UploadTracksResult> {
+  if (input.file.size > CHUNK_SIZE) {
+    return uploadSingleTrackChunked(input);
+  }
+  return uploadSingleTrackDirect(input);
+}
+
+async function uploadSingleTrackChunked(input: UploadSingleTrackInput): Promise<UploadTracksResult> {
+  const { tempPath } = await uploadChunked(input.file, input.onProgress);
+  return finalizeChunkedUpload(tempPath, input);
+}
+
+async function finalizeChunkedUpload(
+  tempPath: string,
+  input: Pick<UploadSingleTrackInput, "artist" | "album" | "deferRebuild" | "metadataOverride">
+): Promise<UploadTracksResult> {
+  const formData = new FormData();
+  formData.append("tempPath", tempPath);
+
+  if (input.artist?.trim()) {
+    formData.append("artist", input.artist.trim());
+  }
+
+  if (input.album?.trim()) {
+    formData.append("album", input.album.trim());
+  }
+
+  if (input.metadataOverride) {
+    formData.append("metadataOverrides", JSON.stringify([input.metadataOverride]));
+  }
+
+  if (input.deferRebuild) {
+    formData.append("deferRebuild", "1");
+  }
+
+  return new Promise<UploadTracksResult>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", withApiBase("/api/upload/finalize"), true);
+    request.withCredentials = true;
+    request.responseType = "json";
+
+    request.onload = () => {
+      const payload = request.response as { error?: string } | UploadTracksResult | null;
+      if (request.status >= 200 && request.status < 300 && payload) {
+        resolve(payload as UploadTracksResult);
+        return;
+      }
+
+      const message =
+        (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+          ? payload.error
+          : null) ?? `Request failed (${request.status})`;
+
+      reject(new ApiError(request.status, "/api/upload/finalize", message));
+    };
+
+    request.onerror = () => {
+      reject(new Error("Upload failed due to a network error"));
+    };
+
+    request.send(formData);
+  });
+}
+
+function uploadSingleTrackDirect(input: UploadSingleTrackInput): Promise<UploadTracksResult> {
   const formData = new FormData();
   formData.append("file", input.file);
 
