@@ -37,6 +37,7 @@ type AudioPlayerProps = {
   playRequestNonce?: number;
   playRequestOffsetSec?: number;
   seekLocked?: boolean;
+  radioStopped?: boolean;
   onStopRadioPlayback?: () => void;
   onResumeRadioPlayback?: () => Promise<void> | void;
   playlists?: Playlist[];
@@ -63,6 +64,7 @@ export function AudioPlayer({
   playRequestNonce = 0,
   playRequestOffsetSec = 0,
   seekLocked = false,
+  radioStopped = false,
   onStopRadioPlayback,
   onResumeRadioPlayback,
   playlists = [],
@@ -175,6 +177,7 @@ export function AudioPlayer({
   const syncedLyrics = useMemo(() => getTrackSyncedLyrics(track), [track]);
   const hasLyrics = Boolean(displayLyrics);
   const isRadioMode = track.owner === "radio";
+  const isRadioStopped = isRadioMode && radioStopped;
   const codecLabel = `${track.codec}${track.sampleRate ? ` - ${Math.round(track.sampleRate / 1000)} kHz` : ""}`;
 
   const hasPlayablePlaylists = playlists.length > 0;
@@ -203,12 +206,12 @@ export function AudioPlayer({
       >
         {expanded ? (
           <div className="relative shrink-0 overflow-hidden rounded-2xl">
-            {isRadioMode ? (
+            {isRadioMode && !isRadioStopped ? (
               <div className="absolute left-4 top-4 z-30 rounded-md border border-[rgba(255,255,255,0.5)] bg-[#ffffff] p-1 shadow-sm">
                 <img className="h-10 w-10" src="/radio.png" alt="Radio mode" />
               </div>
             ) : null}
-            {hasLyrics ? (
+            {hasLyrics && !isRadioStopped ? (
               <button
                 className="absolute inset-0 z-10 cursor-pointer"
                 type="button"
@@ -217,16 +220,22 @@ export function AudioPlayer({
                 aria-label={showLyricsOverlay ? "Hide lyrics" : "Show lyrics"}
               />
             ) : null}
-            <img
-              className={artworkClassName}
-              src={coverUrl(track.id, track.cover)}
-              alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
-              onError={(event) => {
-                event.currentTarget.src = defaultCoverImage;
-              }}
-            />
+            {isRadioStopped ? (
+              <div className={`${artworkClassName} border border-[rgba(255,255,255,0.5)] bg-[#ffffff] flex items-center justify-center`}>
+                <img className="h-30 w-30" src="/radio.png" alt="Radio" />
+              </div>
+            ) : (
+              <img
+                className={artworkClassName}
+                src={coverUrl(track.id, track.cover)}
+                alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
+                onError={(event) => {
+                  event.currentTarget.src = defaultCoverImage;
+                }}
+              />
+            )}
 
-            {showLyricsOverlay && displayLyrics ? (
+            {showLyricsOverlay && displayLyrics && !isRadioStopped ? (
               <div className="absolute inset-0 z-20 overflow-hidden bg-black/80 p-5">
                 <button
                   className="absolute right-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
@@ -251,12 +260,16 @@ export function AudioPlayer({
         ) : (
           <div className="flex shrink-0 flex-col items-center gap-0.5">
             <div className="relative">
-              {isRadioMode ? (
+              {isRadioMode && !isRadioStopped ? (
                 <div className="absolute left-2 top-2 z-20 rounded-md border border-[rgba(255,255,255,0.5)] bg-[#ffffff] p-1 shadow-sm">
                   <img className="h-3.5 w-3.5" src="/radio.png" alt="Radio mode" />
                 </div>
               ) : null}
-              {onArtworkClick ? (
+              {isRadioStopped ? (
+                <div className={`${artworkClassName} flex items-center justify-center border border-[rgba(255,255,255,0.5)] bg-[#ffffff]`}>
+                  <img className="h-10 w-10" src="/radio.png" alt="Radio" />
+                </div>
+              ) : onArtworkClick ? (
                 <button
                   className="shrink-0 rounded-2xl"
                   type="button"
@@ -291,24 +304,32 @@ export function AudioPlayer({
 
         <div className={contentLayoutClass}>
           <div className={textBlockClassName}>
-            <p
-              className={`font-display text-flaque-ink leading-tight ${expanded ? "text-2xl truncate" : "text-lg overflow-x-auto scrollbar-hide whitespace-nowrap"}`}
-              title={displayTitle}
-            >
-              {displayTitle}
-            </p>
-            <p className={secondaryTextClassName}>{displayArtist}</p>
-            {displayAlbumWithYear ? (
-              <p className={expanded ? "truncate text-xs text-flaque-steel/80" : "overflow-x-auto scrollbar-hide whitespace-nowrap text-xs text-flaque-steel/80"}>{displayAlbumWithYear}</p>
-            ) : null}
-            <p className={metaTextClassName}>
-              {codecLabel}
-              {hasLyrics ? (
-                <span className="ml-2 rounded bg-flaque-ink/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-flaque-ink/70 dark:bg-flaque-cream/10 dark:text-flaque-cream/70">
-                  Lyrics
-                </span>
-              ) : null}
-            </p>
+            {isRadioStopped ? (
+              <p className={`font-display text-flaque-ink leading-tight ${expanded ? "text-2xl" : "text-lg"}`}>
+                Radio stopped
+              </p>
+            ) : (
+              <>
+                <p
+                  className={`font-display text-flaque-ink leading-tight ${expanded ? "text-2xl truncate" : "text-lg overflow-x-auto scrollbar-hide whitespace-nowrap"}`}
+                  title={displayTitle}
+                >
+                  {displayTitle}
+                </p>
+                <p className={secondaryTextClassName}>{displayArtist}</p>
+                {displayAlbumWithYear ? (
+                  <p className={expanded ? "truncate text-xs text-flaque-steel/80" : "overflow-x-auto scrollbar-hide whitespace-nowrap text-xs text-flaque-steel/80"}>{displayAlbumWithYear}</p>
+                ) : null}
+                <p className={metaTextClassName}>
+                  {codecLabel}
+                  {hasLyrics ? (
+                    <span className="ml-2 rounded bg-flaque-ink/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-flaque-ink/70 dark:bg-flaque-cream/10 dark:text-flaque-cream/70">
+                      Lyrics
+                    </span>
+                  ) : null}
+                </p>
+              </>
+            )}
           </div>
 
           <div className={controlsLayoutClass}>

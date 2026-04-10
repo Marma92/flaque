@@ -135,6 +135,7 @@ export function AuthenticatedApp({
   }, [isRadioPlaybackActive, selectedTrackRefreshed, stopRadioPlayback]);
 
   const isRadioPlaybackLocked = isRadioPlaybackActive && selectedTrackRefreshed?.owner === "radio";
+  const isRadioStopped = !isRadioPlaybackActive && selectedTrackRefreshed?.owner === "radio";
 
   // ── Admin ─────────────────────────────────────────────────────────────
   const { adminUsers, loadingAdminUsers, adminError, refreshAdminUsers, clearAdminState } = useAdminUsers({ user });
@@ -437,6 +438,7 @@ export function AuthenticatedApp({
         playRequestNonce,
         playRequestOffsetSec,
         seekLocked: isRadioPlaybackLocked,
+        radioStopped: isRadioStopped,
         onStopRadioPlayback: stopRadioPlayback,
         onResumeRadioPlayback: startRadioPlayback,
         playlists: manageablePlaylists,
