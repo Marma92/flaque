@@ -23,7 +23,7 @@ export function AppStatusBanners({
     <>
       {appNotice ? (
         <div
-          className={`mb-4 rounded-xl border px-3 py-2 text-sm ${
+          className={`mb-4 rounded-xl border px-3 py-2 m-4 text-sm ${
             appNotice.tone === "success"
               ? "border-emerald-300 bg-emerald-50 text-emerald-800"
               : appNotice.tone === "error"
