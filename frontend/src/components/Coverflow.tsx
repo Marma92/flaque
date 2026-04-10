@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 
+import defaultCoverImage from "../assets/default-cover.png";
 import type { AlbumListProps } from "./AlbumList";
 import { getAlbumKey } from "../utils/appUtils";
 
@@ -198,6 +199,7 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverS
           display: block;
           width: var(--cover-size);
           height: var(--cover-size);
+          object-fit: cover;
           border: 1px solid rgb(var(--flaque-clay-rgb) / 0.65);
           border-radius: 0.6rem;
           position: relative;
@@ -306,6 +308,13 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverS
                       width={1200}
                       height={1200}
                       alt={`Cover for ${albumTitle}`}
+                      onError={(e) => {
+                        e.currentTarget.src = defaultCoverImage;
+                        const reflection = e.currentTarget.nextElementSibling as HTMLElement | null;
+                        if (reflection) {
+                          reflection.style.backgroundImage = `url("${defaultCoverImage}")`;
+                        }
+                      }}
                       onClick={(e) => {
                         const li = (e.currentTarget as HTMLElement).closest("li");
                         const wrapper = wrapperRef.current;
