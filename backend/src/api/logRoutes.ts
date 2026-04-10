@@ -155,7 +155,7 @@ export function createLogRouter(): Router {
 
   router.get("/logs/storage", requireAuth, requireAdmin, async (_req, res, next) => {
     try {
-      const fsStats = await fs.statfs(dataRoot);
+      const fsStats = await fs.statfs(storageRoot);
       const blockSize = fsStats.bsize;
       const diskTotal = fsStats.blocks * blockSize;
       const diskFree = fsStats.bavail * blockSize;
