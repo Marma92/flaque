@@ -306,6 +306,14 @@ export function AuthenticatedApp({
         recentlyUploadedLoading,
         recentlyUploadedPeriod,
         onRecentlyUploadedPeriodChange: setRecentlyUploadedPeriod,
+        radioLoading: loadingRadio,
+        radioStationId,
+        radioCurrentTrack,
+        radioNextTrack,
+        onStartRadioPlayback: () => {
+          setActiveView("player");
+          startRadioPlayback();
+        },
         paginatedTracks,
         paginatedTotal,
         paginatedLoading,

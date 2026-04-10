@@ -3,7 +3,7 @@ import { LibraryAlbumsSection } from "./LibraryAlbumsSection";
 import { LibraryArtistsSection } from "./LibraryArtistsSection";
 import { LibraryPlaylistSection } from "./LibraryPlaylistSection";
 import { PaginatedLibrary } from "./PaginatedLibrary";
-import type { AlbumEntry, ArtistEntry, LibraryResponse, Playlist, PlaylistVisibility, Track } from "../types";
+import type { AlbumEntry, ArtistEntry, LibraryResponse, Playlist, PlaylistVisibility, RadioTrack, Track } from "../types";
 import type { LibraryFilters, LibrarySection } from "../types/library";
 import type { UploadPeriod } from "../hooks/useRecentlyUploaded";
 
@@ -56,6 +56,11 @@ type LibraryWorkspaceProps = {
   recentlyUploadedLoading: boolean;
   recentlyUploadedPeriod: UploadPeriod;
   onRecentlyUploadedPeriodChange: (period: UploadPeriod) => void;
+  radioLoading?: boolean;
+  radioStationId?: string | null;
+  radioCurrentTrack?: RadioTrack | null;
+  radioNextTrack?: RadioTrack | null;
+  onStartRadioPlayback?: () => void;
   // Paginated library
   paginatedTracks: Track[];
   paginatedTotal: number;
@@ -116,6 +121,11 @@ export function LibraryWorkspace({
   recentlyUploadedLoading,
   recentlyUploadedPeriod,
   onRecentlyUploadedPeriodChange,
+  radioLoading,
+  radioStationId,
+  radioCurrentTrack,
+  radioNextTrack,
+  onStartRadioPlayback,
   paginatedTracks,
   paginatedTotal,
   paginatedLoading,
@@ -195,6 +205,11 @@ export function LibraryWorkspace({
             onRecentlyUploadedTrackSelect={onLibraryTrackSelect}
             ownerNameById={ownerNameById}
             onNavigateToLibrary={() => onSectionChange("music")}
+            radioLoading={radioLoading}
+            radioStationId={radioStationId}
+            radioCurrentTrack={radioCurrentTrack}
+            radioNextTrack={radioNextTrack}
+            onStartRadioPlayback={onStartRadioPlayback}
           />
 
         </>
