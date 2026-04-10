@@ -111,11 +111,27 @@ export function AuthenticatedApp({
     stationId: radioStationId,
     currentTrack: radioCurrentTrack,
     nextTrack: radioNextTrack,
-    startRadioPlayback
+    isRadioPlaybackActive,
+    startRadioPlayback,
+    stopRadioPlayback
   } = useRadioStation({
     userId: user?.id,
     onPlayRadioTrack: handlePlayRadioTrack
   });
+
+  useEffect(() => {
+    if (!isRadioPlaybackActive) {
+      return;
+    }
+
+    if (!selectedTrackRefreshed || selectedTrackRefreshed.owner === "radio") {
+      return;
+    }
+
+    stopRadioPlayback();
+  }, [isRadioPlaybackActive, selectedTrackRefreshed, stopRadioPlayback]);
+
+  const isRadioPlaybackLocked = isRadioPlaybackActive && selectedTrackRefreshed?.owner === "radio";
 
   // ── Admin ─────────────────────────────────────────────────────────────
   const { adminUsers, loadingAdminUsers, adminError, refreshAdminUsers, clearAdminState } = useAdminUsers({ user });
@@ -401,8 +417,12 @@ export function AuthenticatedApp({
       playerStatusMessage={playerStatusMessage}
       audioPlayerProps={{
         track: selectedTrackRefreshed,
-        onNext: (options) => handleNavigateTrack("next", options?.wrap ?? true),
-        onPrevious: (options) => handleNavigateTrack("previous", options?.wrap ?? true),
+        onNext: isRadioPlaybackLocked
+          ? undefined
+          : (options) => handleNavigateTrack("next", options?.wrap ?? true),
+        onPrevious: isRadioPlaybackLocked
+          ? undefined
+          : (options) => handleNavigateTrack("previous", options?.wrap ?? true),
         onTrackPlayed: recordTrackPlayed,
         transcodeMode,
         onTranscodeModeChange: setTranscodeMode,
@@ -412,13 +432,18 @@ export function AuthenticatedApp({
         onShuffleEnabledChange: setShuffleEnabled,
         playRequestNonce,
         playRequestOffsetSec,
+        seekLocked: isRadioPlaybackLocked,
         playlists: manageablePlaylists,
         onAddTrackToPlaylist: handleAddTrackToPlaylist,
-        queueTracks: refreshedQueue,
+        queueTracks: isRadioPlaybackLocked
+          ? (selectedTrackRefreshed ? [selectedTrackRefreshed] : [])
+          : refreshedQueue,
         currentQueueTrackId: selectedTrackRefreshed?.id ?? null,
-        onQueueTrackSelect: (queueTrack) => {
-          requestTrackPlaybackWithStatus(queueTrack, refreshedQueue.length > 0 ? refreshedQueue : undefined);
-        }
+        onQueueTrackSelect: isRadioPlaybackLocked
+          ? undefined
+          : (queueTrack) => {
+            requestTrackPlaybackWithStatus(queueTrack, refreshedQueue.length > 0 ? refreshedQueue : undefined);
+          }
       }}
     />
   );

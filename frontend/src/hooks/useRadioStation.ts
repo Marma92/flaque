@@ -23,7 +23,9 @@ type UseRadioStationResult = {
   stationId: string | null;
   currentTrack: RadioTrack | null;
   nextTrack: RadioTrack | null;
+  isRadioPlaybackActive: boolean;
   startRadioPlayback: () => Promise<void>;
+  stopRadioPlayback: () => void;
 };
 
 function clampOffsetSec(offsetSec: number, durationSec: number): number {
@@ -93,7 +95,9 @@ function toSnapshotFromCreate(payload: RadioCreateResponse): RadioSnapshot | nul
 export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArgs): UseRadioStationResult {
   const [loading, setLoading] = useState(false);
   const [snapshot, setSnapshot] = useState<RadioSnapshot | null>(null);
-  const refreshTimeoutRef = useRef<number | null>(null);
+  const [isRadioPlaybackActive, setIsRadioPlaybackActive] = useState(false);
+  const timelineRefreshTimeoutRef = useRef<number | null>(null);
+  const rebuildRefreshTimeoutRef = useRef<number | null>(null);
   const radioPlaybackActiveRef = useRef(false);
   const onPlayRadioTrackRef = useRef(onPlayRadioTrack);
 
@@ -101,10 +105,14 @@ export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArg
     onPlayRadioTrackRef.current = onPlayRadioTrack;
   }, [onPlayRadioTrack]);
 
-  const clearRefreshTimer = useCallback(() => {
-    if (refreshTimeoutRef.current !== null) {
-      window.clearTimeout(refreshTimeoutRef.current);
-      refreshTimeoutRef.current = null;
+  const clearRefreshTimers = useCallback(() => {
+    if (timelineRefreshTimeoutRef.current !== null) {
+      window.clearTimeout(timelineRefreshTimeoutRef.current);
+      timelineRefreshTimeoutRef.current = null;
+    }
+    if (rebuildRefreshTimeoutRef.current !== null) {
+      window.clearTimeout(rebuildRefreshTimeoutRef.current);
+      rebuildRefreshTimeoutRef.current = null;
     }
   }, []);
 
@@ -223,6 +231,7 @@ export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArg
 
   const startRadioPlayback = useCallback(async (): Promise<void> => {
     radioPlaybackActiveRef.current = true;
+    setIsRadioPlaybackActive(true);
 
     if (snapshot?.currentTrack) {
       playSnapshotNow(snapshot);
@@ -247,41 +256,73 @@ export function useRadioStation({ userId, onPlayRadioTrack }: UseRadioStationArg
     }
   }, [createAndUseStation, playSnapshotNow, snapshot]);
 
+  const stopRadioPlayback = useCallback((): void => {
+    radioPlaybackActiveRef.current = false;
+    setIsRadioPlaybackActive(false);
+  }, []);
+
   useEffect(() => {
-    clearRefreshTimer();
+    if (!userId) {
+      stopRadioPlayback();
+    }
+  }, [stopRadioPlayback, userId]);
+
+  useEffect(() => {
+    clearRefreshTimers();
     void bootstrapStation();
 
     return () => {
-      clearRefreshTimer();
+      clearRefreshTimers();
     };
-  }, [bootstrapStation, clearRefreshTimer]);
+  }, [bootstrapStation, clearRefreshTimers]);
 
   useEffect(() => {
-    clearRefreshTimer();
+    clearRefreshTimers();
 
-    if (!snapshot?.nextTrack) {
+    if (!snapshot) {
       return;
     }
 
-    const refreshAtMs = Date.parse(snapshot.nextTrack.endsAt) - RELOAD_BEFORE_NEXT_TRACK_END_MS;
-    const delayMs = Math.max(0, refreshAtMs - getEstimatedServerNowMs(snapshot));
+    const estimatedServerNowMs = getEstimatedServerNowMs(snapshot);
 
-    refreshTimeoutRef.current = window.setTimeout(() => {
-      void refreshStation();
-    }, delayMs);
+    if (snapshot.currentTrack) {
+      const timelineRefreshAtMs = Date.parse(snapshot.currentTrack.endsAt) + 250;
+      const timelineDelayMs = Math.max(0, timelineRefreshAtMs - estimatedServerNowMs);
+      timelineRefreshTimeoutRef.current = window.setTimeout(() => {
+        void refreshStation();
+      }, timelineDelayMs);
+    }
+
+    if (snapshot.nextTrack) {
+      const rebuildRefreshAtMs = Date.parse(snapshot.nextTrack.endsAt) - RELOAD_BEFORE_NEXT_TRACK_END_MS;
+      const rebuildDelayMs = Math.max(0, rebuildRefreshAtMs - estimatedServerNowMs);
+      rebuildRefreshTimeoutRef.current = window.setTimeout(() => {
+        void refreshStation();
+      }, rebuildDelayMs);
+    }
 
     return () => {
-      clearRefreshTimer();
+      clearRefreshTimers();
     };
-  }, [clearRefreshTimer, refreshStation, snapshot]);
+  }, [clearRefreshTimers, refreshStation, snapshot]);
 
   const result = useMemo<UseRadioStationResult>(() => ({
     loading,
     stationId: snapshot?.stationId ?? null,
     currentTrack: snapshot?.currentTrack ?? null,
     nextTrack: snapshot?.nextTrack ?? null,
-    startRadioPlayback
-  }), [loading, snapshot?.currentTrack, snapshot?.nextTrack, snapshot?.stationId, startRadioPlayback]);
+    isRadioPlaybackActive,
+    startRadioPlayback,
+    stopRadioPlayback
+  }), [
+    isRadioPlaybackActive,
+    loading,
+    snapshot?.currentTrack,
+    snapshot?.nextTrack,
+    snapshot?.stationId,
+    startRadioPlayback,
+    stopRadioPlayback
+  ]);
 
   return result;
 }

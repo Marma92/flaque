@@ -36,6 +36,7 @@ type AudioPlayerProps = {
   onShuffleEnabledChange?: (enabled: boolean) => void;
   playRequestNonce?: number;
   playRequestOffsetSec?: number;
+  seekLocked?: boolean;
   playlists?: Playlist[];
   onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
   queueTracks?: Track[];
@@ -59,6 +60,7 @@ export function AudioPlayer({
   onShuffleEnabledChange,
   playRequestNonce = 0,
   playRequestOffsetSec = 0,
+  seekLocked = false,
   playlists = [],
   onAddTrackToPlaylist,
   queueTracks = [],
@@ -97,6 +99,12 @@ export function AudioPlayer({
       setShowLyricsOverlay(false);
     }
   }, [expanded]);
+
+  useEffect(() => {
+    if (seekLocked) {
+      setShowQueuePanel(false);
+    }
+  }, [seekLocked]);
 
   if (!track) {
     return (
@@ -300,7 +308,7 @@ export function AudioPlayer({
                   void onPrevious({ wrap: false });
                 }
               }}
-              disabled={!onPrevious}
+              disabled={!onPrevious || seekLocked}
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M7 6h2v12H7zM19 6v12l-8.5-6L19 6z" />
@@ -333,7 +341,7 @@ export function AudioPlayer({
                   void onNext({ wrap: false });
                 }
               }}
-              disabled={!onNext}
+              disabled={!onNext || seekLocked}
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M15 6h2v12h-2zM5 6v12l8.5-6L5 6z" />
@@ -417,6 +425,7 @@ export function AudioPlayer({
                 type="button"
                 aria-label={showQueuePanel ? "Hide queue" : "Show queue"}
                 title={showQueuePanel ? "Hide queue" : "Show queue"}
+                disabled={seekLocked}
                 onClick={() => setShowQueuePanel((current) => !current)}
               >
                 <svg
@@ -689,12 +698,13 @@ export function AudioPlayer({
           ) : null}
 
           <input
-            className="h-2 w-full cursor-pointer appearance-none rounded-full bg-flaque-clay/60"
+            className={`h-2 w-full appearance-none rounded-full bg-flaque-clay/60 ${seekLocked ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
             type="range"
             min={0}
             max={Math.max(duration || track.duration, 1)}
             step={0.1}
             value={Math.min(currentTime, duration || track.duration || 0)}
+            disabled={seekLocked}
             onChange={(event) => onSeek(Number(event.target.value))}
           />
 
