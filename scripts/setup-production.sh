@@ -18,6 +18,13 @@ DEFAULT_SESSION_COOKIE_SECURE="no"
 DEFAULT_SYNC_ADMIN_PASSWORD="yes"
 DEFAULT_HTTP_REQUEST_TIMEOUT_MS="0"
 DEFAULT_HTTP_SOCKET_TIMEOUT_MS="0"
+DEFAULT_SMTP_ENABLED="no"
+DEFAULT_SMTP_HOST=""
+DEFAULT_SMTP_PORT="587"
+DEFAULT_SMTP_SECURE="no"
+DEFAULT_SMTP_USER=""
+DEFAULT_SMTP_PASS=""
+DEFAULT_SMTP_FROM="Flaque <no-reply@example.com>"
 ADMIN_LOGIN_VERIFIED="no"
 
 COLOR_RESET="\033[0m"
@@ -550,6 +557,38 @@ else
   SYNC_ADMIN_PASSWORD="false"
 fi
 
+SMTP_ENABLED_PROMPT="$(prompt_yes_no "Configure SMTP for password reset emails?" "${DEFAULT_SMTP_ENABLED}")"
+SMTP_HOST=""
+SMTP_PORT=""
+SMTP_SECURE=""
+SMTP_USER=""
+SMTP_PASS=""
+SMTP_FROM=""
+if [[ "${SMTP_ENABLED_PROMPT}" == "yes" ]]; then
+  while true; do
+    SMTP_HOST="$(prompt_with_default "SMTP host" "${DEFAULT_SMTP_HOST}" "trim")"
+    if [[ -n "${SMTP_HOST}" ]]; then
+      break
+    fi
+    print_warn "SMTP host cannot be empty when SMTP is enabled."
+  done
+  SMTP_PORT="$(prompt_port "SMTP port" "${DEFAULT_SMTP_PORT}")"
+  SMTP_SECURE_PROMPT="$(prompt_yes_no "Use TLS for SMTP (implicit TLS, typically port 465)?" "${DEFAULT_SMTP_SECURE}")"
+  if [[ "${SMTP_SECURE_PROMPT}" == "yes" ]]; then
+    SMTP_SECURE="true"
+  else
+    SMTP_SECURE="false"
+  fi
+  SMTP_USER="$(prompt_with_default "SMTP username" "${DEFAULT_SMTP_USER}" "trim")"
+  if [[ -n "${SMTP_USER}" ]]; then
+    SMTP_PASS="$(read_prompt_value "SMTP password: " "yes")"
+    SMTP_PASS="$(normalize_secret_value "${SMTP_PASS}")"
+  fi
+  SMTP_FROM="$(prompt_with_default "Sender address (From header)" "${DEFAULT_SMTP_FROM}" "trim")"
+  validate_single_line_value "SMTP_HOST" "${SMTP_HOST}"
+  validate_single_line_value "SMTP_FROM" "${SMTP_FROM}"
+fi
+
 HTTP_REQUEST_TIMEOUT_MS="${DEFAULT_HTTP_REQUEST_TIMEOUT_MS}"
 HTTP_SOCKET_TIMEOUT_MS="${DEFAULT_HTTP_SOCKET_TIMEOUT_MS}"
 
@@ -577,6 +616,7 @@ print_ok "Mount folders are ready"
 
 print_step "Writing ${ENV_FILE}"
 ADMIN_PASSWORD_LITERAL="$(quote_env_literal "${ADMIN_PASSWORD}")"
+SMTP_PASS_LITERAL="$(quote_env_literal "${SMTP_PASS}")"
 UPDATE_SECRET="$(head -c 32 /dev/urandom | xxd -p -c 64 2>/dev/null || openssl rand -hex 32)"
 
 umask 077
@@ -595,6 +635,13 @@ FLAQUE_STORAGE_DIR=${STORAGE_DIR}
 FLAQUE_STATE_DIR=${STATE_DIR}
 FLAQUE_FRONTEND_PORT=${FRONTEND_PORT}
 FLAQUE_BACKEND_PORT=${BACKEND_PORT}
+
+SMTP_HOST=${SMTP_HOST}
+SMTP_PORT=${SMTP_PORT}
+SMTP_SECURE=${SMTP_SECURE}
+SMTP_USER=${SMTP_USER}
+SMTP_PASS=${SMTP_PASS_LITERAL}
+SMTP_FROM=${SMTP_FROM}
 
 UPDATE_SECRET=${UPDATE_SECRET}
 COMPOSE_PROJECT_NAME=
@@ -645,3 +692,9 @@ printf "Email   : %s\n" "${ADMIN_EMAIL}"
 printf "Password: '%s'\n" "${ADMIN_PASSWORD}"
 printf "Cookie secure: %s\n" "${SESSION_COOKIE_SECURE}"
 printf "Sync admin password on setup: %s\n" "${SYNC_ADMIN_PASSWORD}"
+if [[ -n "${SMTP_HOST}" ]]; then
+  printf "SMTP    : %s:%s (secure=%s)\n" "${SMTP_HOST}" "${SMTP_PORT}" "${SMTP_SECURE}"
+  printf "SMTP from: %s\n" "${SMTP_FROM}"
+else
+  printf "SMTP    : not configured\n"
+fi
