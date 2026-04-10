@@ -48,18 +48,14 @@ export function HomePanels({
 
   return (
     <div className="space-y-4 m-4">
-      <section className="rounded-2xl border border-flaque-clay/60 bg-white/80 p-4 shadow-panel backdrop-blur-sm">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-flaque-steel">Radio</p>
+      <section className="rounded-xl border border-flaque-clay/60 bg-white/80 p-4 shadow-panel backdrop-blur-sm">
         <button
-          className="mt-2 w-full rounded-xl bg-flaque-ink px-4 py-3 text-left text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-2 w-full rounded-xl bg-flaque-ink cursor-pointer px-4 py-3 text-left text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
           type="button"
           disabled={!canStartRadio}
           onClick={() => onStartRadioPlayback?.()}
         >
-          <p className="font-display text-xl">Launch synchronized radio</p>
-          <p className="mt-1 text-sm text-flaque-cream/80">
-            Shared timeline station with server-side timing and rebuilds.
-          </p>
+          <p className="font-display text-xl">Launch radio</p>
         </button>
 
         <button
@@ -84,10 +80,10 @@ export function HomePanels({
           ) : (
             <p className="mt-1 text-sm text-flaque-steel">No active track yet.</p>
           )}
-          <p className="mt-2 text-xs text-flaque-steel/90">
+          {/* <p className="mt-2 text-xs text-flaque-steel/90">
             Station: {radioStationId ?? "stopped"}
             {radioNextTrack?.title ? ` · Up next: ${radioNextTrack.title}` : ""}
-          </p>
+          </p> */}
         </button>
       </section>
 
