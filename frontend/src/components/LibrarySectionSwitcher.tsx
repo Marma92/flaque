@@ -1,4 +1,5 @@
 import type { LibrarySection } from "../types/library";
+import { navigateTo } from "../utils/appUtils";
 
 type LibrarySectionSwitcherProps = {
   activeSection: LibrarySection;
@@ -30,7 +31,7 @@ export function LibrarySectionSwitcher({
                   : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
               }`}
               type="button"
-              onClick={() => onSectionChange(sectionKey)}
+              onClick={() => { navigateTo("library", sectionKey); onSectionChange(sectionKey); }}
             >
               {sectionLabel}
             </button>
