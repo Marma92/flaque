@@ -37,6 +37,7 @@ type AudioPlayerProps = {
   playRequestNonce?: number;
   playRequestOffsetSec?: number;
   seekLocked?: boolean;
+  onStopRadioPlayback?: () => void;
   playlists?: Playlist[];
   onAddTrackToPlaylist?: (input: { trackId: string; playlistId: string }) => Promise<void> | void;
   queueTracks?: Track[];
@@ -61,6 +62,7 @@ export function AudioPlayer({
   playRequestNonce = 0,
   playRequestOffsetSec = 0,
   seekLocked = false,
+  onStopRadioPlayback,
   playlists = [],
   onAddTrackToPlaylist,
   queueTracks = [],
@@ -73,7 +75,7 @@ export function AudioPlayer({
     audioRef, streamSource,
     isPlaying, currentTime, duration, volume, muted,
     canTranscode, effectiveTranscode,
-    onTogglePlayback, onSeek, onEnded,
+    pausePlayback, onTogglePlayback, onSeek, onEnded,
     onCycleRepeatMode, onToggleShuffle,
     handleTranscodeModeChange, handleVolumeChange, setMuted,
     handleAudioPlay, handleAudioPause, handleAudioTimeUpdate, handleAudioLoadedMetadata
@@ -320,6 +322,7 @@ export function AudioPlayer({
                 }
               }}
               disabled={!onPrevious || seekLocked}
+              hidden={isRadioMode}
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M7 6h2v12H7zM19 6v12l-8.5-6L19 6z" />
@@ -328,11 +331,22 @@ export function AudioPlayer({
             <button
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-flaque-ink text-flaque-cream transition hover:bg-black"
               type="button"
-              aria-label={isPlaying ? "Pause playback" : "Play playback"}
-              title={isPlaying ? "Pause" : "Play"}
-              onClick={onTogglePlayback}
+              aria-label={isRadioMode && isPlaying ? "Stop radio" : isPlaying ? "Pause playback" : "Play playback"}
+              title={isRadioMode && isPlaying ? "Stop" : isPlaying ? "Pause" : "Play"}
+              onClick={() => {
+                if (isRadioMode && isPlaying) {
+                  pausePlayback();
+                  onStopRadioPlayback?.();
+                  return;
+                }
+                onTogglePlayback();
+              }}
             >
-              {isPlaying ? (
+              {isRadioMode && isPlaying ? (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M7 7h10v10H7z" />
+                </svg>
+              ) : isPlaying ? (
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M8 6h3v12H8zM13 6h3v12h-3z" />
                 </svg>
@@ -353,6 +367,7 @@ export function AudioPlayer({
                 }
               }}
               disabled={!onNext || seekLocked}
+              hidden={isRadioMode}
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M15 6h2v12h-2zM5 6v12l8.5-6L5 6z" />
@@ -385,6 +400,7 @@ export function AudioPlayer({
                       : "Repeat one"
                 }
                 onClick={onCycleRepeatMode}
+                hidden={isRadioMode}
               >
                 {repeatMode === "one" ? (
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -416,6 +432,7 @@ export function AudioPlayer({
                 title={shuffleEnabled ? "Shuffle on" : "Shuffle off"}
                 onClick={onToggleShuffle}
                 disabled={!onShuffleEnabledChange}
+                hidden={isRadioMode}
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                   <path d="M16 3h5v5" strokeLinecap="round" strokeLinejoin="round" />

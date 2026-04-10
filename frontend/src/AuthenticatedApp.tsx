@@ -437,6 +437,7 @@ export function AuthenticatedApp({
         playRequestNonce,
         playRequestOffsetSec,
         seekLocked: isRadioPlaybackLocked,
+        onStopRadioPlayback: stopRadioPlayback,
         playlists: manageablePlaylists,
         onAddTrackToPlaylist: handleAddTrackToPlaylist,
         queueTracks: isRadioPlaybackLocked
