@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { cpus, totalmem, freemem } from "node:os";
 
 import { Router } from "express";
 
@@ -153,36 +154,69 @@ export function createLogRouter(): Router {
     }
   });
 
-  router.get("/logs/storage", requireAuth, requireAdmin, async (_req, res, next) => {
-    try {
-      const fsStats = await fs.statfs(storageRoot);
-      const blockSize = fsStats.bsize;
-      const diskTotal = fsStats.blocks * blockSize;
-      const diskFree = fsStats.bavail * blockSize;
+   router.get("/logs/storage", requireAuth, requireAdmin, async (_req, res, next) => {
+     try {
+       const fsStats = await fs.statfs(storageRoot);
+       const blockSize = fsStats.bsize;
+       const diskTotal = fsStats.blocks * blockSize;
+       const diskFree = fsStats.bavail * blockSize;
 
-      const directories = await Promise.all(
-        STORAGE_DIRECTORIES.map(async (dir) => ({
-          name: dir.name,
-          path: dir.path,
-          size: await getDirectorySize(dir.root)
-        }))
-      );
+       const directories = await Promise.all(
+         STORAGE_DIRECTORIES.map(async (dir) => ({
+           name: dir.name,
+           path: dir.path,
+           size: await getDirectorySize(dir.root)
+         }))
+       );
 
-      const totalDataSize = directories.reduce((sum, d) => sum + d.size, 0);
+       const totalDataSize = directories.reduce((sum, d) => sum + d.size, 0);
 
-      res.json({
-        disk: {
-          total: diskTotal,
-          free: diskFree,
-          used: diskTotal - diskFree
-        },
-        directories,
-        totalDataSize
-      });
-    } catch (error) {
-      next(error);
-    }
-  });
+       res.json({
+         disk: {
+           total: diskTotal,
+           free: diskFree,
+           used: diskTotal - diskFree
+         },
+         directories,
+         totalDataSize
+       });
+     } catch (error) {
+       next(error);
+     }
+   });
 
-  return router;
+   router.get("/logs/system-stats", requireAuth, requireAdmin, async (_req, res, next) => {
+     try {
+       const cpusList = cpus();
+       const cores = cpusList.length;
+       
+       let idle = 0;
+       let total = 0;
+       for (const cpu of cpusList) {
+         for (const type of Object.keys(cpu.times) as Array<keyof typeof cpu.times>) {
+           total += cpu.times[type];
+         }
+         idle += cpu.times.idle;
+       }
+       
+       const memoryUsage = (1 - (freemem() / totalmem())) * 100;
+       
+       res.json({
+         cpu: {
+           usagePercent: parseFloat(((1 - idle / total) * 100).toFixed(2)),
+           cores
+         },
+         memory: {
+           total: totalmem(),
+           used: totalmem() - freemem(),
+           free: freemem(),
+           usagePercent: parseFloat(memoryUsage.toFixed(2))
+         }
+       });
+     } catch (error) {
+       next(error);
+     }
+   });
+
+   return router;
 }

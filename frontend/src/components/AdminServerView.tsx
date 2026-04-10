@@ -1,6 +1,7 @@
 import { useState } from "react";
 
-import type { LogFile, LogEntry, StorageUsage, VersionInfo, UpdateStatus } from "../api";
+import type { LogFile, LogEntry, StorageUsage, SystemStats, VersionInfo, UpdateStatus } from "../api";
+import type { SystemStatsDataPoint } from "../hooks/useAdminServer";
 import { formatSize } from "../utils/format";
 
 type AdminServerViewProps = {
@@ -11,6 +12,9 @@ type AdminServerViewProps = {
   onCheckForUpdates: () => Promise<void>;
   storageUsage: StorageUsage | null;
   loadingStorage: boolean;
+  systemStats: SystemStats | null;
+  systemStatsHistory: SystemStatsDataPoint[];
+  loadingSystemStats: boolean;
   logFiles: LogFile[];
   loadingFiles: boolean;
   selectedFile: string | null;
@@ -24,6 +28,7 @@ type AdminServerViewProps = {
   onRefresh: () => Promise<void>;
   onLoadMore: () => Promise<void>;
   hasMore: boolean;
+  refreshServer: () => Promise<void>;
 };
 
 function formatLogTime(epochMs: number): { hm: string; s: string; ms: string } {
@@ -94,6 +99,116 @@ const DIR_COLORS = [
   "bg-purple-500",
   "bg-rose-400"
 ];
+
+function MiniAreaChart({ data, color, maxValue = 100 }: { data: number[]; color: string; maxValue?: number }): JSX.Element {
+  const w = 200;
+  const h = 50;
+
+  if (data.length < 2) {
+    return (
+      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="h-12 w-full rounded-lg" />
+    );
+  }
+
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w;
+    const y = h - (Math.min(v, maxValue) / maxValue) * h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+
+  const polylinePoints = points.join(" ");
+  const polygonPoints = `0,${h} ${polylinePoints} ${w},${h}`;
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="h-12 w-full rounded-lg">
+      <polygon points={polygonPoints} fill={color} opacity="0.15" />
+      <polyline points={polylinePoints} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+type SystemStatsSectionProps = {
+  systemStats: SystemStats | null;
+  history: SystemStatsDataPoint[];
+  loading: boolean;
+};
+
+function SystemStatsSection({ systemStats, history, loading }: SystemStatsSectionProps): JSX.Element {
+  if (loading && !systemStats) {
+    return (
+      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <h3 className="font-display text-xl text-flaque-ink">System</h3>
+        <p className="mt-2 text-sm text-flaque-steel">Loading...</p>
+      </section>
+    );
+  }
+
+  if (!systemStats) {
+    return (
+      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <h3 className="font-display text-xl text-flaque-ink">System</h3>
+        <p className="mt-2 text-sm text-flaque-steel">System stats unavailable.</p>
+      </section>
+    );
+  }
+
+  const cpuPercent = systemStats.cpu.usagePercent;
+  const memPercent = systemStats.memory.usagePercent;
+  const cpuHistory = history.map((p) => p.cpu);
+  const memHistory = history.map((p) => p.memory);
+
+  function barColor(percent: number): string {
+    if (percent > 90) return "bg-red-500";
+    if (percent > 75) return "bg-amber-500";
+    return "";
+  }
+
+  return (
+    <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <h3 className="font-display text-xl text-flaque-ink">System</h3>
+
+      <div className="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2">
+        {/* CPU */}
+        <div>
+          <div className="flex items-baseline justify-between text-sm">
+            <span className="font-medium text-flaque-ink">CPU</span>
+            <span className="text-flaque-steel">
+              {cpuPercent.toFixed(1)}% &middot; {systemStats.cpu.cores} cores
+            </span>
+          </div>
+          <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-flaque-clay/30">
+            <div
+              className={`h-full rounded-full transition-all ${barColor(cpuPercent) || "bg-blue-500"}`}
+              style={{ width: `${Math.min(cpuPercent, 100)}%` }}
+            />
+          </div>
+          <div className="mt-2">
+            <MiniAreaChart data={cpuHistory} color="#3b82f6" />
+          </div>
+        </div>
+
+        {/* Memory */}
+        <div>
+          <div className="flex items-baseline justify-between text-sm">
+            <span className="font-medium text-flaque-ink">Memory</span>
+            <span className="text-flaque-steel">
+              {memPercent.toFixed(1)}% &middot; {formatSize(systemStats.memory.used)} / {formatSize(systemStats.memory.total)}
+            </span>
+          </div>
+          <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-flaque-clay/30">
+            <div
+              className={`h-full rounded-full transition-all ${barColor(memPercent) || "bg-emerald-500"}`}
+              style={{ width: `${Math.min(memPercent, 100)}%` }}
+            />
+          </div>
+          <div className="mt-2">
+            <MiniAreaChart data={memHistory} color="#10b981" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function StorageSection({ storageUsage, loading }: { storageUsage: StorageUsage | null; loading: boolean }): JSX.Element {
   if (loading && !storageUsage) {
@@ -299,6 +414,9 @@ export function AdminServerView({
   onCheckForUpdates,
   storageUsage,
   loadingStorage,
+  systemStats,
+  systemStatsHistory,
+  loadingSystemStats,
   logFiles,
   loadingFiles,
   selectedFile,
@@ -311,7 +429,8 @@ export function AdminServerView({
   onLevelFilterChange,
   onRefresh,
   onLoadMore,
-  hasMore
+  hasMore,
+  refreshServer
 }: AdminServerViewProps): JSX.Element {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
@@ -328,6 +447,7 @@ export function AdminServerView({
         onTriggerUpdate={onTriggerUpdate}
         onCheckForUpdates={onCheckForUpdates}
       />
+      <SystemStatsSection systemStats={systemStats} history={systemStatsHistory} loading={loadingSystemStats} />
       <StorageSection storageUsage={storageUsage} loading={loadingStorage} />
 
       <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">

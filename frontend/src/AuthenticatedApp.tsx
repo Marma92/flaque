@@ -110,6 +110,9 @@ export function AuthenticatedApp({
     versionInfo, loadingVersion,
     updateStatus, onTriggerUpdate, onCheckForUpdates,
     storageUsage, loadingStorage,
+    systemStats,
+    systemStatsHistory,
+    loadingSystemStats,
     logFiles, loadingFiles: loadingLogFiles,
     selectedFile: selectedLogFile, setSelectedFile: setSelectedLogFile,
     entries: logEntries, loadingEntries: loadingLogEntries,
@@ -337,6 +340,9 @@ export function AuthenticatedApp({
         onCheckForUpdates,
         storageUsage,
         loadingStorage,
+        systemStats,
+        systemStatsHistory,
+        loadingSystemStats,
         logFiles,
         loadingFiles: loadingLogFiles,
         selectedFile: selectedLogFile,
@@ -348,6 +354,7 @@ export function AuthenticatedApp({
         levelFilter: logLevelFilter,
         onLevelFilterChange: setLogLevelFilter,
         onRefresh: refreshLogs,
+        refreshServer: refreshLogs,
         onLoadMore: loadMoreLogs,
         hasMore: hasMoreLogs
       }}

@@ -1,14 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
-  getLogFiles, getLogEntries, getStorageUsage, getVersionInfo, checkForUpdates as apiCheckForUpdates, triggerUpdate, getUpdateStatus,
-  type LogFile, type LogEntry, type StorageUsage, type VersionInfo, type UpdateStatus
+  getLogFiles, getLogEntries, getStorageUsage, getVersionInfo, checkForUpdates as apiCheckForUpdates, triggerUpdate, getUpdateStatus, getSystemStats,
+  type LogFile, type LogEntry, type StorageUsage, type VersionInfo, type UpdateStatus, type SystemStats
 } from "../api";
 import type { User } from "../types";
 
 const PAGE_SIZE = 200;
 const UPDATE_POLL_INTERVAL_MS = 3_000;
 const UPDATE_POLL_TIMEOUT_MS = 180_000;
+const SYSTEM_STATS_INTERVAL_MS = 10_000;
+const SYSTEM_STATS_MAX_HISTORY = 30;
+
+export type SystemStatsDataPoint = {
+  cpu: number;
+  memory: number;
+  timestamp: number;
+};
 
 type UseAdminServerArgs = {
   user: User | null;
@@ -17,6 +25,9 @@ type UseAdminServerArgs = {
 type UseAdminServerResult = {
   storageUsage: StorageUsage | null;
   loadingStorage: boolean;
+  systemStats: SystemStats | null;
+  systemStatsHistory: SystemStatsDataPoint[];
+  loadingSystemStats: boolean;
   versionInfo: VersionInfo | null;
   loadingVersion: boolean;
   updateStatus: UpdateStatus | null;
@@ -51,6 +62,9 @@ export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResu
   const [serverError, setServerError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [levelFilter, setLevelFilter] = useState<number | null>(null);
+  const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
+  const [systemStatsHistory, setSystemStatsHistory] = useState<SystemStatsDataPoint[]>([]);
+  const [loadingSystemStats, setLoadingSystemStats] = useState(false);
 
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollStartRef = useRef<number>(0);
@@ -109,6 +123,46 @@ export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResu
       .finally(() => {
         setLoadingStorage(false);
       });
+  }, [user]);
+
+  // System stats polling (10s interval)
+  useEffect(() => {
+    if (!user || user.role !== "admin") {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function fetchStats(): Promise<void> {
+      try {
+        const stats = await getSystemStats();
+        if (cancelled) return;
+        setSystemStats(stats);
+        setSystemStatsHistory((prev) => {
+          const point: SystemStatsDataPoint = {
+            cpu: stats.cpu.usagePercent,
+            memory: stats.memory.usagePercent,
+            timestamp: Date.now()
+          };
+          const next = [...prev, point];
+          return next.length > SYSTEM_STATS_MAX_HISTORY ? next.slice(-SYSTEM_STATS_MAX_HISTORY) : next;
+        });
+      } catch {
+        // ignore fetch errors
+      } finally {
+        if (!cancelled) setLoadingSystemStats(false);
+      }
+    }
+
+    setLoadingSystemStats(true);
+    void fetchStats();
+
+    const timer = setInterval(() => { void fetchStats(); }, SYSTEM_STATS_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, [user]);
 
   useEffect(() => {
@@ -288,6 +342,9 @@ export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResu
   return {
     storageUsage,
     loadingStorage,
+    systemStats,
+    systemStatsHistory,
+    loadingSystemStats,
     versionInfo,
     loadingVersion,
     updateStatus,
