@@ -349,12 +349,11 @@ type UploadSingleTrackInput = {
   onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
 };
 
-const CHUNK_SIZE = 99 * 1024 * 1024;
-
-async function getChunkSize(): Promise<number> {
-  const response = await requestJson<{ chunkSize: number }>("/api/upload/chunk-size");
-  return response.chunkSize;
-}
+// Threshold for switching to chunked upload. Must match the backend's
+// CHUNK_SIZE so files at or below this size fit in a single request under
+// common 100 MB proxy limits. The actual chunk size for a given session is
+// still taken from the backend's /init response.
+const CHUNKED_UPLOAD_THRESHOLD = 99 * 1024 * 1024;
 
 type ChunkedUploadSession = {
   sessionId: string;
@@ -426,13 +425,13 @@ async function uploadChunked(
     const result = await completeChunkedUpload(sessionId);
     return { tempPath: result.tempPath };
   } catch (error) {
-    await cancelChunkedUpload(sessionId);
+    await cancelChunkedUpload(sessionId).catch(() => {});
     throw error;
   }
 }
 
 async function uploadSingleTrack(input: UploadSingleTrackInput): Promise<UploadTracksResult> {
-  if (input.file.size > CHUNK_SIZE) {
+  if (input.file.size > CHUNKED_UPLOAD_THRESHOLD) {
     return uploadSingleTrackChunked(input);
   }
   return uploadSingleTrackDirect(input);
@@ -440,15 +439,17 @@ async function uploadSingleTrack(input: UploadSingleTrackInput): Promise<UploadT
 
 async function uploadSingleTrackChunked(input: UploadSingleTrackInput): Promise<UploadTracksResult> {
   const { tempPath } = await uploadChunked(input.file, input.onProgress);
-  return finalizeChunkedUpload(tempPath, input);
+  return finalizeChunkedUpload(tempPath, input.file.name, input);
 }
 
 async function finalizeChunkedUpload(
   tempPath: string,
+  fileName: string,
   input: Pick<UploadSingleTrackInput, "artist" | "album" | "deferRebuild" | "metadataOverride">
 ): Promise<UploadTracksResult> {
   const formData = new FormData();
   formData.append("tempPath", tempPath);
+  formData.append("fileName", fileName);
 
   if (input.artist?.trim()) {
     formData.append("artist", input.artist.trim());
