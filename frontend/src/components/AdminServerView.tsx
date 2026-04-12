@@ -172,7 +172,9 @@ function SystemStatsSection({ systemStats, history, loading }: SystemStatsSectio
           <div className="flex items-baseline justify-between text-sm">
             <span className="font-medium text-flaque-ink">CPU</span>
             <span className="text-flaque-steel">
-              {cpuPercent.toFixed(1)}% &middot; {systemStats.cpu.cores} cores
+              {cpuPercent.toFixed(1)}%
+              {systemStats.cpu.model ? <> &middot; {systemStats.cpu.model}</> : null}
+              {" "}&middot; {systemStats.cpu.cores} cores
             </span>
           </div>
           <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-flaque-clay/30">

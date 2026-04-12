@@ -218,10 +218,15 @@ export function createLogRouter(): Router {
     const freeMem = os.freemem();
     const usedMem = totalMem - freeMem;
 
+    const cpus = os.cpus();
+    const rawCpuModel = cpus[0]?.model;
+    const cpuModel = rawCpuModel ? rawCpuModel.replace(/\s+/g, " ").trim() : undefined;
+
     res.json({
       cpu: {
         usagePercent: cpuUsagePercent,
-        cores: os.cpus().length
+        cores: cpus.length,
+        model: cpuModel
       },
       memory: {
         total: totalMem,

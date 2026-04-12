@@ -875,7 +875,7 @@ export type StorageUsage = {
 };
 
 export type SystemStats = {
-  cpu: { usagePercent: number; cores: number };
+  cpu: { usagePercent: number; cores: number; model?: string };
   memory: { total: number; used: number; free: number; usagePercent: number };
 };
 
