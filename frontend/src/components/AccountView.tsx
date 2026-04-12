@@ -73,7 +73,7 @@ export function AccountView({
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+  const [passwordMessage, setPasswordMessage] = useState<{ text: string; isError: boolean } | null>(null);
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [sessions, setSessions] = useState<UserSession[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
@@ -167,12 +167,12 @@ export function AccountView({
     setPasswordMessage(null);
 
     if (!currentPassword.trim() || !newPassword.trim()) {
-      setPasswordMessage("Current and new password are required.");
+      setPasswordMessage({ text: "Current and new password are required.", isError: true });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordMessage("Password confirmation does not match.");
+      setPasswordMessage({ text: "Password confirmation does not match.", isError: true });
       return;
     }
 
@@ -187,9 +187,12 @@ export function AccountView({
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setPasswordMessage("Password updated.");
+      setPasswordMessage({ text: "Password updated.", isError: false });
     } catch (error) {
-      setPasswordMessage(error instanceof Error ? error.message : "Unable to update password");
+      setPasswordMessage({
+        text: error instanceof Error ? error.message : "Unable to update password",
+        isError: true
+      });
     } finally {
       setUpdatingPassword(false);
     }
@@ -444,7 +447,17 @@ export function AccountView({
           </div>
         </form>
 
-        {passwordMessage ? <p className="mt-3 text-sm text-flaque-steel">{passwordMessage}</p> : null}
+        {passwordMessage ? (
+          <p
+            className={`mt-3 rounded-xl px-3 py-2 text-sm ${
+              passwordMessage.isError
+                ? "border border-red-300 bg-red-50 text-red-700"
+                : "border border-green-300 bg-green-50 text-green-700"
+            }`}
+          >
+            {passwordMessage.text}
+          </p>
+        ) : null}
       </section>
 
       <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
