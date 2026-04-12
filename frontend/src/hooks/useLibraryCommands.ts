@@ -4,7 +4,6 @@ import {
   createPlaylist,
   deletePlaylist,
   deleteTrackFile,
-  inspectUploadFile,
   patchPlaylist,
   rebuildIndex,
   updateTrackMetadata,
@@ -12,6 +11,7 @@ import {
   type UploadTrackPreview,
   type UploadTracksResult
 } from "../api";
+import { inspectAudioFile } from "../utils/inspectAudioFile";
 import type { AppNotice } from "../components/AppStatusBanners";
 import type { Playlist, PlaylistVisibility, TrackMetadataPatch } from "../types";
 
@@ -90,7 +90,7 @@ export function useLibraryCommands({
   }
 
   async function handleInspectUploadFile(file: File): Promise<UploadTrackPreview> {
-    return inspectUploadFile(file);
+    return inspectAudioFile(file);
   }
 
   async function handleRebuildIndex(): Promise<void> {

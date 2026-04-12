@@ -8,7 +8,7 @@ import { requireAuth } from "../auth/middleware";
 import { appendTrackActivityLogEntries, readTrackActivityLog } from "../services/activity/trackActivityStore";
 import { mergeTrackMetadataOverrides } from "../services/indexer/metadataOverrideStore";
 import { IndexStore } from "../services/indexer/indexStore";
-import { extractAudioMetadata } from "../services/scanner/audioProbe";
+
 import {
   processUploadedFile,
   sanitizeExtension,
@@ -108,16 +108,6 @@ async function cleanupTemporaryFiles(filePaths: string[]): Promise<void> {
       await fs.unlink(filePath);
     })
   );
-}
-
-function toCoverDataUrl(cover?: { data: Buffer; format?: string }): string | undefined {
-  if (!cover || !cover.data) {
-    return undefined;
-  }
-
-  const mimeType =
-    typeof cover.format === "string" && cover.format.trim() ? cover.format.trim() : "image/jpeg";
-  return `data:${mimeType};base64,${cover.data.toString("base64")}`;
 }
 
 function createAudioUpload(maxUploadBytes: number): multer.Multer {
@@ -522,42 +512,6 @@ export function createUploadRouter(indexStore: IndexStore): Router {
         await cleanupTemporaryFiles([directTempPath]);
       }
       next(error);
-    }
-  });
-
-  router.post("/upload/inspect", requireAuth, upload.single("file"), async (req, res, next) => {
-    const temporaryPath = req.file?.path;
-
-    try {
-      const uploadedFile = req.file;
-      if (!uploadedFile) {
-        res.status(400).json({ error: "A file is required" });
-        return;
-      }
-
-      if (!isSupportedAudioFile(uploadedFile.originalname)) {
-        res.status(400).json({ error: `Unsupported audio format: ${uploadedFile.originalname}` });
-        return;
-      }
-
-      const metadata = await extractAudioMetadata(uploadedFile.path);
-      res.json({
-        fileName: uploadedFile.originalname,
-        size: uploadedFile.size,
-        mimeType: getAudioMimeType(uploadedFile.originalname),
-        duration: metadata.duration,
-        codec: metadata.codec,
-        bitrate: metadata.bitrate,
-        sampleRate: metadata.sampleRate,
-        tags: metadata.tags,
-        coverDataUrl: toCoverDataUrl(metadata.cover)
-      });
-    } catch (error) {
-      next(error);
-    } finally {
-      if (temporaryPath) {
-        await cleanupTemporaryFiles([temporaryPath]);
-      }
     }
   });
 
