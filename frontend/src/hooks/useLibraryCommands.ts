@@ -35,10 +35,12 @@ type UseLibraryCommandsResult = {
     files: File[];
     artist?: string;
     album?: string;
+    year?: number;
     metadataOverrides?: Array<{
       title?: string;
       artist?: string;
       album?: string;
+      year?: number;
     } | null>;
     onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
   }) => Promise<UploadTracksResult>;
@@ -73,10 +75,12 @@ export function useLibraryCommands({
     files: File[];
     artist?: string;
     album?: string;
+    year?: number;
     metadataOverrides?: Array<{
       title?: string;
       artist?: string;
       album?: string;
+      year?: number;
     } | null>;
     onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
   }): Promise<UploadTracksResult> {

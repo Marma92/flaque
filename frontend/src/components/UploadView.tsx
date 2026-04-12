@@ -9,6 +9,7 @@ type UploadViewProps = {
     files: File[];
     artist?: string;
     album?: string;
+    year?: number;
     metadataOverrides?: Array<{
       title?: string;
       artist?: string;
@@ -82,6 +83,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
   >({});
   const [uploadArtist, setUploadArtist] = useState("");
   const [uploadAlbum, setUploadAlbum] = useState("");
+  const [uploadYear, setUploadYear] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadProgressPercent, setUploadProgressPercent] = useState<number>(0);
   const [draggingFiles, setDraggingFiles] = useState(false);
@@ -215,10 +217,17 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
     });
 
     try {
+      const globalYearStr = uploadYear.trim();
+      const globalYearNum = globalYearStr ? Number(globalYearStr) : undefined;
+      const globalYear = globalYearNum && Number.isInteger(globalYearNum) && globalYearNum >= 1000 && globalYearNum <= 2999
+        ? globalYearNum
+        : undefined;
+
       const result = await onUpload({
         files: pendingFiles,
         artist: uploadArtist.trim() || undefined,
         album: uploadAlbum.trim() || undefined,
+        year: globalYear,
         metadataOverrides,
         onProgress: (progress) => {
           setUploadProgressPercent(progress.percent);
@@ -310,7 +319,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
 
           <p className="text-xs text-flaque-steel/90">Supported formats: FLAC, MP3, WAV, OGG, Opus, M4A.</p>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <label className="text-sm text-flaque-ink">
               Artist override (optional)
               <input
@@ -319,7 +328,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                 value={uploadArtist}
                 onChange={(event) => setUploadArtist(event.target.value)}
                 disabled={uploading}
-                placeholder="Apply artist to all uploaded files"
+                placeholder="Apply artist to all files"
               />
             </label>
 
@@ -331,7 +340,20 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                 value={uploadAlbum}
                 onChange={(event) => setUploadAlbum(event.target.value)}
                 disabled={uploading}
-                placeholder="Apply album to all uploaded files"
+                placeholder="Apply album to all files"
+              />
+            </label>
+
+            <label className="text-sm text-flaque-ink">
+              Year override (optional)
+              <input
+                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                type="text"
+                inputMode="numeric"
+                value={uploadYear}
+                onChange={(event) => setUploadYear(event.target.value)}
+                disabled={uploading}
+                placeholder="e.g. 1979"
               />
             </label>
 

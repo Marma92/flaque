@@ -305,6 +305,7 @@ export type UploadTracksInput = {
   files: File[];
   artist?: string;
   album?: string;
+  year?: number;
   metadataOverrides?: Array<{
     title?: string;
     artist?: string;
@@ -341,6 +342,7 @@ type UploadSingleTrackInput = {
   file: File;
   artist?: string;
   album?: string;
+  year?: number;
   deferRebuild?: boolean;
   metadataOverride?: {
     title?: string;
@@ -447,7 +449,7 @@ async function uploadSingleTrackChunked(input: UploadSingleTrackInput): Promise<
 async function finalizeChunkedUpload(
   tempPath: string,
   fileName: string,
-  input: Pick<UploadSingleTrackInput, "artist" | "album" | "deferRebuild" | "metadataOverride">
+  input: Pick<UploadSingleTrackInput, "artist" | "album" | "year" | "deferRebuild" | "metadataOverride">
 ): Promise<UploadTracksResult> {
   const formData = new FormData();
   formData.append("tempPath", tempPath);
@@ -459,6 +461,10 @@ async function finalizeChunkedUpload(
 
   if (input.album?.trim()) {
     formData.append("album", input.album.trim());
+  }
+
+  if (input.year !== undefined) {
+    formData.append("year", String(input.year));
   }
 
   if (input.metadataOverride) {
@@ -508,6 +514,10 @@ function uploadSingleTrackDirect(input: UploadSingleTrackInput): Promise<UploadT
 
   if (input.album?.trim()) {
     formData.append("album", input.album.trim());
+  }
+
+  if (input.year !== undefined) {
+    formData.append("year", String(input.year));
   }
 
   if (input.metadataOverride) {
@@ -590,6 +600,7 @@ export async function uploadTracks(input: UploadTracksInput): Promise<UploadTrac
       file,
       artist: input.artist,
       album: input.album,
+      year: input.year,
       deferRebuild: !isLastFile,
       metadataOverride,
       onProgress: input.onProgress
