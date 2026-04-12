@@ -4,6 +4,9 @@ import { Router } from "express";
 import { requireAuth } from "../auth/middleware";
 import type { IndexStore } from "../services/indexer/indexStore";
 import { RadioService } from "../services/radio/radioService";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("radio");
 
 export function createRadioRouter(indexStore: IndexStore): Router {
   const router = Router();
@@ -12,6 +15,7 @@ export function createRadioRouter(indexStore: IndexStore): Router {
   router.post("/radio/create", requireAuth, async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const payload = await radioService.createStation();
+      log.info("Radio station created", { userId: _req.authUser?.id ?? "unknown" });
       res.json(payload);
     } catch (error) {
       next(error);
@@ -53,6 +57,7 @@ export function createRadioRouter(indexStore: IndexStore): Router {
         }
 
         const payload = await radioService.rebuildStation(stationId);
+        log.info("Radio station rebuilt", { stationId, userId: req.authUser?.id ?? "unknown" });
         res.json(payload);
       } catch (error) {
         next(error);

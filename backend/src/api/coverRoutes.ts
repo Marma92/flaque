@@ -6,8 +6,11 @@ import { requireAuth } from "../auth/middleware";
 import type { IndexStore } from "../services/indexer/indexStore";
 import { findCoverFileByTrackId } from "../services/storage/coverService";
 import { fileExists, readJsonFile } from "../utils/fs";
+import { createLogger } from "../utils/logger";
 import { ALBUM_METADATA_FILE } from "../utils/music";
 import { resolveDataRelativePath } from "../utils/paths";
+
+const log = createLogger("covers");
 const ALLOWED_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"]);
 
 type AlbumMetadata = {
@@ -56,6 +59,7 @@ export function createCoverRouter(indexStore: IndexStore): Router {
       const absolutePath = resolveDataRelativePath(relativePath);
       const hasFile = await fileExists(absolutePath);
       if (!hasFile) {
+        log.warn("Cover not found for path", { path: relativePath });
         res.status(404).json({ error: "Cover not found" });
         return;
       }
@@ -77,6 +81,7 @@ export function createCoverRouter(indexStore: IndexStore): Router {
 
       const coverPath = (await resolveAlbumCoverByTrackId(indexStore, trackId)) ?? (await findCoverFileByTrackId(trackId));
       if (!coverPath) {
+        log.warn("Cover not found for track", { trackId });
         res.status(404).json({ error: "Cover not found" });
         return;
       }

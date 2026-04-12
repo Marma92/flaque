@@ -74,10 +74,20 @@ export function parseUploadMetadataOverrides(value: unknown): UploadMetadataOver
         return {};
       }
 
+      const rawYear = (entry as { year?: unknown }).year;
+      let year: number | undefined;
+      if (rawYear !== undefined && rawYear !== null) {
+        const n = typeof rawYear === "number" ? rawYear : Number(rawYear);
+        if (Number.isInteger(n) && n >= 1000 && n <= 2999) {
+          year = n;
+        }
+      }
+
       return {
         title: normalizeOptionalString((entry as { title?: unknown }).title),
         artist: normalizeOptionalString((entry as { artist?: unknown }).artist),
-        album: normalizeOptionalString((entry as { album?: unknown }).album)
+        album: normalizeOptionalString((entry as { album?: unknown }).album),
+        year
       };
     });
   } catch {
@@ -154,6 +164,7 @@ type IngestOptions = {
   ownerId: string;
   manualArtist?: string;
   manualAlbum?: string;
+  manualYear?: number;
   deferRebuild: boolean;
   metadataOverrides: UploadMetadataOverride[];
 };
@@ -193,12 +204,13 @@ async function ingestUploadedFiles(
         musicDir,
         options.manualArtist,
         options.manualAlbum,
-        options.metadataOverrides[index] ?? {}
+        options.metadataOverrides[index] ?? {},
+        options.manualYear
       )
     );
   }
 
-  const metadataOverridePatch: Record<string, { title?: string; artist?: string; album?: string }> = {};
+  const metadataOverridePatch: Record<string, { title?: string; artist?: string; album?: string; year?: number }> = {};
   for (const result of results) {
     if (result.overrides) {
       metadataOverridePatch[result.trackId] = result.overrides;
@@ -232,11 +244,16 @@ async function ingestUploadedFiles(
   const deduplicated = results.filter((r) => !r.isNew).length;
   const uploaded = results.length - deduplicated;
 
+  const trackTitles = tracks
+    .map((track) => track.tags.title ?? track.path)
+    .slice(0, 10);
+
   log.info("Upload complete", {
     owner: options.ownerId,
     processed: results.length,
     uploaded,
-    deduplicated
+    deduplicated,
+    titles: trackTitles
   });
 
   return {
@@ -321,15 +338,29 @@ function requireSessionId(req: { body?: Record<string, unknown> }, res: Response
 type ParsedUploadRequestBody = {
   manualArtist?: string;
   manualAlbum?: string;
+  manualYear?: number;
   deferRebuild: boolean;
   metadataOverrides: UploadMetadataOverride[];
 };
+
+function parseManualYear(value: unknown): number | undefined {
+  const raw = normalizeOptionalString(value);
+  if (!raw) {
+    return undefined;
+  }
+  const n = Number(raw);
+  if (Number.isInteger(n) && n >= 1000 && n <= 2999) {
+    return n;
+  }
+  return undefined;
+}
 
 function parseUploadRequestBody(body: unknown): ParsedUploadRequestBody {
   const source = (body ?? {}) as Record<string, unknown>;
   return {
     manualArtist: normalizeOptionalString(source.artist),
     manualAlbum: normalizeOptionalString(source.album),
+    manualYear: parseManualYear(source.year),
     deferRebuild: parseBooleanField(source.deferRebuild),
     metadataOverrides: parseUploadMetadataOverrides(source.metadataOverrides)
   };

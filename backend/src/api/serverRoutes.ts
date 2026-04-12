@@ -2,6 +2,9 @@ import { Router } from "express";
 
 import { requireAdmin, requireAuth } from "../auth/middleware";
 import { getVersionCheckResult, forceVersionCheck } from "../services/versionCheck";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("server");
 
 export function createServerRouter(): Router {
   const router = Router();
@@ -13,6 +16,7 @@ export function createServerRouter(): Router {
   router.post("/server/version/check", requireAuth, requireAdmin, async (_req, res, next) => {
     try {
       const result = await forceVersionCheck();
+      log.info("Version check triggered", { userId: _req.authUser?.id ?? "unknown" });
       res.json(result);
     } catch (error) {
       next(error);
@@ -27,6 +31,8 @@ export function createServerRouter(): Router {
         return;
       }
 
+      log.info("Server update initiated", { userId: _req.authUser?.id ?? "unknown" });
+
       const updaterUrl = process.env.UPDATER_URL ?? "http://updater:9090";
 
       const response = await fetch(`${updaterUrl}/update`, {
@@ -39,6 +45,7 @@ export function createServerRouter(): Router {
       const body = await response.json() as Record<string, unknown>;
 
       if (!response.ok) {
+        log.warn("Server update request failed", { status: response.status, userId: _req.authUser?.id ?? "unknown" });
         res.status(response.status).json(body);
         return;
       }

@@ -33,13 +33,14 @@ export type UploadMetadataOverride = {
   title?: string;
   artist?: string;
   album?: string;
+  year?: number;
 };
 
 export type ProcessedUpload = {
   trackId: string;
   track: Track;
   isNew: boolean;
-  overrides?: { title?: string; artist?: string; album?: string };
+  overrides?: { title?: string; artist?: string; album?: string; year?: number };
 };
 
 export function sanitizeExtension(fileName: string): string {
@@ -73,17 +74,19 @@ function resolveEffectiveNames(
 function resolveEffectiveOverrides(
   override: UploadMetadataOverride,
   manualArtist: string | undefined,
-  manualAlbum: string | undefined
-): { title?: string; artist?: string; album?: string } | undefined {
+  manualAlbum: string | undefined,
+  manualYear: number | undefined
+): { title?: string; artist?: string; album?: string; year?: number } | undefined {
   const effectiveTitle = override.title;
   const effectiveArtist = override.artist ?? manualArtist;
   const effectiveAlbum = override.album ?? manualAlbum;
+  const effectiveYear = override.year ?? manualYear;
 
-  if (!effectiveTitle && !effectiveArtist && !effectiveAlbum) {
+  if (!effectiveTitle && !effectiveArtist && !effectiveAlbum && effectiveYear === undefined) {
     return undefined;
   }
 
-  return { title: effectiveTitle, artist: effectiveArtist, album: effectiveAlbum };
+  return { title: effectiveTitle, artist: effectiveArtist, album: effectiveAlbum, year: effectiveYear };
 }
 
 async function ensureArtistDirectory(artistDir: string, artistName: string): Promise<void> {
@@ -160,7 +163,8 @@ export async function processUploadedFile(
   musicDir: string,
   manualArtist: string | undefined,
   manualAlbum: string | undefined,
-  metadataOverride: UploadMetadataOverride
+  metadataOverride: UploadMetadataOverride,
+  manualYear?: number
 ): Promise<ProcessedUpload> {
   if (!isSupportedAudioFile(uploadedFile.originalname)) {
     throw new Error(`Unsupported audio format: ${uploadedFile.originalname}`);
@@ -178,12 +182,13 @@ export async function processUploadedFile(
   const { trackId, relativePath, isNew } = await placeFile(uploadedFile, ownerId, albumDir);
   const cover = await ensureTrackCover(trackId, metadata.cover);
 
-  const overrides = resolveEffectiveOverrides(metadataOverride, manualArtist, manualAlbum);
+  const overrides = resolveEffectiveOverrides(metadataOverride, manualArtist, manualAlbum, manualYear);
   const tags = {
     ...metadata.tags,
     ...(overrides?.title ? { title: overrides.title } : {}),
     ...(overrides?.artist ? { artist: overrides.artist } : {}),
-    ...(overrides?.album ? { album: overrides.album } : {})
+    ...(overrides?.album ? { album: overrides.album } : {}),
+    ...(overrides?.year !== undefined ? { year: overrides.year } : {})
   };
 
   const track: Track = {

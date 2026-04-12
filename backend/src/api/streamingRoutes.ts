@@ -11,6 +11,9 @@ import {
   streamTranscodedAudio,
   type TranscodeFormat
 } from "../services/streaming/transcodeService";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("streaming");
 
 function isFlacTrack(track: { codec: string; mimeType: string; path: string }): boolean {
   return (
@@ -54,6 +57,13 @@ export function createStreamingRouter(indexStore: IndexStore): Router {
 
       const absolutePath = resolveTrackAbsolutePath(track.path);
       await fs.access(absolutePath);
+
+      log.debug("Stream started", {
+        trackId,
+        title: track.tags.title ?? track.path,
+        userId: req.authUser?.id ?? "unknown",
+        transcode: transcode ?? "source"
+      });
 
       if (transcode) {
         if (!isFlacTrack(track)) {

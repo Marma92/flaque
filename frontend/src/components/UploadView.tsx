@@ -9,10 +9,12 @@ type UploadViewProps = {
     files: File[];
     artist?: string;
     album?: string;
+    year?: number;
     metadataOverrides?: Array<{
       title?: string;
       artist?: string;
       album?: string;
+      year?: number;
     } | null>;
     onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
   }) => Promise<UploadTracksResult>;
@@ -77,10 +79,11 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [previewByFileKey, setPreviewByFileKey] = useState<Record<string, PreviewState>>({});
   const [editableMetadataByFileKey, setEditableMetadataByFileKey] = useState<
-    Record<string, { title: string; artist: string; album: string }>
+    Record<string, { title: string; artist: string; album: string; year: string }>
   >({});
   const [uploadArtist, setUploadArtist] = useState("");
   const [uploadAlbum, setUploadAlbum] = useState("");
+  const [uploadYear, setUploadYear] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadProgressPercent, setUploadProgressPercent] = useState<number>(0);
   const [draggingFiles, setDraggingFiles] = useState(false);
@@ -198,22 +201,33 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
       const title = editedMetadata.title.trim();
       const artist = editedMetadata.artist.trim();
       const album = editedMetadata.album.trim();
-      if (!title && !artist && !album) {
+      const yearStr = editedMetadata.year.trim();
+      const yearNum = yearStr ? Number(yearStr) : undefined;
+      const year = yearNum && Number.isInteger(yearNum) && yearNum >= 1000 && yearNum <= 2999 ? yearNum : undefined;
+      if (!title && !artist && !album && year === undefined) {
         return null;
       }
 
       return {
         title: title || undefined,
         artist: artist || undefined,
-        album: album || undefined
+        album: album || undefined,
+        year
       };
     });
 
     try {
+      const globalYearStr = uploadYear.trim();
+      const globalYearNum = globalYearStr ? Number(globalYearStr) : undefined;
+      const globalYear = globalYearNum && Number.isInteger(globalYearNum) && globalYearNum >= 1000 && globalYearNum <= 2999
+        ? globalYearNum
+        : undefined;
+
       const result = await onUpload({
         files: pendingFiles,
         artist: uploadArtist.trim() || undefined,
         album: uploadAlbum.trim() || undefined,
+        year: globalYear,
         metadataOverrides,
         onProgress: (progress) => {
           setUploadProgressPercent(progress.percent);
@@ -305,7 +319,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
 
           <p className="text-xs text-flaque-steel/90">Supported formats: FLAC, MP3, WAV, OGG, Opus, M4A.</p>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <label className="text-sm text-flaque-ink">
               Artist override (optional)
               <input
@@ -314,7 +328,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                 value={uploadArtist}
                 onChange={(event) => setUploadArtist(event.target.value)}
                 disabled={uploading}
-                placeholder="Apply artist to all uploaded files"
+                placeholder="Apply artist to all files"
               />
             </label>
 
@@ -326,7 +340,20 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                 value={uploadAlbum}
                 onChange={(event) => setUploadAlbum(event.target.value)}
                 disabled={uploading}
-                placeholder="Apply album to all uploaded files"
+                placeholder="Apply album to all files"
+              />
+            </label>
+
+            <label className="text-sm text-flaque-ink">
+              Year override (optional)
+              <input
+                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                type="text"
+                inputMode="numeric"
+                value={uploadYear}
+                onChange={(event) => setUploadYear(event.target.value)}
+                disabled={uploading}
+                placeholder="e.g. 1979"
               />
             </label>
 
@@ -397,6 +424,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
               const editableTitle = editableMetadata?.title ?? title;
               const editableArtist = editableMetadata?.artist ?? artist;
               const editableAlbum = editableMetadata?.album ?? albumBase;
+              const editableYear = editableMetadata?.year ?? (year ?? "");
               const trackPosition =
                 typeof preview?.tags.trackNumber === "number"
                   ? `${preview.tags.trackNumber}${
@@ -438,7 +466,8 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                                   [fileKey]: {
                                     title: nextTitle,
                                     artist: current[fileKey]?.artist ?? editableArtist,
-                                    album: current[fileKey]?.album ?? editableAlbum
+                                    album: current[fileKey]?.album ?? editableAlbum,
+                                    year: current[fileKey]?.year ?? editableYear
                                   }
                                 }));
                               }}
@@ -457,7 +486,8 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                                   [fileKey]: {
                                     title: current[fileKey]?.title ?? editableTitle,
                                     artist: nextArtist,
-                                    album: current[fileKey]?.album ?? editableAlbum
+                                    album: current[fileKey]?.album ?? editableAlbum,
+                                    year: current[fileKey]?.year ?? editableYear
                                   }
                                 }));
                               }}
@@ -476,23 +506,36 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                                   [fileKey]: {
                                     title: current[fileKey]?.title ?? editableTitle,
                                     artist: current[fileKey]?.artist ?? editableArtist,
-                                    album: nextAlbum
+                                    album: nextAlbum,
+                                    year: current[fileKey]?.year ?? editableYear
                                   }
                                 }));
                               }}
                             />
                           </label>
 
-                          {year ? (
-                            <label className="text-flaque-steel">
-                              Year
-                              <input
-                                className="mt-1 w-full rounded-lg border border-flaque-clay bg-white px-2 py-1 text-flaque-ink"
-                                value={year}
-                                readOnly
-                              />
-                            </label>
-                          ) : null}
+                          <label className="text-flaque-steel">
+                            Year
+                            <input
+                              className="mt-1 w-full rounded-lg border border-flaque-clay bg-white px-2 py-1 text-flaque-ink"
+                              value={editableYear}
+                              disabled={uploading}
+                              inputMode="numeric"
+                              placeholder="e.g. 1979"
+                              onChange={(event) => {
+                                const nextYear = event.target.value;
+                                setEditableMetadataByFileKey((current) => ({
+                                  ...current,
+                                  [fileKey]: {
+                                    title: current[fileKey]?.title ?? editableTitle,
+                                    artist: current[fileKey]?.artist ?? editableArtist,
+                                    album: current[fileKey]?.album ?? editableAlbum,
+                                    year: nextYear
+                                  }
+                                }));
+                              }}
+                            />
+                          </label>
 
                           <p className="text-xs text-flaque-steel">
                             {preview?.codec?.toUpperCase() ?? "Unknown codec"}

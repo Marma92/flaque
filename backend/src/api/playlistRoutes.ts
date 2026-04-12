@@ -2,6 +2,9 @@ import { Router } from "express";
 
 import { requireAuth } from "../auth/middleware";
 import { IndexStore } from "../services/indexer/indexStore";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("playlists");
 import {
   canManagePlaylist,
   createFilesystemPlaylist,
@@ -158,6 +161,14 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         return;
       }
 
+      log.info("Playlist created", {
+        playlistId,
+        name,
+        userId: authUser.id,
+        trackCount: trackIds?.length ?? 0,
+        visibility: visibility ?? "private"
+      });
+
       res.status(201).json({ playlist: mapPlaylistResponse(playlist) });
     } catch (error) {
       if (
@@ -231,6 +242,13 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         res.status(500).json({ error: "Playlist updated but not found after reindex" });
         return;
       }
+
+      log.info("Playlist updated", {
+        playlistId,
+        name,
+        userId: authUser.id,
+        trackCount: trackIds.length
+      });
 
       res.json({ playlist: mapPlaylistResponse(updated) });
     } catch (error) {
@@ -306,6 +324,12 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         return;
       }
 
+      log.info("Playlist patched", {
+        playlistId,
+        name: name ?? existing.name,
+        userId: authUser.id
+      });
+
       res.json({ playlist: mapPlaylistResponse(updated) });
     } catch (error) {
       if (
@@ -345,6 +369,12 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
 
       await deleteFilesystemPlaylist(playlistId);
       await indexStore.refreshPlaylists();
+
+      log.info("Playlist deleted", {
+        playlistId,
+        name: existing.name,
+        userId: authUser.id
+      });
 
       res.status(204).send();
     } catch (error) {
