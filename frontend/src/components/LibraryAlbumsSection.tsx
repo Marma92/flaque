@@ -47,7 +47,17 @@ export function LibraryAlbumsSection({
   onAddTrackToPlaylist
 }: LibraryAlbumsSectionProps): JSX.Element {
   const [viewMode, setViewMode] = useState<AlbumViewMode>("list");
+  const [searchQuery, setSearchQuery] = useState("");
   const isListModeTracklistVisible = viewMode === "list" && selectedAlbum !== null;
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredAlbums = normalizedQuery
+    ? albums.filter(
+        (album) =>
+          album.name.toLowerCase().includes(normalizedQuery) ||
+          (album.artist && album.artist.toLowerCase().includes(normalizedQuery))
+      )
+    : albums;
 
   function getAlbumCoverSrc(album: AlbumEntry): string {
     if (album.cover) {
@@ -68,6 +78,16 @@ export function LibraryAlbumsSection({
           <h2 className="font-display text-xl text-flaque-ink">Albums</h2>
         </div>
 
+        <div className="flex items-center gap-3">
+          {!selectedAlbum && (
+            <input
+              className="rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-3 py-1.5 text-sm text-flaque-ink placeholder:text-flaque-steel/60 focus:border-flaque-ink/40 focus:outline-none"
+              type="text"
+              placeholder="Search albums..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          )}
         <div className="inline-flex rounded-xl border border-flaque-clay/70 bg-flaque-cream/50 p-1">
           <button
             className={`rounded-lg px-3 py-1.5 text-sm transition ${
@@ -88,6 +108,7 @@ export function LibraryAlbumsSection({
             Coverflow
           </button>
         </div>
+        </div>
       </div>
 
       {libraryMetadataError ? (
@@ -96,20 +117,20 @@ export function LibraryAlbumsSection({
 
       {loadingAlbums ? (
         <p className="mt-3 text-sm text-flaque-steel">Loading albums...</p>
-      ) : albums.length === 0 ? (
-        <p className="mt-3 text-sm text-flaque-steel">No albums found for these filters.</p>
+      ) : filteredAlbums.length === 0 ? (
+        <p className="mt-3 text-sm text-flaque-steel">No albums found{normalizedQuery ? ` matching "${searchQuery.trim()}"` : " for these filters"}.</p>
       ) : (
         <>
           {viewMode === "coverflow" ? (
             <Coverflow
-              albums={albums}
+              albums={filteredAlbums}
               selectedAlbum={selectedAlbum}
               onAlbumSelect={onAlbumSelect}
               getAlbumCoverSrc={getAlbumCoverSrc}
             />
           ) : !isListModeTracklistVisible ? (
             <AlbumList
-              albums={albums}
+              albums={filteredAlbums}
               selectedAlbum={selectedAlbum}
               onAlbumSelect={onAlbumSelect}
               onPlayAlbum={onPlayAlbum}

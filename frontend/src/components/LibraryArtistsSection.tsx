@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { coverPathUrl, coverUrl } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
 import type { AlbumEntry, ArtistEntry, Playlist, Track } from "../types";
@@ -65,12 +67,29 @@ export function LibraryArtistsSection({
     return defaultCoverImage;
   }
 
+  const [searchQuery, setSearchQuery] = useState("");
   const isArtistSelected = selectedArtist !== null;
   const isTracklistVisible = selectedArtistAlbum !== null;
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredArtists = normalizedQuery
+    ? artists.filter((artist) => artist.name.toLowerCase().includes(normalizedQuery))
+    : artists;
+
   return (
     <section className="border m-4 rounded-xl border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      <h2 className="font-display text-xl text-flaque-ink">Artists</h2>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <h2 className="font-display text-xl text-flaque-ink">Artists</h2>
+        {!isArtistSelected && (
+          <input
+            className="rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-3 py-1.5 text-sm text-flaque-ink placeholder:text-flaque-steel/60 focus:border-flaque-ink/40 focus:outline-none"
+            type="text"
+            placeholder="Search artists..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        )}
+      </div>
       {isArtistSelected ? (
         <>
           <button
@@ -97,8 +116,8 @@ export function LibraryArtistsSection({
 
       {loadingArtists ? (
         <p className="mt-3 text-sm text-flaque-steel">Loading artists...</p>
-      ) : artists.length === 0 && !isArtistSelected ? (
-        <p className="mt-3 text-sm text-flaque-steel">No artists found for these filters.</p>
+      ) : filteredArtists.length === 0 && !isArtistSelected ? (
+        <p className="mt-3 text-sm text-flaque-steel">No artists found{normalizedQuery ? ` matching "${searchQuery.trim()}"` : " for these filters"}.</p>
       ) : isArtistSelected && isTracklistVisible ? (
         <div className="mt-4 overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/75">
           <div className="border-b border-flaque-clay/55 px-4 py-3">
@@ -152,43 +171,71 @@ export function LibraryArtistsSection({
           getAlbumCoverSrc={getAlbumCoverSrc}
         />
       ) : (
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {artists.map((artist) => {
-            const artistPhoto = artist.photo
-              ? coverPathUrl(artist.photo)
-              : artist.previewTrackId
-                ? coverUrl(artist.previewTrackId)
-                : defaultCoverImage;
-
-            return (
-              <button
-                key={artist.name}
-                className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 p-3 text-center transition hover:bg-flaque-cream"
-                title={artist.name}
-                type="button"
-                onClick={() => onArtistSelect(artist)}
-              >
-                <img
-                  className="mx-auto h-24 w-24 rounded-full border border-flaque-clay/50 object-cover"
-                  src={artistPhoto}
-                  alt={`Artwork for ${artist.name}`}
-                  onError={(event) => {
-                    event.currentTarget.src = defaultCoverImage;
-                  }}
-                />
-                <div className="mt-2 min-w-0">
-                  <p className="truncate text-sm font-medium text-flaque-ink">{artist.name}</p>
-                  <p className="text-xs text-flaque-steel">
-                    {artist.albumCount} album{artist.albumCount !== 1 ? "s" : ""}
-                    {" · "}
-                    {artist.trackCount} track{artist.trackCount !== 1 ? "s" : ""}
-                    {" · "}
-                    {formatDurationHuman(artist.totalDuration)}
-                  </p>
-                </div>
-              </button>
+        <div className="mt-3">
+          {(() => {
+            const grouped = new Map<string, ArtistEntry[]>();
+            for (const artist of filteredArtists) {
+              const first = artist.name[0]?.toUpperCase() ?? "#";
+              const letter = /[A-Z]/.test(first) ? first : "#";
+              const list = grouped.get(letter);
+              if (list) {
+                list.push(artist);
+              } else {
+                grouped.set(letter, [artist]);
+              }
+            }
+            const sortedKeys = [...grouped.keys()].sort((a, b) =>
+              a === "#" ? 1 : b === "#" ? -1 : a.localeCompare(b)
             );
-          })}
+
+            return sortedKeys.map((letter, idx) => (
+              <div key={letter}>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-flaque-steel">{letter}</span>
+                  <div className="flex-1 h-[2px] border-t-[2px] border-flaque-clay/40" style={{ maskImage: "linear-gradient(to right, black 50%, transparent)", WebkitMaskImage: "linear-gradient(to right, black 50%, transparent)" }} />
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  {grouped.get(letter)!.map((artist) => {
+                    const artistPhoto = artist.photo
+                      ? coverPathUrl(artist.photo)
+                      : artist.previewTrackId
+                        ? coverUrl(artist.previewTrackId)
+                        : defaultCoverImage;
+
+                    return (
+                      <button
+                        key={artist.name}
+                        className="aspect-square rounded-xl bg-white/85 p-3 text-center transition hover:bg-flaque-cream"
+                        title={artist.name}
+                        type="button"
+                        onClick={() => onArtistSelect(artist)}
+                      >
+                        <img
+                          className="mx-auto h-full max-h-44 w-full max-w-44 rounded-full border border-flaque-clay/50 object-cover"
+                          src={artistPhoto}
+                          alt={`Artwork for ${artist.name}`}
+                          onError={(event) => {
+                            event.currentTarget.src = defaultCoverImage;
+                          }}
+                        />
+                        <div className="mt-2 min-w-0">
+                          <p className="truncate text-sm font-medium text-flaque-ink">{artist.name}</p>
+                          <p className="text-xs text-flaque-steel">
+                            {artist.albumCount} album{artist.albumCount !== 1 ? "s" : ""}
+                            {" · "}
+                            {artist.trackCount} track{artist.trackCount !== 1 ? "s" : ""}
+                            {" · "}
+                            {formatDurationHuman(artist.totalDuration)}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {idx < sortedKeys.length - 1 && <div className="mb-4" />}
+              </div>
+            ));
+          })()}
         </div>
       )}
     </section>
