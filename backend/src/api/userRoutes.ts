@@ -182,6 +182,12 @@ export function createUserRouter(): Router {
       await removeExistingProfilePhotos(authUser.id);
       await fs.rename(tmpPath, targetPath);
 
+      emitSecurityAuditLog("info", "user-profile-photo-updated", {
+        userId: authUser.id,
+        originalName: file.originalname ?? "unknown",
+        sizeBytes: file.size
+      });
+
       res.json({ ok: true });
     } catch (error) {
       next(error);
@@ -468,8 +474,11 @@ export function createUserRouter(): Router {
         adminUserId: req.authUser!.id,
         targetUserId: userId,
         usernameChanged: shouldChangeUsername,
+        ...(shouldChangeUsername ? { oldUsername: existingUser.username, newUsername: nextUsername! } : {}),
         roleChanged: shouldChangeRole,
+        ...(shouldChangeRole ? { oldRole: existingUser.role, newRole: nextRole! } : {}),
         emailChanged: shouldChangeEmail,
+        ...(shouldChangeEmail ? { newEmail: nextEmail! } : {}),
         ip: getClientIp(req) ?? "unknown"
       });
 
