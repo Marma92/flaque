@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import type { Track } from "../types";
 import { getTrackDisplayArtist, getTrackDisplayTitle } from "../utils/tracks";
 
-const DEFAULT_DOCUMENT_TITLE = "Flaque Hifi Player";
+const DEFAULT_DOCUMENT_TITLE = "flaque";
 
 export function useDocumentTitle(track: Track | null): void {
   useEffect(() => {
