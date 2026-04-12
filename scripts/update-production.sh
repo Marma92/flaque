@@ -103,6 +103,13 @@ FRONTEND_PORT="$(grep -E '^FLAQUE_FRONTEND_PORT=' "${ENV_FILE}" | cut -d= -f2- |
 BACKEND_PORT="${BACKEND_PORT:-4000}"
 FRONTEND_PORT="${FRONTEND_PORT:-8080}"
 
+# ── Ensure host mount directories added since the last setup exist ────
+
+STATE_DIR="$(grep -E '^FLAQUE_STATE_DIR=' "${ENV_FILE}" | cut -d= -f2- || true)"
+if [[ -n "${STATE_DIR}" ]]; then
+  mkdir -p "${STATE_DIR}/backups"
+fi
+
 # ── Rebuild images ────────────────────────────────────────────────────
 
 print_step "Rebuilding production container images"

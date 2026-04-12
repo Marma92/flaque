@@ -524,7 +524,7 @@ print_ok "Docker + Compose detected (${COMPOSE_CMD[*]})"
 
 print_step "Collecting deployment values"
 storage_input="$(prompt_with_default "Storage mount path (host -> /app/data/storage)" "${DEFAULT_STORAGE_DIR}" "trim")"
-state_input="$(prompt_with_default "State mount root (host -> /app/data/{config,index,cache})" "${DEFAULT_STATE_DIR}" "trim")"
+state_input="$(prompt_with_default "State mount root (host -> /app/data/{config,index,cache,logs,backups})" "${DEFAULT_STATE_DIR}" "trim")"
 
 STORAGE_DIR="$(to_absolute_path "${storage_input}")"
 STATE_DIR="$(to_absolute_path "${state_input}")"
@@ -612,6 +612,7 @@ ensure_writable_directory "${STATE_DIR}/cache/covers"
 ensure_writable_directory "${STATE_DIR}/cache/transcodes"
 ensure_writable_directory "${STATE_DIR}/cache/tmp-uploads"
 ensure_writable_directory "${STATE_DIR}/logs"
+ensure_writable_directory "${STATE_DIR}/backups"
 print_ok "Mount folders are ready"
 
 print_step "Writing ${ENV_FILE}"
