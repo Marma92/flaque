@@ -1,14 +1,20 @@
+import fs from "node:fs/promises";
 import path from "node:path";
 
 import multer from "multer";
-import { Router } from "express";
+import { Router, type NextFunction, type Response } from "express";
 
 import { requireAuth } from "../auth/middleware";
 import { appendTrackActivityLogEntries, readTrackActivityLog } from "../services/activity/trackActivityStore";
 import { mergeTrackMetadataOverrides } from "../services/indexer/metadataOverrideStore";
 import { IndexStore } from "../services/indexer/indexStore";
 import { extractAudioMetadata } from "../services/scanner/audioProbe";
-import { processUploadedFile, sanitizeExtension, type UploadMetadataOverride } from "../services/upload/uploadService";
+import {
+  processUploadedFile,
+  sanitizeExtension,
+  type ProcessedUpload,
+  type UploadMetadataOverride
+} from "../services/upload/uploadService";
 import {
   initChunkedUpload,
   getOwnedSession,
@@ -28,7 +34,6 @@ import { createLogger } from "../utils/logger";
 import { normalizeOptionalString, parseBooleanField } from "../utils/validation";
 
 const log = createLogger("upload");
-import fs from "node:fs/promises";
 
 const DEFAULT_MAX_UPLOAD_FILES = 50;
 const DEFAULT_MAX_UPLOAD_BYTES = 2_147_483_648;
@@ -36,6 +41,11 @@ const DEFAULT_MAX_UPLOAD_BYTES = 2_147_483_648;
 function getMaxUploadBytes(): number {
   const raw = Number(process.env.MAX_UPLOAD_BYTES ?? DEFAULT_MAX_UPLOAD_BYTES);
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_MAX_UPLOAD_BYTES;
+}
+
+function getMaxUploadFiles(): number {
+  const raw = Number(process.env.MAX_UPLOAD_FILES ?? DEFAULT_MAX_UPLOAD_FILES);
+  return Number.isInteger(raw) && raw > 0 ? raw : DEFAULT_MAX_UPLOAD_FILES;
 }
 
 function isPathInside(candidate: string, parent: string): boolean {
@@ -110,15 +120,8 @@ function toCoverDataUrl(cover?: { data: Buffer; format?: string }): string | und
   return `data:${mimeType};base64,${cover.data.toString("base64")}`;
 }
 
-export function createUploadRouter(indexStore: IndexStore): Router {
-  const router = Router();
-  const maxUploadFiles = Number(process.env.MAX_UPLOAD_FILES ?? DEFAULT_MAX_UPLOAD_FILES);
-  const uploadFileCap =
-    Number.isInteger(maxUploadFiles) && maxUploadFiles > 0 ? maxUploadFiles : DEFAULT_MAX_UPLOAD_FILES;
-
-  const maxUploadBytes = getMaxUploadBytes();
-
-  const upload = multer({
+function createAudioUpload(maxUploadBytes: number): multer.Multer {
+  return multer({
     storage: multer.diskStorage({
       destination: (_req, _file, callback) => {
         callback(null, tmpUploadsRoot);
@@ -142,25 +145,230 @@ export function createUploadRouter(indexStore: IndexStore): Router {
       callback(new Error("Unsupported audio format"));
     }
   });
+}
 
-  // Chunks are raw binary blobs from File.slice() with no audio extension; they
-  // need their own multer instance with memory storage (so req.file.buffer is
-  // populated) and no audio-extension filter. The per-chunk cap is CHUNK_SIZE
-  // plus a small overhead for multipart framing.
-  const chunkUpload = multer({
+// Chunks are raw binary blobs from File.slice() with no audio extension; they
+// need memory storage (so req.file.buffer is populated) and no audio-extension
+// filter. The per-chunk cap is CHUNK_SIZE plus a small overhead for multipart
+// framing.
+function createChunkUpload(): multer.Multer {
+  return multer({
     storage: multer.memoryStorage(),
     limits: {
       fileSize: getChunkSize() + 1024 * 1024
     }
   });
+}
+
+type IngestOptions = {
+  ownerId: string;
+  manualArtist?: string;
+  manualAlbum?: string;
+  deferRebuild: boolean;
+  metadataOverrides: UploadMetadataOverride[];
+};
+
+type IngestResult = {
+  processed: number;
+  uploaded: number;
+  deduplicated: number;
+  tracks: Track[];
+  deferredRebuild: boolean;
+};
+
+/**
+ * Shared ingest pipeline used by both the direct /upload route and the
+ * /upload/finalize route that consumes an already-assembled chunked upload.
+ *
+ * Runs processUploadedFile on every file, merges metadata overrides,
+ * rebuilds the index (unless deferred), resolves the authoritative Track
+ * snapshots, appends new uploads to the activity log, and builds the
+ * response body. Does NOT send the response or clean up temp files — that
+ * remains the caller's responsibility since the failure-mode cleanup shape
+ * is route-specific.
+ */
+async function ingestUploadedFiles(
+  indexStore: IndexStore,
+  files: Express.Multer.File[],
+  options: IngestOptions
+): Promise<IngestResult> {
+  const musicDir = await ensureSharedMusicDir();
+  const results: ProcessedUpload[] = [];
+
+  for (const [index, uploadedFile] of files.entries()) {
+    results.push(
+      await processUploadedFile(
+        uploadedFile,
+        options.ownerId,
+        musicDir,
+        options.manualArtist,
+        options.manualAlbum,
+        options.metadataOverrides[index] ?? {}
+      )
+    );
+  }
+
+  const metadataOverridePatch: Record<string, { title?: string; artist?: string; album?: string }> = {};
+  for (const result of results) {
+    if (result.overrides) {
+      metadataOverridePatch[result.trackId] = result.overrides;
+    }
+  }
+
+  if (Object.keys(metadataOverridePatch).length > 0) {
+    await mergeTrackMetadataOverrides(metadataOverridePatch);
+  }
+
+  const updatedIndex = options.deferRebuild ? indexStore.getSnapshot() : await indexStore.rebuild();
+  const provisionalById = new Map(results.map((r) => [r.trackId, r.track]));
+
+  const resolveTrack = (result: ProcessedUpload): Track | undefined =>
+    updatedIndex.tracks.find((candidate) => candidate.id === result.trackId) ??
+    provisionalById.get(result.trackId);
+
+  const tracks = results
+    .map(resolveTrack)
+    .filter((track): track is Track => Boolean(track));
+
+  const newUploadTracks = results
+    .filter((result) => result.isNew)
+    .map(resolveTrack)
+    .filter((track): track is Track => Boolean(track));
+
+  if (newUploadTracks.length > 0) {
+    await appendTrackActivityLogEntries(newUploadTracks);
+  }
+
+  const deduplicated = results.filter((r) => !r.isNew).length;
+  const uploaded = results.length - deduplicated;
+
+  log.info("Upload complete", {
+    owner: options.ownerId,
+    processed: results.length,
+    uploaded,
+    deduplicated
+  });
+
+  return {
+    processed: results.length,
+    uploaded,
+    deduplicated,
+    tracks,
+    deferredRebuild: options.deferRebuild
+  };
+}
+
+type ResolvedTempFile =
+  | { ok: true; file: Express.Multer.File }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Validate a tempPath supplied by /upload/finalize and return a synthetic
+ * Multer.File that downstream code can treat as if it came from a direct
+ * upload. The path must live inside tmpUploadsRoot, exist, point to a
+ * supported audio format, and not exceed maxBytes. An oversized file is
+ * unlinked before returning the error so we don't leave large temp files
+ * lying around.
+ */
+async function resolveTempPathFile(
+  tempPath: string,
+  originalFileName: string | undefined,
+  maxBytes: number
+): Promise<ResolvedTempFile> {
+  if (!isPathInside(tempPath, tmpUploadsRoot)) {
+    return { ok: false, status: 400, error: "Invalid tempPath" };
+  }
+
+  const resolvedTempPath = path.resolve(tempPath);
+  const exists = await fileExists(resolvedTempPath);
+  if (!exists) {
+    return { ok: false, status: 404, error: "Temporary upload not found" };
+  }
+
+  const displayName = originalFileName ?? path.basename(resolvedTempPath);
+  if (!isSupportedAudioFile(displayName)) {
+    return { ok: false, status: 400, error: "Unsupported audio format" };
+  }
+
+  const stat = await fs.stat(resolvedTempPath);
+  if (stat.size > maxBytes) {
+    await fs.unlink(resolvedTempPath).catch(() => {});
+    return {
+      ok: false,
+      status: 413,
+      error: `File exceeds maximum upload size of ${maxBytes} bytes`
+    };
+  }
+
+  const file = {
+    path: resolvedTempPath,
+    originalname: displayName,
+    size: stat.size,
+    mimetype: getAudioMimeType(displayName)
+  } as Express.Multer.File;
+
+  return { ok: true, file };
+}
+
+function requireOwnerId(req: { authUser?: { id?: string } }, res: Response): string | undefined {
+  const ownerId = req.authUser?.id;
+  if (!ownerId) {
+    res.status(401).json({ error: "Authentication required" });
+    return undefined;
+  }
+  return ownerId;
+}
+
+function requireSessionId(req: { body?: Record<string, unknown> }, res: Response): string | undefined {
+  const sessionId = normalizeOptionalString(req.body?.sessionId);
+  if (!sessionId) {
+    res.status(400).json({ error: "sessionId is required" });
+    return undefined;
+  }
+  return sessionId;
+}
+
+type ParsedUploadRequestBody = {
+  manualArtist?: string;
+  manualAlbum?: string;
+  deferRebuild: boolean;
+  metadataOverrides: UploadMetadataOverride[];
+};
+
+function parseUploadRequestBody(body: unknown): ParsedUploadRequestBody {
+  const source = (body ?? {}) as Record<string, unknown>;
+  return {
+    manualArtist: normalizeOptionalString(source.artist),
+    manualAlbum: normalizeOptionalString(source.album),
+    deferRebuild: parseBooleanField(source.deferRebuild),
+    metadataOverrides: parseUploadMetadataOverrides(source.metadataOverrides)
+  };
+}
+
+/**
+ * Shared catch-block body for chunked endpoints. Maps SessionForbiddenError
+ * to a 403 and forwards everything else to Express's error handler.
+ */
+function handleChunkedError(error: unknown, res: Response, next: NextFunction): void {
+  if (error instanceof SessionForbiddenError) {
+    res.status(403).json({ error: "Upload session does not belong to you" });
+    return;
+  }
+  next(error);
+}
+
+export function createUploadRouter(indexStore: IndexStore): Router {
+  const router = Router();
+  const maxUploadFiles = getMaxUploadFiles();
+  const maxUploadBytes = getMaxUploadBytes();
+
+  const upload = createAudioUpload(maxUploadBytes);
+  const chunkUpload = createChunkUpload();
 
   router.post("/upload/chunked/init", requireAuth, async (req, res, next) => {
     try {
-      const ownerId = req.authUser?.id;
-      if (!ownerId) {
-        res.status(401).json({ error: "Authentication required" });
-        return;
-      }
+      const ownerId = requireOwnerId(req, res);
+      if (!ownerId) return;
 
       const fileName = normalizeOptionalString(req.body?.fileName);
       const fileSize = Number(req.body?.fileSize);
@@ -197,17 +405,15 @@ export function createUploadRouter(indexStore: IndexStore): Router {
     chunkUpload.single("chunk"),
     async (req, res, next) => {
       try {
-        const ownerId = req.authUser?.id;
-        if (!ownerId) {
-          res.status(401).json({ error: "Authentication required" });
-          return;
-        }
+        const ownerId = requireOwnerId(req, res);
+        if (!ownerId) return;
 
-        const sessionId = normalizeOptionalString(req.body?.sessionId);
+        const sessionId = requireSessionId(req, res);
+        if (!sessionId) return;
+
         const chunkIndex = Number(req.body?.chunkIndex);
-
-        if (!sessionId || !Number.isFinite(chunkIndex)) {
-          res.status(400).json({ error: "sessionId and chunkIndex are required" });
+        if (!Number.isFinite(chunkIndex)) {
+          res.status(400).json({ error: "chunkIndex is required" });
           return;
         }
 
@@ -217,31 +423,23 @@ export function createUploadRouter(indexStore: IndexStore): Router {
         }
 
         const session = await saveChunk(sessionId, ownerId, chunkIndex, req.file.buffer);
-        res.json({ received: chunkIndex, progress: session.receivedChunks.size / session.totalChunks });
+        res.json({
+          received: chunkIndex,
+          progress: session.receivedChunks.size / session.totalChunks
+        });
       } catch (error) {
-        if (error instanceof SessionForbiddenError) {
-          res.status(403).json({ error: "Upload session does not belong to you" });
-          return;
-        }
-        next(error);
+        handleChunkedError(error, res, next);
       }
     }
   );
 
   router.post("/upload/chunked/complete", requireAuth, async (req, res, next) => {
     try {
-      const ownerId = req.authUser?.id;
-      if (!ownerId) {
-        res.status(401).json({ error: "Authentication required" });
-        return;
-      }
+      const ownerId = requireOwnerId(req, res);
+      if (!ownerId) return;
 
-      const sessionId = normalizeOptionalString(req.body?.sessionId);
-
-      if (!sessionId) {
-        res.status(400).json({ error: "sessionId is required" });
-        return;
-      }
+      const sessionId = requireSessionId(req, res);
+      if (!sessionId) return;
 
       const session = getOwnedSession(sessionId, ownerId);
       if (!session) {
@@ -250,39 +448,28 @@ export function createUploadRouter(indexStore: IndexStore): Router {
       }
 
       const assembledPath = await assembleChunks(sessionId, ownerId);
-      res.json({ tempPath: assembledPath, fileName: session.fileName, size: session.totalSize });
+      res.json({
+        tempPath: assembledPath,
+        fileName: session.fileName,
+        size: session.totalSize
+      });
     } catch (error) {
-      if (error instanceof SessionForbiddenError) {
-        res.status(403).json({ error: "Upload session does not belong to you" });
-        return;
-      }
-      next(error);
+      handleChunkedError(error, res, next);
     }
   });
 
   router.post("/upload/chunked/cancel", requireAuth, async (req, res, next) => {
     try {
-      const ownerId = req.authUser?.id;
-      if (!ownerId) {
-        res.status(401).json({ error: "Authentication required" });
-        return;
-      }
+      const ownerId = requireOwnerId(req, res);
+      if (!ownerId) return;
 
-      const sessionId = normalizeOptionalString(req.body?.sessionId);
-
-      if (!sessionId) {
-        res.status(400).json({ error: "sessionId is required" });
-        return;
-      }
+      const sessionId = requireSessionId(req, res);
+      if (!sessionId) return;
 
       await cancelChunkedUpload(sessionId, ownerId);
       res.json({ cancelled: true });
     } catch (error) {
-      if (error instanceof SessionForbiddenError) {
-        res.status(403).json({ error: "Upload session does not belong to you" });
-        return;
-      }
-      next(error);
+      handleChunkedError(error, res, next);
     }
   });
 
@@ -294,40 +481,16 @@ export function createUploadRouter(indexStore: IndexStore): Router {
     const tempPath = normalizeOptionalString(req.body?.tempPath);
     const originalFileName = normalizeOptionalString(req.body?.fileName);
     let uploadedFile = req.file;
+    const directTempPath = req.file?.path;
 
     try {
       if (tempPath && !uploadedFile) {
-        if (!isPathInside(tempPath, tmpUploadsRoot)) {
-          res.status(400).json({ error: "Invalid tempPath" });
+        const resolved = await resolveTempPathFile(tempPath, originalFileName, maxUploadBytes);
+        if (!resolved.ok) {
+          res.status(resolved.status).json({ error: resolved.error });
           return;
         }
-
-        const resolvedTempPath = path.resolve(tempPath);
-        const exists = await fileExists(resolvedTempPath);
-        if (!exists) {
-          res.status(404).json({ error: "Temporary upload not found" });
-          return;
-        }
-
-        const displayName = originalFileName ?? path.basename(resolvedTempPath);
-        if (!isSupportedAudioFile(displayName)) {
-          res.status(400).json({ error: "Unsupported audio format" });
-          return;
-        }
-
-        const stat = await fs.stat(resolvedTempPath);
-        if (stat.size > maxUploadBytes) {
-          await fs.unlink(resolvedTempPath).catch(() => {});
-          res.status(413).json({ error: `File exceeds maximum upload size of ${maxUploadBytes} bytes` });
-          return;
-        }
-
-        uploadedFile = {
-          path: resolvedTempPath,
-          originalname: displayName,
-          size: stat.size,
-          mimetype: getAudioMimeType(displayName)
-        } as Express.Multer.File;
+        uploadedFile = resolved.file;
       }
 
       if (!uploadedFile) {
@@ -335,56 +498,29 @@ export function createUploadRouter(indexStore: IndexStore): Router {
         return;
       }
 
-      const ownerId = req.authUser?.id;
-      if (!ownerId) {
-        res.status(401).json({ error: "Authentication required" });
-        return;
-      }
+      const ownerId = requireOwnerId(req, res);
+      if (!ownerId) return;
 
-      const manualArtist = normalizeOptionalString(req.body?.artist);
-      const manualAlbum = normalizeOptionalString(req.body?.album);
-      const deferRebuild = parseBooleanField(req.body?.deferRebuild);
-      const metadataOverrides = parseUploadMetadataOverrides(req.body?.metadataOverrides);
+      const parsedBody = parseUploadRequestBody(req.body);
 
-      const musicDir = await ensureSharedMusicDir();
-      const result = await processUploadedFile(
-        uploadedFile,
+      const result = await ingestUploadedFiles(indexStore, [uploadedFile], {
         ownerId,
-        musicDir,
-        manualArtist,
-        manualAlbum,
-        metadataOverrides[0] ?? {}
-      );
-
-      if (metadataOverrides[0]) {
-        await mergeTrackMetadataOverrides({ [result.trackId]: metadataOverrides[0] });
-      }
-
-      const updatedIndex = deferRebuild ? indexStore.getSnapshot() : await indexStore.rebuild();
-      const track =
-        updatedIndex.tracks.find((t) => t.id === result.trackId) ??
-        (result.track as Track);
-
-      if (result.isNew) {
-        await appendTrackActivityLogEntries([track]);
-      }
-
-      log.info("Chunked upload complete", {
-        owner: ownerId,
-        trackId: result.trackId,
-        isNew: result.isNew
+        ...parsedBody
       });
 
       res.status(201).json({
-        processed: 1,
-        uploaded: result.isNew ? 1 : 0,
-        deduplicated: result.isNew ? 0 : 1,
-        tracks: [track],
-        overrides: { artist: manualArtist, album: manualAlbum }
+        processed: result.processed,
+        uploaded: result.uploaded,
+        deduplicated: result.deduplicated,
+        tracks: result.tracks,
+        overrides: { artist: parsedBody.manualArtist, album: parsedBody.manualAlbum }
       });
 
       void checkStorageAndWarnAdmins();
     } catch (error) {
+      if (directTempPath) {
+        await cleanupTemporaryFiles([directTempPath]);
+      }
       next(error);
     }
   });
@@ -438,7 +574,7 @@ export function createUploadRouter(indexStore: IndexStore): Router {
     "/upload",
     requireAuth,
     upload.fields([
-      { name: "files", maxCount: uploadFileCap },
+      { name: "files", maxCount: maxUploadFiles },
       { name: "file", maxCount: 1 }
     ]),
     async (req, res, next) => {
@@ -451,82 +587,25 @@ export function createUploadRouter(indexStore: IndexStore): Router {
           return;
         }
 
-        const ownerId = req.authUser?.id;
-        if (!ownerId) {
-          res.status(401).json({ error: "Authentication required" });
-          return;
-        }
+        const ownerId = requireOwnerId(req, res);
+        if (!ownerId) return;
 
-        const manualArtist = normalizeOptionalString(req.body?.artist);
-        const manualAlbum = normalizeOptionalString(req.body?.album);
-        const deferRebuild = parseBooleanField(req.body?.deferRebuild);
-        const metadataOverrides = parseUploadMetadataOverrides(req.body?.metadataOverrides);
+        const parsedBody = parseUploadRequestBody(req.body);
 
-        const musicDir = await ensureSharedMusicDir();
-        const results: Awaited<ReturnType<typeof processUploadedFile>>[] = [];
-
-        for (const [index, uploadedFile] of uploadedFiles.entries()) {
-          results.push(
-            await processUploadedFile(
-              uploadedFile,
-              ownerId,
-              musicDir,
-              manualArtist,
-              manualAlbum,
-              metadataOverrides[index] ?? {}
-            )
-          );
-        }
-
-        const metadataOverridePatch: Record<string, { title?: string; artist?: string; album?: string }> = {};
-        for (const result of results) {
-          if (result.overrides) {
-            metadataOverridePatch[result.trackId] = result.overrides;
-          }
-        }
-
-        if (Object.keys(metadataOverridePatch).length > 0) {
-          await mergeTrackMetadataOverrides(metadataOverridePatch);
-        }
-
-        const updatedIndex = deferRebuild ? indexStore.getSnapshot() : await indexStore.rebuild();
-        const provisionalById = new Map(results.map((r) => [r.trackId, r.track]));
-
-        const tracks = results
-          .map(
-            (result) =>
-              updatedIndex.tracks.find((candidate) => candidate.id === result.trackId) ??
-              provisionalById.get(result.trackId)
-          )
-          .filter((track): track is Track => Boolean(track));
-
-        const newUploadTracks = results
-          .filter((result) => result.isNew)
-          .map(
-            (result) =>
-              updatedIndex.tracks.find((candidate) => candidate.id === result.trackId) ??
-              provisionalById.get(result.trackId)
-          )
-          .filter((track): track is Track => Boolean(track));
-
-        await appendTrackActivityLogEntries(newUploadTracks);
-
-        const deduplicated = results.filter((r) => !r.isNew).length;
-        log.info("Upload complete", {
-          owner: ownerId,
-          processed: uploadedFiles.length,
-          uploaded: uploadedFiles.length - deduplicated,
-          deduplicated
+        const result = await ingestUploadedFiles(indexStore, uploadedFiles, {
+          ownerId,
+          ...parsedBody
         });
+
         res.status(201).json({
-          processed: uploadedFiles.length,
-          uploaded: uploadedFiles.length - deduplicated,
-          deduplicated,
-          tracks,
-          deferredRebuild: deferRebuild,
+          processed: result.processed,
+          uploaded: result.uploaded,
+          deduplicated: result.deduplicated,
+          tracks: result.tracks,
+          deferredRebuild: result.deferredRebuild,
           overrides: {
-            artist: manualArtist,
-            album: manualAlbum
+            artist: parsedBody.manualArtist,
+            album: parsedBody.manualAlbum
           }
         });
         void checkStorageAndWarnAdmins();
