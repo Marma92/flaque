@@ -186,3 +186,16 @@ export function parseMetadataField(value: unknown): string | undefined | null {
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
 }
+
+export function parseMetadataYearField(value: unknown): number | undefined | null {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(n) || n < 1000 || n > 2999) {
+    return null;
+  }
+
+  return n;
+}

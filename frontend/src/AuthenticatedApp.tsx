@@ -196,6 +196,7 @@ export function AuthenticatedApp({
   const {
     handleUpload, handleInspectUploadFile, handleRebuildIndex,
     handleDeleteTrack, handleUpdateTrackMetadata,
+    handleBulkDeleteTracks, handleBulkUpdateTrackMetadata,
     handleCreatePlaylist, handleAddTrackToPlaylist,
     handlePatchPlaylist, handleDeletePlaylist
   } = useLibraryCommands({
@@ -359,7 +360,9 @@ export function AuthenticatedApp({
         onRebuildIndex: handleRebuildIndex,
         onRefreshTracks: refreshAllTracks,
         onDeleteTrack: handleDeleteTrack,
-        onUpdateTrackMetadata: handleUpdateTrackMetadata
+        onUpdateTrackMetadata: handleUpdateTrackMetadata,
+        onBulkDeleteTracks: handleBulkDeleteTracks,
+        onBulkUpdateTrackMetadata: handleBulkUpdateTrackMetadata
       }}
       usersViewProps={{
         currentUser: user,

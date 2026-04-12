@@ -805,6 +805,35 @@ export async function deleteTrackFile(trackId: string): Promise<{
   );
 }
 
+export async function bulkDeleteTracks(trackIds: string[]): Promise<{
+  deleted: string[];
+  notFound: string[];
+  totalTracks: number;
+}> {
+  return requestJson<{ deleted: string[]; notFound: string[]; totalTracks: number }>(
+    "/api/tracks/bulk/delete",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trackIds })
+    }
+  );
+}
+
+export async function bulkUpdateTrackMetadata(
+  trackIds: string[],
+  patch: TrackMetadataPatch
+): Promise<{ updated: string[]; notFound: string[] }> {
+  return requestJson<{ updated: string[]; notFound: string[] }>(
+    "/api/tracks/bulk/metadata",
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trackIds, ...patch })
+    }
+  );
+}
+
 export async function createRadioStation(): Promise<RadioCreateResponse> {
   return requestJson<RadioCreateResponse>("/api/radio/create", {
     method: "POST"

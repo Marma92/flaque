@@ -8,6 +8,7 @@ export type EditTrackState = {
   title: string;
   artist: string;
   album: string;
+  year: string;
 };
 
 type TrackEditModalProps = {
@@ -84,6 +85,27 @@ export function TrackEditModal({
                   ? {
                       ...current,
                       album: event.target.value
+                    }
+                  : current
+              )
+            }
+          />
+        </label>
+
+        <label className="mt-3 block text-sm text-flaque-ink">
+          Year
+          <input
+            className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+            type="text"
+            inputMode="numeric"
+            value={editState.year}
+            placeholder="e.g. 1979"
+            onChange={(event) =>
+              onStateChange((current) =>
+                current
+                  ? {
+                      ...current,
+                      year: event.target.value
                     }
                   : current
               )

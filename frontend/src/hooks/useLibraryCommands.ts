@@ -1,6 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
 
 import {
+  bulkDeleteTracks,
+  bulkUpdateTrackMetadata,
   createPlaylist,
   deletePlaylist,
   deleteTrackFile,
@@ -48,6 +50,8 @@ type UseLibraryCommandsResult = {
   handleAddTrackToPlaylist: (input: { trackId: string; playlistId: string }) => Promise<void>;
   handlePatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[] }) => Promise<void>;
   handleDeletePlaylist: (playlistId: string) => Promise<void>;
+  handleBulkDeleteTracks: (trackIds: string[]) => Promise<void>;
+  handleBulkUpdateTrackMetadata: (trackIds: string[], patch: TrackMetadataPatch) => Promise<void>;
 };
 
 /**
@@ -205,12 +209,43 @@ export function useLibraryCommands({
     refreshPaginatedLibrary();
   }
 
+  async function handleBulkDeleteTracks(trackIds: string[]): Promise<void> {
+    const result = await bulkDeleteTracks(trackIds);
+    for (const id of result.deleted) {
+      removeTrackFromPlayback(id);
+    }
+
+    setAppNotice({
+      tone: "success",
+      message: `${result.deleted.length} track${result.deleted.length !== 1 ? "s" : ""} deleted from the library.`
+    });
+
+    await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+    refreshRecentlyUploaded();
+    refreshPaginatedLibrary();
+  }
+
+  async function handleBulkUpdateTrackMetadata(trackIds: string[], patch: TrackMetadataPatch): Promise<void> {
+    const result = await bulkUpdateTrackMetadata(trackIds, patch);
+
+    setAppNotice({
+      tone: "success",
+      message: `Metadata updated for ${result.updated.length} track${result.updated.length !== 1 ? "s" : ""}.`
+    });
+
+    await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+    refreshRecentlyUploaded();
+    refreshPaginatedLibrary();
+  }
+
   return {
     handleUpload,
     handleInspectUploadFile,
     handleRebuildIndex,
     handleDeleteTrack,
     handleUpdateTrackMetadata,
+    handleBulkDeleteTracks,
+    handleBulkUpdateTrackMetadata,
     handleCreatePlaylist,
     handleAddTrackToPlaylist,
     handlePatchPlaylist,

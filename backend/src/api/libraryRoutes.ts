@@ -37,6 +37,7 @@ import type { Track } from "../types/library";
 import {
   hasOwnProperty,
   parseMetadataField,
+  parseMetadataYearField,
   readDirection,
   readFilter,
   readTracksQuery,
@@ -203,9 +204,10 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       const hasTitle = hasOwnProperty(req.body, "title");
       const hasArtist = hasOwnProperty(req.body, "artist");
       const hasAlbum = hasOwnProperty(req.body, "album");
+      const hasYear = hasOwnProperty(req.body, "year");
 
-      if (!hasTitle && !hasArtist && !hasAlbum) {
-        res.status(400).json({ error: "At least one metadata field is required: title, artist, album" });
+      if (!hasTitle && !hasArtist && !hasAlbum && !hasYear) {
+        res.status(400).json({ error: "At least one metadata field is required: title, artist, album, year" });
         return;
       }
 
@@ -218,10 +220,12 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       const parsedTitle = hasTitle ? parseMetadataField(req.body?.title) : undefined;
       const parsedArtist = hasArtist ? parseMetadataField(req.body?.artist) : undefined;
       const parsedAlbum = hasAlbum ? parseMetadataField(req.body?.album) : undefined;
+      const parsedYear = hasYear ? parseMetadataYearField(req.body?.year) : undefined;
 
       if (parsedTitle === null) { res.status(400).json({ error: "title must be a string or null" }); return; }
       if (parsedArtist === null) { res.status(400).json({ error: "artist must be a string or null" }); return; }
       if (parsedAlbum === null) { res.status(400).json({ error: "album must be a string or null" }); return; }
+      if (parsedYear === null) { res.status(400).json({ error: "year must be an integer between 1000 and 2999, or null" }); return; }
 
       const currentOverrides = await readTrackMetadataOverrides();
       const currentOverride = currentOverrides[trackId] ?? {};
@@ -230,7 +234,8 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
         [trackId]: {
           title: hasTitle ? parsedTitle : currentOverride.title,
           artist: hasArtist ? parsedArtist : currentOverride.artist,
-          album: hasAlbum ? parsedAlbum : currentOverride.album
+          album: hasAlbum ? parsedAlbum : currentOverride.album,
+          year: hasYear ? parsedYear : currentOverride.year
         }
       });
 
@@ -243,7 +248,7 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       }
 
       const fallbackTrack = applyMetadataPatchToTrack(currentTrack, {
-        hasTitle, title: parsedTitle, hasArtist, artist: parsedArtist, hasAlbum, album: parsedAlbum
+        hasTitle, title: parsedTitle, hasArtist, artist: parsedArtist, hasAlbum, album: parsedAlbum, hasYear, year: parsedYear
       });
       res.json({
         track: mapTrackResponse(mapTrackOwners([fallbackTrack], ownerNamesById)[0]!),
@@ -253,6 +258,123 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       next(error);
     }
   };
+
+  router.post("/tracks/bulk/delete", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const trackIds = req.body?.trackIds;
+      if (!Array.isArray(trackIds) || trackIds.length === 0) {
+        res.status(400).json({ error: "trackIds array is required" });
+        return;
+      }
+
+      const validIds = trackIds.filter((id): id is string => typeof id === "string" && id.length > 0);
+      if (validIds.length === 0) {
+        res.status(400).json({ error: "No valid track ids provided" });
+        return;
+      }
+
+      const deleted: string[] = [];
+      const notFound: string[] = [];
+      const overridePatch: Record<string, Record<string, never>> = {};
+
+      for (const trackId of validIds) {
+        const track = indexStore.getTrackById(trackId);
+        if (!track) {
+          notFound.push(trackId);
+          continue;
+        }
+
+        const absolutePath = resolveTrackAbsolutePath(track.path);
+        try {
+          await fs.unlink(absolutePath);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+            throw error;
+          }
+        }
+
+        await deleteTrackCover(trackId);
+        overridePatch[trackId] = {};
+        deleted.push(trackId);
+      }
+
+      if (Object.keys(overridePatch).length > 0) {
+        await mergeTrackMetadataOverrides(overridePatch);
+      }
+
+      const rebuiltIndex = await indexStore.rebuild();
+      res.json({ deleted, notFound, totalTracks: rebuiltIndex.totalTracks });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.patch("/tracks/bulk/metadata", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const trackIds = req.body?.trackIds;
+      if (!Array.isArray(trackIds) || trackIds.length === 0) {
+        res.status(400).json({ error: "trackIds array is required" });
+        return;
+      }
+
+      const validIds = trackIds.filter((id): id is string => typeof id === "string" && id.length > 0);
+      if (validIds.length === 0) {
+        res.status(400).json({ error: "No valid track ids provided" });
+        return;
+      }
+
+      const hasTitle = hasOwnProperty(req.body, "title");
+      const hasArtist = hasOwnProperty(req.body, "artist");
+      const hasAlbum = hasOwnProperty(req.body, "album");
+      const hasYear = hasOwnProperty(req.body, "year");
+
+      if (!hasTitle && !hasArtist && !hasAlbum && !hasYear) {
+        res.status(400).json({ error: "At least one metadata field is required: title, artist, album, year" });
+        return;
+      }
+
+      const parsedTitle = hasTitle ? parseMetadataField(req.body?.title) : undefined;
+      const parsedArtist = hasArtist ? parseMetadataField(req.body?.artist) : undefined;
+      const parsedAlbum = hasAlbum ? parseMetadataField(req.body?.album) : undefined;
+      const parsedYear = hasYear ? parseMetadataYearField(req.body?.year) : undefined;
+
+      if (parsedTitle === null) { res.status(400).json({ error: "title must be a string or null" }); return; }
+      if (parsedArtist === null) { res.status(400).json({ error: "artist must be a string or null" }); return; }
+      if (parsedAlbum === null) { res.status(400).json({ error: "album must be a string or null" }); return; }
+      if (parsedYear === null) { res.status(400).json({ error: "year must be an integer between 1000 and 2999, or null" }); return; }
+
+      const currentOverrides = await readTrackMetadataOverrides();
+      const overridePatch: Record<string, { title?: string; artist?: string; album?: string; year?: number }> = {};
+      const updated: string[] = [];
+      const notFound: string[] = [];
+
+      for (const trackId of validIds) {
+        const track = indexStore.getTrackById(trackId);
+        if (!track) {
+          notFound.push(trackId);
+          continue;
+        }
+
+        const current = currentOverrides[trackId] ?? {};
+        overridePatch[trackId] = {
+          title: hasTitle ? parsedTitle : current.title,
+          artist: hasArtist ? parsedArtist : current.artist,
+          album: hasAlbum ? parsedAlbum : current.album,
+          year: hasYear ? parsedYear : current.year
+        };
+        updated.push(trackId);
+      }
+
+      if (Object.keys(overridePatch).length > 0) {
+        await mergeTrackMetadataOverrides(overridePatch);
+      }
+
+      await indexStore.rebuild();
+      res.json({ updated, notFound });
+    } catch (error) {
+      next(error);
+    }
+  });
 
   router.patch("/tracks/:id/metadata", requireAuth, requireAdmin, handlePatchTrackMetadata);
   router.patch("/tracks/:id", requireAuth, requireAdmin, handlePatchTrackMetadata);

@@ -5,6 +5,7 @@ export type TrackMetadataOverride = {
   title?: string;
   artist?: string;
   album?: string;
+  year?: number;
 };
 
 type TrackMetadataOverridesMap = Record<string, TrackMetadataOverride>;
@@ -18,23 +19,33 @@ function normalizeField(value: unknown): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+function normalizeYear(value: unknown): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(n) || n < 1000 || n > 2999) return undefined;
+  return n;
+}
+
 function normalizeOverride(override: unknown): TrackMetadataOverride | undefined {
   if (!override || typeof override !== "object") {
     return undefined;
   }
 
-  const artist = normalizeField((override as { artist?: unknown }).artist);
-  const album = normalizeField((override as { album?: unknown }).album);
-  const title = normalizeField((override as { title?: unknown }).title);
+  const record = override as Record<string, unknown>;
+  const artist = normalizeField(record.artist);
+  const album = normalizeField(record.album);
+  const title = normalizeField(record.title);
+  const year = normalizeYear(record.year);
 
-  if (!title && !artist && !album) {
+  if (!title && !artist && !album && year === undefined) {
     return undefined;
   }
 
   return {
     title,
     artist,
-    album
+    album,
+    year
   };
 }
 
@@ -93,7 +104,8 @@ export async function mergeTrackMetadataOverrides(
     if (
       existing?.title === cleanOverride.title &&
       existing?.artist === cleanOverride.artist &&
-      existing?.album === cleanOverride.album
+      existing?.album === cleanOverride.album &&
+      existing?.year === cleanOverride.year
     ) {
       continue;
     }
