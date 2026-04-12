@@ -219,23 +219,13 @@ export function useLibraryCommands({
       removeTrackFromPlayback(id);
     }
 
-    setAppNotice({
-      tone: "success",
-      message: `${result.deleted.length} track${result.deleted.length !== 1 ? "s" : ""} deleted from the library.`
-    });
-
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
     refreshRecentlyUploaded();
     refreshPaginatedLibrary();
   }
 
   async function handleBulkUpdateTrackMetadata(trackIds: string[], patch: TrackMetadataPatch): Promise<void> {
-    const result = await bulkUpdateTrackMetadata(trackIds, patch);
-
-    setAppNotice({
-      tone: "success",
-      message: `Metadata updated for ${result.updated.length} track${result.updated.length !== 1 ? "s" : ""}.`
-    });
+    await bulkUpdateTrackMetadata(trackIds, patch);
 
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
     refreshRecentlyUploaded();
