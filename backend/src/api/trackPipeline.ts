@@ -101,6 +101,8 @@ export function applyMetadataPatchToTrack(
     artist?: string;
     hasAlbum: boolean;
     album?: string;
+    hasYear: boolean;
+    year?: number;
   }
 ): Track {
   return {
@@ -109,7 +111,8 @@ export function applyMetadataPatchToTrack(
       ...track.tags,
       ...(patch.hasTitle ? { title: patch.title } : {}),
       ...(patch.hasArtist ? { artist: patch.artist } : {}),
-      ...(patch.hasAlbum ? { album: patch.album } : {})
+      ...(patch.hasAlbum ? { album: patch.album } : {}),
+      ...(patch.hasYear ? { year: patch.year } : {})
     }
   };
 }

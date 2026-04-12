@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useCallback, useMemo, useState } from "react";
 
 import type { Track, TrackMetadataPatch, User } from "../types";
 import {
@@ -21,6 +21,8 @@ export type ConfigViewProps = {
   onRefreshTracks: () => Promise<void>;
   onDeleteTrack: (trackId: string) => Promise<void>;
   onUpdateTrackMetadata: (trackId: string, patch: TrackMetadataPatch) => Promise<void>;
+  onBulkDeleteTracks: (trackIds: string[]) => Promise<void>;
+  onBulkUpdateTrackMetadata: (trackIds: string[], patch: TrackMetadataPatch) => Promise<void>;
   activeSection: ConfigSection;
   onSectionChange: (section: ConfigSection) => void;
 };
@@ -29,6 +31,24 @@ export type ConfigSection = "index" | "files" | "users" | "server" | "backup";
 
 function normalizeSearch(value: string): string {
   return value.trim().toLowerCase();
+}
+
+type BulkEditState = {
+  trackIds: string[];
+  title: string;
+  artist: string;
+  album: string;
+  year: string;
+  commonTitle: string | undefined;
+  commonArtist: string | undefined;
+  commonAlbum: string | undefined;
+  commonYear: string | undefined;
+};
+
+function computeCommonField(tracks: Track[], getter: (t: Track) => string | undefined): string | undefined {
+  if (tracks.length === 0) return undefined;
+  const first = getter(tracks[0]);
+  return tracks.every((t) => getter(t) === first) ? first : undefined;
 }
 
 export function ConfigView({
@@ -41,6 +61,8 @@ export function ConfigView({
   onRefreshTracks,
   onDeleteTrack,
   onUpdateTrackMetadata,
+  onBulkDeleteTracks,
+  onBulkUpdateTrackMetadata,
   activeSection
 }: ConfigViewProps): JSX.Element {
   const [searchText, setSearchText] = useState("");
@@ -51,6 +73,12 @@ export function ConfigView({
   const [deletingTrack, setDeletingTrack] = useState(false);
   const [editState, setEditState] = useState<EditTrackState | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+
+  const [selectedTrackIds, setSelectedTrackIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkEditState, setBulkEditState] = useState<BulkEditState | null>(null);
+  const [bulkSavingEdit, setBulkSavingEdit] = useState(false);
 
   const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
 
@@ -115,7 +143,8 @@ export function ConfigView({
       track,
       title: track.tags.title ?? "",
       artist: track.tags.artist ?? "",
-      album: track.tags.album ?? ""
+      album: track.tags.album ?? "",
+      year: track.tags.year != null ? String(track.tags.year) : ""
     });
   }
 
@@ -135,16 +164,132 @@ export function ConfigView({
     setSavingEdit(true);
 
     try {
+      const yearValue = editState.year.trim();
+      const parsedYear = yearValue ? Number(yearValue) : null;
+
       await onUpdateTrackMetadata(editState.track.id, {
         title: editState.title.trim() || null,
         artist: editState.artist.trim() || null,
-        album: editState.album.trim() || null
+        album: editState.album.trim() || null,
+        year: Number.isInteger(parsedYear) ? parsedYear : parsedYear === null ? null : undefined
       });
       setEditState(null);
     } catch (error) {
       void error;
     } finally {
       setSavingEdit(false);
+    }
+  }
+
+  const toggleTrackSelection = useCallback((trackId: string) => {
+    setSelectedTrackIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(trackId)) {
+        next.delete(trackId);
+      } else {
+        next.add(trackId);
+      }
+      return next;
+    });
+  }, []);
+
+  const togglePageSelection = useCallback(() => {
+    setSelectedTrackIds((prev) => {
+      const pageIds = paginatedTracks.map((t) => t.id);
+      const allPageSelected = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allPageSelected) {
+        for (const id of pageIds) next.delete(id);
+      } else {
+        for (const id of pageIds) next.add(id);
+      }
+      return next;
+    });
+  }, [paginatedTracks]);
+
+  const clearSelection = useCallback(() => setSelectedTrackIds(new Set()), []);
+
+  const selectedTracks = useMemo(
+    () => tracks.filter((t) => selectedTrackIds.has(t.id)),
+    [tracks, selectedTrackIds]
+  );
+
+  const pageAllSelected = paginatedTracks.length > 0 && paginatedTracks.every((t) => selectedTrackIds.has(t.id));
+  const pageSomeSelected = paginatedTracks.some((t) => selectedTrackIds.has(t.id));
+
+  function openBulkEditModal(): void {
+    const selected = selectedTracks;
+    if (selected.length === 0) return;
+
+    const commonTitle = computeCommonField(selected, (t) => t.tags.title);
+    const commonArtist = computeCommonField(selected, (t) => t.tags.artist);
+    const commonAlbum = computeCommonField(selected, (t) => t.tags.album);
+    const commonYear = computeCommonField(selected, (t) => t.tags.year != null ? String(t.tags.year) : undefined);
+
+    setBulkEditState({
+      trackIds: selected.map((t) => t.id),
+      title: commonTitle ?? "",
+      artist: commonArtist ?? "",
+      album: commonAlbum ?? "",
+      year: commonYear ?? "",
+      commonTitle,
+      commonArtist,
+      commonAlbum,
+      commonYear
+    });
+  }
+
+  async function handleBulkEditSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!bulkEditState) return;
+
+    const patch: TrackMetadataPatch = {};
+    if (bulkEditState.title !== (bulkEditState.commonTitle ?? "")) {
+      patch.title = bulkEditState.title.trim() || null;
+    }
+    if (bulkEditState.artist !== (bulkEditState.commonArtist ?? "")) {
+      patch.artist = bulkEditState.artist.trim() || null;
+    }
+    if (bulkEditState.album !== (bulkEditState.commonAlbum ?? "")) {
+      patch.album = bulkEditState.album.trim() || null;
+    }
+    if (bulkEditState.year !== (bulkEditState.commonYear ?? "")) {
+      const yearValue = bulkEditState.year.trim();
+      const parsedYear = yearValue ? Number(yearValue) : null;
+      patch.year = Number.isInteger(parsedYear) ? parsedYear : parsedYear === null ? null : undefined;
+    }
+
+    const hasChanges = "title" in patch || "artist" in patch || "album" in patch || "year" in patch;
+    if (!hasChanges) {
+      setBulkEditState(null);
+      return;
+    }
+
+    setBulkSavingEdit(true);
+    try {
+      await onBulkUpdateTrackMetadata(bulkEditState.trackIds, patch);
+      setBulkEditState(null);
+      clearSelection();
+    } catch (error) {
+      void error;
+    } finally {
+      setBulkSavingEdit(false);
+    }
+  }
+
+  async function handleBulkDelete(): Promise<void> {
+    const ids = Array.from(selectedTrackIds);
+    if (ids.length === 0) return;
+
+    setBulkDeleting(true);
+    try {
+      await onBulkDeleteTracks(ids);
+      setBulkDeleteConfirm(false);
+      clearSelection();
+    } catch (error) {
+      void error;
+    } finally {
+      setBulkDeleting(false);
     }
   }
 
@@ -211,41 +356,81 @@ export function ConfigView({
           />
         </div>
 
+        {selectedTrackIds.size > 0 ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-flaque-clay/60 bg-flaque-cream/60 px-4 py-2.5">
+            <span className="text-sm font-medium text-flaque-ink">
+              {selectedTrackIds.size} selected
+            </span>
+            <button
+              className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream"
+              type="button"
+              onClick={openBulkEditModal}
+            >
+              Edit metadata
+            </button>
+            <button
+              className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs text-red-700 transition hover:bg-red-50"
+              type="button"
+              onClick={() => setBulkDeleteConfirm(true)}
+            >
+              Delete files
+            </button>
+            <button
+              className="ml-auto rounded-lg px-3 py-1.5 text-xs text-flaque-steel transition hover:text-flaque-ink"
+              type="button"
+              onClick={clearSelection}
+            >
+              Clear selection
+            </button>
+          </div>
+        ) : null}
+
         <div className="mt-4 space-y-3 lg:hidden">
           {paginatedTracks.map((track) => {
             const runningAction = activeTrackActionId === track.id;
             const title = getTrackDisplayTitle(track);
+            const isSelected = selectedTrackIds.has(track.id);
 
             return (
-              <article key={track.id} className="rounded-2xl border border-flaque-clay/60 bg-flaque-cream/45 p-3">
-                <p className="truncate text-sm font-medium text-flaque-ink" title={title}>
-                  {title}
-                </p>
-                <p className="mt-1 truncate text-xs text-flaque-steel">
-                  {getTrackDisplayArtist(track) ?? "Unknown"}
-                  {getTrackDisplayAlbumWithYear(track) ? ` - ${getTrackDisplayAlbumWithYear(track)}` : ""}
-                </p>
-                <p className="mt-1 truncate font-mono text-[11px] text-flaque-steel/80" title={track.path}>
-                  {track.path}
-                </p>
+              <article key={track.id} className={`rounded-2xl border p-3 ${isSelected ? "border-flaque-ink/40 bg-flaque-cream/70" : "border-flaque-clay/60 bg-flaque-cream/45"}`}>
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-flaque-clay text-flaque-ink"
+                    checked={isSelected}
+                    onChange={() => toggleTrackSelection(track.id)}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-flaque-ink" title={title}>
+                      {title}
+                    </p>
+                    <p className="mt-1 truncate text-xs text-flaque-steel">
+                      {getTrackDisplayArtist(track) ?? "Unknown"}
+                      {getTrackDisplayAlbumWithYear(track) ? ` - ${getTrackDisplayAlbumWithYear(track)}` : ""}
+                    </p>
+                    <p className="mt-1 truncate font-mono text-[11px] text-flaque-steel/80" title={track.path}>
+                      {track.path}
+                    </p>
 
-                <div className="mt-3 flex items-center gap-2">
-                  <button
-                    className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
-                    type="button"
-                    disabled={runningAction}
-                    onClick={() => openEditModal(track)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                    type="button"
-                    disabled={runningAction}
-                    onClick={() => openDeleteTrackModal(track)}
-                  >
-                    Delete file
-                  </button>
+                    <div className="mt-3 flex items-center gap-2">
+                      <button
+                        className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                        type="button"
+                        disabled={runningAction}
+                        onClick={() => openEditModal(track)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        type="button"
+                        disabled={runningAction}
+                        onClick={() => openDeleteTrackModal(track)}
+                      >
+                        Delete file
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </article>
             );
@@ -258,6 +443,15 @@ export function ConfigView({
           <table className="w-full min-w-[980px] border-collapse text-left text-sm">
             <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
               <tr>
+                <th className="w-10 px-3 py-3">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-flaque-clay text-flaque-ink"
+                    checked={pageAllSelected}
+                    ref={(el) => { if (el) el.indeterminate = pageSomeSelected && !pageAllSelected; }}
+                    onChange={togglePageSelection}
+                  />
+                </th>
                 <th className="px-4 py-3 font-medium">Title</th>
                 <th className="px-4 py-3 font-medium">Artist</th>
                 <th className="px-4 py-3 font-medium">Album</th>
@@ -270,9 +464,18 @@ export function ConfigView({
               {paginatedTracks.map((track) => {
                 const runningAction = activeTrackActionId === track.id;
                 const title = getTrackDisplayTitle(track);
+                const isSelected = selectedTrackIds.has(track.id);
 
                 return (
-                  <tr key={track.id} className="border-t border-flaque-clay/40">
+                  <tr key={track.id} className={`border-t border-flaque-clay/40 ${isSelected ? "bg-flaque-cream/60" : ""}`}>
+                    <td className="px-3 py-3">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-flaque-clay text-flaque-ink"
+                        checked={isSelected}
+                        onChange={() => toggleTrackSelection(track.id)}
+                      />
+                    </td>
                     <td className="px-4 py-3 text-flaque-ink">
                       <span className="block max-w-[20rem] truncate" title={title}>
                         {title}
@@ -310,7 +513,7 @@ export function ConfigView({
 
               {filteredTracks.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-4 text-flaque-steel" colSpan={6}>
+                  <td className="px-4 py-4 text-flaque-steel" colSpan={7}>
                     No tracks match this search.
                   </td>
                 </tr>
@@ -369,6 +572,117 @@ export function ConfigView({
           onClose={closeDeleteTrackModal}
           deleting={deletingTrack}
         />
+      ) : null}
+
+      {bulkDeleteConfirm ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-flaque-clay/60 bg-white p-5 shadow-panel">
+            <h3 className="font-display text-xl text-flaque-ink">Delete {selectedTrackIds.size} files</h3>
+            <p className="mt-2 text-sm text-red-700">
+              This action cannot be undone. <strong>{selectedTrackIds.size} file{selectedTrackIds.size !== 1 ? "s" : ""}</strong> will
+              be permanently removed from storage.
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                onClick={() => setBulkDeleteConfirm(false)}
+                disabled={bulkDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-xl bg-red-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                disabled={bulkDeleting}
+                onClick={() => { void handleBulkDelete(); }}
+              >
+                {bulkDeleting ? "Deleting..." : `Delete ${selectedTrackIds.size} files`}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {bulkEditState ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <form
+            className="w-full max-w-md rounded-3xl border border-flaque-clay/60 bg-white p-5 shadow-panel"
+            onSubmit={(e) => { void handleBulkEditSubmit(e); }}
+          >
+            <h3 className="font-display text-xl text-flaque-ink">Edit {bulkEditState.trackIds.length} tracks</h3>
+            <p className="mt-2 text-sm text-flaque-steel">
+              Only fields you change will be updated. Unchanged fields keep their current values.
+            </p>
+
+            <label className="mt-4 block text-sm text-flaque-ink">
+              Title
+              <input
+                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                type="text"
+                value={bulkEditState.title}
+                placeholder={bulkEditState.commonTitle === undefined ? "Mixed values" : ""}
+                onChange={(e) => setBulkEditState((s) => s ? { ...s, title: e.target.value } : s)}
+              />
+            </label>
+
+            <label className="mt-3 block text-sm text-flaque-ink">
+              Artist
+              <input
+                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                type="text"
+                value={bulkEditState.artist}
+                placeholder={bulkEditState.commonArtist === undefined ? "Mixed values" : ""}
+                onChange={(e) => setBulkEditState((s) => s ? { ...s, artist: e.target.value } : s)}
+              />
+            </label>
+
+            <label className="mt-3 block text-sm text-flaque-ink">
+              Album
+              <input
+                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                type="text"
+                value={bulkEditState.album}
+                placeholder={bulkEditState.commonAlbum === undefined ? "Mixed values" : ""}
+                onChange={(e) => setBulkEditState((s) => s ? { ...s, album: e.target.value } : s)}
+              />
+            </label>
+
+            <label className="mt-3 block text-sm text-flaque-ink">
+              Year
+              <input
+                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                type="text"
+                inputMode="numeric"
+                value={bulkEditState.year}
+                placeholder={bulkEditState.commonYear === undefined ? "Mixed values" : "e.g. 1979"}
+                onChange={(e) => setBulkEditState((s) => s ? { ...s, year: e.target.value } : s)}
+              />
+            </label>
+
+            <p className="mt-3 text-xs text-flaque-steel">
+              Leave a field empty to clear override and fallback to embedded file metadata.
+            </p>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                onClick={() => setBulkEditState(null)}
+                disabled={bulkSavingEdit}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+                type="submit"
+                disabled={bulkSavingEdit}
+              >
+                {bulkSavingEdit ? "Saving..." : `Save ${bulkEditState.trackIds.length} tracks`}
+              </button>
+            </div>
+          </form>
+        </div>
       ) : null}
     </div>
   );
