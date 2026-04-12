@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Track, TrackMetadataPatch, User } from "../types";
 import {
@@ -79,6 +79,18 @@ export function ConfigView({
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkEditState, setBulkEditState] = useState<BulkEditState | null>(null);
   const [bulkSavingEdit, setBulkSavingEdit] = useState(false);
+  const [bulkSuccessMessage, setBulkSuccessMessage] = useState<string | null>(null);
+  const bulkSuccessTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    return () => { clearTimeout(bulkSuccessTimerRef.current); };
+  }, []);
+
+  function showBulkSuccess(message: string): void {
+    clearTimeout(bulkSuccessTimerRef.current);
+    setBulkSuccessMessage(message);
+    bulkSuccessTimerRef.current = setTimeout(() => setBulkSuccessMessage(null), 4000);
+  }
 
   const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
 
@@ -267,9 +279,11 @@ export function ConfigView({
 
     setBulkSavingEdit(true);
     try {
+      const count = bulkEditState.trackIds.length;
       await onBulkUpdateTrackMetadata(bulkEditState.trackIds, patch);
       setBulkEditState(null);
       clearSelection();
+      showBulkSuccess(`Metadata updated for ${count} track${count !== 1 ? "s" : ""}.`);
     } catch (error) {
       void error;
     } finally {
@@ -283,9 +297,11 @@ export function ConfigView({
 
     setBulkDeleting(true);
     try {
+      const count = ids.length;
       await onBulkDeleteTracks(ids);
       setBulkDeleteConfirm(false);
       clearSelection();
+      showBulkSuccess(`${count} track${count !== 1 ? "s" : ""} deleted from the library.`);
     } catch (error) {
       void error;
     } finally {
@@ -382,6 +398,16 @@ export function ConfigView({
             >
               Clear selection
             </button>
+          </div>
+        ) : null}
+
+        {bulkSuccessMessage ? (
+          <div
+            className="mt-3 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800"
+            role="status"
+            aria-live="polite"
+          >
+            {bulkSuccessMessage}
           </div>
         ) : null}
 
