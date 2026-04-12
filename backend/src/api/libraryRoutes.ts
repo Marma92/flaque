@@ -259,43 +259,6 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
     }
   };
 
-  router.patch("/tracks/:id/metadata", requireAuth, requireAdmin, handlePatchTrackMetadata);
-  router.patch("/tracks/:id", requireAuth, requireAdmin, handlePatchTrackMetadata);
-
-  // DELETE /tracks/:id
-  router.delete("/tracks/:id", requireAuth, requireAdmin, async (req, res, next) => {
-    try {
-      const trackId = req.params.id;
-      if (!trackId) {
-        res.status(400).json({ error: "Track id is required" });
-        return;
-      }
-
-      const track = indexStore.getTrackById(trackId);
-      if (!track) {
-        res.status(404).json({ error: "Track not found" });
-        return;
-      }
-
-      const absolutePath = resolveTrackAbsolutePath(track.path);
-      try {
-        await fs.unlink(absolutePath);
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-          throw error;
-        }
-      }
-
-      await deleteTrackCover(trackId);
-      await mergeTrackMetadataOverrides({ [trackId]: {} });
-
-      const rebuiltIndex = await indexStore.rebuild();
-      res.json({ deletedTrackId: trackId, totalTracks: rebuiltIndex.totalTracks });
-    } catch (error) {
-      next(error);
-    }
-  });
-
   router.post("/tracks/bulk/delete", requireAuth, requireAdmin, async (req, res, next) => {
     try {
       const trackIds = req.body?.trackIds;
@@ -408,6 +371,43 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
 
       await indexStore.rebuild();
       res.json({ updated, notFound });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.patch("/tracks/:id/metadata", requireAuth, requireAdmin, handlePatchTrackMetadata);
+  router.patch("/tracks/:id", requireAuth, requireAdmin, handlePatchTrackMetadata);
+
+  // DELETE /tracks/:id
+  router.delete("/tracks/:id", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const trackId = req.params.id;
+      if (!trackId) {
+        res.status(400).json({ error: "Track id is required" });
+        return;
+      }
+
+      const track = indexStore.getTrackById(trackId);
+      if (!track) {
+        res.status(404).json({ error: "Track not found" });
+        return;
+      }
+
+      const absolutePath = resolveTrackAbsolutePath(track.path);
+      try {
+        await fs.unlink(absolutePath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          throw error;
+        }
+      }
+
+      await deleteTrackCover(trackId);
+      await mergeTrackMetadataOverrides({ [trackId]: {} });
+
+      const rebuiltIndex = await indexStore.rebuild();
+      res.json({ deletedTrackId: trackId, totalTracks: rebuiltIndex.totalTracks });
     } catch (error) {
       next(error);
     }
