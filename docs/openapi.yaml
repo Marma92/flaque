@@ -440,33 +440,6 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /api/upload/inspect:
-    post:
-      tags: [Upload]
-      summary: Inspect one upload candidate without importing it
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                file:
-                  type: string
-                  format: binary
-              required: [file]
-      responses:
-        "200":
-          description: Parsed metadata preview
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UploadInspectResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
   /api/upload:
     post:
       tags: [Upload]
@@ -1480,29 +1453,6 @@ components:
           items:
             $ref: "#/components/schemas/Track"
       required: [album, tracks]
-
-    UploadInspectResponse:
-      type: object
-      properties:
-        fileName:
-          type: string
-        size:
-          type: integer
-        mimeType:
-          type: string
-        duration:
-          type: number
-        codec:
-          type: string
-        bitrate:
-          type: number
-        sampleRate:
-          type: number
-        tags:
-          $ref: "#/components/schemas/TrackTags"
-        coverDataUrl:
-          type: string
-      required: [fileName, size, mimeType, duration, codec, tags]
 
     UploadOverrides:
       type: object

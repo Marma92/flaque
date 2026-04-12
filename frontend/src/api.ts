@@ -629,16 +629,6 @@ export async function uploadTracks(input: UploadTracksInput): Promise<UploadTrac
   return aggregate;
 }
 
-export async function inspectUploadFile(file: File): Promise<UploadTrackPreview> {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  return requestJson<UploadTrackPreview>("/api/upload/inspect", {
-    method: "POST",
-    body: formData
-  });
-}
-
 export async function rebuildIndex(): Promise<{ generatedAt: string; totalTracks: number }> {
   return requestJson<{ generatedAt: string; totalTracks: number }>("/api/index/rebuild", {
     method: "POST"
