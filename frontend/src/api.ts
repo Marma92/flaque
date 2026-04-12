@@ -309,6 +309,7 @@ export type UploadTracksInput = {
     title?: string;
     artist?: string;
     album?: string;
+    year?: number;
   } | null>;
   onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
 };
@@ -345,6 +346,7 @@ type UploadSingleTrackInput = {
     title?: string;
     artist?: string;
     album?: string;
+    year?: number;
   } | null;
   onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
 };

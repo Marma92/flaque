@@ -33,13 +33,14 @@ export type UploadMetadataOverride = {
   title?: string;
   artist?: string;
   album?: string;
+  year?: number;
 };
 
 export type ProcessedUpload = {
   trackId: string;
   track: Track;
   isNew: boolean;
-  overrides?: { title?: string; artist?: string; album?: string };
+  overrides?: { title?: string; artist?: string; album?: string; year?: number };
 };
 
 export function sanitizeExtension(fileName: string): string {
@@ -74,16 +75,17 @@ function resolveEffectiveOverrides(
   override: UploadMetadataOverride,
   manualArtist: string | undefined,
   manualAlbum: string | undefined
-): { title?: string; artist?: string; album?: string } | undefined {
+): { title?: string; artist?: string; album?: string; year?: number } | undefined {
   const effectiveTitle = override.title;
   const effectiveArtist = override.artist ?? manualArtist;
   const effectiveAlbum = override.album ?? manualAlbum;
+  const effectiveYear = override.year;
 
-  if (!effectiveTitle && !effectiveArtist && !effectiveAlbum) {
+  if (!effectiveTitle && !effectiveArtist && !effectiveAlbum && effectiveYear === undefined) {
     return undefined;
   }
 
-  return { title: effectiveTitle, artist: effectiveArtist, album: effectiveAlbum };
+  return { title: effectiveTitle, artist: effectiveArtist, album: effectiveAlbum, year: effectiveYear };
 }
 
 async function ensureArtistDirectory(artistDir: string, artistName: string): Promise<void> {
@@ -183,7 +185,8 @@ export async function processUploadedFile(
     ...metadata.tags,
     ...(overrides?.title ? { title: overrides.title } : {}),
     ...(overrides?.artist ? { artist: overrides.artist } : {}),
-    ...(overrides?.album ? { album: overrides.album } : {})
+    ...(overrides?.album ? { album: overrides.album } : {}),
+    ...(overrides?.year !== undefined ? { year: overrides.year } : {})
   };
 
   const track: Track = {

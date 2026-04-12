@@ -81,6 +81,7 @@ export function createBackupRouter(): Router {
     try {
       const config = await readBackupConfig();
       const manifest = await createBackup("manual", { includeIndex: config.includeIndex });
+      log.info("Manual backup created", { userId: _req.authUser?.id ?? "unknown" });
       res.status(201).json(manifest);
     } catch (error) {
       next(error);
@@ -138,6 +139,7 @@ export function createBackupRouter(): Router {
         return;
       }
 
+      log.info("Backup deleted", { backupId: safeId, userId: req.authUser?.id ?? "unknown" });
       res.status(204).end();
     } catch (error) {
       next(error);
@@ -154,6 +156,7 @@ export function createBackupRouter(): Router {
       }
 
       await restoreDatabase(safeId);
+      log.info("Database restored from backup", { backupId: safeId, userId: req.authUser?.id ?? "unknown" });
       res.json({ message: "Database restored successfully. Active sessions have been preserved from the backup." });
     } catch (error) {
       next(error);
@@ -165,6 +168,7 @@ export function createBackupRouter(): Router {
     try {
       const config = await readBackupConfig();
       const deleted = await purgeExpiredBackups(config.retentionDays);
+      log.info("Expired backups purged", { deletedCount: deleted, retentionDays: config.retentionDays, userId: _req.authUser?.id ?? "unknown" });
       res.json({ deleted, retentionDays: config.retentionDays });
     } catch (error) {
       next(error);

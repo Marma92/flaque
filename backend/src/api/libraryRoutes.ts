@@ -51,6 +51,9 @@ import {
   resolveFilteredTracks,
   selectIndexedTracks
 } from "./trackPipeline";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("library");
 
 // ── Album detail helpers ────────────────────────────────────────────────
 
@@ -239,6 +242,13 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
         }
       });
 
+      log.info("Track metadata updated", {
+        trackId,
+        title: currentTrack.tags.title ?? currentTrack.path,
+        userId: req.authUser?.id ?? "unknown",
+        fields: [hasTitle && "title", hasArtist && "artist", hasAlbum && "album", hasYear && "year"].filter(Boolean).join(", ")
+      });
+
       await indexStore.rebuild();
       const ownerNamesById = getOwnerNamesById();
       const updatedTrack = indexStore.getTrackById(trackId);
@@ -301,6 +311,12 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       if (Object.keys(overridePatch).length > 0) {
         await mergeTrackMetadataOverrides(overridePatch);
       }
+
+      log.info("Tracks deleted in bulk", {
+        userId: req.authUser?.id ?? "unknown",
+        deletedCount: deleted.length,
+        notFoundCount: notFound.length
+      });
 
       const rebuiltIndex = await indexStore.rebuild();
       res.json({ deleted, notFound, totalTracks: rebuiltIndex.totalTracks });
@@ -369,6 +385,13 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
         await mergeTrackMetadataOverrides(overridePatch);
       }
 
+      log.info("Track metadata updated in bulk", {
+        userId: req.authUser?.id ?? "unknown",
+        updatedCount: updated.length,
+        notFoundCount: notFound.length,
+        fields: [hasTitle && "title", hasArtist && "artist", hasAlbum && "album", hasYear && "year"].filter(Boolean).join(", ")
+      });
+
       await indexStore.rebuild();
       res.json({ updated, notFound });
     } catch (error) {
@@ -405,6 +428,12 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
 
       await deleteTrackCover(trackId);
       await mergeTrackMetadataOverrides({ [trackId]: {} });
+
+      log.info("Track deleted", {
+        trackId,
+        title: track.tags.title ?? track.path,
+        userId: req.authUser?.id ?? "unknown"
+      });
 
       const rebuiltIndex = await indexStore.rebuild();
       res.json({ deletedTrackId: trackId, totalTracks: rebuiltIndex.totalTracks });

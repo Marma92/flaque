@@ -13,6 +13,7 @@ type UploadViewProps = {
       title?: string;
       artist?: string;
       album?: string;
+      year?: number;
     } | null>;
     onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
   }) => Promise<UploadTracksResult>;
@@ -77,7 +78,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [previewByFileKey, setPreviewByFileKey] = useState<Record<string, PreviewState>>({});
   const [editableMetadataByFileKey, setEditableMetadataByFileKey] = useState<
-    Record<string, { title: string; artist: string; album: string }>
+    Record<string, { title: string; artist: string; album: string; year: string }>
   >({});
   const [uploadArtist, setUploadArtist] = useState("");
   const [uploadAlbum, setUploadAlbum] = useState("");
@@ -198,14 +199,18 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
       const title = editedMetadata.title.trim();
       const artist = editedMetadata.artist.trim();
       const album = editedMetadata.album.trim();
-      if (!title && !artist && !album) {
+      const yearStr = editedMetadata.year.trim();
+      const yearNum = yearStr ? Number(yearStr) : undefined;
+      const year = yearNum && Number.isInteger(yearNum) && yearNum >= 1000 && yearNum <= 2999 ? yearNum : undefined;
+      if (!title && !artist && !album && year === undefined) {
         return null;
       }
 
       return {
         title: title || undefined,
         artist: artist || undefined,
-        album: album || undefined
+        album: album || undefined,
+        year
       };
     });
 
@@ -397,6 +402,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
               const editableTitle = editableMetadata?.title ?? title;
               const editableArtist = editableMetadata?.artist ?? artist;
               const editableAlbum = editableMetadata?.album ?? albumBase;
+              const editableYear = editableMetadata?.year ?? (year ?? "");
               const trackPosition =
                 typeof preview?.tags.trackNumber === "number"
                   ? `${preview.tags.trackNumber}${
@@ -438,7 +444,8 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                                   [fileKey]: {
                                     title: nextTitle,
                                     artist: current[fileKey]?.artist ?? editableArtist,
-                                    album: current[fileKey]?.album ?? editableAlbum
+                                    album: current[fileKey]?.album ?? editableAlbum,
+                                    year: current[fileKey]?.year ?? editableYear
                                   }
                                 }));
                               }}
@@ -457,7 +464,8 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                                   [fileKey]: {
                                     title: current[fileKey]?.title ?? editableTitle,
                                     artist: nextArtist,
-                                    album: current[fileKey]?.album ?? editableAlbum
+                                    album: current[fileKey]?.album ?? editableAlbum,
+                                    year: current[fileKey]?.year ?? editableYear
                                   }
                                 }));
                               }}
@@ -476,23 +484,36 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                                   [fileKey]: {
                                     title: current[fileKey]?.title ?? editableTitle,
                                     artist: current[fileKey]?.artist ?? editableArtist,
-                                    album: nextAlbum
+                                    album: nextAlbum,
+                                    year: current[fileKey]?.year ?? editableYear
                                   }
                                 }));
                               }}
                             />
                           </label>
 
-                          {year ? (
-                            <label className="text-flaque-steel">
-                              Year
-                              <input
-                                className="mt-1 w-full rounded-lg border border-flaque-clay bg-white px-2 py-1 text-flaque-ink"
-                                value={year}
-                                readOnly
-                              />
-                            </label>
-                          ) : null}
+                          <label className="text-flaque-steel">
+                            Year
+                            <input
+                              className="mt-1 w-full rounded-lg border border-flaque-clay bg-white px-2 py-1 text-flaque-ink"
+                              value={editableYear}
+                              disabled={uploading}
+                              inputMode="numeric"
+                              placeholder="e.g. 1979"
+                              onChange={(event) => {
+                                const nextYear = event.target.value;
+                                setEditableMetadataByFileKey((current) => ({
+                                  ...current,
+                                  [fileKey]: {
+                                    title: current[fileKey]?.title ?? editableTitle,
+                                    artist: current[fileKey]?.artist ?? editableArtist,
+                                    album: current[fileKey]?.album ?? editableAlbum,
+                                    year: nextYear
+                                  }
+                                }));
+                              }}
+                            />
+                          </label>
 
                           <p className="text-xs text-flaque-steel">
                             {preview?.codec?.toUpperCase() ?? "Unknown codec"}
