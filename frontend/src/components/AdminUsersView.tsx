@@ -52,7 +52,7 @@ export function AdminUsersView({
   const [searchText, setSearchText] = useState("");
   const [roleFilter, setRoleFilter] = useState<UserRoleFilter>("all");
   const [submitting, setSubmitting] = useState(false);
-  const [formMessage, setFormMessage] = useState<string | null>(null);
+  const [formMessage, setFormMessage] = useState<{ text: string; isError: boolean } | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [activeUserActionId, setActiveUserActionId] = useState<string | null>(null);
@@ -90,13 +90,16 @@ export function AdminUsersView({
         role
       });
 
-      setFormMessage("User created successfully.");
+      setFormMessage({ text: "User created successfully.", isError: false });
       setUsername("");
       setPassword("");
       setEmail("");
       setRole("user");
     } catch (submitError) {
-      setFormMessage(submitError instanceof Error ? submitError.message : "Failed to create user");
+      setFormMessage({
+        text: submitError instanceof Error ? submitError.message : "Failed to create user",
+        isError: true
+      });
     } finally {
       setSubmitting(false);
     }
@@ -227,8 +230,8 @@ export function AdminUsersView({
 
         case "resetPassword": {
           const nextPassword = modalState.password.trim();
-          if (nextPassword.length < 8) {
-            setModalError("Password must be at least 8 characters.");
+          if (!nextPassword) {
+            setModalError("Password cannot be empty.");
             return;
           }
 
@@ -384,8 +387,16 @@ export function AdminUsersView({
         </p>
 
         {formMessage ? (
-          <p className="mt-3 text-sm text-flaque-steel" role="status" aria-live="polite">
-            {formMessage}
+          <p
+            className={`mt-3 rounded-xl px-3 py-2 text-sm ${
+              formMessage.isError
+                ? "border border-red-300 bg-red-50 text-red-700"
+                : "border border-green-300 bg-green-50 text-green-700"
+            }`}
+            role="status"
+            aria-live="polite"
+          >
+            {formMessage.text}
           </p>
         ) : null}
         {actionMessage ? (
