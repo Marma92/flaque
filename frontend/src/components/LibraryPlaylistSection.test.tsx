@@ -18,7 +18,13 @@ function createPlaylist(input: {
     name: input.name,
     authorId: input.authorId,
     visibility: input.visibility ?? "private",
-    trackIds: input.trackIds ?? []
+    trackIds: input.trackIds ?? [],
+    description: "",
+    cover: null,
+    hearts: [],
+    heartCount: 0,
+    listenCount: 0,
+    collaborators: []
   };
 }
 

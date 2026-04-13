@@ -52,6 +52,12 @@ export type Playlist = {
   authorId: string;
   visibility: PlaylistVisibility;
   trackIds: string[];
+  description: string;
+  cover: string | null;
+  hearts: string[];
+  heartCount: number;
+  listenCount: number;
+  collaborators: string[];
 };
 
 export type LibraryIndex = {

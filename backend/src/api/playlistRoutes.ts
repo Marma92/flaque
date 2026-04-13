@@ -1,16 +1,34 @@
+import fsPromises from "node:fs/promises";
+import path from "node:path";
+
+import multer from "multer";
 import { Router } from "express";
 
 import { requireAuth } from "../auth/middleware";
 import { IndexStore } from "../services/indexer/indexStore";
+import { ensureDir } from "../utils/fs";
 import { createLogger } from "../utils/logger";
 
 const log = createLogger("playlists");
+
+const COVER_MAX_BYTES = 5 * 1024 * 1024;
+const COVER_FILE_NAME = "cover.webp";
+
+const coverUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: COVER_MAX_BYTES, files: 1 }
+});
 import {
   canManagePlaylist,
   createFilesystemPlaylist,
   deleteFilesystemPlaylist,
   filterPlayablePlaylists,
-  updateFilesystemPlaylist
+  getPlaylistDirectory,
+  incrementPlaylistListenCount,
+  togglePlaylistHeart,
+  updateFilesystemPlaylist,
+  updatePlaylistCover,
+  updatePlaylistDescription
 } from "../services/playlists/playlistStore";
 import type { Playlist, PlaylistVisibility, Track } from "../types/library";
 
@@ -305,6 +323,12 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         return;
       }
 
+      const description = typeof req.body?.description === "string" ? req.body.description : undefined;
+
+      if (description !== undefined) {
+        await updatePlaylistDescription(playlistId, description);
+      }
+
       const snapshot = indexStore.getSnapshot();
       await updateFilesystemPlaylist({
         id: playlistId,
@@ -377,6 +401,182 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
       });
 
       res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/playlists/:id/heart", requireAuth, async (req, res, next) => {
+    try {
+      const authUser = req.authUser;
+      const playlistId = req.params.id;
+      if (!authUser || !playlistId) {
+        res.status(401).json({ error: "Authentication required" });
+        return;
+      }
+
+      const playlist = findPlaylistById(indexStore, playlistId);
+      if (!playlist) {
+        res.status(404).json({ error: "Playlist not found" });
+        return;
+      }
+
+      if (playlist.visibility !== "public") {
+        res.status(403).json({ error: "Only public playlists can be hearted" });
+        return;
+      }
+
+      if (playlist.authorId === authUser.id) {
+        res.status(400).json({ error: "Cannot heart your own playlist" });
+        return;
+      }
+
+      const result = await togglePlaylistHeart(playlistId, authUser.id);
+      await indexStore.refreshPlaylists();
+
+      log.info("Playlist heart toggled", {
+        playlistId,
+        userId: authUser.id,
+        hearted: result.hearted
+      });
+
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/playlists/:id/listen", requireAuth, async (req, res, next) => {
+    try {
+      const authUser = req.authUser;
+      const playlistId = req.params.id;
+      if (!authUser || !playlistId) {
+        res.status(401).json({ error: "Authentication required" });
+        return;
+      }
+
+      const playlist = findPlaylistById(indexStore, playlistId);
+      if (!playlist) {
+        res.status(404).json({ error: "Playlist not found" });
+        return;
+      }
+
+      const listenCount = await incrementPlaylistListenCount(playlistId);
+      res.json({ listenCount });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post(
+    "/playlists/:id/cover",
+    requireAuth,
+    async (req, res, next) => {
+      try {
+        await new Promise<void>((resolve, reject) => {
+          coverUpload.single("cover")(req, res, (err: unknown) => (err ? reject(err) : resolve()));
+        });
+      } catch (error) {
+        if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+          res.status(400).json({ error: `Cover image must be <= ${Math.floor(COVER_MAX_BYTES / (1024 * 1024))} MB` });
+          return;
+        }
+        next(error);
+        return;
+      }
+
+      try {
+        const authUser = req.authUser;
+        const playlistId = req.params.id;
+        if (!authUser || !playlistId) {
+          res.status(401).json({ error: "Authentication required" });
+          return;
+        }
+
+        const playlist = findPlaylistById(indexStore, playlistId);
+        if (!playlist) {
+          res.status(404).json({ error: "Playlist not found" });
+          return;
+        }
+
+        if (!canManagePlaylist(playlist, authUser)) {
+          res.status(403).json({ error: "Not allowed to modify this playlist" });
+          return;
+        }
+
+        const file = req.file;
+        if (!file) {
+          res.status(400).json({ error: "cover image file is required" });
+          return;
+        }
+
+        if (!file.mimetype.toLowerCase().startsWith("image/")) {
+          res.status(400).json({ error: "Unsupported image format" });
+          return;
+        }
+
+        const sharp = (await import("sharp")).default;
+        let convertedBuffer: Buffer;
+        try {
+          convertedBuffer = await sharp(file.buffer)
+            .rotate()
+            .resize(512, 512, { fit: "cover", position: "centre" })
+            .webp({ quality: 85 })
+            .toBuffer();
+        } catch {
+          res.status(400).json({ error: "Invalid image file" });
+          return;
+        }
+
+        const playlistDir = getPlaylistDirectory(playlistId);
+        await ensureDir(playlistDir);
+
+        const tmpPath = path.join(playlistDir, `cover-upload.${process.pid}.${Date.now()}.tmp`);
+        const targetPath = path.join(playlistDir, COVER_FILE_NAME);
+
+        await fsPromises.writeFile(tmpPath, convertedBuffer);
+        await fsPromises.rename(tmpPath, targetPath);
+
+        await updatePlaylistCover(playlistId, targetPath);
+        await indexStore.refreshPlaylists();
+
+        log.info("Playlist cover uploaded", { playlistId, userId: authUser.id });
+        res.json({ ok: true, cover: targetPath });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.delete("/playlists/:id/cover", requireAuth, async (req, res, next) => {
+    try {
+      const authUser = req.authUser;
+      const playlistId = req.params.id;
+      if (!authUser || !playlistId) {
+        res.status(401).json({ error: "Authentication required" });
+        return;
+      }
+
+      const playlist = findPlaylistById(indexStore, playlistId);
+      if (!playlist) {
+        res.status(404).json({ error: "Playlist not found" });
+        return;
+      }
+
+      if (!canManagePlaylist(playlist, authUser)) {
+        res.status(403).json({ error: "Not allowed to modify this playlist" });
+        return;
+      }
+
+      const playlistDir = getPlaylistDirectory(playlistId);
+      const coverPath = path.join(playlistDir, COVER_FILE_NAME);
+      await fsPromises.unlink(coverPath).catch(() => {});
+
+      await updatePlaylistCover(playlistId, null);
+      await indexStore.refreshPlaylists();
+
+      log.info("Playlist cover removed", { playlistId, userId: authUser.id });
+      res.json({ ok: true });
     } catch (error) {
       next(error);
     }
