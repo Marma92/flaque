@@ -2,9 +2,10 @@ import { HomePanels } from "./HomePanels";
 import { LibraryAlbumsSection } from "./LibraryAlbumsSection";
 import { LibraryArtistsSection } from "./LibraryArtistsSection";
 import { LibraryPlaylistSection } from "./LibraryPlaylistSection";
+import { AutoPlaylistDetailView } from "./AutoPlaylistDetailView";
 import { PlaylistDetailView } from "./PlaylistDetailView";
 import { PaginatedLibrary } from "./PaginatedLibrary";
-import type { AlbumEntry, ArtistEntry, LibraryResponse, Playlist, PlaylistVisibility, RadioTrack, Track, User } from "../types";
+import type { AlbumEntry, ArtistEntry, AutoPlaylistSummary, LibraryResponse, Playlist, PlaylistVisibility, RadioTrack, Track, User } from "../types";
 import type { LibraryFilters, LibrarySection } from "../types/library";
 import { navigateTo } from "../utils/appUtils";
 import type { UploadPeriod } from "../hooks/useRecentlyUploaded";
@@ -23,6 +24,8 @@ type LibraryWorkspaceProps = {
   onDeletePlaylist: (playlistId: string) => Promise<void>;
   onHeartPlaylist: (playlistId: string) => Promise<{ hearted: boolean; heartCount: number }>;
   onReportPlaylistListen: (playlistId: string) => Promise<void>;
+  autoPlaylists: AutoPlaylistSummary[];
+  loadingAutoPlaylists: boolean;
   allTracksById: Map<string, Track>;
   libraryMetadataError: string | null;
   loadingLibraryArtists: boolean;
@@ -94,6 +97,8 @@ export function LibraryWorkspace({
   onDeletePlaylist,
   onHeartPlaylist,
   onReportPlaylistListen,
+  autoPlaylists,
+  loadingAutoPlaylists,
   allTracksById,
   libraryMetadataError,
   loadingLibraryArtists,
@@ -148,7 +153,14 @@ export function LibraryWorkspace({
   return (
     <div className="h-full min-h-0 space-y-4 overflow-y-auto">
       {activeLibrarySection === "playlists" ? (
-        playlistDetailId ? (
+        playlistDetailId && playlistDetailId.startsWith("auto:") ? (
+          <AutoPlaylistDetailView
+            playlistId={playlistDetailId}
+            allTracksById={allTracksById}
+            onBack={() => onPlaylistDetailNavigate(null)}
+            onPlayTrack={onPlayPlaylist}
+          />
+        ) : playlistDetailId ? (
           <PlaylistDetailView
             playlistId={playlistDetailId}
             availablePlaylists={availablePlaylists}
@@ -176,6 +188,8 @@ export function LibraryWorkspace({
             onDeletePlaylist={onDeletePlaylist}
             onNavigateToPlaylist={onPlaylistDetailNavigate}
             onReportPlaylistListen={onReportPlaylistListen}
+            autoPlaylists={autoPlaylists}
+            loadingAutoPlaylists={loadingAutoPlaylists}
           />
         )
       ) : null}

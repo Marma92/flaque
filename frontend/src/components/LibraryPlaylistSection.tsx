@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 
 import { coverUrl, playlistCoverUrl } from "../api";
-import type { Playlist, PlaylistVisibility, Track, User } from "../types";
+import type { AutoPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
 
 type LibraryPlaylistSectionProps = {
   availablePlaylists: Playlist[];
@@ -15,6 +15,8 @@ type LibraryPlaylistSectionProps = {
   onDeletePlaylist: (playlistId: string) => Promise<void>;
   onNavigateToPlaylist: (playlistId: string) => void;
   onReportPlaylistListen: (playlistId: string) => Promise<void>;
+  autoPlaylists: AutoPlaylistSummary[];
+  loadingAutoPlaylists: boolean;
 };
 
 // ── Mosaic cover (compact) ─────────────────────────────────────────
@@ -168,7 +170,9 @@ export function LibraryPlaylistSection({
   onPatchPlaylist: _onPatchPlaylist,
   onDeletePlaylist: _onDeletePlaylist,
   onNavigateToPlaylist,
-  onReportPlaylistListen
+  onReportPlaylistListen,
+  autoPlaylists,
+  loadingAutoPlaylists
 }: LibraryPlaylistSectionProps): JSX.Element {
   const [playlistName, setPlaylistName] = useState("");
   const [playlistVisibility, setPlaylistVisibility] = useState<PlaylistVisibility>("private");
@@ -275,12 +279,43 @@ export function LibraryPlaylistSection({
         </section>
       ) : null}
 
-      {/* ── Automatic Playlists (placeholder) ─────────────────────── */}
-      <section className="rounded-xl border border-dashed border-flaque-clay/60 bg-white/60 p-5 backdrop-blur-sm">
+      {/* ── Automatic Playlists ────────────────────────────────────── */}
+      <section className="rounded-xl border border-flaque-clay/60 bg-gradient-to-br from-white/85 to-flaque-cream/40 p-5 shadow-panel backdrop-blur-sm">
         <SectionHeader title="Automatic Playlists" />
-        <p className="mt-2 text-sm text-flaque-steel">
-          Automatic playlists will appear here once generated.
-        </p>
+        {loadingAutoPlaylists ? (
+          <p className="mt-2 text-sm text-flaque-steel">Loading...</p>
+        ) : autoPlaylists.length === 0 ? (
+          <p className="mt-2 text-sm text-flaque-steel">
+            Automatic playlists will appear here once generated.
+          </p>
+        ) : (
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {autoPlaylists.map((ap) => (
+              <div
+                key={ap.id}
+                className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-flaque-clay/60 bg-gradient-to-br from-flaque-ink/5 to-flaque-sand/30 shadow-sm transition hover:shadow-md"
+                onClick={() => onNavigateToPlaylist(ap.id)}
+                role="link"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter") onNavigateToPlaylist(ap.id); }}
+              >
+                <div className="flex aspect-square w-full items-center justify-center bg-gradient-to-br from-flaque-sand/40 to-flaque-clay/20">
+                  <div className="text-center">
+                    <p className="font-display text-2xl font-bold text-flaque-ink/70">{ap.decade % 100 === 0 ? ap.decade : `${ap.decade % 100}s`}</p>
+                    <p className="mt-0.5 text-xs font-medium text-flaque-steel">{ap.genre}</p>
+                  </div>
+                </div>
+                <div className="p-3">
+                  <p className="truncate text-sm font-semibold text-flaque-ink">{ap.name}</p>
+                  <p className="mt-0.5 text-xs text-flaque-steel">
+                    {ap.trackCount} track{ap.trackCount !== 1 ? "s" : ""}
+                    {" \u00b7 "}Generated {new Date(ap.generatedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
