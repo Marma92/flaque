@@ -886,6 +886,24 @@ export function coverUrl(trackId: string, coverPath?: string): string {
   return withApiBase(`/api/covers/${trackId}`);
 }
 
+export async function reportTrackPlay(trackId: string): Promise<void> {
+  await fetch(withApiBase(`/api/tracks/${encodeURIComponent(trackId)}/play`), {
+    method: "POST",
+    credentials: "include"
+  });
+}
+
+export type PlayStatsResponse = {
+  topTracks: Array<{ trackId: string; count: number; lastPlayedAt: string }>;
+  topArtists: Array<{ artist: string; playCount: number }>;
+  totalPlays: number;
+  uniqueTracksPlayed: number;
+};
+
+export async function getMyPlayStats(): Promise<PlayStatsResponse> {
+  return requestJson<PlayStatsResponse>("/api/me/play-stats");
+}
+
 // ── Admin: Server Logs ────────────────────────────────────────────────
 
 export type LogFile = {
