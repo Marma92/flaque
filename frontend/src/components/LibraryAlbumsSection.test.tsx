@@ -174,7 +174,13 @@ describe("LibraryAlbumsSection", () => {
       name: "Workout",
       authorId: "user-1",
       visibility: "private" as const,
-      trackIds: []
+      trackIds: [],
+      description: "",
+      cover: null,
+      hearts: [],
+      heartCount: 0,
+      listenCount: 0,
+      collaborators: []
     };
     const onTrackSelect = vi.fn();
     const onAddTrackToPlaylist = vi.fn().mockResolvedValue(undefined);

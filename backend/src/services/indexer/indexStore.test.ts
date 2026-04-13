@@ -67,7 +67,13 @@ function createPlaylist(id: string, trackIds: string[]): Playlist {
     name: id,
     authorId: "owner-1",
     visibility: "private",
-    trackIds
+    trackIds,
+    description: "",
+    cover: null,
+    hearts: [],
+    heartCount: 0,
+    listenCount: 0,
+    collaborators: []
   };
 }
 

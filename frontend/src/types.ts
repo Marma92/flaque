@@ -94,6 +94,12 @@ export type Playlist = {
   visibility: PlaylistVisibility;
   trackIds: string[];
   trackCount?: number;
+  description: string;
+  cover: string | null;
+  hearts: string[];
+  heartCount: number;
+  listenCount: number;
+  collaborators: string[];
 };
 
 export type LibraryResponse = {

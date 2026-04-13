@@ -128,7 +128,12 @@ describe("playlistRoutes", () => {
     const metadataRaw = await fs.readFile(metadataPath, "utf8");
     expect(JSON.parse(metadataRaw)).toEqual({
       name: "My Playlist",
-      visibility: "private"
+      visibility: "private",
+      collaborators: [],
+      cover: null,
+      description: "",
+      hearts: [],
+      listenCount: 0
     });
 
     const updateResponse = await apiRequest(`/api/playlists/${encodeURIComponent(createdPlaylist.id)}`, {
