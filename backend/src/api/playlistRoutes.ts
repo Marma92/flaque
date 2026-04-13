@@ -548,6 +548,27 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
     }
   );
 
+  router.get("/playlists/:id/cover", requireAuth, async (req, res, next) => {
+    try {
+      const playlistId = req.params.id;
+      if (!playlistId) {
+        res.status(400).json({ error: "Playlist id is required" });
+        return;
+      }
+
+      const playlist = findPlaylistById(indexStore, playlistId);
+      if (!playlist || !playlist.cover) {
+        res.status(404).json({ error: "Cover not found" });
+        return;
+      }
+
+      res.setHeader("Cache-Control", "private, max-age=86400");
+      res.sendFile(playlist.cover);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.delete("/playlists/:id/cover", requireAuth, async (req, res, next) => {
     try {
       const authUser = req.authUser;

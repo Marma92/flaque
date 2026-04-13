@@ -25,6 +25,8 @@ type UseSessionRoutingStateResult = {
   setActiveLibrarySection: Dispatch<SetStateAction<LibrarySection>>;
   activeConfigSection: ConfigSection;
   setActiveConfigSection: Dispatch<SetStateAction<ConfigSection>>;
+  playlistDetailId: string | null;
+  setPlaylistDetailId: Dispatch<SetStateAction<string | null>>;
   handleLogin: (login: string, password: string) => Promise<void>;
   notifyAuthStateChanged: (kind: AuthSyncEvent["kind"]) => void;
 };
@@ -52,6 +54,10 @@ export function useSessionRoutingState(): UseSessionRoutingStateResult {
     return route.view === "config" && route.section
       ? (route.section as ConfigSection)
       : "index";
+  });
+  const [playlistDetailId, setPlaylistDetailId] = useState<string | null>(() => {
+    const route = getRouteFromLocation();
+    return route.view === "library" && route.section === "playlists" ? route.param : null;
   });
 
   const sourceIdRef = useRef(createTabId());
@@ -151,6 +157,9 @@ export function useSessionRoutingState(): UseSessionRoutingStateResult {
 
       if (route.view === "library" && route.section) {
         setActiveLibrarySection(route.section as LibrarySection);
+        setPlaylistDetailId(route.section === "playlists" ? route.param : null);
+      } else {
+        setPlaylistDetailId(null);
       }
       if (route.view === "config" && route.section) {
         setActiveConfigSection(route.section as ConfigSection);
@@ -179,8 +188,11 @@ export function useSessionRoutingState(): UseSessionRoutingStateResult {
       : resolvedView === "config"
         ? activeConfigSection
         : null;
-    syncRouteToLocation(resolvedView, section);
-  }, [activeView, activeLibrarySection, activeConfigSection, sessionChecked, user?.role]);
+    const param = resolvedView === "library" && activeLibrarySection === "playlists"
+      ? playlistDetailId
+      : null;
+    syncRouteToLocation(resolvedView, section, param);
+  }, [activeView, activeLibrarySection, activeConfigSection, playlistDetailId, sessionChecked, user?.role]);
 
   async function handleLogin(loginValue: string, password: string): Promise<void> {
     const authenticatedUser = await login(loginValue, password);
@@ -200,6 +212,8 @@ export function useSessionRoutingState(): UseSessionRoutingStateResult {
     setActiveLibrarySection,
     activeConfigSection,
     setActiveConfigSection,
+    playlistDetailId,
+    setPlaylistDetailId,
     handleLogin,
     notifyAuthStateChanged
   };

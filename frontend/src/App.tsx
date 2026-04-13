@@ -10,6 +10,7 @@ export default function App(): JSX.Element {
     activeView, setActiveView,
     activeLibrarySection, setActiveLibrarySection,
     activeConfigSection, setActiveConfigSection,
+    playlistDetailId, setPlaylistDetailId,
     handleLogin, notifyAuthStateChanged
   } = useSessionRoutingState();
 
@@ -37,6 +38,8 @@ export default function App(): JSX.Element {
       setActiveLibrarySection={setActiveLibrarySection}
       activeConfigSection={activeConfigSection}
       setActiveConfigSection={setActiveConfigSection}
+      playlistDetailId={playlistDetailId}
+      setPlaylistDetailId={setPlaylistDetailId}
       notifyAuthStateChanged={notifyAuthStateChanged}
     />
   );
