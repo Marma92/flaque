@@ -6,6 +6,7 @@ export type ViewName = "library" | "upload" | "player" | "config" | "account";
 export type AppRoute = {
   view: ViewName;
   section: string | null;
+  param: string | null;
 };
 
 export type StoredQueueSnapshot = {
@@ -159,32 +160,39 @@ export function getAdjacentTrackInQueue(
 }
 
 const PATH_MAP: Record<string, AppRoute> = {
-  "": { view: "library", section: "home" },
-  "library": { view: "library", section: "home" },
-  "library/home": { view: "library", section: "home" },
-  "library/music": { view: "library", section: "music" },
-  "library/artists": { view: "library", section: "artists" },
-  "library/albums": { view: "library", section: "albums" },
-  "library/playlists": { view: "library", section: "playlists" },
-  "upload": { view: "upload", section: null },
-  "player": { view: "player", section: null },
-  "account": { view: "account", section: null },
-  "settings": { view: "config", section: "index" },
-  "settings/index": { view: "config", section: "index" },
-  "settings/files": { view: "config", section: "files" },
-  "settings/users": { view: "config", section: "users" },
-  "settings/server": { view: "config", section: "server" },
-  "settings/backup": { view: "config", section: "backup" }
+  "": { view: "library", section: "home", param: null },
+  "library": { view: "library", section: "home", param: null },
+  "library/home": { view: "library", section: "home", param: null },
+  "library/music": { view: "library", section: "music", param: null },
+  "library/artists": { view: "library", section: "artists", param: null },
+  "library/albums": { view: "library", section: "albums", param: null },
+  "library/playlists": { view: "library", section: "playlists", param: null },
+  "upload": { view: "upload", section: null, param: null },
+  "player": { view: "player", section: null, param: null },
+  "account": { view: "account", section: null, param: null },
+  "settings": { view: "config", section: "index", param: null },
+  "settings/index": { view: "config", section: "index", param: null },
+  "settings/files": { view: "config", section: "files", param: null },
+  "settings/users": { view: "config", section: "users", param: null },
+  "settings/server": { view: "config", section: "server", param: null },
+  "settings/backup": { view: "config", section: "backup", param: null }
 };
+
+const DYNAMIC_PREFIXES: Array<{ prefix: string; route: Omit<AppRoute, "param"> }> = [
+  { prefix: "library/playlists/", route: { view: "library", section: "playlists" } }
+];
 
 const VALID_VIEWS = new Set<string>(["library", "upload", "player", "config", "account"]);
 
 /**
  * Build a URL path for a given view and optional section.
  */
-export function buildPathForRoute(view: ViewName, section?: string | null): string {
+export function buildPathForRoute(view: ViewName, section?: string | null, param?: string | null): string {
   if (view === "library") {
     const s = section ?? "home";
+    if (s === "playlists" && param) {
+      return `/library/playlists/${encodeURIComponent(param)}`;
+    }
     return s === "home" ? "/" : `/library/${s}`;
   }
   if (view === "config") {
@@ -200,7 +208,7 @@ export function buildPathForRoute(view: ViewName, section?: string | null): stri
  */
 export function getRouteFromLocation(): AppRoute {
   if (typeof window === "undefined") {
-    return { view: "library", section: "home" };
+    return { view: "library", section: "home", param: null };
   }
 
   const params = new URLSearchParams(window.location.search);
@@ -212,24 +220,36 @@ export function getRouteFromLocation(): AppRoute {
     window.history.replaceState(null, "", `${path}${search}${window.location.hash}`);
     return {
       view: legacyView as ViewName,
-      section: legacyView === "config" ? "index" : legacyView === "library" ? "home" : null
+      section: legacyView === "config" ? "index" : legacyView === "library" ? "home" : null,
+      param: null
     };
   }
 
   const raw = window.location.pathname.replace(/^\/+/, "").replace(/\/+$/, "");
-  return PATH_MAP[raw] ?? { view: "library", section: "home" };
+
+  const exact = PATH_MAP[raw];
+  if (exact) return exact;
+
+  for (const { prefix, route } of DYNAMIC_PREFIXES) {
+    if (raw.startsWith(prefix)) {
+      const param = decodeURIComponent(raw.slice(prefix.length));
+      if (param) return { ...route, param };
+    }
+  }
+
+  return { view: "library", section: "home", param: null };
 }
 
 /**
  * Synchronize app route state to the URL pathname via replaceState.
  * Preserves existing query params and hash.
  */
-export function syncRouteToLocation(view: ViewName, section?: string | null): void {
+export function syncRouteToLocation(view: ViewName, section?: string | null, param?: string | null): void {
   if (typeof window === "undefined") {
     return;
   }
 
-  const targetPath = buildPathForRoute(view, section);
+  const targetPath = buildPathForRoute(view, section, param);
   if (window.location.pathname === targetPath) {
     return;
   }
@@ -241,12 +261,12 @@ export function syncRouteToLocation(view: ViewName, section?: string | null): vo
  * Navigate to a route via pushState (adds a history entry for back/forward).
  * Preserves existing query params and hash.
  */
-export function navigateTo(view: ViewName, section?: string | null): void {
+export function navigateTo(view: ViewName, section?: string | null, param?: string | null): void {
   if (typeof window === "undefined") {
     return;
   }
 
-  const targetPath = buildPathForRoute(view, section);
+  const targetPath = buildPathForRoute(view, section, param);
   if (window.location.pathname === targetPath) {
     return;
   }

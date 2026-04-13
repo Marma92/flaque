@@ -691,6 +691,23 @@ export async function deletePlaylist(playlistId: string): Promise<void> {
   });
 }
 
+export async function heartPlaylist(playlistId: string): Promise<{ hearted: boolean; heartCount: number }> {
+  return requestJson<{ hearted: boolean; heartCount: number }>(
+    `/api/playlists/${encodeURIComponent(playlistId)}/heart`,
+    { method: "POST" }
+  );
+}
+
+export async function reportPlaylistListen(playlistId: string): Promise<void> {
+  await requestJson(`/api/playlists/${encodeURIComponent(playlistId)}/listen`, {
+    method: "POST"
+  }).catch(() => {});
+}
+
+export function playlistCoverUrl(playlistId: string): string {
+  return withApiBase(`/api/playlists/${encodeURIComponent(playlistId)}/cover`);
+}
+
 export async function getUsers(): Promise<User[]> {
   const payload = await requestJson<{ users: User[] }>("/api/users");
   return payload.users;
