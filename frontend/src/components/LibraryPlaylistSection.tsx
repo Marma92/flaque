@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 
 import { coverUrl, playlistCoverUrl } from "../api";
-import type { AutoPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
+import type { AutoPlaylistSummary, ForYouPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
 
 type LibraryPlaylistSectionProps = {
   availablePlaylists: Playlist[];
@@ -17,6 +17,9 @@ type LibraryPlaylistSectionProps = {
   onReportPlaylistListen: (playlistId: string) => Promise<void>;
   autoPlaylists: AutoPlaylistSummary[];
   loadingAutoPlaylists: boolean;
+  forYouPlaylists: ForYouPlaylistSummary[];
+  loadingForYouPlaylists: boolean;
+  onDismissForYouPlaylist: (playlistId: string) => Promise<void>;
 };
 
 // ── Mosaic cover (compact) ─────────────────────────────────────────
@@ -172,7 +175,10 @@ export function LibraryPlaylistSection({
   onNavigateToPlaylist,
   onReportPlaylistListen,
   autoPlaylists,
-  loadingAutoPlaylists
+  loadingAutoPlaylists,
+  forYouPlaylists,
+  loadingForYouPlaylists,
+  onDismissForYouPlaylist
 }: LibraryPlaylistSectionProps): JSX.Element {
   const [playlistName, setPlaylistName] = useState("");
   const [playlistVisibility, setPlaylistVisibility] = useState<PlaylistVisibility>("private");
@@ -258,6 +264,56 @@ export function LibraryPlaylistSection({
           </div>
         )}
       </section>
+
+      {/* ── Made For You ────────────────────────────────────────── */}
+      {!loadingForYouPlaylists && forYouPlaylists.length > 0 ? (
+        <section className="rounded-xl border border-flaque-clay/60 bg-gradient-to-br from-indigo-50/60 to-purple-50/40 p-5 shadow-panel backdrop-blur-sm">
+          <SectionHeader title="Made for you" />
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {forYouPlaylists.map((fy) => (
+              <div
+                key={fy.id}
+                className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-flaque-clay/60 bg-gradient-to-br from-indigo-50/80 to-purple-50/60 shadow-sm transition hover:shadow-md"
+                onClick={() => onNavigateToPlaylist(fy.id)}
+                role="link"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter") onNavigateToPlaylist(fy.id); }}
+              >
+                <div className="flex aspect-square w-full items-center justify-center bg-gradient-to-br from-indigo-100/60 to-purple-100/40">
+                  <div className="text-center px-3">
+                    <svg className="mx-auto h-8 w-8 text-indigo-400/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                    <p className="mt-1 font-display text-sm font-bold text-flaque-ink/70 leading-tight">{fy.seedArtist}</p>
+                  </div>
+                </div>
+                <div className="p-3">
+                  <p className="truncate text-sm font-semibold text-flaque-ink">{fy.name}</p>
+                  <p className="mt-0.5 text-xs text-flaque-steel">
+                    {fy.trackCount} track{fy.trackCount !== 1 ? "s" : ""}
+                  </p>
+                </div>
+
+                {/* Dismiss button */}
+                <button
+                  type="button"
+                  className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/80 text-flaque-steel opacity-0 shadow-sm transition hover:bg-white hover:text-red-500 group-hover:opacity-100"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void onDismissForYouPlaylist(fy.id);
+                  }}
+                  aria-label={`Hide ${fy.name}`}
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* ── Popular Playlists ─────────────────────────────────────── */}
       {popularPlaylists.length > 0 ? (

@@ -172,3 +172,15 @@ export type AutoPlaylistSummary = {
 export type AutoPlaylistDetail = AutoPlaylistSummary & {
   trackIds: string[];
 };
+
+export type ForYouPlaylistSummary = {
+  id: string;
+  name: string;
+  seedArtist: string;
+  trackCount: number;
+  generatedAt: string;
+};
+
+export type ForYouPlaylistDetail = ForYouPlaylistSummary & {
+  trackIds: string[];
+};

@@ -3,6 +3,8 @@ import type {
   ArtistEntry,
   AutoPlaylistDetail,
   AutoPlaylistSummary,
+  ForYouPlaylistDetail,
+  ForYouPlaylistSummary,
   LibraryResponse,
   Playlist,
   RadioCreateResponse,
@@ -723,6 +725,30 @@ export async function getAutoPlaylistDetail(id: string): Promise<{ playlist: Aut
 
 export async function regenerateAutoPlaylists(): Promise<{ regenerated: number }> {
   return requestJson<{ regenerated: number }>("/api/playlists/automatic/regenerate", {
+    method: "POST"
+  });
+}
+
+export async function getForYouPlaylists(): Promise<ForYouPlaylistSummary[]> {
+  const payload = await requestJson<{ playlists: ForYouPlaylistSummary[] }>("/api/playlists/for-you");
+  return payload.playlists;
+}
+
+export async function getForYouPlaylistDetail(id: string): Promise<{ playlist: ForYouPlaylistDetail; tracks: Track[] }> {
+  return requestJson<{ playlist: ForYouPlaylistDetail; tracks: Track[] }>(
+    `/api/playlists/for-you/${encodeURIComponent(id)}`
+  );
+}
+
+export async function dismissForYouPlaylist(playlistId: string): Promise<void> {
+  await requestJson<void>(
+    `/api/playlists/for-you/${encodeURIComponent(playlistId)}/dismiss`,
+    { method: "POST", skipJson: true }
+  );
+}
+
+export async function regenerateForYouPlaylists(): Promise<{ regenerated: number }> {
+  return requestJson<{ regenerated: number }>("/api/playlists/for-you/regenerate", {
     method: "POST"
   });
 }

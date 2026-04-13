@@ -16,6 +16,8 @@ import { startBackupScheduler } from "./services/backup/backupService";
 import { startVersionCheckSchedule } from "./services/versionCheck";
 import { ensureBaseDirectories } from "./utils/fs";
 import { checkAndRegenerateOnBoot } from "./services/playlists/autoPlaylistService";
+import { checkAndRegenerateForYouOnBoot } from "./services/playlists/forYouPlaylistService";
+import { listUsers } from "./auth/db";
 
 const SESSION_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 const SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -90,6 +92,9 @@ async function bootstrap(): Promise<void> {
   startVersionCheckSchedule();
   void startBackupScheduler();
   void checkAndRegenerateOnBoot(indexStore.getSnapshot().tracks);
+  void Promise.all(
+    listUsers().map((user) => checkAndRegenerateForYouOnBoot(user.id, indexStore))
+  );
 }
 
 bootstrap().catch((error: unknown) => {
