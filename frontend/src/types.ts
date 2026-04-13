@@ -112,6 +112,7 @@ export type TrackMetadataPatch = {
   artist?: string | null;
   album?: string | null;
   year?: number | null;
+  genre?: string[] | null;
 };
 
 export type RadioTrack = {

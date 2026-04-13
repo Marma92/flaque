@@ -199,3 +199,24 @@ export function parseMetadataYearField(value: unknown): number | undefined | nul
 
   return n;
 }
+
+export function parseMetadataGenreField(value: unknown): string[] | undefined | null {
+  if (value === null) {
+    return undefined;
+  }
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const genres: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") return null;
+    const trimmed = item.trim();
+    if (trimmed) genres.push(trimmed);
+  }
+
+  return genres.length > 0 ? genres : undefined;
+}

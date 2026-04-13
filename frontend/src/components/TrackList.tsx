@@ -64,6 +64,14 @@ export function TrackList({
     }`;
   }
 
+  function getGenrePillClassName(selected: boolean): string {
+    return `inline-block max-w-[7rem] truncate rounded-full px-1.5 py-px text-[10px] leading-tight ${
+      selected
+        ? "bg-flaque-cream/20 text-flaque-cream/90"
+        : "bg-flaque-ink/8 text-flaque-steel"
+    }`;
+  }
+
   return (
     <>
       <div className="space-y-3 p-4 md:hidden">
@@ -117,6 +125,16 @@ export function TrackList({
                   <p className={`truncate text-xs ${selected ? "text-flaque-cream/75" : "text-flaque-steel/80"}`}>
                     {trackAlbum}
                   </p>
+
+                  {track.tags.genre && track.tags.genre.length > 0 ? (
+                    <span className="mt-1 flex flex-wrap gap-1">
+                      {track.tags.genre.slice(0, 3).map((genre) => (
+                        <span key={genre} className={getGenrePillClassName(selected)} title={genre}>
+                          {genre}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
 
                   <span
                     className={`mt-2 flex items-center justify-between text-[11px] uppercase tracking-[0.12em] ${
@@ -216,6 +234,15 @@ export function TrackList({
                         <span className="min-w-0 truncate" title={trackTitle}>
                           {trackTitle}
                         </span>
+                        {track.tags.genre && track.tags.genre.length > 0 ? (
+                          <>
+                            {track.tags.genre.slice(0, 2).map((genre) => (
+                              <span key={genre} className={getGenrePillClassName(selected)} title={genre}>
+                                {genre}
+                              </span>
+                            ))}
+                          </>
+                        ) : null}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-flaque-steel">{trackArtist}</td>

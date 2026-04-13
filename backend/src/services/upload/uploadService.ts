@@ -34,13 +34,14 @@ export type UploadMetadataOverride = {
   artist?: string;
   album?: string;
   year?: number;
+  genre?: string[];
 };
 
 export type ProcessedUpload = {
   trackId: string;
   track: Track;
   isNew: boolean;
-  overrides?: { title?: string; artist?: string; album?: string; year?: number };
+  overrides?: { title?: string; artist?: string; album?: string; year?: number; genre?: string[] };
 };
 
 export function sanitizeExtension(fileName: string): string {
@@ -76,17 +77,18 @@ function resolveEffectiveOverrides(
   manualArtist: string | undefined,
   manualAlbum: string | undefined,
   manualYear: number | undefined
-): { title?: string; artist?: string; album?: string; year?: number } | undefined {
+): { title?: string; artist?: string; album?: string; year?: number; genre?: string[] } | undefined {
   const effectiveTitle = override.title;
   const effectiveArtist = override.artist ?? manualArtist;
   const effectiveAlbum = override.album ?? manualAlbum;
   const effectiveYear = override.year ?? manualYear;
+  const effectiveGenre = override.genre;
 
-  if (!effectiveTitle && !effectiveArtist && !effectiveAlbum && effectiveYear === undefined) {
+  if (!effectiveTitle && !effectiveArtist && !effectiveAlbum && effectiveYear === undefined && !effectiveGenre) {
     return undefined;
   }
 
-  return { title: effectiveTitle, artist: effectiveArtist, album: effectiveAlbum, year: effectiveYear };
+  return { title: effectiveTitle, artist: effectiveArtist, album: effectiveAlbum, year: effectiveYear, genre: effectiveGenre };
 }
 
 async function ensureArtistDirectory(artistDir: string, artistName: string): Promise<void> {
@@ -188,7 +190,8 @@ export async function processUploadedFile(
     ...(overrides?.title ? { title: overrides.title } : {}),
     ...(overrides?.artist ? { artist: overrides.artist } : {}),
     ...(overrides?.album ? { album: overrides.album } : {}),
-    ...(overrides?.year !== undefined ? { year: overrides.year } : {})
+    ...(overrides?.year !== undefined ? { year: overrides.year } : {}),
+    ...(overrides?.genre ? { genre: overrides.genre } : {})
   };
 
   const track: Track = {
