@@ -6,6 +6,7 @@ import { Router, type NextFunction, type Response } from "express";
 
 import { requireAuth } from "../auth/middleware";
 import { appendTrackActivityLogEntries, readTrackActivityLog } from "../services/activity/trackActivityStore";
+import { enrichTrackGenre } from "../services/genre/genreEnrichmentService";
 import { mergeTrackMetadataOverrides } from "../services/indexer/metadataOverrideStore";
 import { IndexStore } from "../services/indexer/indexStore";
 
@@ -83,11 +84,22 @@ export function parseUploadMetadataOverrides(value: unknown): UploadMetadataOver
         }
       }
 
+      let genre: string[] | undefined;
+      const rawGenre = (entry as { genre?: unknown }).genre;
+      if (Array.isArray(rawGenre)) {
+        const parsed = rawGenre
+          .filter((g): g is string => typeof g === "string")
+          .map((g) => g.trim())
+          .filter(Boolean);
+        if (parsed.length > 0) genre = parsed;
+      }
+
       return {
         title: normalizeOptionalString((entry as { title?: unknown }).title),
         artist: normalizeOptionalString((entry as { artist?: unknown }).artist),
         album: normalizeOptionalString((entry as { album?: unknown }).album),
-        year
+        year,
+        genre
       };
     });
   } catch {
@@ -239,6 +251,16 @@ async function ingestUploadedFiles(
 
   if (newUploadTracks.length > 0) {
     await appendTrackActivityLogEntries(newUploadTracks);
+  }
+
+  for (const track of newUploadTracks) {
+    if (!track.tags.genre || track.tags.genre.length === 0) {
+      const artist = track.tags.artist;
+      const title = track.tags.title;
+      if (artist && title) {
+        void enrichTrackGenre(track.id, artist, title).catch(() => {});
+      }
+    }
   }
 
   const deduplicated = results.filter((r) => !r.isNew).length;

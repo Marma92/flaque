@@ -9,6 +9,7 @@ export type EditTrackState = {
   artist: string;
   album: string;
   year: string;
+  genre: string;
 };
 
 type TrackEditModalProps = {
@@ -111,6 +112,27 @@ export function TrackEditModal({
               )
             }
           />
+        </label>
+
+        <label className="mt-3 block text-sm text-flaque-ink">
+          Genre
+          <input
+            className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+            type="text"
+            value={editState.genre}
+            placeholder="e.g. Rock, Progressive Rock"
+            onChange={(event) =>
+              onStateChange((current) =>
+                current
+                  ? {
+                      ...current,
+                      genre: event.target.value
+                    }
+                  : current
+              )
+            }
+          />
+          <span className="mt-0.5 block text-xs text-flaque-steel">Comma-separated</span>
         </label>
 
         <p className="mt-3 text-xs text-flaque-steel">
