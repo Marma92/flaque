@@ -3,9 +3,10 @@ import { LibraryAlbumsSection } from "./LibraryAlbumsSection";
 import { LibraryArtistsSection } from "./LibraryArtistsSection";
 import { LibraryPlaylistSection } from "./LibraryPlaylistSection";
 import { AutoPlaylistDetailView } from "./AutoPlaylistDetailView";
+import { ForYouPlaylistDetailView } from "./ForYouPlaylistDetailView";
 import { PlaylistDetailView } from "./PlaylistDetailView";
 import { PaginatedLibrary } from "./PaginatedLibrary";
-import type { AlbumEntry, ArtistEntry, AutoPlaylistSummary, LibraryResponse, Playlist, PlaylistVisibility, RadioTrack, Track, User } from "../types";
+import type { AlbumEntry, ArtistEntry, AutoPlaylistSummary, ForYouPlaylistSummary, LibraryResponse, Playlist, PlaylistVisibility, RadioTrack, Track, User } from "../types";
 import type { LibraryFilters, LibrarySection } from "../types/library";
 import { navigateTo } from "../utils/appUtils";
 import type { UploadPeriod } from "../hooks/useRecentlyUploaded";
@@ -26,6 +27,9 @@ type LibraryWorkspaceProps = {
   onReportPlaylistListen: (playlistId: string) => Promise<void>;
   autoPlaylists: AutoPlaylistSummary[];
   loadingAutoPlaylists: boolean;
+  forYouPlaylists: ForYouPlaylistSummary[];
+  loadingForYouPlaylists: boolean;
+  onDismissForYouPlaylist: (playlistId: string) => Promise<void>;
   allTracksById: Map<string, Track>;
   libraryMetadataError: string | null;
   loadingLibraryArtists: boolean;
@@ -99,6 +103,9 @@ export function LibraryWorkspace({
   onReportPlaylistListen,
   autoPlaylists,
   loadingAutoPlaylists,
+  forYouPlaylists,
+  loadingForYouPlaylists,
+  onDismissForYouPlaylist,
   allTracksById,
   libraryMetadataError,
   loadingLibraryArtists,
@@ -153,7 +160,15 @@ export function LibraryWorkspace({
   return (
     <div className="h-full min-h-0 space-y-4 overflow-y-auto">
       {activeLibrarySection === "playlists" ? (
-        playlistDetailId && playlistDetailId.startsWith("auto:") ? (
+        playlistDetailId && playlistDetailId.startsWith("for-you:") ? (
+          <ForYouPlaylistDetailView
+            playlistId={playlistDetailId}
+            allTracksById={allTracksById}
+            onBack={() => onPlaylistDetailNavigate(null)}
+            onPlayTrack={onPlayPlaylist}
+            onDismiss={onDismissForYouPlaylist}
+          />
+        ) : playlistDetailId && playlistDetailId.startsWith("auto:") ? (
           <AutoPlaylistDetailView
             playlistId={playlistDetailId}
             allTracksById={allTracksById}
@@ -190,6 +205,9 @@ export function LibraryWorkspace({
             onReportPlaylistListen={onReportPlaylistListen}
             autoPlaylists={autoPlaylists}
             loadingAutoPlaylists={loadingAutoPlaylists}
+            forYouPlaylists={forYouPlaylists}
+            loadingForYouPlaylists={loadingForYouPlaylists}
+            onDismissForYouPlaylist={onDismissForYouPlaylist}
           />
         )
       ) : null}
