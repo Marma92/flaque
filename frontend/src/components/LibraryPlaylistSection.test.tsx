@@ -35,7 +35,9 @@ const defaultProps = {
   onPatchPlaylist: vi.fn().mockResolvedValue(undefined),
   onDeletePlaylist: vi.fn().mockResolvedValue(undefined),
   onNavigateToPlaylist: vi.fn(),
-  onReportPlaylistListen: vi.fn().mockResolvedValue(undefined)
+  onReportPlaylistListen: vi.fn().mockResolvedValue(undefined),
+  autoPlaylists: [],
+  loadingAutoPlaylists: false
 };
 
 describe("LibraryPlaylistSection", () => {

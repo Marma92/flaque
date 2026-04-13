@@ -159,3 +159,16 @@ export type RadioQueueResponse = {
     trackList: RadioTrack[];
   } | null;
 };
+
+export type AutoPlaylistSummary = {
+  id: string;
+  name: string;
+  genre: string;
+  decade: number;
+  trackCount: number;
+  generatedAt: string;
+};
+
+export type AutoPlaylistDetail = AutoPlaylistSummary & {
+  trackIds: string[];
+};

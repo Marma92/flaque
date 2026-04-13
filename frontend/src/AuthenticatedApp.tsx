@@ -19,6 +19,7 @@ import { useLibraryData } from "./hooks/useLibraryData";
 import { usePlaybackCommands } from "./hooks/usePlaybackCommands";
 import { usePlaybackState } from "./hooks/usePlaybackState";
 import { useRecentlyUploaded } from "./hooks/useRecentlyUploaded";
+import { useAutoPlaylists } from "./hooks/useAutoPlaylists";
 import { useRadioStation } from "./hooks/useRadioStation";
 
 type AuthenticatedAppProps = {
@@ -91,6 +92,8 @@ export function AuthenticatedApp({
     sentinelRef: paginatedSentinelRef,
     refresh: refreshPaginatedLibrary
   } = useInfiniteLibrary({ user, filters, pageSize: 30 });
+
+  const { autoPlaylists, loading: loadingAutoPlaylists, refresh: refreshAutoPlaylists } = useAutoPlaylists();
 
   const allTracksById = useMemo(
     () => new Map(allTracksLibrary.tracks.map((track) => [track.id, track])),
@@ -303,6 +306,8 @@ export function AuthenticatedApp({
         onDeletePlaylist: handleDeletePlaylist,
         onHeartPlaylist: handleHeartPlaylist,
         onReportPlaylistListen: handleReportPlaylistListen,
+        autoPlaylists,
+        loadingAutoPlaylists,
         allTracksById,
         libraryMetadataError,
         loadingLibraryArtists,

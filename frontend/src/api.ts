@@ -1,6 +1,8 @@
 import type {
   AlbumEntry,
   ArtistEntry,
+  AutoPlaylistDetail,
+  AutoPlaylistSummary,
   LibraryResponse,
   Playlist,
   RadioCreateResponse,
@@ -706,6 +708,23 @@ export async function reportPlaylistListen(playlistId: string): Promise<void> {
 
 export function playlistCoverUrl(playlistId: string): string {
   return withApiBase(`/api/playlists/${encodeURIComponent(playlistId)}/cover`);
+}
+
+export async function getAutoPlaylists(): Promise<AutoPlaylistSummary[]> {
+  const payload = await requestJson<{ playlists: AutoPlaylistSummary[] }>("/api/playlists/automatic");
+  return payload.playlists;
+}
+
+export async function getAutoPlaylistDetail(id: string): Promise<{ playlist: AutoPlaylistDetail; tracks: Track[] }> {
+  return requestJson<{ playlist: AutoPlaylistDetail; tracks: Track[] }>(
+    `/api/playlists/automatic/${encodeURIComponent(id)}`
+  );
+}
+
+export async function regenerateAutoPlaylists(): Promise<{ regenerated: number }> {
+  return requestJson<{ regenerated: number }>("/api/playlists/automatic/regenerate", {
+    method: "POST"
+  });
 }
 
 export async function getUsers(): Promise<User[]> {
