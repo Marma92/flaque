@@ -268,14 +268,18 @@ function EditModal({ playlist, allTracksById, isOwner, saving, onSave, onClose }
 
   async function handleSubmit(e: FormEvent): Promise<void> {
     e.preventDefault();
-    setCoverUploading(true);
-    try {
-      if (coverFile) {
-        await uploadPlaylistCover(playlist.id, coverFile);
-      } else if (coverRemoved && playlist.cover) {
-        await deletePlaylistCover(playlist.id);
+    if (coverFile || (coverRemoved && playlist.cover)) {
+      setCoverUploading(true);
+      try {
+        if (coverFile) {
+          await uploadPlaylistCover(playlist.id, coverFile);
+        } else {
+          await deletePlaylistCover(playlist.id);
+        }
+      } catch {
+        setCoverUploading(false);
+        return;
       }
-    } finally {
       setCoverUploading(false);
     }
     await onSave({

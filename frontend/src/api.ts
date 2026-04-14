@@ -725,9 +725,8 @@ export async function uploadPlaylistCover(playlistId: string, file: File): Promi
 }
 
 export async function deletePlaylistCover(playlistId: string): Promise<void> {
-  await requestJson<void>(`/api/playlists/${encodeURIComponent(playlistId)}/cover`, {
-    method: "DELETE",
-    skipJson: true
+  await requestJson<{ ok: boolean }>(`/api/playlists/${encodeURIComponent(playlistId)}/cover`, {
+    method: "DELETE"
   });
 }
 

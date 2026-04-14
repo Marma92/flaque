@@ -20,6 +20,7 @@ const coverUpload = multer({
 });
 import {
   canManagePlaylist,
+  canViewPlaylist,
   createFilesystemPlaylist,
   deleteFilesystemPlaylist,
   filterPlayablePlaylists,
@@ -27,9 +28,9 @@ import {
   incrementPlaylistListenCount,
   togglePlaylistHeart,
   updateFilesystemPlaylist,
-  updatePlaylistCover,
-  updatePlaylistDescription
+  updatePlaylistCover
 } from "../services/playlists/playlistStore";
+import { listUsers } from "../auth/db";
 import type { Playlist, PlaylistVisibility, Track } from "../types/library";
 
 function normalizeVisibility(value: unknown): PlaylistVisibility | null | undefined {
@@ -97,6 +98,16 @@ function findPlaylistById(indexStore: IndexStore, playlistId: string): Playlist 
 
 const listenDebounceMap = new Map<string, number>();
 const LISTEN_DEBOUNCE_MS = 60 * 60 * 1000; // 1 hour
+
+// Sweep expired entries every hour to prevent unbounded growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamp] of listenDebounceMap) {
+    if (now - timestamp >= LISTEN_DEBOUNCE_MS) {
+      listenDebounceMap.delete(key);
+    }
+  }
+}, LISTEN_DEBOUNCE_MS).unref();
 
 export function createPlaylistRouter(indexStore: IndexStore): Router {
   const router = Router();
@@ -329,13 +340,18 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         return;
       }
 
-      const description = typeof req.body?.description === "string" ? req.body.description : undefined;
+      const description = typeof req.body?.description === "string" ? req.body.description.trim() : undefined;
       const collaborators = Array.isArray(req.body?.collaborators)
         ? (req.body.collaborators as unknown[]).filter((c): c is string => typeof c === "string" && c.trim() !== "").map((c) => c.trim())
         : undefined;
 
-      if (description !== undefined) {
-        await updatePlaylistDescription(playlistId, description);
+      if (collaborators !== undefined && collaborators.length > 0) {
+        const validUserIds = new Set(listUsers().map((u) => u.id));
+        const invalid = collaborators.filter((id) => !validUserIds.has(id));
+        if (invalid.length > 0) {
+          res.status(400).json({ error: `Unknown collaborator user ids: ${invalid.join(", ")}` });
+          return;
+        }
       }
 
       const snapshot = indexStore.getSnapshot();
@@ -346,6 +362,7 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         visibility: visibility ?? existing.visibility,
         trackIds: trackIds ?? existing.trackIds,
         tracksById: getTracksById(snapshot.tracks),
+        description,
         collaborators
       });
 
@@ -570,15 +587,21 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
 
   router.get("/playlists/:id/cover", requireAuth, async (req, res, next) => {
     try {
+      const authUser = req.authUser;
       const playlistId = req.params.id;
-      if (!playlistId) {
-        res.status(400).json({ error: "Playlist id is required" });
+      if (!authUser || !playlistId) {
+        res.status(401).json({ error: "Authentication required" });
         return;
       }
 
       const playlist = findPlaylistById(indexStore, playlistId);
       if (!playlist || !playlist.cover) {
         res.status(404).json({ error: "Cover not found" });
+        return;
+      }
+
+      if (!canViewPlaylist(playlist, authUser)) {
+        res.status(403).json({ error: "Not allowed to access this playlist" });
         return;
       }
 
