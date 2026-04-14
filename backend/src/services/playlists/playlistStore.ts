@@ -28,6 +28,7 @@ type CreatePlaylistInput = {
   visibility: PlaylistVisibility;
   trackIds: string[];
   tracksById: Map<string, Track>;
+  description?: string;
 };
 
 type UpdatePlaylistInput = {
@@ -36,6 +37,8 @@ type UpdatePlaylistInput = {
   visibility: PlaylistVisibility;
   trackIds: string[];
   tracksById: Map<string, Track>;
+  description?: string;
+  collaborators?: string[];
 };
 
 function normalizeVisibility(value: unknown): PlaylistVisibility | null {
@@ -98,7 +101,7 @@ function getPlaylistMetadataPath(authorId: string, playlistSlug: string): string
   return path.join(getPlaylistDir(authorId, playlistSlug), PLAYLIST_METADATA_FILE);
 }
 
-function canViewPlaylist(playlist: Playlist, user: AuthUser): boolean {
+export function canViewPlaylist(playlist: Playlist, user: AuthUser): boolean {
   return playlist.visibility === "public" || playlist.authorId === user.id || user.role === "admin";
 }
 
@@ -171,10 +174,6 @@ export async function migrateLegacyPlaylists(): Promise<void> {
 
 export function canManagePlaylist(playlist: Playlist, user: AuthUser): boolean {
   return playlist.authorId === user.id || user.role === "admin";
-}
-
-export function canEditPlaylistTracks(playlist: Playlist, user: AuthUser): boolean {
-  return canManagePlaylist(playlist, user) || playlist.collaborators.includes(user.id);
 }
 
 export function filterPlayablePlaylists(playlists: Playlist[], user: AuthUser): Playlist[] {
@@ -436,7 +435,8 @@ export async function createFilesystemPlaylist(input: CreatePlaylistInput): Prom
     name,
     visibility: input.visibility,
     trackIds: input.trackIds,
-    tracksById: input.tracksById
+    tracksById: input.tracksById,
+    description: input.description
   });
 
   return createPlaylistId(input.authorId, playlistSlug);
@@ -459,6 +459,8 @@ export async function updateFilesystemPlaylist(input: UpdatePlaylistInput & { au
   const currentDir = getPlaylistDir(parsed.authorId, parsed.slug);
   const nextDir = getPlaylistDir(parsed.authorId, nextSlug);
 
+  const existingMetadata = await readPlaylistMetadata(input.id);
+
   if (parsed.slug !== nextSlug) {
     try {
       await fs.access(nextDir);
@@ -472,8 +474,6 @@ export async function updateFilesystemPlaylist(input: UpdatePlaylistInput & { au
     await fs.rename(currentDir, nextDir);
   }
 
-  const existingMetadata = await readPlaylistMetadata(input.id);
-
   await writePlaylistContents({
     authorId: input.authorId,
     playlistSlug: nextSlug,
@@ -481,11 +481,11 @@ export async function updateFilesystemPlaylist(input: UpdatePlaylistInput & { au
     visibility: input.visibility,
     trackIds: input.trackIds,
     tracksById: input.tracksById,
-    description: existingMetadata?.description,
+    description: input.description ?? existingMetadata?.description,
     cover: existingMetadata?.cover,
     hearts: existingMetadata?.hearts,
     listenCount: existingMetadata?.listenCount,
-    collaborators: existingMetadata?.collaborators
+    collaborators: input.collaborators ?? existingMetadata?.collaborators
   });
 }
 
@@ -535,16 +535,6 @@ export async function incrementPlaylistListenCount(playlistId: string): Promise<
     listenCount: metadata.listenCount + 1
   }));
   return updated.listenCount;
-}
-
-export async function updatePlaylistDescription(
-  playlistId: string,
-  description: string
-): Promise<void> {
-  await patchPlaylistMetadataFile(playlistId, (metadata) => ({
-    ...metadata,
-    description
-  }));
 }
 
 export async function updatePlaylistCover(

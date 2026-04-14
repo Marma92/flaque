@@ -657,6 +657,7 @@ export async function rebuildIndex(): Promise<{ generatedAt: string; totalTracks
 export async function createPlaylist(input: {
   name: string;
   visibility: PlaylistVisibility;
+  description?: string;
 }): Promise<Playlist> {
   const payload = await requestJson<{ playlist: Playlist }>("/api/playlists", {
     method: "POST",
@@ -675,6 +676,8 @@ export async function patchPlaylist(
     name?: string;
     visibility?: PlaylistVisibility;
     trackIds?: string[];
+    description?: string;
+    collaborators?: string[];
   }
 ): Promise<Playlist> {
   const payload = await requestJson<{ playlist: Playlist }>(`/api/playlists/${encodeURIComponent(playlistId)}`, {
@@ -710,6 +713,21 @@ export async function reportPlaylistListen(playlistId: string): Promise<void> {
 
 export function playlistCoverUrl(playlistId: string): string {
   return withApiBase(`/api/playlists/${encodeURIComponent(playlistId)}/cover`);
+}
+
+export async function uploadPlaylistCover(playlistId: string, file: File): Promise<void> {
+  const formData = new FormData();
+  formData.append("cover", file);
+  await requestJson<{ ok: boolean }>(`/api/playlists/${encodeURIComponent(playlistId)}/cover`, {
+    method: "POST",
+    body: formData
+  });
+}
+
+export async function deletePlaylistCover(playlistId: string): Promise<void> {
+  await requestJson<{ ok: boolean }>(`/api/playlists/${encodeURIComponent(playlistId)}/cover`, {
+    method: "DELETE"
+  });
 }
 
 export async function getAutoPlaylists(): Promise<AutoPlaylistSummary[]> {
@@ -964,6 +982,86 @@ export type PlayStatsResponse = {
 
 export async function getMyPlayStats(): Promise<PlayStatsResponse> {
   return requestJson<PlayStatsResponse>("/api/me/play-stats");
+}
+
+// ── Admin: Genre Management ───────────────────────────────────────────
+
+export type GenreSynonyms = Record<string, string>;
+
+export async function getGenreSynonyms(): Promise<GenreSynonyms> {
+  const payload = await requestJson<{ synonyms: GenreSynonyms }>("/api/genre/synonyms");
+  return payload.synonyms;
+}
+
+export async function putGenreSynonym(key: string, value: string): Promise<void> {
+  await requestJson<{ ok: boolean }>("/api/genre/synonyms", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value })
+  });
+}
+
+export async function deleteGenreSynonym(key: string): Promise<void> {
+  await requestJson<void>(`/api/genre/synonyms/${encodeURIComponent(key)}`, {
+    method: "DELETE",
+    skipJson: true
+  });
+}
+
+export async function resetGenreSynonyms(): Promise<void> {
+  await requestJson<{ ok: boolean }>("/api/genre/synonyms/reset", { method: "POST" });
+}
+
+export type EnrichmentStatus = {
+  running: boolean;
+  processed?: number;
+  total?: number;
+  startedAt?: string;
+};
+
+export async function getEnrichmentStatus(): Promise<EnrichmentStatus> {
+  return requestJson<EnrichmentStatus>("/api/genre/enrichment/status");
+}
+
+export async function startEnrichment(): Promise<void> {
+  await requestJson<{ ok: boolean }>("/api/genre/enrichment/start", { method: "POST" });
+}
+
+export async function stopEnrichment(): Promise<void> {
+  await requestJson<{ ok: boolean }>("/api/genre/enrichment/stop", { method: "POST" });
+}
+
+export type GenreCacheStats = {
+  entries: number;
+  sizeBytes: number;
+};
+
+export async function getGenreCacheStats(): Promise<GenreCacheStats> {
+  return requestJson<GenreCacheStats>("/api/genre/cache/stats");
+}
+
+export async function clearGenreCache(): Promise<void> {
+  await requestJson<{ ok: boolean }>("/api/genre/cache/clear", { method: "POST" });
+}
+
+// ── Admin: Auto-Playlist Config ──────────────────────────────────────
+
+export type AutoPlaylistConfig = {
+  maxPlaylists: number;
+  minTracksPerPlaylist: number;
+  tracksPerPlaylist: number;
+};
+
+export async function getAutoPlaylistConfig(): Promise<AutoPlaylistConfig> {
+  return requestJson<AutoPlaylistConfig>("/api/config/auto-playlists");
+}
+
+export async function patchAutoPlaylistConfig(patch: Partial<AutoPlaylistConfig>): Promise<AutoPlaylistConfig> {
+  return requestJson<AutoPlaylistConfig>("/api/config/auto-playlists", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch)
+  });
 }
 
 // ── Admin: Server Logs ────────────────────────────────────────────────

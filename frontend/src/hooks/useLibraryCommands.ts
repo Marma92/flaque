@@ -50,9 +50,9 @@ type UseLibraryCommandsResult = {
   handleRebuildIndex: () => Promise<void>;
   handleDeleteTrack: (trackId: string) => Promise<void>;
   handleUpdateTrackMetadata: (trackId: string, patch: TrackMetadataPatch) => Promise<void>;
-  handleCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility }) => Promise<void>;
+  handleCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility; description?: string }) => Promise<void>;
   handleAddTrackToPlaylist: (input: { trackId: string; playlistId: string }) => Promise<void>;
-  handlePatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[] }) => Promise<void>;
+  handlePatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<void>;
   handleDeletePlaylist: (playlistId: string) => Promise<void>;
   handleBulkDeleteTracks: (trackIds: string[]) => Promise<void>;
   handleBulkUpdateTrackMetadata: (trackIds: string[], patch: TrackMetadataPatch) => Promise<void>;
@@ -160,6 +160,7 @@ export function useLibraryCommands({
   async function handleCreatePlaylist(input: {
     name: string;
     visibility: PlaylistVisibility;
+    description?: string;
   }): Promise<void> {
     await createPlaylist(input);
     setAppNotice({
@@ -201,7 +202,7 @@ export function useLibraryCommands({
 
   async function handlePatchPlaylist(
     playlistId: string,
-    patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[] }
+    patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }
   ): Promise<void> {
     await patchPlaylist(playlistId, patch);
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);

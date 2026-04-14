@@ -9,11 +9,12 @@ type LibraryPlaylistSectionProps = {
   ownerNameById: Record<string, string>;
   allTracksById: Map<string, Track>;
   user: User;
-  onCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility }) => Promise<void>;
+  onCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility; description?: string }) => Promise<void>;
   onPlayPlaylist: (playlist: Playlist) => void;
-  onPatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[] }) => Promise<void>;
+  onPatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<void>;
   onDeletePlaylist: (playlistId: string) => Promise<void>;
   onNavigateToPlaylist: (playlistId: string) => void;
+  onHeartPlaylist: (playlistId: string) => Promise<{ hearted: boolean; heartCount: number }>;
   onReportPlaylistListen: (playlistId: string) => Promise<void>;
   autoPlaylists: AutoPlaylistSummary[];
   loadingAutoPlaylists: boolean;
@@ -82,9 +83,11 @@ type PlaylistCardProps = {
   onNavigate: () => void;
   onPlay: () => void;
   showBadges?: boolean;
+  onHeart?: () => void;
+  hasHearted?: boolean;
 };
 
-function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPlay, showBadges }: PlaylistCardProps): JSX.Element {
+function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPlay, showBadges, onHeart, hasHearted }: PlaylistCardProps): JSX.Element {
   const mosaicTracks = getPlaylistMosaicTracks(playlist.trackIds, allTracksById);
   const owner = ownerNameById[playlist.authorId] ?? playlist.authorId;
 
@@ -130,7 +133,21 @@ function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPl
         {/* Badges */}
         {showBadges ? (
           <div className="mt-1.5 flex items-center gap-2">
-            {playlist.heartCount > 0 ? (
+            {onHeart ? (
+              <button
+                type="button"
+                className={`flex items-center gap-0.5 text-[10px] transition ${
+                  hasHearted ? "text-red-500 hover:text-red-600" : "text-flaque-steel hover:text-red-400"
+                }`}
+                onClick={(e) => { e.stopPropagation(); onHeart(); }}
+                aria-label={hasHearted ? "Remove heart" : "Heart playlist"}
+              >
+                <svg className="h-3 w-3" fill={hasHearted ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                {playlist.heartCount > 0 ? playlist.heartCount : ""}
+              </button>
+            ) : playlist.heartCount > 0 ? (
               <span className="flex items-center gap-0.5 text-[10px] text-red-400">
                 <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -173,6 +190,7 @@ export function LibraryPlaylistSection({
   onPatchPlaylist: _onPatchPlaylist,
   onDeletePlaylist: _onDeletePlaylist,
   onNavigateToPlaylist,
+  onHeartPlaylist,
   onReportPlaylistListen,
   autoPlaylists,
   loadingAutoPlaylists,
@@ -181,6 +199,7 @@ export function LibraryPlaylistSection({
   onDismissForYouPlaylist
 }: LibraryPlaylistSectionProps): JSX.Element {
   const [playlistName, setPlaylistName] = useState("");
+  const [playlistDescription, setPlaylistDescription] = useState("");
   const [playlistVisibility, setPlaylistVisibility] = useState<PlaylistVisibility>("private");
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -196,8 +215,13 @@ export function LibraryPlaylistSection({
     setSubmitting(true);
     setStatusMessage(null);
     try {
-      await onCreatePlaylist({ name: playlistName, visibility: playlistVisibility });
+      await onCreatePlaylist({
+        name: playlistName,
+        visibility: playlistVisibility,
+        description: playlistDescription.trim() || undefined
+      });
       setPlaylistName("");
+      setPlaylistDescription("");
       setStatusMessage("Playlist created.");
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : "Unable to create playlist");
@@ -218,31 +242,42 @@ export function LibraryPlaylistSection({
         <SectionHeader title="My Playlists" />
 
         <form
-          className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]"
+          className="mt-4 space-y-3"
           onSubmit={(event) => { void handleSubmit(event); }}
         >
-          <input
-            className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-            type="text"
-            placeholder="New playlist name"
-            value={playlistName}
-            onChange={(event) => setPlaylistName(event.target.value)}
-          />
-          <select
-            className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-            value={playlistVisibility}
-            onChange={(event) => setPlaylistVisibility(event.target.value as PlaylistVisibility)}
-          >
-            <option value="private">Private</option>
-            <option value="public">Public</option>
-          </select>
-          <button
-            className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
-            type="submit"
-            disabled={submitting || !playlistName.trim()}
-          >
-            {submitting ? "Creating..." : "Create"}
-          </button>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]">
+            <input
+              className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              type="text"
+              placeholder="New playlist name"
+              value={playlistName}
+              onChange={(event) => setPlaylistName(event.target.value)}
+            />
+            <select
+              className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              value={playlistVisibility}
+              onChange={(event) => setPlaylistVisibility(event.target.value as PlaylistVisibility)}
+            >
+              <option value="private">Private</option>
+              <option value="public">Public</option>
+            </select>
+            <button
+              className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              type="submit"
+              disabled={submitting || !playlistName.trim()}
+            >
+              {submitting ? "Creating..." : "Create"}
+            </button>
+          </div>
+          {playlistName.trim() ? (
+            <textarea
+              className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              rows={2}
+              placeholder="Description (optional)"
+              value={playlistDescription}
+              onChange={(event) => setPlaylistDescription(event.target.value)}
+            />
+          ) : null}
         </form>
 
         {statusMessage ? <p className="mt-2 text-sm text-flaque-steel">{statusMessage}</p> : null}
@@ -329,6 +364,8 @@ export function LibraryPlaylistSection({
                 onNavigate={() => onNavigateToPlaylist(playlist.id)}
                 onPlay={() => handlePlay(playlist)}
                 showBadges
+                onHeart={() => { void onHeartPlaylist(playlist.id); }}
+                hasHearted={playlist.hearts.includes(user.id)}
               />
             ))}
           </div>
