@@ -459,6 +459,8 @@ export async function updateFilesystemPlaylist(input: UpdatePlaylistInput & { au
   const currentDir = getPlaylistDir(parsed.authorId, parsed.slug);
   const nextDir = getPlaylistDir(parsed.authorId, nextSlug);
 
+  const existingMetadata = await readPlaylistMetadata(input.id);
+
   if (parsed.slug !== nextSlug) {
     try {
       await fs.access(nextDir);
@@ -471,8 +473,6 @@ export async function updateFilesystemPlaylist(input: UpdatePlaylistInput & { au
 
     await fs.rename(currentDir, nextDir);
   }
-
-  const existingMetadata = await readPlaylistMetadata(input.id);
 
   await writePlaylistContents({
     authorId: input.authorId,
