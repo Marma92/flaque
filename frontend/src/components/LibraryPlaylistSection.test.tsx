@@ -40,7 +40,8 @@ const defaultProps = {
   loadingAutoPlaylists: false,
   forYouPlaylists: [],
   loadingForYouPlaylists: false,
-  onDismissForYouPlaylist: vi.fn().mockResolvedValue(undefined)
+  onDismissForYouPlaylist: vi.fn().mockResolvedValue(undefined),
+  onHeartPlaylist: vi.fn().mockResolvedValue(undefined)
 };
 
 describe("LibraryPlaylistSection", () => {

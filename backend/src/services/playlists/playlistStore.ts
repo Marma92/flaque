@@ -28,6 +28,7 @@ type CreatePlaylistInput = {
   visibility: PlaylistVisibility;
   trackIds: string[];
   tracksById: Map<string, Track>;
+  description?: string;
 };
 
 type UpdatePlaylistInput = {
@@ -36,6 +37,7 @@ type UpdatePlaylistInput = {
   visibility: PlaylistVisibility;
   trackIds: string[];
   tracksById: Map<string, Track>;
+  collaborators?: string[];
 };
 
 function normalizeVisibility(value: unknown): PlaylistVisibility | null {
@@ -436,7 +438,8 @@ export async function createFilesystemPlaylist(input: CreatePlaylistInput): Prom
     name,
     visibility: input.visibility,
     trackIds: input.trackIds,
-    tracksById: input.tracksById
+    tracksById: input.tracksById,
+    description: input.description
   });
 
   return createPlaylistId(input.authorId, playlistSlug);
@@ -485,7 +488,7 @@ export async function updateFilesystemPlaylist(input: UpdatePlaylistInput & { au
     cover: existingMetadata?.cover,
     hearts: existingMetadata?.hearts,
     listenCount: existingMetadata?.listenCount,
-    collaborators: existingMetadata?.collaborators
+    collaborators: input.collaborators ?? existingMetadata?.collaborators
   });
 }
 

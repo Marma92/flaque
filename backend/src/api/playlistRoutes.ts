@@ -95,6 +95,9 @@ function findPlaylistById(indexStore: IndexStore, playlistId: string): Playlist 
   return playlists.find((playlist) => playlist.id === playlistId);
 }
 
+const listenDebounceMap = new Map<string, number>();
+const LISTEN_DEBOUNCE_MS = 60 * 60 * 1000; // 1 hour
+
 export function createPlaylistRouter(indexStore: IndexStore): Router {
   const router = Router();
 
@@ -163,13 +166,16 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         return;
       }
 
+      const description = typeof req.body?.description === "string" ? req.body.description.trim() : undefined;
+
       const snapshot = indexStore.getSnapshot();
       const playlistId = await createFilesystemPlaylist({
         name,
         authorId: authUser.id,
         visibility: visibility ?? "private",
         trackIds: trackIds ?? [],
-        tracksById: getTracksById(snapshot.tracks)
+        tracksById: getTracksById(snapshot.tracks),
+        description
       });
 
       const rebuilt = await indexStore.refreshPlaylists();
@@ -324,6 +330,9 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
       }
 
       const description = typeof req.body?.description === "string" ? req.body.description : undefined;
+      const collaborators = Array.isArray(req.body?.collaborators)
+        ? (req.body.collaborators as unknown[]).filter((c): c is string => typeof c === "string" && c.trim() !== "").map((c) => c.trim())
+        : undefined;
 
       if (description !== undefined) {
         await updatePlaylistDescription(playlistId, description);
@@ -336,7 +345,8 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         authorId: existing.authorId,
         visibility: visibility ?? existing.visibility,
         trackIds: trackIds ?? existing.trackIds,
-        tracksById: getTracksById(snapshot.tracks)
+        tracksById: getTracksById(snapshot.tracks),
+        collaborators
       });
 
       const rebuilt = await indexStore.refreshPlaylists();
@@ -461,6 +471,16 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         return;
       }
 
+      const debounceKey = `${authUser.id}:${playlistId}`;
+      const lastListen = listenDebounceMap.get(debounceKey);
+      const now = Date.now();
+
+      if (lastListen && now - lastListen < LISTEN_DEBOUNCE_MS) {
+        res.json({ listenCount: playlist.listenCount });
+        return;
+      }
+
+      listenDebounceMap.set(debounceKey, now);
       const listenCount = await incrementPlaylistListenCount(playlistId);
       res.json({ listenCount });
     } catch (error) {

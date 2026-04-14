@@ -1,10 +1,12 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { User, UserSession } from "../types";
+import { coverUrl, getMyPlayStats, type PlayStatsResponse } from "../api";
+import type { Track, User, UserSession } from "../types";
 
 type AccountViewProps = {
   user: User;
   avatarUrl: string;
+  allTracksById: Map<string, Track>;
   onUpdatePhoto: (file: File) => Promise<void>;
   onUpdateEmail: (email: string) => Promise<void>;
   onChangePassword: (input: { currentPassword: string; newPassword: string }) => Promise<void>;
@@ -50,6 +52,7 @@ function getSessionTitle(session: UserSession): string {
 export function AccountView({
   user,
   avatarUrl,
+  allTracksById,
   onUpdatePhoto,
   onUpdateEmail,
   onChangePassword,
@@ -80,6 +83,17 @@ export function AccountView({
   const [sessionsMessage, setSessionsMessage] = useState<string | null>(null);
   const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
   const [loggingOutOtherSessions, setLoggingOutOtherSessions] = useState(false);
+
+  const [playStats, setPlayStats] = useState<PlayStatsResponse | null>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    setLoadingStats(true);
+    void getMyPlayStats()
+      .then(setPlayStats)
+      .catch(() => {})
+      .finally(() => setLoadingStats(false));
+  }, []);
 
   const initial = useMemo(() => getUserInitial(user), [user]);
   const displayedAvatarUrl = selectedPhotoPreviewUrl ?? avatarUrl;
@@ -458,6 +472,74 @@ export function AccountView({
             {passwordMessage.text}
           </p>
         ) : null}
+      </section>
+
+      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <h3 className="font-display text-xl text-flaque-ink">Listening Stats</h3>
+
+        {loadingStats ? (
+          <p className="mt-3 text-sm text-flaque-steel">Loading stats...</p>
+        ) : !playStats || playStats.totalPlays === 0 ? (
+          <p className="mt-3 text-sm text-flaque-steel">No listening history yet. Start playing some music!</p>
+        ) : (
+          <div className="mt-3 space-y-4">
+            <div className="flex flex-wrap gap-4">
+              <div className="rounded-xl border border-flaque-clay/50 bg-flaque-cream/35 px-4 py-3">
+                <p className="font-display text-2xl text-flaque-ink">{playStats.totalPlays}</p>
+                <p className="text-xs text-flaque-steel">Total plays</p>
+              </div>
+              <div className="rounded-xl border border-flaque-clay/50 bg-flaque-cream/35 px-4 py-3">
+                <p className="font-display text-2xl text-flaque-ink">{playStats.uniqueTracksPlayed}</p>
+                <p className="text-xs text-flaque-steel">Unique tracks</p>
+              </div>
+              <div className="rounded-xl border border-flaque-clay/50 bg-flaque-cream/35 px-4 py-3">
+                <p className="font-display text-2xl text-flaque-ink">{playStats.topArtists.length}</p>
+                <p className="text-xs text-flaque-steel">Artists</p>
+              </div>
+            </div>
+
+            {playStats.topArtists.length > 0 ? (
+              <div>
+                <h4 className="text-sm font-medium text-flaque-ink">Top Artists</h4>
+                <div className="mt-2 space-y-1">
+                  {playStats.topArtists.slice(0, 10).map((entry, i) => (
+                    <div key={entry.artist} className="flex items-center gap-2 rounded-lg bg-flaque-cream/40 px-3 py-1.5">
+                      <span className="w-5 shrink-0 text-right text-xs text-flaque-steel/60">{i + 1}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-flaque-ink">{entry.artist}</span>
+                      <span className="shrink-0 text-xs text-flaque-steel">{entry.playCount} play{entry.playCount !== 1 ? "s" : ""}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {playStats.topTracks.length > 0 ? (
+              <div>
+                <h4 className="text-sm font-medium text-flaque-ink">Top Tracks</h4>
+                <div className="mt-2 space-y-1">
+                  {playStats.topTracks.slice(0, 10).map((entry, i) => {
+                    const track = allTracksById.get(entry.trackId);
+                    return (
+                      <div key={entry.trackId} className="flex items-center gap-2 rounded-lg bg-flaque-cream/40 px-2 py-1.5">
+                        <span className="w-5 shrink-0 text-right text-xs text-flaque-steel/60">{i + 1}</span>
+                        {track ? (
+                          <img src={coverUrl(track.id)} alt="" className="h-8 w-8 shrink-0 rounded-md object-cover" loading="lazy" />
+                        ) : (
+                          <div className="h-8 w-8 shrink-0 rounded-md bg-flaque-clay/30" />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm text-flaque-ink">{track?.tags.title ?? entry.trackId}</p>
+                          <p className="truncate text-xs text-flaque-steel">{track?.tags.artist ?? "Unknown"}</p>
+                        </div>
+                        <span className="shrink-0 text-xs text-flaque-steel">{entry.count}x</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
       </section>
 
       <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">

@@ -2,6 +2,7 @@ import type { User } from "../types";
 import { navigateTo, type ViewName } from "../utils/appUtils";
 import { AccountView } from "./AccountView";
 import { AdminBackupView } from "./AdminBackupView";
+import { AdminLibraryView } from "./AdminLibraryView";
 import { AdminServerView } from "./AdminServerView";
 import { AdminUsersView } from "./AdminUsersView";
 import { AudioPlayer } from "./AudioPlayer";
@@ -75,7 +76,7 @@ export function AppShell({
     }`;
 
   const configSections: Array<[ConfigSection, string]> = [
-    ["index", "Index"], ["files", "Files"], ["users", "Users"], ["server", "Server"], ["backup", "Backup"]
+    ["index", "Index"], ["files", "Files"], ["users", "Users"], ["library", "Library"], ["server", "Server"], ["backup", "Backup"]
   ];
 
   const sectionSwitcher = activeView === "config" && user.role === "admin" ? (
@@ -145,6 +146,10 @@ export function AppShell({
 
             {configViewProps.activeSection === "backup" ? (
               <AdminBackupView {...backupViewProps} />
+            ) : null}
+
+            {configViewProps.activeSection === "library" ? (
+              <AdminLibraryView />
             ) : null}
           </div>
         ) : null}

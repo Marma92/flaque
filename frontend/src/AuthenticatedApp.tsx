@@ -442,6 +442,7 @@ export function AuthenticatedApp({
       accountViewProps={{
         user,
         avatarUrl,
+        allTracksById,
         onUpdatePhoto: handleUpdateProfilePhoto,
         onUpdateEmail: handleUpdateEmail,
         onChangePassword: handleUpdateOwnPassword,

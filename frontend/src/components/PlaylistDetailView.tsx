@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { coverUrl, playlistCoverUrl } from "../api";
+import { coverUrl, deletePlaylistCover, getUsers, playlistCoverUrl, uploadPlaylistCover } from "../api";
 import type { Playlist, PlaylistVisibility, Track, User } from "../types";
 import { getTrackDisplayArtist, getTrackDisplayTitle } from "../utils/tracks";
 
@@ -30,7 +30,7 @@ type PlaylistDetailViewProps = {
   user: User;
   onBack: () => void;
   onPlay: (playlist: Playlist) => void;
-  onPatch: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string }) => Promise<void>;
+  onPatch: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<void>;
   onDelete: (playlistId: string) => Promise<void>;
   onHeart: (playlistId: string) => Promise<{ hearted: boolean; heartCount: number }>;
   onReportListen: (playlistId: string) => Promise<void>;
@@ -117,8 +117,9 @@ function PlaylistCover({ playlist, mosaicTracks }: { playlist: Playlist; mosaicT
 type EditModalProps = {
   playlist: Playlist;
   allTracksById: Map<string, Track>;
+  isOwner: boolean;
   saving: boolean;
-  onSave: (patch: { name?: string; trackIds?: string[]; description?: string }) => Promise<void>;
+  onSave: (patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<void>;
   onClose: () => void;
 };
 
@@ -204,15 +205,51 @@ function SortableTrackItem({
   );
 }
 
-function EditModal({ playlist, allTracksById, saving, onSave, onClose }: EditModalProps): JSX.Element {
+function EditModal({ playlist, allTracksById, isOwner, saving, onSave, onClose }: EditModalProps): JSX.Element {
   const [name, setName] = useState(playlist.name);
   const [description, setDescription] = useState(playlist.description);
+  const [visibility, setVisibility] = useState<PlaylistVisibility>(playlist.visibility);
   const [trackIds, setTrackIds] = useState<string[]>([...playlist.trackIds]);
+  const [collaboratorIds, setCollaboratorIds] = useState<string[]>([...playlist.collaborators]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverRemoved, setCoverRemoved] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOwner) {
+      void getUsers().then(setAllUsers).catch(() => {});
+    }
+  }, [isOwner]);
+
+  const availableCollaborators = useMemo(() =>
+    allUsers.filter((u) => u.id !== playlist.authorId && !collaboratorIds.includes(u.id)),
+    [allUsers, playlist.authorId, collaboratorIds]
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  function handleCoverSelect(e: ChangeEvent<HTMLInputElement>): void {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCoverFile(file);
+    setCoverRemoved(false);
+    const url = URL.createObjectURL(file);
+    setCoverPreview(url);
+  }
+
+  function handleCoverRemove(): void {
+    setCoverFile(null);
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverPreview(null);
+    setCoverRemoved(true);
+    if (coverInputRef.current) coverInputRef.current.value = "";
+  }
 
   function removeTrack(id: string): void {
     setTrackIds((prev) => prev.filter((t) => t !== id));
@@ -231,10 +268,22 @@ function EditModal({ playlist, allTracksById, saving, onSave, onClose }: EditMod
 
   async function handleSubmit(e: FormEvent): Promise<void> {
     e.preventDefault();
+    setCoverUploading(true);
+    try {
+      if (coverFile) {
+        await uploadPlaylistCover(playlist.id, coverFile);
+      } else if (coverRemoved && playlist.cover) {
+        await deletePlaylistCover(playlist.id);
+      }
+    } finally {
+      setCoverUploading(false);
+    }
     await onSave({
       name: name.trim() || playlist.name,
+      visibility,
       description: description.trim(),
-      trackIds
+      trackIds,
+      collaborators: isOwner ? collaboratorIds : undefined
     });
   }
 
@@ -280,6 +329,110 @@ function EditModal({ playlist, allTracksById, saving, onSave, onClose }: EditMod
                 placeholder="Add a description..."
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-flaque-ink">Visibility</label>
+              <select
+                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                value={visibility}
+                onChange={(e) => setVisibility(e.target.value as PlaylistVisibility)}
+                disabled={saving}
+              >
+                <option value="private">Private</option>
+                <option value="public">Public</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-flaque-ink">Cover image</label>
+              <div className="mt-1 flex items-center gap-3">
+                {(coverPreview ?? (!coverRemoved && playlist.cover)) ? (
+                  <img
+                    src={coverPreview ?? playlistCoverUrl(playlist.id)}
+                    alt="Cover preview"
+                    className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-flaque-clay/20">
+                    <svg className="h-6 w-6 text-flaque-steel/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                )}
+                <div className="flex flex-col gap-1">
+                  <input
+                    ref={coverInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleCoverSelect}
+                    disabled={saving || coverUploading}
+                  />
+                  <button
+                    type="button"
+                    className="rounded-lg border border-flaque-clay px-3 py-1 text-xs text-flaque-ink transition hover:bg-flaque-cream"
+                    onClick={() => coverInputRef.current?.click()}
+                    disabled={saving || coverUploading}
+                  >
+                    {coverFile ? "Change" : "Upload"}
+                  </button>
+                  {(coverPreview ?? (!coverRemoved && playlist.cover)) ? (
+                    <button
+                      type="button"
+                      className="rounded-lg px-3 py-1 text-xs text-red-500 transition hover:text-red-700"
+                      onClick={handleCoverRemove}
+                      disabled={saving || coverUploading}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+            {isOwner ? (
+              <div>
+                <label className="block text-sm font-medium text-flaque-ink">Collaborators</label>
+                {collaboratorIds.length > 0 ? (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {collaboratorIds.map((collab) => {
+                      const u = allUsers.find((usr) => usr.id === collab);
+                      return (
+                        <span key={collab} className="inline-flex items-center gap-1 rounded-full bg-flaque-cream px-2 py-0.5 text-xs text-flaque-ink">
+                          {u?.username ?? collab}
+                          <button
+                            type="button"
+                            className="text-flaque-steel hover:text-red-500"
+                            onClick={() => setCollaboratorIds((prev) => prev.filter((c) => c !== collab))}
+                            aria-label={`Remove ${u?.username ?? collab}`}
+                          >
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : null}
+                {availableCollaborators.length > 0 ? (
+                  <select
+                    className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) setCollaboratorIds((prev) => [...prev, e.target.value]);
+                    }}
+                    disabled={saving}
+                  >
+                    <option value="">Add a collaborator...</option>
+                    {availableCollaborators.map((u) => (
+                      <option key={u.id} value={u.id}>{u.username}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="mt-1 text-xs text-flaque-steel">
+                    {collaboratorIds.length > 0 ? "All users added." : "No other users available."}
+                  </p>
+                )}
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-4 flex-1 overflow-y-auto px-5">
@@ -323,9 +476,9 @@ function EditModal({ playlist, allTracksById, saving, onSave, onClose }: EditMod
             <button
               type="submit"
               className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:opacity-60"
-              disabled={saving}
+              disabled={saving || coverUploading}
             >
-              {saving ? "Saving..." : "Save"}
+              {coverUploading ? "Uploading cover..." : saving ? "Saving..." : "Save"}
             </button>
           </div>
         </form>
@@ -443,7 +596,7 @@ export function PlaylistDetailView({
     }
   }
 
-  async function handleSave(patch: { name?: string; trackIds?: string[]; description?: string }): Promise<void> {
+  async function handleSave(patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }): Promise<void> {
     setSaving(true);
     try {
       await onPatch(playlist!.id, patch);
@@ -645,6 +798,7 @@ export function PlaylistDetailView({
         <EditModal
           playlist={playlist}
           allTracksById={allTracksById}
+          isOwner={playlist.authorId === user.id}
           saving={saving}
           onSave={handleSave}
           onClose={() => setEditOpen(false)}

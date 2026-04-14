@@ -19,9 +19,9 @@ type LibraryWorkspaceProps = {
   user: User;
   playlistDetailId: string | null;
   onPlaylistDetailNavigate: (id: string | null) => void;
-  onCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility }) => Promise<void>;
+  onCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility; description?: string }) => Promise<void>;
   onPlayPlaylist: (playlist: Playlist) => void;
-  onPatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[] }) => Promise<void>;
+  onPatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<void>;
   onDeletePlaylist: (playlistId: string) => Promise<void>;
   onHeartPlaylist: (playlistId: string) => Promise<{ hearted: boolean; heartCount: number }>;
   onReportPlaylistListen: (playlistId: string) => Promise<void>;
@@ -202,6 +202,7 @@ export function LibraryWorkspace({
             onPatchPlaylist={onPatchPlaylist}
             onDeletePlaylist={onDeletePlaylist}
             onNavigateToPlaylist={onPlaylistDetailNavigate}
+            onHeartPlaylist={onHeartPlaylist}
             onReportPlaylistListen={onReportPlaylistListen}
             autoPlaylists={autoPlaylists}
             loadingAutoPlaylists={loadingAutoPlaylists}
