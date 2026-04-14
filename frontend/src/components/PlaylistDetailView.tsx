@@ -1,4 +1,21 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 import { coverUrl, playlistCoverUrl } from "../api";
 import type { Playlist, PlaylistVisibility, Track, User } from "../types";
@@ -105,21 +122,111 @@ type EditModalProps = {
   onClose: () => void;
 };
 
+function SortableTrackItem({
+  id,
+  track,
+  saving,
+  onRemove
+}: {
+  id: string;
+  track: Track | undefined;
+  saving: boolean;
+  onRemove: (id: string) => void;
+}): JSX.Element {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+    position: isDragging ? "relative" as const : undefined
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 rounded-lg bg-flaque-cream/40 px-2 py-1.5 ${
+        isDragging ? "shadow-lg ring-2 ring-flaque-sand/60" : ""
+      }`}
+    >
+      {/* Drag handle */}
+      <button
+        type="button"
+        className="shrink-0 cursor-grab touch-none rounded p-0.5 text-flaque-steel/50 transition hover:text-flaque-ink active:cursor-grabbing"
+        aria-label="Drag to reorder"
+        {...attributes}
+        {...listeners}
+      >
+        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+          <circle cx="9" cy="6" r="1.5" /><circle cx="15" cy="6" r="1.5" />
+          <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
+          <circle cx="9" cy="18" r="1.5" /><circle cx="15" cy="18" r="1.5" />
+        </svg>
+      </button>
+
+      <div className="h-8 w-8 shrink-0 overflow-hidden rounded-md">
+        {track ? (
+          <img src={coverUrl(track.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
+        ) : (
+          <div className="h-full w-full bg-flaque-clay/30" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-flaque-ink">
+          {track ? getTrackDisplayTitle(track) : id}
+        </p>
+        {track ? (
+          <p className="truncate text-[10px] text-flaque-steel">
+            {getTrackDisplayArtist(track) ?? "Unknown artist"}
+          </p>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        className="shrink-0 rounded p-0.5 text-red-400 transition hover:text-red-600 disabled:opacity-30"
+        onClick={() => onRemove(id)}
+        disabled={saving}
+        aria-label="Remove track"
+      >
+        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </li>
+  );
+}
+
 function EditModal({ playlist, allTracksById, saving, onSave, onClose }: EditModalProps): JSX.Element {
   const [name, setName] = useState(playlist.name);
   const [description, setDescription] = useState(playlist.description);
   const [trackIds, setTrackIds] = useState<string[]>([...playlist.trackIds]);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   function removeTrack(id: string): void {
     setTrackIds((prev) => prev.filter((t) => t !== id));
   }
 
-  function moveTrack(index: number, direction: -1 | 1): void {
-    const next = [...trackIds];
-    const target = index + direction;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target]!, next[index]!];
-    setTrackIds(next);
+  function handleDragEnd(event: DragEndEvent): void {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setTrackIds((prev) => {
+        const oldIndex = prev.indexOf(active.id as string);
+        const newIndex = prev.indexOf(over.id as string);
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    }
   }
 
   async function handleSubmit(e: FormEvent): Promise<void> {
@@ -182,67 +289,25 @@ function EditModal({ playlist, allTracksById, saving, onSave, onClose }: EditMod
             {trackIds.length === 0 ? (
               <p className="mt-2 text-sm text-flaque-steel">No tracks in this playlist.</p>
             ) : (
-              <ul className="mt-2 space-y-1">
-                {trackIds.map((id, index) => {
-                  const track = allTracksById.get(id);
-                  return (
-                    <li key={id} className="flex items-center gap-2 rounded-lg bg-flaque-cream/40 px-2 py-1.5">
-                      <div className="h-8 w-8 shrink-0 overflow-hidden rounded-md">
-                        {track ? (
-                          <img src={coverUrl(track.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
-                        ) : (
-                          <div className="h-full w-full bg-flaque-clay/30" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-flaque-ink">
-                          {track ? getTrackDisplayTitle(track) : id}
-                        </p>
-                        {track ? (
-                          <p className="truncate text-[10px] text-flaque-steel">
-                            {getTrackDisplayArtist(track) ?? "Unknown artist"}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <button
-                          type="button"
-                          className="rounded p-0.5 text-flaque-steel transition hover:text-flaque-ink disabled:opacity-30"
-                          onClick={() => moveTrack(index, -1)}
-                          disabled={index === 0 || saving}
-                          aria-label="Move up"
-                        >
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded p-0.5 text-flaque-steel transition hover:text-flaque-ink disabled:opacity-30"
-                          onClick={() => moveTrack(index, 1)}
-                          disabled={index === trackIds.length - 1 || saving}
-                          aria-label="Move down"
-                        >
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded p-0.5 text-red-400 transition hover:text-red-600 disabled:opacity-30"
-                          onClick={() => removeTrack(id)}
-                          disabled={saving}
-                          aria-label="Remove track"
-                        >
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={trackIds} strategy={verticalListSortingStrategy}>
+                  <ul className="mt-2 space-y-1">
+                    {trackIds.map((id) => (
+                      <SortableTrackItem
+                        key={id}
+                        id={id}
+                        track={allTracksById.get(id)}
+                        saving={saving}
+                        onRemove={removeTrack}
+                      />
+                    ))}
+                  </ul>
+                </SortableContext>
+              </DndContext>
             )}
           </div>
 
