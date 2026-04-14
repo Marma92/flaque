@@ -99,34 +99,36 @@ function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPl
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === "Enter") onNavigate(); }}
     >
-      {/* Cover */}
-      <div className="relative aspect-square w-full overflow-hidden">
-        {playlist.cover ? (
-          <img src={playlistCoverUrl(playlist.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
-        ) : (
-          <PlaylistMosaic tracks={mosaicTracks} />
-        )}
+        {/* Cover */}
+        <div className="relative aspect-square w-full overflow-hidden">
+          {playlist.cover ? (
+            <img src={playlistCoverUrl(playlist.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
+          ) : (
+            <PlaylistMosaic tracks={mosaicTracks} />
+          )}
 
-        {/* Play button overlay */}
-        <button
-          type="button"
-          className="absolute bottom-2 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-flaque-ink text-white opacity-0 shadow-lg transition group-hover:opacity-100"
-          onClick={(e) => { e.stopPropagation(); onPlay(); }}
-          aria-label={`Play ${playlist.name}`}
-        >
-          <svg className="h-5 w-5 translate-x-px" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-        </button>
-      </div>
+          {/* Play button overlay */}
+          {onPlay ? (
+            <button
+              type="button"
+              className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
+              onClick={(e) => { e.stopPropagation(); onPlay(); }}
+              aria-label={`Play ${playlist.name}`}
+            >
+              <svg className="h-10 w-10 text-[#ffffff] drop-shadow-md" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 6v12l10-6-10-6z" />
+              </svg>
+            </button>
+          ) : null}
+        </div>
 
       {/* Info */}
-      <div className="flex flex-1 flex-col p-3">
-        <p className="truncate text-sm font-semibold text-flaque-ink">{playlist.name}</p>
+      <div className="flex flex-1 flex-col p-2">
+        <p className="truncate text-xs font-semibold text-flaque-ink">{playlist.name}</p>
         {playlist.description ? (
-          <p className="mt-0.5 line-clamp-1 text-xs text-flaque-steel">{playlist.description}</p>
+          <p className="mt-0.5 line-clamp-1 text-[10px] text-flaque-steel">{playlist.description}</p>
         ) : null}
-        <p className="mt-1 truncate text-xs text-flaque-steel">
+        <p className="mt-0.5 truncate text-[10px] text-flaque-steel">
           {owner} &middot; {playlist.trackIds.length} track{playlist.trackIds.length !== 1 ? "s" : ""}
         </p>
 
@@ -285,7 +287,7 @@ export function LibraryPlaylistSection({
         {myPlaylists.length === 0 ? (
           <p className="mt-4 text-sm text-flaque-steel">No playlists yet.</p>
         ) : (
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {myPlaylists.map((playlist) => (
               <PlaylistCard
                 key={playlist.id}
@@ -304,7 +306,7 @@ export function LibraryPlaylistSection({
       {!loadingForYouPlaylists && forYouPlaylists.length > 0 ? (
         <section className="rounded-xl border border-flaque-clay/60 bg-gradient-to-br from-indigo-50/60 to-purple-50/40 p-5 shadow-panel backdrop-blur-sm">
           <SectionHeader title="Made for you" />
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {forYouPlaylists.map((fy) => (
               <div
                 key={fy.id}
@@ -354,7 +356,7 @@ export function LibraryPlaylistSection({
       {popularPlaylists.length > 0 ? (
         <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
           <SectionHeader title="Popular Playlists" />
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {popularPlaylists.map((playlist) => (
               <PlaylistCard
                 key={playlist.id}
@@ -382,7 +384,7 @@ export function LibraryPlaylistSection({
             Automatic playlists will appear here once generated.
           </p>
         ) : (
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {autoPlaylists.map((ap) => (
               <div
                 key={ap.id}

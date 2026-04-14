@@ -142,16 +142,28 @@ export function ForYouPlaylistDetailView({
       {/* Header card */}
       <div className="rounded-2xl border border-flaque-clay/60 bg-gradient-to-br from-indigo-50/80 to-purple-50/60 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-col gap-5 sm:flex-row">
-          {/* Seed artist visual */}
-          <div className="flex h-48 w-48 shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-100/80 to-purple-100/60 sm:self-start">
-            <div className="text-center px-3">
-              <svg className="mx-auto h-8 w-8 text-indigo-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-              <p className="mt-2 font-display text-lg font-bold text-flaque-ink/70 leading-tight">{detail.seedArtist}</p>
-            </div>
-          </div>
+           {/* Seed artist visual */}
+           <div className="relative h-48 w-48 shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-100/80 to-purple-100/60 sm:self-start">
+             <div className="text-center px-3">
+               <svg className="mx-auto h-8 w-8 text-indigo-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                   d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+               </svg>
+               <p className="mt-2 font-display text-lg font-bold text-flaque-ink/70 leading-tight">{detail.seedArtist}</p>
+             </div>
+             
+             {/* Play button overlay */}
+             <button
+               type="button"
+               className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
+               onClick={handlePlayAll}
+               aria-label={`Play ${detail.name}`}
+             >
+               <svg className="h-10 w-10 text-[#ffffff] drop-shadow-md" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                 <path d="M8 6v12l10-6-10-6z" />
+               </svg>
+             </button>
+           </div>
 
           {/* Info */}
           <div className="flex min-w-0 flex-1 flex-col">

@@ -30,6 +30,7 @@ type PlaylistDetailViewProps = {
   user: User;
   onBack: () => void;
   onPlay: (playlist: Playlist) => void;
+  onPlayTrack?: (track: Track, queueSource: Track[]) => void;
   onPatch: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<void>;
   onDelete: (playlistId: string) => Promise<void>;
   onHeart: (playlistId: string) => Promise<{ hearted: boolean; heartCount: number }>;
@@ -502,6 +503,7 @@ export function PlaylistDetailView({
   user,
   onBack,
   onPlay,
+  onPlayTrack,
   onPatch,
   onDelete,
   onHeart,
@@ -579,6 +581,22 @@ export function PlaylistDetailView({
     onPlay(playlist);
   }
 
+  function handlePlayTrack(track: Track): void {
+    if (!playlist) return;
+    if (!listenReportedRef.current) {
+      listenReportedRef.current = true;
+      void onReportListen(playlist.id);
+    }
+    if (onPlayTrack) {
+      onPlayTrack(track, tracks);
+    } else {
+      const idx = tracks.indexOf(track);
+      const reordered = [...tracks.slice(idx), ...tracks.slice(0, idx)];
+      const syntheticPlaylist: Playlist = { ...playlist, trackIds: reordered.map((t) => t.id) };
+      onPlay(syntheticPlaylist);
+    }
+  }
+
   function handleShufflePlay(): void {
     if (!playlist || tracks.length === 0) return;
     if (!listenReportedRef.current) {
@@ -632,10 +650,22 @@ export function PlaylistDetailView({
       {/* Header card */}
       <div className="rounded-2xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-col gap-5 sm:flex-row">
-          {/* Cover */}
-          <div className="h-48 w-48 shrink-0 self-center overflow-hidden sm:self-start">
-            <PlaylistCover playlist={playlist} mosaicTracks={mosaicTracks} />
-          </div>
+           {/* Cover */}
+           <div className="relative h-48 w-48 shrink-0 self-center overflow-hidden sm:self-start">
+             <PlaylistCover playlist={playlist} mosaicTracks={mosaicTracks} />
+             
+             {/* Play button overlay */}
+             <button
+               type="button"
+               className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
+               onClick={handlePlayAll}
+               aria-label={`Play ${playlist.name}`}
+             >
+               <svg className="h-10 w-10 text-[#ffffff] drop-shadow-md" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                 <path d="M8 6v12l10-6-10-6z" />
+               </svg>
+             </button>
+           </div>
 
           {/* Info */}
           <div className="flex min-w-0 flex-1 flex-col">
@@ -654,8 +684,9 @@ export function PlaylistDetailView({
               <p className="mt-1 text-sm text-flaque-steel">{playlist.description}</p>
             ) : null}
 
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-flaque-steel">
-              <span>by {owner}</span>
+            <p className="mt-2 text-sm text-flaque-steel">by {owner}</p>
+
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-flaque-steel">
               <span>{playlist.trackIds.length} track{playlist.trackIds.length !== 1 ? "s" : ""}</span>
               {totalDuration > 0 ? <span>{formatDuration(totalDuration)}</span> : null}
               {playlist.listenCount > 0 ? (
@@ -665,6 +696,31 @@ export function PlaylistDetailView({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   {playlist.listenCount}
+                </span>
+              ) : null}
+              {canHeart ? (
+                <button
+                  type="button"
+                  className={`flex items-center gap-0.5 transition ${
+                    hasHearted
+                      ? "text-red-500 hover:text-red-600"
+                      : "text-flaque-steel hover:text-red-400"
+                  }`}
+                  onClick={() => { void handleHeart(); }}
+                  disabled={hearting}
+                  aria-label={hasHearted ? "Remove heart" : "Heart playlist"}
+                >
+                  <svg className="h-3.5 w-3.5" fill={hasHearted ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                  {playlist.heartCount > 0 ? playlist.heartCount : ""}
+                </button>
+              ) : playlist.heartCount > 0 ? (
+                <span className="flex items-center gap-0.5 text-red-400">
+                  <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                  {playlist.heartCount}
                 </span>
               ) : null}
             </div>
@@ -703,32 +759,6 @@ export function PlaylistDetailView({
                 </svg>
                 Shuffle
               </button>
-
-              {canHeart ? (
-                <button
-                  type="button"
-                  className={`flex items-center gap-1 rounded-xl border px-3 py-2 text-sm transition ${
-                    hasHearted
-                      ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
-                      : "border-flaque-clay text-flaque-steel hover:bg-flaque-cream hover:text-flaque-ink"
-                  }`}
-                  onClick={() => { void handleHeart(); }}
-                  disabled={hearting}
-                  aria-label={hasHearted ? "Remove heart" : "Heart playlist"}
-                >
-                  <svg className="h-4 w-4" fill={hasHearted ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                  {playlist.heartCount > 0 ? playlist.heartCount : ""}
-                </button>
-              ) : playlist.heartCount > 0 ? (
-                <span className="flex items-center gap-1 text-xs text-flaque-steel">
-                  <svg className="h-3.5 w-3.5 text-red-400" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                  {playlist.heartCount}
-                </span>
-              ) : null}
 
               {canEdit ? (
                 <button
@@ -769,7 +799,11 @@ export function PlaylistDetailView({
             {tracks.map((track, index) => (
               <li
                 key={track.id}
-                className="flex items-center gap-3 border-b border-flaque-clay/20 px-4 py-2.5 last:border-b-0 transition hover:bg-flaque-cream/30"
+                className="flex cursor-pointer items-center gap-3 border-b border-flaque-clay/20 px-4 py-2.5 last:border-b-0 transition hover:bg-flaque-cream/30"
+                onClick={() => handlePlayTrack(track)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter") handlePlayTrack(track); }}
               >
                 <span className="w-6 shrink-0 text-right text-xs text-flaque-steel/50">{index + 1}</span>
                 <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg">

@@ -145,13 +145,25 @@ export function AutoPlaylistDetailView({
       {/* Header card */}
       <div className="rounded-2xl border border-flaque-clay/60 bg-gradient-to-br from-white/85 to-flaque-cream/40 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-col gap-5 sm:flex-row">
-          {/* Genre/decade visual */}
-          <div className="flex h-48 w-48 shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-flaque-sand/50 to-flaque-clay/30 sm:self-start">
-            <div className="text-center">
-              <p className="font-display text-5xl font-bold text-flaque-ink/60">{decadeLabel}</p>
-              <p className="mt-1 text-sm font-medium text-flaque-steel">{detail.genre}</p>
-            </div>
-          </div>
+           {/* Genre/decade visual */}
+           <div className="relative h-48 w-48 shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-flaque-sand/50 to-flaque-clay/30 sm:self-start">
+             <div className="text-center">
+               <p className="font-display text-5xl font-bold text-flaque-ink/60">{decadeLabel}</p>
+               <p className="mt-1 text-sm font-medium text-flaque-steel">{detail.genre}</p>
+             </div>
+             
+             {/* Play button overlay */}
+             <button
+               type="button"
+               className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
+               onClick={handlePlayAll}
+               aria-label={`Play ${detail.name}`}
+             >
+               <svg className="h-10 w-10 text-[#ffffff] drop-shadow-md" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                 <path d="M8 6v12l10-6-10-6z" />
+               </svg>
+             </button>
+           </div>
 
           {/* Info */}
           <div className="flex min-w-0 flex-1 flex-col">
