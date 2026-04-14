@@ -346,8 +346,9 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         : undefined;
 
       if (collaborators !== undefined && collaborators.length > 0) {
+        // Validate each collaborator: either a valid user ID or the special "everyone" value
         const validUserIds = new Set(listUsers().map((u) => u.id));
-        const invalid = collaborators.filter((id) => !validUserIds.has(id));
+        const invalid = collaborators.filter((id) => id !== "everyone" && !validUserIds.has(id));
         if (invalid.length > 0) {
           res.status(400).json({ error: `Unknown collaborator user ids: ${invalid.join(", ")}` });
           return;

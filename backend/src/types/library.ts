@@ -57,6 +57,10 @@ export type Playlist = {
   hearts: string[];
   heartCount: number;
   listenCount: number;
+  /** 
+   * Collaborators - array of user IDs who can collaborate on this playlist
+   * Special value "everyone" indicates all authenticated users can collaborate
+   */
   collaborators: string[];
 };
 

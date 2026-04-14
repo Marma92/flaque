@@ -105,6 +105,24 @@ export function canViewPlaylist(playlist: Playlist, user: AuthUser): boolean {
   return playlist.visibility === "public" || playlist.authorId === user.id || user.role === "admin";
 }
 
+/**
+ * Check if playlist has "everyone" collaborator
+ * @param collaborators Array of collaborator IDs
+ * @returns True if "everyone" is in the collaborators array
+ */
+function hasEveryoneCollaborator(collaborators: string[]): boolean {
+  return collaborators.includes("everyone");
+}
+
+/**
+ * Get display collaborators for UI - hides individual collaborators when "everyone" is present
+ * @param collaborators Array of collaborator IDs
+ * @returns Array containing either "everyone" or individual collaborators
+ */
+function getDisplayCollaborators(collaborators: string[]): string[] {
+  return hasEveryoneCollaborator(collaborators) ? ["everyone"] : collaborators;
+}
+
 async function pathExists(pathToCheck: string): Promise<boolean> {
   try {
     await fs.access(pathToCheck);
