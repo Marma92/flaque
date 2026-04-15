@@ -99,28 +99,28 @@ function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPl
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === "Enter") onNavigate(); }}
     >
-        {/* Cover */}
-        <div className="relative aspect-square w-full overflow-hidden">
-          {playlist.cover ? (
-            <img src={playlistCoverUrl(playlist.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
-          ) : (
-            <PlaylistMosaic tracks={mosaicTracks} />
-          )}
+      {/* Cover */}
+      <div className="relative aspect-square w-full overflow-hidden">
+        {playlist.cover ? (
+          <img src={playlistCoverUrl(playlist.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
+        ) : (
+          <PlaylistMosaic tracks={mosaicTracks} />
+        )}
 
-          {/* Play button overlay */}
-          {onPlay ? (
-            <button
-              type="button"
-              className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
-              onClick={(e) => { e.stopPropagation(); onPlay(); }}
-              aria-label={`Play ${playlist.name}`}
-            >
-              <svg className="h-10 w-10 text-[#ffffff] drop-shadow-md" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M8 6v12l10-6-10-6z" />
-              </svg>
-            </button>
-          ) : null}
-        </div>
+        {/* Play button overlay */}
+        {onPlay ? (
+          <button
+            type="button"
+            className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
+            onClick={(e) => { e.stopPropagation(); onPlay(); }}
+            aria-label={`Play ${playlist.name}`}
+          >
+            <svg className="h-10 w-10 text-white drop-shadow-md" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M8 6v12l10-6-10-6z" />
+            </svg>
+          </button>
+        ) : null}
+      </div>
 
       {/* Info */}
       <div className="flex flex-1 flex-col p-2">
@@ -134,7 +134,7 @@ function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPl
 
         {/* Badges */}
         {showBadges ? (
-          <div className="mt-1.5 flex items-center gap-2">
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {onHeart ? (
               <button
                 type="button"
@@ -145,14 +145,14 @@ function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPl
                 aria-label={hasHearted ? "Remove heart" : "Heart playlist"}
               >
                 <svg className="h-3 w-3" fill={hasHearted ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
                 {playlist.heartCount > 0 ? playlist.heartCount : ""}
               </button>
             ) : playlist.heartCount > 0 ? (
               <span className="flex items-center gap-0.5 text-[10px] text-red-400">
                 <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
                 {playlist.heartCount}
               </span>
@@ -161,52 +161,32 @@ function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPl
               <span className="flex items-center gap-0.5 text-[10px] text-flaque-steel">
                 <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 {playlist.listenCount}
               </span>
             ) : null}
             {/* Collaborators badge */}
             {playlist.collaborators.length > 0 ? (
-              <>
-                {playlist.collaborators.includes("everyone") ? (
-                  <span className="flex items-center gap-0.5 text-[10px] text-yellow-600">
-                    <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 2a8 8 0 110 16 8 8 0 010-16zM12 11a2 2 0 100 4 2 2 0 000-4z"/>
-                    </svg>
-                    Everyone
-                  </span>
-                ) : (
-                  playlist.collaborators.map((collabId) => {
+              playlist.collaborators.includes("everyone") ? (
+                <span className="flex items-center gap-0.5 text-[10px] text-yellow-600">
+                  <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 2a8 8 0 110 16 8 8 0 010-16zM12 11a2 2 0 100 4 2 2 0 000-4z"/>
+                  </svg>
+                  Everyone
+                </span>
+              ) : (
+                <>
+                  {playlist.collaborators.map((collabId) => {
                     const collabName = ownerNameById[collabId] ?? collabId;
                     return (
                       <span key={collabId} className="inline-flex items-center gap-1 rounded-full bg-flaque-cream px-2 py-0.5 text-[10px] font-medium text-flaque-ink">
                         {collabName}
-                        <button
-                          type="button"
-                          className="text-flaque-steel hover:text-red-500"
-                          onClick={() => { /* Remove collaborator functionality would go here */ }}
-                          aria-label={`Remove ${collabName}`}
-                        >
-                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
                       </span>
                     );
-                  })
-                )}
-              </>
-            ) : null}
-          </div>
-        ) : null}
-            {playlist.listenCount > 0 ? (
-              <span className="flex items-center gap-0.5 text-[10px] text-flaque-steel">
-                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {playlist.listenCount}
-              </span>
+                  })}
+                </>
+              )
             ) : null}
           </div>
         ) : null}
