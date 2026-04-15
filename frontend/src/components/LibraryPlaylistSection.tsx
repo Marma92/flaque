@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 
+import defaultCoverImage from "../assets/default-cover.png";
 import { coverUrl, playlistCoverUrl } from "../api";
 import type { AutoPlaylistSummary, ForYouPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
 
@@ -27,23 +28,17 @@ type LibraryPlaylistSectionProps = {
 
 function getPlaylistMosaicTracks(trackIds: string[], allTracksById: Map<string, Track>): Track[] {
   const seen = new Set<string>();
-  const withCover: Track[] = [];
-  const withoutCover: Track[] = [];
+  const result: Track[] = [];
   for (const id of trackIds) {
-    if (withCover.length >= 4) break;
+    if (result.length >= 4) break;
     const track = allTracksById.get(id);
     if (!track) continue;
     const albumKey = track.tags.album ?? track.id;
     if (!seen.has(albumKey)) {
       seen.add(albumKey);
-      if (track.cover) {
-        withCover.push(track);
-      } else if (withoutCover.length < 4) {
-        withoutCover.push(track);
-      }
+      result.push(track);
     }
   }
-  const result = [...withCover, ...withoutCover].slice(0, 4);
   return result;
 }
 
@@ -52,25 +47,19 @@ function PlaylistMosaic({ tracks }: { tracks: Track[] }): JSX.Element {
 
   if (tracks.length === 0) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-flaque-clay/20">
-        <svg className="h-8 w-8 text-flaque-steel/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-            d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-        </svg>
-      </div>
+      <img src={defaultCoverImage} alt="" className="h-full w-full object-cover" />
     );
   }
 
   if (tracks.length === 1) {
-    return tracks[0]!.cover ? (
-      <img src={coverUrl(tracks[0]!.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
-    ) : (
-      <div className="flex h-full w-full items-center justify-center bg-flaque-clay/20">
-        <svg className="h-8 w-8 text-flaque-steel/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-            d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-        </svg>
-      </div>
+    return (
+      <img
+        src={coverUrl(tracks[0]!.id)}
+        alt=""
+        className="h-full w-full object-cover"
+        loading="lazy"
+        onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
+      />
     );
   }
 
@@ -78,18 +67,16 @@ function PlaylistMosaic({ tracks }: { tracks: Track[] }): JSX.Element {
     <div className="grid h-full w-full grid-cols-2 grid-rows-2">
       {slots.map((track, i) =>
         track ? (
-          track.cover ? (
-            <img key={i} src={coverUrl(track.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
-          ) : (
-            <div key={i} className="flex items-center justify-center bg-flaque-clay/20">
-              <svg className="h-4 w-4 text-flaque-steel/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-              </svg>
-            </div>
-          )
+          <img
+            key={i}
+            src={coverUrl(track.id)}
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
+          />
         ) : (
-          <div key={i} className="bg-flaque-clay/20" />
+          <img key={i} src={defaultCoverImage} alt="" className="h-full w-full object-cover" />
         )
       )}
     </div>
