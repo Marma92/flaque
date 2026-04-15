@@ -211,7 +211,7 @@ function EditModal({ playlist, allTracksById, isOwner, saving, onSave, onClose }
   const [description, setDescription] = useState(playlist.description);
   const [visibility, setVisibility] = useState<PlaylistVisibility>(playlist.visibility);
   const [trackIds, setTrackIds] = useState<string[]>([...playlist.trackIds]);
-  const [collaboratorIds, setCollaboratorIds] = useState<string[]>([...playlist.collaborators]);
+  const [collaboratorIds, setCollaboratorIds] = useState<string[]>([...(playlist.collaborators ?? [])]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -532,7 +532,7 @@ export function PlaylistDetailView({
 
   const canEdit = useMemo(() => {
     if (!playlist) return false;
-    return canManage || playlist.collaborators.includes(user.id);
+    return canManage || (playlist.collaborators ?? []).includes(user.id) || (playlist.collaborators ?? []).includes("everyone");
   }, [playlist, canManage, user.id]);
 
   const canHeart = useMemo(() => {
@@ -542,7 +542,7 @@ export function PlaylistDetailView({
 
   const hasHearted = useMemo(() => {
     if (!playlist) return false;
-    return playlist.hearts.includes(user.id);
+    return (playlist.hearts ?? []).includes(user.id);
   }, [playlist, user.id]);
 
   const tracks = useMemo(() => {
@@ -735,10 +735,10 @@ export function PlaylistDetailView({
               ) : null}
             </div>
 
-            {playlist.collaborators.length > 0 ? (
+            {(playlist.collaborators ?? []).length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-1">
                 <span className="text-xs text-flaque-steel">Collaborators:</span>
-                {playlist.collaborators.includes("everyone") ? (
+                {(playlist.collaborators ?? []).includes("everyone") ? (
                   <span className="flex items-center gap-0.5 text-[10px] text-yellow-600">
                     <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M12 2a10 10 0 100 20 10 10 10 0 000-20zm0 2a8 8 0 110 16 8 8 0 010-16zM12 11a2 2 0 1000 4 2 2 0 000-4z"/>
@@ -746,7 +746,7 @@ export function PlaylistDetailView({
                     Everyone
                   </span>
                 ) : (
-                  playlist.collaborators.map((collab) => (
+                  (playlist.collaborators ?? []).map((collab) => (
                     <span key={collab} className="rounded-full bg-flaque-cream px-2 py-0.5 text-[10px] font-medium text-flaque-ink">
                       {ownerNameById[collab] ?? collab}
                     </span>

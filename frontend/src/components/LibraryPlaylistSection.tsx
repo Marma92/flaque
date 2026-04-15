@@ -167,8 +167,8 @@ function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPl
               </span>
             ) : null}
             {/* Collaborators badge */}
-            {playlist.collaborators.length > 0 ? (
-              playlist.collaborators.includes("everyone") ? (
+            {(playlist.collaborators ?? []).length > 0 ? (
+              (playlist.collaborators ?? []).includes("everyone") ? (
                 <span className="flex items-center gap-0.5 text-[10px] text-yellow-600">
                   <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 2a8 8 0 110 16 8 8 0 010-16zM12 11a2 2 0 100 4 2 2 0 000-4z"/>
@@ -177,7 +177,7 @@ function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPl
                 </span>
               ) : (
                 <>
-                  {playlist.collaborators.map((collabId) => {
+                  {(playlist.collaborators ?? []).map((collabId) => {
                     const collabName = ownerNameById[collabId] ?? collabId;
                     return (
                       <span key={collabId} className="inline-flex items-center gap-1 rounded-full bg-flaque-cream px-2 py-0.5 text-[10px] font-medium text-flaque-ink">
@@ -389,7 +389,7 @@ export function LibraryPlaylistSection({
                 onPlay={() => handlePlay(playlist)}
                 showBadges
                 onHeart={() => { void onHeartPlaylist(playlist.id); }}
-                hasHearted={playlist.hearts.includes(user.id)}
+                hasHearted={(playlist.hearts ?? []).includes(user.id)}
               />
             ))}
           </div>
