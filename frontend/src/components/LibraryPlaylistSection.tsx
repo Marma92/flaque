@@ -240,7 +240,7 @@ export function LibraryPlaylistSection({
   const myPlaylists = availablePlaylists.filter((p) => p.authorId === user.id);
   const popularPlaylists = availablePlaylists
     .filter((p) => p.visibility === "public" && p.authorId !== user.id)
-    .sort((a, b) => (b.heartCount * 3 + b.listenCount) - (a.heartCount * 3 + a.listenCount));
+    .sort((a, b) => b.heartCount - a.heartCount || b.listenCount - a.listenCount);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
