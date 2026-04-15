@@ -186,15 +186,18 @@ export function AuthenticatedApp({
   }, [availablePlaylists, user]);
 
   const ownerNameById = useMemo<Record<string, string>>(() => {
-    const entries: Array<[string, string]> = [];
+    const map: Record<string, string> = {};
+    if (library.ownerNamesById) {
+      Object.assign(map, library.ownerNamesById);
+    }
     if (user) {
-      entries.push([user.id, user.username]);
+      map[user.id] = user.username;
     }
     for (const adminUser of adminUsers) {
-      entries.push([adminUser.id, adminUser.username]);
+      map[adminUser.id] = adminUser.username;
     }
-    return Object.fromEntries(entries);
-  }, [user, adminUsers]);
+    return map;
+  }, [user, adminUsers, library.ownerNamesById]);
 
   const avatarUrl = useMemo(
     () => myProfilePhotoUrl({ version: avatarVersion, userId: user?.id }),

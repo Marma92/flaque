@@ -107,6 +107,7 @@ export type LibraryResponse = {
   totalTracks: number;
   totalPlaylists?: number;
   owners: string[];
+  ownerNamesById?: Record<string, string>;
   artists: ArtistEntry[];
   albums: AlbumEntry[];
   tracks: Track[];

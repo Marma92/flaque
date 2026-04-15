@@ -122,6 +122,7 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       totalTracks: tracks.length,
       totalPlaylists: playlists.length,
       owners: listOwners(filteredTracks),
+      ownerNamesById: Object.fromEntries(ownerNamesById),
       artists: listArtists(tracks),
       albums: listAlbums(tracks),
       tracks,
