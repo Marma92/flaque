@@ -182,7 +182,13 @@ export function AuthenticatedApp({
     if (!user) {
       return [];
     }
-    return availablePlaylists.filter((pl) => pl.authorId === user.id || user.role === "admin");
+    return availablePlaylists.filter(
+      (pl) =>
+        pl.authorId === user.id ||
+        user.role === "admin" ||
+        (pl.collaborators ?? []).includes(user.id) ||
+        (pl.collaborators ?? []).includes("everyone")
+    );
   }, [availablePlaylists, user]);
 
   const ownerNameById = useMemo<Record<string, string>>(() => {
