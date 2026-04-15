@@ -264,6 +264,10 @@ export function AuthenticatedApp({
       return;
     }
     setActiveView(nextView);
+    setPlaylistDetailId(null);
+    clearSelectedArtist();
+    clearSelectedArtistAlbum();
+    clearSelectedAlbum();
   }
 
   function handleCollapsePlayer(): void {
@@ -304,6 +308,9 @@ export function AuthenticatedApp({
         onSectionChange: (section: LibrarySection) => {
           setActiveLibrarySection(section);
           setPlaylistDetailId(null);
+          clearSelectedArtist();
+          clearSelectedArtistAlbum();
+          clearSelectedAlbum();
         },
         availablePlaylists,
         ownerNameById,
