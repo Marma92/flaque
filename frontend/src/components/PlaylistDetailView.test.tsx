@@ -70,7 +70,8 @@ const defaultProps = {
   user: defaultUser,
   onBack: vi.fn(),
   onPlay: vi.fn(),
-  onPatch: vi.fn().mockResolvedValue(undefined),
+  onPatch: vi.fn().mockResolvedValue(makePlaylist()),
+  onNavigate: vi.fn(),
   onDelete: vi.fn().mockResolvedValue(undefined),
   onHeart: vi.fn().mockResolvedValue({ hearted: true, heartCount: 1 }),
   onReportListen: vi.fn().mockResolvedValue(undefined)
@@ -297,7 +298,7 @@ describe("PlaylistDetailView", () => {
   // ── Inline editing ───────────────────────────────────────────
 
   it("enters inline edit mode and saves changes", async () => {
-    const onPatch = vi.fn().mockResolvedValue(undefined);
+    const onPatch = vi.fn().mockResolvedValue(makePlaylist());
     render(<PlaylistDetailView {...defaultProps} onPatch={onPatch} />);
 
     fireEvent.click(screen.getByText("Edit"));
@@ -347,7 +348,7 @@ describe("PlaylistDetailView", () => {
   });
 
   it("inline edit allows removing tracks", async () => {
-    const onPatch = vi.fn().mockResolvedValue(undefined);
+    const onPatch = vi.fn().mockResolvedValue(makePlaylist());
     render(<PlaylistDetailView {...defaultProps} onPatch={onPatch} />);
 
     fireEvent.click(screen.getByText("Edit"));

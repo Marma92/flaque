@@ -12,7 +12,7 @@ type LibraryPlaylistSectionProps = {
   user: User;
   onCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility; description?: string }) => Promise<void>;
   onPlayPlaylist: (playlist: Playlist) => void;
-  onPatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<void>;
+  onPatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<Playlist>;
   onDeletePlaylist: (playlistId: string) => Promise<void>;
   onNavigateToPlaylist: (playlistId: string) => void;
   onHeartPlaylist: (playlistId: string) => Promise<{ hearted: boolean; heartCount: number }>;

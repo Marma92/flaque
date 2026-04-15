@@ -32,7 +32,8 @@ type PlaylistDetailViewProps = {
   onBack: () => void;
   onPlay: (playlist: Playlist) => void;
   onPlayTrack?: (track: Track, queueSource: Track[]) => void;
-  onPatch: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<void>;
+  onPatch: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<Playlist>;
+  onNavigate: (playlistId: string) => void;
   onDelete: (playlistId: string) => Promise<void>;
   onHeart: (playlistId: string) => Promise<{ hearted: boolean; heartCount: number }>;
   onReportListen: (playlistId: string) => Promise<void>;
@@ -220,6 +221,7 @@ export function PlaylistDetailView({
   onPlay,
   onPlayTrack,
   onPatch,
+  onNavigate,
   onDelete,
   onHeart,
   onReportListen
@@ -444,7 +446,7 @@ export function PlaylistDetailView({
         }
         setCoverUploading(false);
       }
-      await onPatch(playlist!.id, {
+      const updated = await onPatch(playlist!.id, {
         name: editName.trim() || playlist!.name,
         visibility: editVisibility,
         description: editDescription.trim(),
@@ -452,6 +454,9 @@ export function PlaylistDetailView({
         collaborators: isOwner ? editCollaboratorIds : undefined
       });
       setEditing(false);
+      if (updated.id !== playlist!.id) {
+        onNavigate(updated.id);
+      }
     } finally {
       setSaving(false);
     }
