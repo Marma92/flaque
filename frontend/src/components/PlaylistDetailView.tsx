@@ -668,7 +668,7 @@ export function PlaylistDetailView({
       </button>
 
       {/* Header card */}
-      <div className="rounded-2xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <div className="rounded-2xl p-5">
         <div className="flex flex-col gap-5 sm:flex-row">
            {/* Cover */}
            <div className="relative h-48 w-48 shrink-0 self-center overflow-hidden sm:self-start">
