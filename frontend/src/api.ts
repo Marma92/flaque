@@ -1,6 +1,10 @@
 import type {
   AlbumEntry,
   ArtistEntry,
+  AutoPlaylistDetail,
+  AutoPlaylistSummary,
+  ForYouPlaylistDetail,
+  ForYouPlaylistSummary,
   LibraryResponse,
   Playlist,
   RadioCreateResponse,
@@ -311,6 +315,7 @@ export type UploadTracksInput = {
     artist?: string;
     album?: string;
     year?: number;
+    genre?: string[];
   } | null>;
   onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
 };
@@ -349,6 +354,7 @@ type UploadSingleTrackInput = {
     artist?: string;
     album?: string;
     year?: number;
+    genre?: string[];
   } | null;
   onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
 };
@@ -651,6 +657,7 @@ export async function rebuildIndex(): Promise<{ generatedAt: string; totalTracks
 export async function createPlaylist(input: {
   name: string;
   visibility: PlaylistVisibility;
+  description?: string;
 }): Promise<Playlist> {
   const payload = await requestJson<{ playlist: Playlist }>("/api/playlists", {
     method: "POST",
@@ -669,6 +676,8 @@ export async function patchPlaylist(
     name?: string;
     visibility?: PlaylistVisibility;
     trackIds?: string[];
+    description?: string;
+    collaborators?: string[];
   }
 ): Promise<Playlist> {
   const payload = await requestJson<{ playlist: Playlist }>(`/api/playlists/${encodeURIComponent(playlistId)}`, {
@@ -686,6 +695,79 @@ export async function deletePlaylist(playlistId: string): Promise<void> {
   await requestJson(`/api/playlists/${encodeURIComponent(playlistId)}`, {
     method: "DELETE",
     skipJson: true
+  });
+}
+
+export async function heartPlaylist(playlistId: string): Promise<{ hearted: boolean; heartCount: number }> {
+  return requestJson<{ hearted: boolean; heartCount: number }>(
+    `/api/playlists/${encodeURIComponent(playlistId)}/heart`,
+    { method: "POST" }
+  );
+}
+
+export async function reportPlaylistListen(playlistId: string): Promise<void> {
+  await requestJson(`/api/playlists/${encodeURIComponent(playlistId)}/listen`, {
+    method: "POST"
+  }).catch(() => {});
+}
+
+export function playlistCoverUrl(playlistId: string): string {
+  return withApiBase(`/api/playlists/${encodeURIComponent(playlistId)}/cover`);
+}
+
+export async function uploadPlaylistCover(playlistId: string, file: File): Promise<void> {
+  const formData = new FormData();
+  formData.append("cover", file);
+  await requestJson<{ ok: boolean }>(`/api/playlists/${encodeURIComponent(playlistId)}/cover`, {
+    method: "POST",
+    body: formData
+  });
+}
+
+export async function deletePlaylistCover(playlistId: string): Promise<void> {
+  await requestJson<{ ok: boolean }>(`/api/playlists/${encodeURIComponent(playlistId)}/cover`, {
+    method: "DELETE"
+  });
+}
+
+export async function getAutoPlaylists(): Promise<AutoPlaylistSummary[]> {
+  const payload = await requestJson<{ playlists: AutoPlaylistSummary[] }>("/api/playlists/automatic");
+  return payload.playlists;
+}
+
+export async function getAutoPlaylistDetail(id: string): Promise<{ playlist: AutoPlaylistDetail; tracks: Track[] }> {
+  return requestJson<{ playlist: AutoPlaylistDetail; tracks: Track[] }>(
+    `/api/playlists/automatic/${encodeURIComponent(id)}`
+  );
+}
+
+export async function regenerateAutoPlaylists(): Promise<{ regenerated: number }> {
+  return requestJson<{ regenerated: number }>("/api/playlists/automatic/regenerate", {
+    method: "POST"
+  });
+}
+
+export async function getForYouPlaylists(): Promise<ForYouPlaylistSummary[]> {
+  const payload = await requestJson<{ playlists: ForYouPlaylistSummary[] }>("/api/playlists/for-you");
+  return payload.playlists;
+}
+
+export async function getForYouPlaylistDetail(id: string): Promise<{ playlist: ForYouPlaylistDetail; tracks: Track[] }> {
+  return requestJson<{ playlist: ForYouPlaylistDetail; tracks: Track[] }>(
+    `/api/playlists/for-you/${encodeURIComponent(id)}`
+  );
+}
+
+export async function dismissForYouPlaylist(playlistId: string): Promise<void> {
+  await requestJson<void>(
+    `/api/playlists/for-you/${encodeURIComponent(playlistId)}/dismiss`,
+    { method: "POST", skipJson: true }
+  );
+}
+
+export async function regenerateForYouPlaylists(): Promise<{ regenerated: number }> {
+  return requestJson<{ regenerated: number }>("/api/playlists/for-you/regenerate", {
+    method: "POST"
   });
 }
 
@@ -882,6 +964,104 @@ export function coverUrl(trackId: string, coverPath?: string): string {
     return withApiBase(coverPath);
   }
   return withApiBase(`/api/covers/${trackId}`);
+}
+
+export async function reportTrackPlay(trackId: string): Promise<void> {
+  await fetch(withApiBase(`/api/tracks/${encodeURIComponent(trackId)}/play`), {
+    method: "POST",
+    credentials: "include"
+  });
+}
+
+export type PlayStatsResponse = {
+  topTracks: Array<{ trackId: string; count: number; lastPlayedAt: string }>;
+  topArtists: Array<{ artist: string; playCount: number }>;
+  totalPlays: number;
+  uniqueTracksPlayed: number;
+};
+
+export async function getMyPlayStats(): Promise<PlayStatsResponse> {
+  return requestJson<PlayStatsResponse>("/api/me/play-stats");
+}
+
+// ── Admin: Genre Management ───────────────────────────────────────────
+
+export type GenreSynonyms = Record<string, string>;
+
+export async function getGenreSynonyms(): Promise<GenreSynonyms> {
+  const payload = await requestJson<{ synonyms: GenreSynonyms }>("/api/genre/synonyms");
+  return payload.synonyms;
+}
+
+export async function putGenreSynonym(key: string, value: string): Promise<void> {
+  await requestJson<{ ok: boolean }>("/api/genre/synonyms", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value })
+  });
+}
+
+export async function deleteGenreSynonym(key: string): Promise<void> {
+  await requestJson<void>(`/api/genre/synonyms/${encodeURIComponent(key)}`, {
+    method: "DELETE",
+    skipJson: true
+  });
+}
+
+export async function resetGenreSynonyms(): Promise<void> {
+  await requestJson<{ ok: boolean }>("/api/genre/synonyms/reset", { method: "POST" });
+}
+
+export type EnrichmentStatus = {
+  running: boolean;
+  processed?: number;
+  total?: number;
+  startedAt?: string;
+};
+
+export async function getEnrichmentStatus(): Promise<EnrichmentStatus> {
+  return requestJson<EnrichmentStatus>("/api/genre/enrichment/status");
+}
+
+export async function startEnrichment(): Promise<void> {
+  await requestJson<{ ok: boolean }>("/api/genre/enrichment/start", { method: "POST" });
+}
+
+export async function stopEnrichment(): Promise<void> {
+  await requestJson<{ ok: boolean }>("/api/genre/enrichment/stop", { method: "POST" });
+}
+
+export type GenreCacheStats = {
+  entries: number;
+  sizeBytes: number;
+};
+
+export async function getGenreCacheStats(): Promise<GenreCacheStats> {
+  return requestJson<GenreCacheStats>("/api/genre/cache/stats");
+}
+
+export async function clearGenreCache(): Promise<void> {
+  await requestJson<{ ok: boolean }>("/api/genre/cache/clear", { method: "POST" });
+}
+
+// ── Admin: Auto-Playlist Config ──────────────────────────────────────
+
+export type AutoPlaylistConfig = {
+  maxPlaylists: number;
+  minTracksPerPlaylist: number;
+  tracksPerPlaylist: number;
+};
+
+export async function getAutoPlaylistConfig(): Promise<AutoPlaylistConfig> {
+  return requestJson<AutoPlaylistConfig>("/api/config/auto-playlists");
+}
+
+export async function patchAutoPlaylistConfig(patch: Partial<AutoPlaylistConfig>): Promise<AutoPlaylistConfig> {
+  return requestJson<AutoPlaylistConfig>("/api/config/auto-playlists", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch)
+  });
 }
 
 // ── Admin: Server Logs ────────────────────────────────────────────────

@@ -19,7 +19,7 @@ const LIBRARY_ITEMS: Array<{ key: LibrarySection; label: string }> = [
   { key: "music", label: "Library" },
   { key: "artists", label: "Artists" },
   { key: "albums", label: "Albums" },
-  { key: "playlists", label: "Playlist" }
+  { key: "playlists", label: "Playlists" }
 ];
 
 const THEME_STORAGE_KEY = "flaque_theme_v1";

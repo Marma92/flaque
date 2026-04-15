@@ -8,6 +8,7 @@ coverage/
 
 runtime/
 
+data/backups/
 data/config/users.db
 data/config/users.db-*
 data/storage/users/*

@@ -27,7 +27,7 @@ export type ConfigViewProps = {
   onSectionChange: (section: ConfigSection) => void;
 };
 
-export type ConfigSection = "index" | "files" | "users" | "server" | "backup";
+export type ConfigSection = "index" | "files" | "users" | "server" | "backup" | "library";
 
 function normalizeSearch(value: string): string {
   return value.trim().toLowerCase();
@@ -39,10 +39,12 @@ type BulkEditState = {
   artist: string;
   album: string;
   year: string;
+  genre: string;
   commonTitle: string | undefined;
   commonArtist: string | undefined;
   commonAlbum: string | undefined;
   commonYear: string | undefined;
+  commonGenre: string | undefined;
 };
 
 function computeCommonField(tracks: Track[], getter: (t: Track) => string | undefined): string | undefined {
@@ -156,7 +158,8 @@ export function ConfigView({
       title: track.tags.title ?? "",
       artist: track.tags.artist ?? "",
       album: track.tags.album ?? "",
-      year: track.tags.year != null ? String(track.tags.year) : ""
+      year: track.tags.year != null ? String(track.tags.year) : "",
+      genre: track.tags.genre?.join(", ") ?? ""
     });
   }
 
@@ -179,11 +182,17 @@ export function ConfigView({
       const yearValue = editState.year.trim();
       const parsedYear = yearValue ? Number(yearValue) : null;
 
+      const genreValue = editState.genre.trim();
+      const parsedGenre: string[] | null = genreValue
+        ? genreValue.split(",").map((g) => g.trim()).filter(Boolean)
+        : null;
+
       await onUpdateTrackMetadata(editState.track.id, {
         title: editState.title.trim() || null,
         artist: editState.artist.trim() || null,
         album: editState.album.trim() || null,
-        year: Number.isInteger(parsedYear) ? parsedYear : parsedYear === null ? null : undefined
+        year: Number.isInteger(parsedYear) ? parsedYear : parsedYear === null ? null : undefined,
+        genre: parsedGenre && parsedGenre.length > 0 ? parsedGenre : parsedGenre === null ? null : undefined
       });
       setEditState(null);
     } catch (error) {
@@ -237,6 +246,7 @@ export function ConfigView({
     const commonArtist = computeCommonField(selected, (t) => t.tags.artist);
     const commonAlbum = computeCommonField(selected, (t) => t.tags.album);
     const commonYear = computeCommonField(selected, (t) => t.tags.year != null ? String(t.tags.year) : undefined);
+    const commonGenre = computeCommonField(selected, (t) => t.tags.genre?.join(", "));
 
     setBulkEditState({
       trackIds: selected.map((t) => t.id),
@@ -244,10 +254,12 @@ export function ConfigView({
       artist: commonArtist ?? "",
       album: commonAlbum ?? "",
       year: commonYear ?? "",
+      genre: commonGenre ?? "",
       commonTitle,
       commonArtist,
       commonAlbum,
-      commonYear
+      commonYear,
+      commonGenre
     });
   }
 
@@ -270,8 +282,14 @@ export function ConfigView({
       const parsedYear = yearValue ? Number(yearValue) : null;
       patch.year = Number.isInteger(parsedYear) ? parsedYear : parsedYear === null ? null : undefined;
     }
+    if (bulkEditState.genre !== (bulkEditState.commonGenre ?? "")) {
+      const genreValue = bulkEditState.genre.trim();
+      patch.genre = genreValue
+        ? genreValue.split(",").map((g) => g.trim()).filter(Boolean)
+        : null;
+    }
 
-    const hasChanges = "title" in patch || "artist" in patch || "album" in patch || "year" in patch;
+    const hasChanges = "title" in patch || "artist" in patch || "album" in patch || "year" in patch || "genre" in patch;
     if (!hasChanges) {
       setBulkEditState(null);
       return;
@@ -684,6 +702,18 @@ export function ConfigView({
                 placeholder={bulkEditState.commonYear === undefined ? "Mixed values" : "e.g. 1979"}
                 onChange={(e) => setBulkEditState((s) => s ? { ...s, year: e.target.value } : s)}
               />
+            </label>
+
+            <label className="mt-3 block text-sm text-flaque-ink">
+              Genre
+              <input
+                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                type="text"
+                value={bulkEditState.genre}
+                placeholder={bulkEditState.commonGenre === undefined ? "Mixed values" : "e.g. Rock, Progressive Rock"}
+                onChange={(e) => setBulkEditState((s) => s ? { ...s, genre: e.target.value } : s)}
+              />
+              <span className="mt-0.5 block text-xs text-flaque-steel">Comma-separated</span>
             </label>
 
             <p className="mt-3 text-xs text-flaque-steel">

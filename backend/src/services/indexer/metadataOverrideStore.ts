@@ -6,6 +6,7 @@ export type TrackMetadataOverride = {
   artist?: string;
   album?: string;
   year?: number;
+  genre?: string[];
 };
 
 type TrackMetadataOverridesMap = Record<string, TrackMetadataOverride>;
@@ -26,6 +27,20 @@ function normalizeYear(value: unknown): number | undefined {
   return n;
 }
 
+function normalizeGenre(value: unknown): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value)) return undefined;
+
+  const genres: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const trimmed = item.trim();
+    if (trimmed) genres.push(trimmed);
+  }
+
+  return genres.length > 0 ? genres : undefined;
+}
+
 function normalizeOverride(override: unknown): TrackMetadataOverride | undefined {
   if (!override || typeof override !== "object") {
     return undefined;
@@ -36,8 +51,9 @@ function normalizeOverride(override: unknown): TrackMetadataOverride | undefined
   const album = normalizeField(record.album);
   const title = normalizeField(record.title);
   const year = normalizeYear(record.year);
+  const genre = normalizeGenre(record.genre);
 
-  if (!title && !artist && !album && year === undefined) {
+  if (!title && !artist && !album && year === undefined && !genre) {
     return undefined;
   }
 
@@ -45,7 +61,8 @@ function normalizeOverride(override: unknown): TrackMetadataOverride | undefined
     title,
     artist,
     album,
-    year
+    year,
+    genre
   };
 }
 
@@ -105,7 +122,8 @@ export async function mergeTrackMetadataOverrides(
       existing?.title === cleanOverride.title &&
       existing?.artist === cleanOverride.artist &&
       existing?.album === cleanOverride.album &&
-      existing?.year === cleanOverride.year
+      existing?.year === cleanOverride.year &&
+      JSON.stringify(existing?.genre) === JSON.stringify(cleanOverride.genre)
     ) {
       continue;
     }

@@ -1,26 +1,34 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useState } from "react";
 
-import { coverUrl } from "../api";
-import type { Playlist, PlaylistVisibility, Track } from "../types";
-import { getTrackDisplayArtist, getTrackDisplayTitle } from "../utils/tracks";
+import defaultCoverImage from "../assets/default-cover.png";
+import { coverUrl, playlistCoverUrl } from "../api";
+import type { AutoPlaylistSummary, ForYouPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
 
 type LibraryPlaylistSectionProps = {
   availablePlaylists: Playlist[];
   manageablePlaylists: Playlist[];
   ownerNameById: Record<string, string>;
   allTracksById: Map<string, Track>;
-  onCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility }) => Promise<void>;
+  user: User;
+  onCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility; description?: string }) => Promise<void>;
   onPlayPlaylist: (playlist: Playlist) => void;
-  onPatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[] }) => Promise<void>;
+  onPatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<Playlist>;
   onDeletePlaylist: (playlistId: string) => Promise<void>;
+  onNavigateToPlaylist: (playlistId: string) => void;
+  onHeartPlaylist: (playlistId: string) => Promise<{ hearted: boolean; heartCount: number }>;
+  onReportPlaylistListen: (playlistId: string) => Promise<void>;
+  autoPlaylists: AutoPlaylistSummary[];
+  loadingAutoPlaylists: boolean;
+  forYouPlaylists: ForYouPlaylistSummary[];
+  loadingForYouPlaylists: boolean;
+  onDismissForYouPlaylist: (playlistId: string) => Promise<void>;
 };
 
-// ── Mosaic cover ────────────────────────────────────────────────────
+// ── Mosaic cover (compact) ─────────────────────────────────────────
 
 function getPlaylistMosaicTracks(trackIds: string[], allTracksById: Map<string, Track>): Track[] {
   const seen = new Set<string>();
   const result: Track[] = [];
-
   for (const id of trackIds) {
     if (result.length >= 4) break;
     const track = allTracksById.get(id);
@@ -31,7 +39,6 @@ function getPlaylistMosaicTracks(trackIds: string[], allTracksById: Map<string, 
       result.push(track);
     }
   }
-
   return result;
 }
 
@@ -40,23 +47,18 @@ function PlaylistMosaic({ tracks }: { tracks: Track[] }): JSX.Element {
 
   if (tracks.length === 0) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-flaque-clay/20">
-        <svg className="h-8 w-8 text-flaque-steel/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-            d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-        </svg>
-      </div>
+      <img src={defaultCoverImage} alt="" className="h-full w-full object-cover" />
     );
   }
 
   if (tracks.length === 1) {
-    const track = tracks[0]!;
     return (
       <img
-        src={coverUrl(track.id)}
+        src={coverUrl(tracks[0]!.id)}
         alt=""
         className="h-full w-full object-cover"
         loading="lazy"
+        onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
       />
     );
   }
@@ -71,453 +73,174 @@ function PlaylistMosaic({ tracks }: { tracks: Track[] }): JSX.Element {
             alt=""
             className="h-full w-full object-cover"
             loading="lazy"
+            onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
           />
         ) : (
-          <div key={i} className="bg-flaque-clay/20" />
+          <img key={i} src={defaultCoverImage} alt="" className="h-full w-full object-cover" />
         )
       )}
     </div>
   );
 }
 
-// ── Dropdown menu ───────────────────────────────────────────────────
-
-type PlaylistMenuProps = {
-  canManage: boolean;
-  onEdit: () => void;
-  onDownload: () => void;
-  onDelete: () => void;
-};
-
-function PlaylistMenu({ canManage, onEdit, onDownload, onDelete }: PlaylistMenuProps): JSX.Element {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent): void {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        className="flex h-7 w-7 items-center justify-center rounded-lg text-flaque-steel transition hover:bg-flaque-clay/30 hover:text-flaque-ink"
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        aria-label="Playlist options"
-      >
-        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-          <circle cx="10" cy="4" r="1.5" />
-          <circle cx="10" cy="10" r="1.5" />
-          <circle cx="10" cy="16" r="1.5" />
-        </svg>
-      </button>
-
-      {open ? (
-        <div className="absolute bottom-full right-0 z-20 mb-1 min-w-[160px] overflow-hidden rounded-xl border border-flaque-clay/60 bg-white shadow-lg">
-          {canManage ? (
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-flaque-ink transition hover:bg-flaque-cream"
-              onClick={(e) => { e.stopPropagation(); setOpen(false); onEdit(); }}
-            >
-              <svg className="h-4 w-4 shrink-0 text-flaque-steel" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Edit playlist
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-flaque-ink transition hover:bg-flaque-cream"
-            onClick={(e) => { e.stopPropagation(); setOpen(false); onDownload(); }}
-          >
-            <svg className="h-4 w-4 shrink-0 text-flaque-steel" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Download playlist
-          </button>
-          {canManage ? (
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50"
-              onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }}
-            >
-              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Delete playlist
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-// ── Edit modal ──────────────────────────────────────────────────────
-
-type EditModalProps = {
-  playlist: Playlist;
-  allTracksById: Map<string, Track>;
-  saving: boolean;
-  onSave: (patch: { name?: string; trackIds?: string[] }) => Promise<void>;
-  onClose: () => void;
-};
-
-function EditModal({ playlist, allTracksById, saving, onSave, onClose }: EditModalProps): JSX.Element {
-  const [name, setName] = useState(playlist.name);
-  const [trackIds, setTrackIds] = useState<string[]>([...playlist.trackIds]);
-
-  function removeTrack(id: string): void {
-    setTrackIds((prev) => prev.filter((t) => t !== id));
-  }
-
-  function moveTrack(index: number, direction: -1 | 1): void {
-    const next = [...trackIds];
-    const target = index + direction;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target]!, next[index]!];
-    setTrackIds(next);
-  }
-
-  async function handleSubmit(e: FormEvent): Promise<void> {
-    e.preventDefault();
-    await onSave({ name: name.trim() || playlist.name, trackIds });
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-flaque-clay/60 bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-flaque-clay/30 px-5 py-4">
-          <h3 className="font-display text-lg text-flaque-ink">Edit playlist</h3>
-          <button
-            type="button"
-            className="rounded-lg p-1 text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <form className="flex flex-1 flex-col overflow-hidden" onSubmit={(e) => { void handleSubmit(e); }}>
-          <div className="px-5 pt-4">
-            <label className="block text-sm font-medium text-flaque-ink">Name</label>
-            <input
-              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={saving}
-            />
-          </div>
-
-          <div className="mt-4 flex-1 overflow-y-auto px-5">
-            <p className="text-sm font-medium text-flaque-ink">
-              Tracks <span className="text-flaque-steel">({trackIds.length})</span>
-            </p>
-            {trackIds.length === 0 ? (
-              <p className="mt-2 text-sm text-flaque-steel">No tracks in this playlist.</p>
-            ) : (
-              <ul className="mt-2 space-y-1">
-                {trackIds.map((id, index) => {
-                  const track = allTracksById.get(id);
-                  return (
-                    <li key={id} className="flex items-center gap-2 rounded-lg bg-flaque-cream/40 px-2 py-1.5">
-                      <div className="h-8 w-8 shrink-0 overflow-hidden rounded-md">
-                        {track ? (
-                          <img src={coverUrl(track.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
-                        ) : (
-                          <div className="h-full w-full bg-flaque-clay/30" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-flaque-ink">
-                          {track ? getTrackDisplayTitle(track) : id}
-                        </p>
-                        {track ? (
-                          <p className="truncate text-[10px] text-flaque-steel">
-                            {getTrackDisplayArtist(track) ?? "Unknown artist"}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <button
-                          type="button"
-                          className="rounded p-0.5 text-flaque-steel transition hover:text-flaque-ink disabled:opacity-30"
-                          onClick={() => moveTrack(index, -1)}
-                          disabled={index === 0 || saving}
-                          aria-label="Move up"
-                        >
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded p-0.5 text-flaque-steel transition hover:text-flaque-ink disabled:opacity-30"
-                          onClick={() => moveTrack(index, 1)}
-                          disabled={index === trackIds.length - 1 || saving}
-                          aria-label="Move down"
-                        >
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded p-0.5 text-red-400 transition hover:text-red-600 disabled:opacity-30"
-                          onClick={() => removeTrack(id)}
-                          disabled={saving}
-                          aria-label="Remove track"
-                        >
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-2 border-t border-flaque-clay/30 px-5 py-4">
-            <button
-              type="button"
-              className="rounded-xl border border-flaque-clay px-4 py-2 text-sm text-flaque-steel transition hover:bg-flaque-cream"
-              onClick={onClose}
-              disabled={saving}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:opacity-60"
-              disabled={saving}
-            >
-              {saving ? "Saving…" : "Save"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ── Playlist card ───────────────────────────────────────────────────
+// ── Playlist card (grid) ───────────────────────────────────────────
 
 type PlaylistCardProps = {
   playlist: Playlist;
-  canManage: boolean;
   allTracksById: Map<string, Track>;
   ownerNameById: Record<string, string>;
+  onNavigate: () => void;
   onPlay: () => void;
-  onPatch: (patch: { name?: string; trackIds?: string[] }) => Promise<void>;
-  onDelete: () => void;
+  showBadges?: boolean;
+  onHeart?: () => void;
+  hasHearted?: boolean;
 };
 
-function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
-}
-
-function PlaylistCard({
-  playlist,
-  canManage,
-  allTracksById,
-  ownerNameById,
-  onPlay,
-  onPatch,
-  onDelete
-}: PlaylistCardProps): JSX.Element {
-  const [expanded, setExpanded] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const tracks = playlist.trackIds.map((id) => allTracksById.get(id)).filter((t): t is Track => t !== undefined);
+function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPlay, showBadges, onHeart, hasHearted }: PlaylistCardProps): JSX.Element {
   const mosaicTracks = getPlaylistMosaicTracks(playlist.trackIds, allTracksById);
-  const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
   const owner = ownerNameById[playlist.authorId] ?? playlist.authorId;
 
-  function downloadPlaylist(): void {
-    const data = {
-      id: playlist.id,
-      name: playlist.name,
-      visibility: playlist.visibility,
-      tracks: tracks.map((t) => ({
-        id: t.id,
-        title: getTrackDisplayTitle(t),
-        artist: getTrackDisplayArtist(t),
-        album: t.tags.album,
-        duration: t.duration
-      }))
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${playlist.name}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  async function handleSave(patch: { name?: string; trackIds?: string[] }): Promise<void> {
-    setSaving(true);
-    try {
-      await onPatch(patch);
-      setEditOpen(false);
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
-    <>
-      <div className="rounded-2xl border border-flaque-clay/60 bg-white/85 shadow-sm">
-        {/* Header row — cover + info + buttons */}
-        <div
-          className="flex cursor-pointer items-center gap-3 p-3 transition hover:bg-flaque-cream/50"
-          onClick={() => setExpanded((v) => !v)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setExpanded((v) => !v); }}
-          aria-expanded={expanded}
-        >
-          {/* Mosaic */}
-          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl">
-            <PlaylistMosaic tracks={mosaicTracks} />
-          </div>
+    <div
+      className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/85 shadow-sm transition hover:shadow-md"
+      onClick={onNavigate}
+      role="link"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter") onNavigate(); }}
+    >
+      {/* Cover */}
+      <div className="relative aspect-square w-full overflow-hidden">
+        {playlist.cover ? (
+          <img src={playlistCoverUrl(playlist.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
+        ) : (
+          <PlaylistMosaic tracks={mosaicTracks} />
+        )}
 
-          {/* Info */}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-flaque-ink">{playlist.name}</p>
-            <p className="truncate text-xs text-flaque-steel">
-              {playlist.trackIds.length} track{playlist.trackIds.length !== 1 ? "s" : ""}
-              {totalDuration > 0 ? ` · ${formatDuration(totalDuration)}` : ""}
-              {" · "}{owner}
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="flex h-8 w-8 items-center justify-center rounded-xl bg-flaque-ink text-white transition hover:bg-black"
-              onClick={onPlay}
-              aria-label={`Play ${playlist.name}`}
-            >
-              <svg className="h-4 w-4 translate-x-px" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </button>
-
-            <PlaylistMenu
-              canManage={canManage}
-              onEdit={() => setEditOpen(true)}
-              onDownload={downloadPlaylist}
-              onDelete={onDelete}
-            />
-
-            {/* Chevron */}
-            <svg
-              className={`h-4 w-4 shrink-0 text-flaque-steel/60 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        {/* Play button overlay */}
+        {onPlay ? (
+          <button
+            type="button"
+            className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
+            onClick={(e) => { e.stopPropagation(); onPlay(); }}
+            aria-label={`Play ${playlist.name}`}
+          >
+            <svg className="h-10 w-10 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
+              <path d="M8 6v12l10-6-10-6z" />
             </svg>
-          </div>
-        </div>
-
-        {/* Expanded track list */}
-        {expanded ? (
-          <div className="overflow-hidden rounded-b-2xl border-t border-flaque-clay/30">
-            {tracks.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-flaque-steel">No playable tracks.</p>
-            ) : (
-              <ul>
-                {tracks.map((track, index) => (
-                  <li
-                    key={track.id}
-                    className="flex items-center gap-3 border-b border-flaque-clay/20 px-3 py-2 last:border-b-0"
-                  >
-                    <span className="w-5 shrink-0 text-right text-xs text-flaque-steel/50">{index + 1}</span>
-                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-md">
-                      <img src={coverUrl(track.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1 truncate text-xs font-medium text-flaque-ink">
-                        {track.tags.extra?.lyrics ? (
-                          <span className="shrink-0 rounded px-1 py-px font-mono text-[9px] font-bold leading-none text-flaque-steel/70 ring-1 ring-flaque-clay/60">
-                            L
-                          </span>
-                        ) : null}
-                        <span className="truncate">{getTrackDisplayTitle(track)}</span>
-                      </p>
-                      <p className="truncate text-[10px] text-flaque-steel">
-                        {getTrackDisplayArtist(track) ?? "Unknown artist"}
-                        {track.tags.album ? ` · ${track.tags.album}` : ""}
-                      </p>
-                    </div>
-                    <span className="shrink-0 font-mono text-[10px] text-flaque-steel/60">
-                      {formatDuration(track.duration)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          </button>
         ) : null}
       </div>
 
-      {editOpen ? (
-        <EditModal
-          playlist={playlist}
-          allTracksById={allTracksById}
-          saving={saving}
-          onSave={handleSave}
-          onClose={() => setEditOpen(false)}
-        />
-      ) : null}
-    </>
+      {/* Info */}
+      <div className="flex flex-1 flex-col p-2">
+        <p className="truncate text-xs font-semibold text-flaque-ink">{playlist.name}</p>
+        {playlist.description ? (
+          <p className="mt-0.5 line-clamp-1 text-[10px] text-flaque-steel">{playlist.description}</p>
+        ) : null}
+        <p className="mt-0.5 truncate text-[10px] text-flaque-steel">
+          {owner} &middot; {playlist.trackIds.length} track{playlist.trackIds.length !== 1 ? "s" : ""}
+        </p>
+
+        {/* Badges */}
+        {showBadges ? (
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            {onHeart ? (
+              <button
+                type="button"
+                className={`flex items-center gap-0.5 text-[10px] transition ${
+                  hasHearted ? "text-red-500 hover:text-red-600" : "text-flaque-steel hover:text-red-400"
+                }`}
+                onClick={(e) => { e.stopPropagation(); onHeart(); }}
+                aria-label={hasHearted ? "Remove heart" : "Heart playlist"}
+              >
+                <svg className="h-3 w-3" fill={hasHearted ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                {playlist.heartCount > 0 ? playlist.heartCount : ""}
+              </button>
+            ) : playlist.heartCount > 0 ? (
+              <span className="flex items-center gap-0.5 text-[10px] text-red-400">
+                <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                {playlist.heartCount}
+              </span>
+            ) : null}
+            {playlist.listenCount > 0 ? (
+              <span className="flex items-center gap-0.5 text-[10px] text-flaque-steel">
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {playlist.listenCount}
+              </span>
+            ) : null}
+            {/* Collaborators badge */}
+            {(playlist.collaborators ?? []).length > 0 ? (
+              (playlist.collaborators ?? []).includes("everyone") ? (
+                <span className="flex items-center gap-0.5 text-[10px] text-yellow-600">
+                  <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 2a8 8 0 110 16 8 8 0 010-16zM12 11a2 2 0 100 4 2 2 0 000-4z"/>
+                  </svg>
+                  Everyone
+                </span>
+              ) : (
+                <>
+                  {(playlist.collaborators ?? []).map((collabId) => {
+                    const collabName = ownerNameById[collabId] ?? collabId;
+                    return (
+                      <span key={collabId} className="inline-flex items-center gap-1 rounded-full bg-flaque-cream px-2 py-0.5 text-[10px] font-medium text-flaque-ink">
+                        {collabName}
+                      </span>
+                    );
+                  })}
+                </>
+              )
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
-// ── Main section ────────────────────────────────────────────────────
+// ── Section header ─────────────────────────────────────────────────
+
+function SectionHeader({ title }: { title: string }): JSX.Element {
+  return <h3 className="font-display text-lg text-flaque-ink">{title}</h3>;
+}
+
+// ── Main section ───────────────────────────────────────────────────
 
 export function LibraryPlaylistSection({
   availablePlaylists,
   manageablePlaylists,
   ownerNameById,
   allTracksById,
+  user,
   onCreatePlaylist,
   onPlayPlaylist,
-  onPatchPlaylist,
-  onDeletePlaylist
+  onPatchPlaylist: _onPatchPlaylist,
+  onDeletePlaylist: _onDeletePlaylist,
+  onNavigateToPlaylist,
+  onHeartPlaylist,
+  onReportPlaylistListen,
+  autoPlaylists,
+  loadingAutoPlaylists,
+  forYouPlaylists,
+  loadingForYouPlaylists,
+  onDismissForYouPlaylist
 }: LibraryPlaylistSectionProps): JSX.Element {
   const [playlistName, setPlaylistName] = useState("");
+  const [playlistDescription, setPlaylistDescription] = useState("");
   const [playlistVisibility, setPlaylistVisibility] = useState<PlaylistVisibility>("private");
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const manageableIds = new Set(manageablePlaylists.map((p) => p.id));
+  const myPlaylists = availablePlaylists.filter((p) => p.authorId === user.id);
+  const popularPlaylists = availablePlaylists
+    .filter((p) => p.visibility === "public" && p.authorId !== user.id)
+    .sort((a, b) => b.heartCount - a.heartCount || b.listenCount - a.listenCount);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -525,8 +248,13 @@ export function LibraryPlaylistSection({
     setSubmitting(true);
     setStatusMessage(null);
     try {
-      await onCreatePlaylist({ name: playlistName, visibility: playlistVisibility });
+      await onCreatePlaylist({
+        name: playlistName,
+        visibility: playlistVisibility,
+        description: playlistDescription.trim() || undefined
+      });
       setPlaylistName("");
+      setPlaylistDescription("");
       setStatusMessage("Playlist created.");
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : "Unable to create playlist");
@@ -535,58 +263,186 @@ export function LibraryPlaylistSection({
     }
   }
 
+  function handlePlay(playlist: Playlist): void {
+    void onReportPlaylistListen(playlist.id);
+    onPlayPlaylist(playlist);
+  }
+
   return (
-    <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      <h2 className="font-display text-xl text-flaque-ink">Playlists</h2>
+    <div className="m-4 space-y-6">
+      {/* ── My Playlists ──────────────────────────────────────────── */}
+      <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <SectionHeader title="My Playlists" />
 
-      <form
-        className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]"
-        onSubmit={(event) => { void handleSubmit(event); }}
-      >
-        <input
-          className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-          type="text"
-          placeholder="New playlist name"
-          value={playlistName}
-          onChange={(event) => setPlaylistName(event.target.value)}
-        />
-        <select
-          className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
-          value={playlistVisibility}
-          onChange={(event) => setPlaylistVisibility(event.target.value as PlaylistVisibility)}
+        <form
+          className="mt-4 space-y-3"
+          onSubmit={(event) => { void handleSubmit(event); }}
         >
-          <option value="private">Private</option>
-          <option value="public">Public</option>
-        </select>
-        <button
-          className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
-          type="submit"
-          disabled={submitting || !playlistName.trim()}
-        >
-          {submitting ? "Creating…" : "Create"}
-        </button>
-      </form>
-
-      {statusMessage ? <p className="mt-2 text-sm text-flaque-steel">{statusMessage}</p> : null}
-
-      <div className="mt-4">
-        {availablePlaylists.length === 0 ? (
-          <p className="text-sm text-flaque-steel">No playlists yet.</p>
-        ) : (
-          availablePlaylists.map((playlist) => (
-            <PlaylistCard
-              key={playlist.id}
-              playlist={playlist}
-              canManage={manageableIds.has(playlist.id)}
-              allTracksById={allTracksById}
-              ownerNameById={ownerNameById}
-              onPlay={() => onPlayPlaylist(playlist)}
-              onPatch={(patch) => onPatchPlaylist(playlist.id, patch)}
-              onDelete={() => { void onDeletePlaylist(playlist.id); }}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]">
+            <input
+              className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              type="text"
+              placeholder="New playlist name"
+              value={playlistName}
+              onChange={(event) => setPlaylistName(event.target.value)}
             />
-          ))
+            <select
+              className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              value={playlistVisibility}
+              onChange={(event) => setPlaylistVisibility(event.target.value as PlaylistVisibility)}
+            >
+              <option value="private">Private</option>
+              <option value="public">Public</option>
+            </select>
+            <button
+              className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              type="submit"
+              disabled={submitting || !playlistName.trim()}
+            >
+              {submitting ? "Creating..." : "Create"}
+            </button>
+          </div>
+          {playlistName.trim() ? (
+            <textarea
+              className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              rows={2}
+              placeholder="Description (optional)"
+              value={playlistDescription}
+              onChange={(event) => setPlaylistDescription(event.target.value)}
+            />
+          ) : null}
+        </form>
+
+        {statusMessage ? <p className="mt-2 text-sm text-flaque-steel">{statusMessage}</p> : null}
+
+        {myPlaylists.length === 0 ? (
+          <p className="mt-4 text-sm text-flaque-steel">No playlists yet.</p>
+        ) : (
+          <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
+            {myPlaylists.map((playlist) => (
+              <PlaylistCard
+                key={playlist.id}
+                playlist={playlist}
+                allTracksById={allTracksById}
+                ownerNameById={ownerNameById}
+                onNavigate={() => onNavigateToPlaylist(playlist.id)}
+                onPlay={() => handlePlay(playlist)}
+              />
+            ))}
+          </div>
         )}
-      </div>
-    </section>
+      </section>
+
+      {/* ── Made For You ────────────────────────────────────────── */}
+      {!loadingForYouPlaylists && forYouPlaylists.length > 0 ? (
+        <section className="rounded-xl border border-flaque-clay/60 bg-gradient-to-br from-indigo-50/60 to-purple-50/40 p-5 shadow-panel backdrop-blur-sm">
+          <SectionHeader title="Made for you" />
+          <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
+            {forYouPlaylists.map((fy) => (
+              <div
+                key={fy.id}
+                className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-flaque-clay/60 bg-gradient-to-br from-indigo-50/80 to-purple-50/60 shadow-sm transition hover:shadow-md"
+                onClick={() => onNavigateToPlaylist(fy.id)}
+                role="link"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter") onNavigateToPlaylist(fy.id); }}
+              >
+                <div className="flex aspect-square w-full items-center justify-center bg-gradient-to-br from-indigo-100/60 to-purple-100/40">
+                  <div className="text-center px-3">
+                    <svg className="mx-auto h-8 w-8 text-indigo-400/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                    <p className="mt-1 font-display text-sm font-bold text-flaque-ink/70 leading-tight">{fy.seedArtist}</p>
+                  </div>
+                </div>
+                <div className="p-3">
+                  <p className="truncate text-sm font-semibold text-flaque-ink">{fy.name}</p>
+                  <p className="mt-0.5 text-xs text-flaque-steel">
+                    {fy.trackCount} track{fy.trackCount !== 1 ? "s" : ""}
+                  </p>
+                </div>
+
+                {/* Dismiss button */}
+                <button
+                  type="button"
+                  className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/80 text-flaque-steel opacity-0 shadow-sm transition hover:bg-white hover:text-red-500 group-hover:opacity-100"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void onDismissForYouPlaylist(fy.id);
+                  }}
+                  aria-label={`Hide ${fy.name}`}
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* ── Popular Playlists ─────────────────────────────────────── */}
+      {popularPlaylists.length > 0 ? (
+        <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+          <SectionHeader title="Popular Playlists" />
+          <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
+            {popularPlaylists.map((playlist) => (
+              <PlaylistCard
+                key={playlist.id}
+                playlist={playlist}
+                allTracksById={allTracksById}
+                ownerNameById={ownerNameById}
+                onNavigate={() => onNavigateToPlaylist(playlist.id)}
+                onPlay={() => handlePlay(playlist)}
+                showBadges
+                onHeart={() => { void onHeartPlaylist(playlist.id); }}
+                hasHearted={(playlist.hearts ?? []).includes(user.id)}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* ── Automatic Playlists ────────────────────────────────────── */}
+      <section className="rounded-xl border border-flaque-clay/60 bg-gradient-to-br from-white/85 to-flaque-cream/40 p-5 shadow-panel backdrop-blur-sm">
+        <SectionHeader title="Automatic Playlists" />
+        {loadingAutoPlaylists ? (
+          <p className="mt-2 text-sm text-flaque-steel">Loading...</p>
+        ) : autoPlaylists.length === 0 ? (
+          <p className="mt-2 text-sm text-flaque-steel">
+            Automatic playlists will appear here once generated.
+          </p>
+        ) : (
+          <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
+            {autoPlaylists.map((ap) => (
+              <div
+                key={ap.id}
+                className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-flaque-clay/60 bg-gradient-to-br from-flaque-ink/5 to-flaque-sand/30 shadow-sm transition hover:shadow-md"
+                onClick={() => onNavigateToPlaylist(ap.id)}
+                role="link"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter") onNavigateToPlaylist(ap.id); }}
+              >
+                <div className="flex aspect-square w-full items-center justify-center bg-gradient-to-br from-flaque-sand/40 to-flaque-clay/20">
+                  <div className="text-center">
+                    <p className="font-display text-2xl font-bold text-flaque-ink/70">{ap.decade % 100 === 0 ? ap.decade : `${ap.decade % 100}s`}</p>
+                    <p className="mt-0.5 text-xs font-medium text-flaque-steel">{ap.genre}</p>
+                  </div>
+                </div>
+                <div className="p-3">
+                  <p className="truncate text-sm font-semibold text-flaque-ink">{ap.name}</p>
+                  <p className="mt-0.5 text-xs text-flaque-steel">
+                    {ap.trackCount} track{ap.trackCount !== 1 ? "s" : ""}
+                    {" \u00b7 "}Generated {new Date(ap.generatedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

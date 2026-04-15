@@ -15,6 +15,7 @@ type UploadViewProps = {
       artist?: string;
       album?: string;
       year?: number;
+      genre?: string[];
     } | null>;
     onProgress?: (input: { loaded: number; total: number; percent: number }) => void;
   }) => Promise<UploadTracksResult>;
@@ -79,7 +80,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [previewByFileKey, setPreviewByFileKey] = useState<Record<string, PreviewState>>({});
   const [editableMetadataByFileKey, setEditableMetadataByFileKey] = useState<
-    Record<string, { title: string; artist: string; album: string; year: string }>
+    Record<string, { title: string; artist: string; album: string; year: string; genre: string }>
   >({});
   const [uploadArtist, setUploadArtist] = useState("");
   const [uploadAlbum, setUploadAlbum] = useState("");
@@ -204,7 +205,11 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
       const yearStr = editedMetadata.year.trim();
       const yearNum = yearStr ? Number(yearStr) : undefined;
       const year = yearNum && Number.isInteger(yearNum) && yearNum >= 1000 && yearNum <= 2999 ? yearNum : undefined;
-      if (!title && !artist && !album && year === undefined) {
+      const genreStr = editedMetadata.genre.trim();
+      const genre = genreStr
+        ? genreStr.split(",").map((g) => g.trim()).filter(Boolean)
+        : undefined;
+      if (!title && !artist && !album && year === undefined && !genre) {
         return null;
       }
 
@@ -212,7 +217,8 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
         title: title || undefined,
         artist: artist || undefined,
         album: album || undefined,
-        year
+        year,
+        genre: genre && genre.length > 0 ? genre : undefined
       };
     });
 
@@ -420,11 +426,13 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
               const year = extractYearFromTags(preview?.tags);
               const albumBase = preview?.tags.album?.trim() || "Unknown album";
               const album = year ? `${albumBase} (${year})` : albumBase;
+              const genreFromTags = preview?.tags.genre?.join(", ") ?? "";
               const editableMetadata = editableMetadataByFileKey[fileKey];
               const editableTitle = editableMetadata?.title ?? title;
               const editableArtist = editableMetadata?.artist ?? artist;
               const editableAlbum = editableMetadata?.album ?? albumBase;
               const editableYear = editableMetadata?.year ?? (year ?? "");
+              const editableGenre = editableMetadata?.genre ?? genreFromTags;
               const trackPosition =
                 typeof preview?.tags.trackNumber === "number"
                   ? `${preview.tags.trackNumber}${
@@ -467,7 +475,8 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                                     title: nextTitle,
                                     artist: current[fileKey]?.artist ?? editableArtist,
                                     album: current[fileKey]?.album ?? editableAlbum,
-                                    year: current[fileKey]?.year ?? editableYear
+                                    year: current[fileKey]?.year ?? editableYear,
+                                    genre: current[fileKey]?.genre ?? editableGenre
                                   }
                                 }));
                               }}
@@ -487,7 +496,8 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                                     title: current[fileKey]?.title ?? editableTitle,
                                     artist: nextArtist,
                                     album: current[fileKey]?.album ?? editableAlbum,
-                                    year: current[fileKey]?.year ?? editableYear
+                                    year: current[fileKey]?.year ?? editableYear,
+                                    genre: current[fileKey]?.genre ?? editableGenre
                                   }
                                 }));
                               }}
@@ -507,7 +517,8 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                                     title: current[fileKey]?.title ?? editableTitle,
                                     artist: current[fileKey]?.artist ?? editableArtist,
                                     album: nextAlbum,
-                                    year: current[fileKey]?.year ?? editableYear
+                                    year: current[fileKey]?.year ?? editableYear,
+                                    genre: current[fileKey]?.genre ?? editableGenre
                                   }
                                 }));
                               }}
@@ -530,11 +541,36 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                                     title: current[fileKey]?.title ?? editableTitle,
                                     artist: current[fileKey]?.artist ?? editableArtist,
                                     album: current[fileKey]?.album ?? editableAlbum,
-                                    year: nextYear
+                                    year: nextYear,
+                                    genre: current[fileKey]?.genre ?? editableGenre
                                   }
                                 }));
                               }}
                             />
+                          </label>
+
+                          <label className="text-flaque-steel">
+                            Genre
+                            <input
+                              className="mt-1 w-full rounded-lg border border-flaque-clay bg-white px-2 py-1 text-flaque-ink"
+                              value={editableGenre}
+                              disabled={uploading}
+                              placeholder="e.g. Rock, Progressive Rock"
+                              onChange={(event) => {
+                                const nextGenre = event.target.value;
+                                setEditableMetadataByFileKey((current) => ({
+                                  ...current,
+                                  [fileKey]: {
+                                    title: current[fileKey]?.title ?? editableTitle,
+                                    artist: current[fileKey]?.artist ?? editableArtist,
+                                    album: current[fileKey]?.album ?? editableAlbum,
+                                    year: current[fileKey]?.year ?? editableYear,
+                                    genre: nextGenre
+                                  }
+                                }));
+                              }}
+                            />
+                            <span className="mt-0.5 block text-[10px] text-flaque-steel/80">Comma-separated</span>
                           </label>
 
                           <p className="text-xs text-flaque-steel">

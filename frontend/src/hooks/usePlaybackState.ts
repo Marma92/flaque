@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
+import { reportTrackPlay } from "../api";
 import type { RepeatMode, TranscodeMode } from "../components/AudioPlayer";
 import type { Track, User } from "../types";
 import { isTrackLike, parseStoredQueueSnapshot, readShuffleMode, readTranscodeMode, type StoredQueueSnapshot } from "../utils/appUtils";
@@ -55,6 +56,7 @@ export function usePlaybackState({
   const [shuffleEnabled, setShuffleEnabled] = useState<boolean>(() => readShuffleMode(SHUFFLE_MODE_STORAGE_KEY));
   const [queueRestoredFromStorage, setQueueRestoredFromStorage] = useState(false);
   const [recentTracks, setRecentTracks] = useState<Track[]>([]);
+  const lastPlayReportRef = useRef<{ trackId: string; at: number } | null>(null);
 
   const selectedTrackRefreshed = useMemo(() => {
     if (!selectedTrack) {
@@ -244,6 +246,17 @@ export function usePlaybackState({
       const withoutCurrent = current.filter((entry) => entry.id !== track.id);
       return [track, ...withoutCurrent].slice(0, MAX_RECENT_TRACKS);
     });
+
+    if (track.owner === "radio") return;
+
+    const now = Date.now();
+    const last = lastPlayReportRef.current;
+    const isSameTrack = last?.trackId === track.id;
+    const withinDebounce = isSameTrack && now - last.at < 10_000;
+    if (withinDebounce) return;
+
+    lastPlayReportRef.current = { trackId: track.id, at: now };
+    void reportTrackPlay(track.id).catch(() => {});
   }, []);
 
   const removeTrackFromPlayback = useCallback((trackId: string): void => {

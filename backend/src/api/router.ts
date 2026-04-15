@@ -1,12 +1,16 @@
 import { Router } from "express";
 
 import { IndexStore } from "../services/indexer/indexStore";
+import { createAutoPlaylistRouter } from "./autoPlaylistRoutes";
 import { createAuthRouter } from "./authRoutes";
+import { createForYouPlaylistRouter } from "./forYouPlaylistRoutes";
 import { createBackupRouter } from "./backupRoutes";
 import { createCoverRouter } from "./coverRoutes";
+import { createGenreRouter } from "./genreRoutes";
 import { createIndexRouter } from "./indexRoutes";
 import { createLibraryRouter } from "./libraryRoutes";
 import { createLogRouter } from "./logRoutes";
+import { createPlayCountRouter } from "./playCountRoutes";
 import { createPlaylistRouter } from "./playlistRoutes";
 import { createRadioRouter } from "./radioRoutes";
 import { createServerRouter } from "./serverRoutes";
@@ -23,8 +27,12 @@ export function createApiRouter(indexStore: IndexStore): Router {
   router.use(createPlaylistRouter(indexStore));
   router.use(createRadioRouter(indexStore));
   router.use(createStreamingRouter(indexStore));
+  router.use(createPlayCountRouter(indexStore));
   router.use(createCoverRouter(indexStore));
   router.use(createIndexRouter(indexStore));
+  router.use(createGenreRouter(indexStore));
+  router.use(createAutoPlaylistRouter(indexStore));
+  router.use(createForYouPlaylistRouter(indexStore));
   router.use(createUserRouter());
   router.use(createLogRouter());
   router.use(createServerRouter());

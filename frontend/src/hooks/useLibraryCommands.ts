@@ -6,8 +6,10 @@ import {
   createPlaylist,
   deletePlaylist,
   deleteTrackFile,
+  heartPlaylist,
   patchPlaylist,
   rebuildIndex,
+  reportPlaylistListen,
   updateTrackMetadata,
   uploadTracks,
   type UploadTrackPreview,
@@ -48,12 +50,14 @@ type UseLibraryCommandsResult = {
   handleRebuildIndex: () => Promise<void>;
   handleDeleteTrack: (trackId: string) => Promise<void>;
   handleUpdateTrackMetadata: (trackId: string, patch: TrackMetadataPatch) => Promise<void>;
-  handleCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility }) => Promise<void>;
+  handleCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility; description?: string }) => Promise<void>;
   handleAddTrackToPlaylist: (input: { trackId: string; playlistId: string }) => Promise<void>;
-  handlePatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[] }) => Promise<void>;
+  handlePatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<Playlist>;
   handleDeletePlaylist: (playlistId: string) => Promise<void>;
   handleBulkDeleteTracks: (trackIds: string[]) => Promise<void>;
   handleBulkUpdateTrackMetadata: (trackIds: string[], patch: TrackMetadataPatch) => Promise<void>;
+  handleHeartPlaylist: (playlistId: string) => Promise<{ hearted: boolean; heartCount: number }>;
+  handleReportPlaylistListen: (playlistId: string) => Promise<void>;
 };
 
 /**
@@ -156,6 +160,7 @@ export function useLibraryCommands({
   async function handleCreatePlaylist(input: {
     name: string;
     visibility: PlaylistVisibility;
+    description?: string;
   }): Promise<void> {
     await createPlaylist(input);
     setAppNotice({
@@ -197,12 +202,13 @@ export function useLibraryCommands({
 
   async function handlePatchPlaylist(
     playlistId: string,
-    patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[] }
-  ): Promise<void> {
-    await patchPlaylist(playlistId, patch);
+    patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }
+  ): Promise<Playlist> {
+    const updated = await patchPlaylist(playlistId, patch);
     await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
     refreshRecentlyUploaded();
     refreshPaginatedLibrary();
+    return updated;
   }
 
   async function handleDeletePlaylist(playlistId: string): Promise<void> {
@@ -232,6 +238,16 @@ export function useLibraryCommands({
     refreshPaginatedLibrary();
   }
 
+  async function handleHeartPlaylist(playlistId: string): Promise<{ hearted: boolean; heartCount: number }> {
+    const result = await heartPlaylist(playlistId);
+    await refreshCurrentLibrary();
+    return result;
+  }
+
+  async function handleReportPlaylistListen(playlistId: string): Promise<void> {
+    await reportPlaylistListen(playlistId);
+  }
+
   return {
     handleUpload,
     handleInspectUploadFile,
@@ -243,6 +259,8 @@ export function useLibraryCommands({
     handleCreatePlaylist,
     handleAddTrackToPlaylist,
     handlePatchPlaylist,
-    handleDeletePlaylist
+    handleDeletePlaylist,
+    handleHeartPlaylist,
+    handleReportPlaylistListen
   };
 }

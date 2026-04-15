@@ -94,6 +94,12 @@ export type Playlist = {
   visibility: PlaylistVisibility;
   trackIds: string[];
   trackCount?: number;
+  description: string;
+  cover: string | null;
+  hearts: string[];
+  heartCount: number;
+  listenCount: number;
+  collaborators: string[];
 };
 
 export type LibraryResponse = {
@@ -101,6 +107,7 @@ export type LibraryResponse = {
   totalTracks: number;
   totalPlaylists?: number;
   owners: string[];
+  ownerNamesById?: Record<string, string>;
   artists: ArtistEntry[];
   albums: AlbumEntry[];
   tracks: Track[];
@@ -112,6 +119,7 @@ export type TrackMetadataPatch = {
   artist?: string | null;
   album?: string | null;
   year?: number | null;
+  genre?: string[] | null;
 };
 
 export type RadioTrack = {
@@ -151,4 +159,29 @@ export type RadioQueueResponse = {
     id: string;
     trackList: RadioTrack[];
   } | null;
+};
+
+export type AutoPlaylistSummary = {
+  id: string;
+  name: string;
+  genre: string;
+  decade: number;
+  trackCount: number;
+  generatedAt: string;
+};
+
+export type AutoPlaylistDetail = AutoPlaylistSummary & {
+  trackIds: string[];
+};
+
+export type ForYouPlaylistSummary = {
+  id: string;
+  name: string;
+  seedArtist: string;
+  trackCount: number;
+  generatedAt: string;
+};
+
+export type ForYouPlaylistDetail = ForYouPlaylistSummary & {
+  trackIds: string[];
 };

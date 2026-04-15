@@ -81,29 +81,37 @@ describe("appUtils", () => {
     expect(buildPathForRoute("upload")).toBe("/upload");
     expect(buildPathForRoute("player")).toBe("/player");
     expect(buildPathForRoute("account")).toBe("/account");
+    expect(buildPathForRoute("library", "playlists", "user-1:my-playlist")).toBe("/library/playlists/user-1%3Amy-playlist");
+    expect(buildPathForRoute("library", "playlists", null)).toBe("/library/playlists");
   });
 
   it("reads route from location pathname", () => {
     window.history.replaceState({}, "", "/settings/server");
-    expect(getRouteFromLocation()).toEqual({ view: "config", section: "server" });
+    expect(getRouteFromLocation()).toEqual({ view: "config", section: "server", param: null });
 
     window.history.replaceState({}, "", "/library/artists");
-    expect(getRouteFromLocation()).toEqual({ view: "library", section: "artists" });
+    expect(getRouteFromLocation()).toEqual({ view: "library", section: "artists", param: null });
 
     window.history.replaceState({}, "", "/upload");
-    expect(getRouteFromLocation()).toEqual({ view: "upload", section: null });
+    expect(getRouteFromLocation()).toEqual({ view: "upload", section: null, param: null });
 
     window.history.replaceState({}, "", "/");
-    expect(getRouteFromLocation()).toEqual({ view: "library", section: "home" });
+    expect(getRouteFromLocation()).toEqual({ view: "library", section: "home", param: null });
 
     window.history.replaceState({}, "", "/unknown-path");
-    expect(getRouteFromLocation()).toEqual({ view: "library", section: "home" });
+    expect(getRouteFromLocation()).toEqual({ view: "library", section: "home", param: null });
+  });
+
+  it("parses playlist detail route with dynamic segment", () => {
+    window.history.replaceState({}, "", "/library/playlists/user-1%3Amy-playlist");
+    const route = getRouteFromLocation();
+    expect(route).toEqual({ view: "library", section: "playlists", param: "user-1:my-playlist" });
   });
 
   it("redirects legacy view query param to path", () => {
     window.history.replaceState({}, "", "/?view=config");
     const route = getRouteFromLocation();
-    expect(route).toEqual({ view: "config", section: "index" });
+    expect(route).toEqual({ view: "config", section: "index", param: null });
     expect(window.location.pathname).toBe("/settings");
     expect(window.location.search).toBe("");
   });

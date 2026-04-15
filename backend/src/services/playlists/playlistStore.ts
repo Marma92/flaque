@@ -15,6 +15,11 @@ const PLAYLISTS_DIRECTORY_NAME = "playlists";
 type PlaylistMetadata = {
   name: string;
   visibility: PlaylistVisibility;
+  description: string;
+  cover: string | null;
+  hearts: string[];
+  listenCount: number;
+  collaborators: string[];
 };
 
 type CreatePlaylistInput = {
@@ -23,6 +28,7 @@ type CreatePlaylistInput = {
   visibility: PlaylistVisibility;
   trackIds: string[];
   tracksById: Map<string, Track>;
+  description?: string;
 };
 
 type UpdatePlaylistInput = {
@@ -31,6 +37,8 @@ type UpdatePlaylistInput = {
   visibility: PlaylistVisibility;
   trackIds: string[];
   tracksById: Map<string, Track>;
+  description?: string;
+  collaborators?: string[];
 };
 
 function normalizeVisibility(value: unknown): PlaylistVisibility | null {
@@ -93,8 +101,26 @@ function getPlaylistMetadataPath(authorId: string, playlistSlug: string): string
   return path.join(getPlaylistDir(authorId, playlistSlug), PLAYLIST_METADATA_FILE);
 }
 
-function canViewPlaylist(playlist: Playlist, user: AuthUser): boolean {
+export function canViewPlaylist(playlist: Playlist, user: AuthUser): boolean {
   return playlist.visibility === "public" || playlist.authorId === user.id || user.role === "admin";
+}
+
+/**
+ * Check if playlist has "everyone" collaborator
+ * @param collaborators Array of collaborator IDs
+ * @returns True if "everyone" is in the collaborators array
+ */
+function hasEveryoneCollaborator(collaborators: string[]): boolean {
+  return collaborators.includes("everyone");
+}
+
+/**
+ * Get display collaborators for UI - hides individual collaborators when "everyone" is present
+ * @param collaborators Array of collaborator IDs
+ * @returns Array containing either "everyone" or individual collaborators
+ */
+function getDisplayCollaborators(collaborators: string[]): string[] {
+  return hasEveryoneCollaborator(collaborators) ? ["everyone"] : collaborators;
 }
 
 async function pathExists(pathToCheck: string): Promise<boolean> {
@@ -168,6 +194,12 @@ export function canManagePlaylist(playlist: Playlist, user: AuthUser): boolean {
   return playlist.authorId === user.id || user.role === "admin";
 }
 
+export function canEditPlaylist(playlist: Playlist, user: AuthUser): boolean {
+  return canManagePlaylist(playlist, user)
+    || playlist.collaborators.includes(user.id)
+    || playlist.collaborators.includes("everyone");
+}
+
 export function filterPlayablePlaylists(playlists: Playlist[], user: AuthUser): Playlist[] {
   return playlists.filter((playlist) => canViewPlaylist(playlist, user));
 }
@@ -209,13 +241,18 @@ async function listPlaylistDirectories(): Promise<string[]> {
   return directories;
 }
 
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
 async function readPlaylistMetadata(playlistId: string): Promise<PlaylistMetadata | null> {
   const { authorId, slug } = parsePlaylistIdOrThrow(playlistId);
   const filePath = getPlaylistMetadataPath(authorId, slug);
 
   try {
     const raw = await fs.readFile(filePath, "utf8");
-    const parsed = JSON.parse(raw) as Partial<PlaylistMetadata>;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
     const visibility = normalizeVisibility(parsed.visibility);
     const name = typeof parsed.name === "string" ? parsed.name.trim() : "";
     if (!name || !visibility) {
@@ -223,7 +260,14 @@ async function readPlaylistMetadata(playlistId: string): Promise<PlaylistMetadat
     }
     return {
       name,
-      visibility
+      visibility,
+      description: typeof parsed.description === "string" ? parsed.description : "",
+      cover: typeof parsed.cover === "string" && parsed.cover.trim() ? parsed.cover.trim() : null,
+      hearts: normalizeStringArray(parsed.hearts),
+      listenCount: typeof parsed.listenCount === "number" && Number.isFinite(parsed.listenCount)
+        ? Math.max(0, Math.floor(parsed.listenCount))
+        : 0,
+      collaborators: normalizeStringArray(parsed.collaborators)
     };
   } catch {
     return null;
@@ -301,7 +345,13 @@ export async function scanFilesystemPlaylists(tracks: Track[]): Promise<Playlist
       name: metadata.name,
       authorId,
       visibility: metadata.visibility,
-      trackIds
+      trackIds,
+      description: metadata.description,
+      cover: metadata.cover,
+      hearts: metadata.hearts,
+      heartCount: metadata.hearts.length,
+      listenCount: metadata.listenCount,
+      collaborators: metadata.collaborators
     });
   }
 
@@ -350,6 +400,11 @@ async function writePlaylistContents(input: {
   visibility: PlaylistVisibility;
   trackIds: string[];
   tracksById: Map<string, Track>;
+  description?: string;
+  cover?: string | null;
+  hearts?: string[];
+  listenCount?: number;
+  collaborators?: string[];
 }): Promise<void> {
   const playlistDir = getPlaylistDir(input.authorId, input.playlistSlug);
   await fs.mkdir(playlistDir, { recursive: true });
@@ -370,7 +425,12 @@ async function writePlaylistContents(input: {
 
   await writeJsonAtomic(getPlaylistMetadataPath(input.authorId, input.playlistSlug), {
     name: input.name,
-    visibility: input.visibility
+    visibility: input.visibility,
+    description: input.description ?? "",
+    cover: input.cover ?? null,
+    hearts: input.hearts ?? [],
+    listenCount: input.listenCount ?? 0,
+    collaborators: input.collaborators ?? []
   } satisfies PlaylistMetadata);
 }
 
@@ -399,7 +459,8 @@ export async function createFilesystemPlaylist(input: CreatePlaylistInput): Prom
     name,
     visibility: input.visibility,
     trackIds: input.trackIds,
-    tracksById: input.tracksById
+    tracksById: input.tracksById,
+    description: input.description
   });
 
   return createPlaylistId(input.authorId, playlistSlug);
@@ -422,6 +483,8 @@ export async function updateFilesystemPlaylist(input: UpdatePlaylistInput & { au
   const currentDir = getPlaylistDir(parsed.authorId, parsed.slug);
   const nextDir = getPlaylistDir(parsed.authorId, nextSlug);
 
+  const existingMetadata = await readPlaylistMetadata(input.id);
+
   if (parsed.slug !== nextSlug) {
     try {
       await fs.access(nextDir);
@@ -441,7 +504,12 @@ export async function updateFilesystemPlaylist(input: UpdatePlaylistInput & { au
     name: nextName,
     visibility: input.visibility,
     trackIds: input.trackIds,
-    tracksById: input.tracksById
+    tracksById: input.tracksById,
+    description: input.description ?? existingMetadata?.description,
+    cover: existingMetadata?.cover,
+    hearts: existingMetadata?.hearts,
+    listenCount: existingMetadata?.listenCount,
+    collaborators: input.collaborators ?? existingMetadata?.collaborators
   });
 }
 
@@ -449,4 +517,61 @@ export async function deleteFilesystemPlaylist(playlistId: string): Promise<void
   const { authorId, slug } = parsePlaylistIdOrThrow(playlistId);
   await fs.rm(getPlaylistDir(authorId, slug), { recursive: true, force: true });
   await fs.rm(getLegacyPlaylistDir(authorId, slug), { recursive: true, force: true });
+}
+
+async function patchPlaylistMetadataFile(
+  playlistId: string,
+  updater: (metadata: PlaylistMetadata) => PlaylistMetadata
+): Promise<PlaylistMetadata> {
+  const metadata = await readPlaylistMetadata(playlistId);
+  if (!metadata) {
+    throw new Error("Playlist metadata not found");
+  }
+
+  const updated = updater(metadata);
+  const { authorId, slug } = parsePlaylistIdOrThrow(playlistId);
+  await writeJsonAtomic(getPlaylistMetadataPath(authorId, slug), updated);
+  return updated;
+}
+
+export async function togglePlaylistHeart(
+  playlistId: string,
+  userId: string
+): Promise<{ hearted: boolean; heartCount: number }> {
+  const updated = await patchPlaylistMetadataFile(playlistId, (metadata) => {
+    const hearts = metadata.hearts.filter((id) => id !== userId);
+    const wasHearted = hearts.length < metadata.hearts.length;
+    if (!wasHearted) {
+      hearts.push(userId);
+    }
+    return { ...metadata, hearts };
+  });
+
+  return {
+    hearted: updated.hearts.includes(userId),
+    heartCount: updated.hearts.length
+  };
+}
+
+export async function incrementPlaylistListenCount(playlistId: string): Promise<number> {
+  const updated = await patchPlaylistMetadataFile(playlistId, (metadata) => ({
+    ...metadata,
+    listenCount: metadata.listenCount + 1
+  }));
+  return updated.listenCount;
+}
+
+export async function updatePlaylistCover(
+  playlistId: string,
+  coverPath: string | null
+): Promise<void> {
+  await patchPlaylistMetadataFile(playlistId, (metadata) => ({
+    ...metadata,
+    cover: coverPath
+  }));
+}
+
+export function getPlaylistDirectory(playlistId: string): string {
+  const { authorId, slug } = parsePlaylistIdOrThrow(playlistId);
+  return getPlaylistDir(authorId, slug);
 }

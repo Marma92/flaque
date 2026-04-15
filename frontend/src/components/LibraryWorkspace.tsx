@@ -2,8 +2,11 @@ import { HomePanels } from "./HomePanels";
 import { LibraryAlbumsSection } from "./LibraryAlbumsSection";
 import { LibraryArtistsSection } from "./LibraryArtistsSection";
 import { LibraryPlaylistSection } from "./LibraryPlaylistSection";
+import { AutoPlaylistDetailView } from "./AutoPlaylistDetailView";
+import { ForYouPlaylistDetailView } from "./ForYouPlaylistDetailView";
+import { PlaylistDetailView } from "./PlaylistDetailView";
 import { PaginatedLibrary } from "./PaginatedLibrary";
-import type { AlbumEntry, ArtistEntry, LibraryResponse, Playlist, PlaylistVisibility, RadioTrack, Track } from "../types";
+import type { AlbumEntry, ArtistEntry, AutoPlaylistSummary, ForYouPlaylistSummary, LibraryResponse, Playlist, PlaylistVisibility, RadioTrack, Track, User } from "../types";
 import type { LibraryFilters, LibrarySection } from "../types/library";
 import { navigateTo } from "../utils/appUtils";
 import type { UploadPeriod } from "../hooks/useRecentlyUploaded";
@@ -13,10 +16,20 @@ type LibraryWorkspaceProps = {
   onSectionChange: (section: LibrarySection) => void;
   availablePlaylists: Playlist[];
   ownerNameById: Record<string, string>;
-  onCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility }) => Promise<void>;
+  user: User;
+  playlistDetailId: string | null;
+  onPlaylistDetailNavigate: (id: string | null) => void;
+  onCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility; description?: string }) => Promise<void>;
   onPlayPlaylist: (playlist: Playlist) => void;
-  onPatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[] }) => Promise<void>;
+  onPatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<Playlist>;
   onDeletePlaylist: (playlistId: string) => Promise<void>;
+  onHeartPlaylist: (playlistId: string) => Promise<{ hearted: boolean; heartCount: number }>;
+  onReportPlaylistListen: (playlistId: string) => Promise<void>;
+  autoPlaylists: AutoPlaylistSummary[];
+  loadingAutoPlaylists: boolean;
+  forYouPlaylists: ForYouPlaylistSummary[];
+  loadingForYouPlaylists: boolean;
+  onDismissForYouPlaylist: (playlistId: string) => Promise<void>;
   allTracksById: Map<string, Track>;
   libraryMetadataError: string | null;
   loadingLibraryArtists: boolean;
@@ -79,10 +92,20 @@ export function LibraryWorkspace({
   onSectionChange,
   availablePlaylists,
   ownerNameById,
+  user,
+  playlistDetailId,
+  onPlaylistDetailNavigate,
   onCreatePlaylist,
   onPlayPlaylist,
   onPatchPlaylist,
   onDeletePlaylist,
+  onHeartPlaylist,
+  onReportPlaylistListen,
+  autoPlaylists,
+  loadingAutoPlaylists,
+  forYouPlaylists,
+  loadingForYouPlaylists,
+  onDismissForYouPlaylist,
   allTracksById,
   libraryMetadataError,
   loadingLibraryArtists,
@@ -137,16 +160,58 @@ export function LibraryWorkspace({
   return (
     <div className="h-full min-h-0 space-y-4 overflow-y-auto">
       {activeLibrarySection === "playlists" ? (
-        <LibraryPlaylistSection
-          availablePlaylists={availablePlaylists}
-          manageablePlaylists={manageablePlaylists}
-          ownerNameById={ownerNameById}
-          allTracksById={allTracksById}
-          onCreatePlaylist={onCreatePlaylist}
-          onPlayPlaylist={onPlayPlaylist}
-          onPatchPlaylist={onPatchPlaylist}
-          onDeletePlaylist={onDeletePlaylist}
-        />
+        playlistDetailId && playlistDetailId.startsWith("for-you:") ? (
+          <ForYouPlaylistDetailView
+            playlistId={playlistDetailId}
+            allTracksById={allTracksById}
+            onBack={() => onPlaylistDetailNavigate(null)}
+            onPlayTrack={onPlayPlaylist}
+            onDismiss={onDismissForYouPlaylist}
+          />
+        ) : playlistDetailId && playlistDetailId.startsWith("auto:") ? (
+          <AutoPlaylistDetailView
+            playlistId={playlistDetailId}
+            allTracksById={allTracksById}
+            onBack={() => onPlaylistDetailNavigate(null)}
+            onPlayTrack={onPlayPlaylist}
+          />
+        ) : playlistDetailId ? (
+          <PlaylistDetailView
+            playlistId={playlistDetailId}
+            availablePlaylists={availablePlaylists}
+            manageablePlaylists={manageablePlaylists}
+            allTracksById={allTracksById}
+            ownerNameById={ownerNameById}
+            user={user}
+            onBack={() => onPlaylistDetailNavigate(null)}
+            onPlay={onPlayPlaylist}
+            onPatch={onPatchPlaylist}
+            onNavigate={onPlaylistDetailNavigate}
+            onDelete={onDeletePlaylist}
+            onHeart={onHeartPlaylist}
+            onReportListen={onReportPlaylistListen}
+          />
+        ) : (
+          <LibraryPlaylistSection
+            availablePlaylists={availablePlaylists}
+            manageablePlaylists={manageablePlaylists}
+            ownerNameById={ownerNameById}
+            allTracksById={allTracksById}
+            user={user}
+            onCreatePlaylist={onCreatePlaylist}
+            onPlayPlaylist={onPlayPlaylist}
+            onPatchPlaylist={onPatchPlaylist}
+            onDeletePlaylist={onDeletePlaylist}
+            onNavigateToPlaylist={onPlaylistDetailNavigate}
+            onHeartPlaylist={onHeartPlaylist}
+            onReportPlaylistListen={onReportPlaylistListen}
+            autoPlaylists={autoPlaylists}
+            loadingAutoPlaylists={loadingAutoPlaylists}
+            forYouPlaylists={forYouPlaylists}
+            loadingForYouPlaylists={loadingForYouPlaylists}
+            onDismissForYouPlaylist={onDismissForYouPlaylist}
+          />
+        )
       ) : null}
 
       {activeLibrarySection === "artists" ? (

@@ -52,6 +52,16 @@ export type Playlist = {
   authorId: string;
   visibility: PlaylistVisibility;
   trackIds: string[];
+  description: string;
+  cover: string | null;
+  hearts: string[];
+  heartCount: number;
+  listenCount: number;
+  /** 
+   * Collaborators - array of user IDs who can collaborate on this playlist
+   * Special value "everyone" indicates all authenticated users can collaborate
+   */
+  collaborators: string[];
 };
 
 export type LibraryIndex = {

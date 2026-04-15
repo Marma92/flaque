@@ -37,6 +37,7 @@ import type { Track } from "../types/library";
 import {
   hasOwnProperty,
   parseMetadataField,
+  parseMetadataGenreField,
   parseMetadataYearField,
   readDirection,
   readFilter,
@@ -121,6 +122,7 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       totalTracks: tracks.length,
       totalPlaylists: playlists.length,
       owners: listOwners(filteredTracks),
+      ownerNamesById: Object.fromEntries(ownerNamesById),
       artists: listArtists(tracks),
       albums: listAlbums(tracks),
       tracks,
@@ -208,9 +210,10 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       const hasArtist = hasOwnProperty(req.body, "artist");
       const hasAlbum = hasOwnProperty(req.body, "album");
       const hasYear = hasOwnProperty(req.body, "year");
+      const hasGenre = hasOwnProperty(req.body, "genre");
 
-      if (!hasTitle && !hasArtist && !hasAlbum && !hasYear) {
-        res.status(400).json({ error: "At least one metadata field is required: title, artist, album, year" });
+      if (!hasTitle && !hasArtist && !hasAlbum && !hasYear && !hasGenre) {
+        res.status(400).json({ error: "At least one metadata field is required: title, artist, album, year, genre" });
         return;
       }
 
@@ -224,11 +227,13 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       const parsedArtist = hasArtist ? parseMetadataField(req.body?.artist) : undefined;
       const parsedAlbum = hasAlbum ? parseMetadataField(req.body?.album) : undefined;
       const parsedYear = hasYear ? parseMetadataYearField(req.body?.year) : undefined;
+      const parsedGenre = hasGenre ? parseMetadataGenreField(req.body?.genre) : undefined;
 
       if (parsedTitle === null) { res.status(400).json({ error: "title must be a string or null" }); return; }
       if (parsedArtist === null) { res.status(400).json({ error: "artist must be a string or null" }); return; }
       if (parsedAlbum === null) { res.status(400).json({ error: "album must be a string or null" }); return; }
       if (parsedYear === null) { res.status(400).json({ error: "year must be an integer between 1000 and 2999, or null" }); return; }
+      if (parsedGenre === null) { res.status(400).json({ error: "genre must be an array of strings or null" }); return; }
 
       const currentOverrides = await readTrackMetadataOverrides();
       const currentOverride = currentOverrides[trackId] ?? {};
@@ -238,7 +243,8 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
           title: hasTitle ? parsedTitle : currentOverride.title,
           artist: hasArtist ? parsedArtist : currentOverride.artist,
           album: hasAlbum ? parsedAlbum : currentOverride.album,
-          year: hasYear ? parsedYear : currentOverride.year
+          year: hasYear ? parsedYear : currentOverride.year,
+          genre: hasGenre ? parsedGenre : currentOverride.genre
         }
       });
 
@@ -246,7 +252,7 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
         trackId,
         title: currentTrack.tags.title ?? currentTrack.path,
         userId: req.authUser?.id ?? "unknown",
-        fields: [hasTitle && "title", hasArtist && "artist", hasAlbum && "album", hasYear && "year"].filter(Boolean).join(", ")
+        fields: [hasTitle && "title", hasArtist && "artist", hasAlbum && "album", hasYear && "year", hasGenre && "genre"].filter(Boolean).join(", ")
       });
 
       await indexStore.rebuild();
@@ -258,7 +264,7 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       }
 
       const fallbackTrack = applyMetadataPatchToTrack(currentTrack, {
-        hasTitle, title: parsedTitle, hasArtist, artist: parsedArtist, hasAlbum, album: parsedAlbum, hasYear, year: parsedYear
+        hasTitle, title: parsedTitle, hasArtist, artist: parsedArtist, hasAlbum, album: parsedAlbum, hasYear, year: parsedYear, hasGenre, genre: parsedGenre
       });
       res.json({
         track: mapTrackResponse(mapTrackOwners([fallbackTrack], ownerNamesById)[0]!),
@@ -343,9 +349,10 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       const hasArtist = hasOwnProperty(req.body, "artist");
       const hasAlbum = hasOwnProperty(req.body, "album");
       const hasYear = hasOwnProperty(req.body, "year");
+      const hasGenre = hasOwnProperty(req.body, "genre");
 
-      if (!hasTitle && !hasArtist && !hasAlbum && !hasYear) {
-        res.status(400).json({ error: "At least one metadata field is required: title, artist, album, year" });
+      if (!hasTitle && !hasArtist && !hasAlbum && !hasYear && !hasGenre) {
+        res.status(400).json({ error: "At least one metadata field is required: title, artist, album, year, genre" });
         return;
       }
 
@@ -353,14 +360,16 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       const parsedArtist = hasArtist ? parseMetadataField(req.body?.artist) : undefined;
       const parsedAlbum = hasAlbum ? parseMetadataField(req.body?.album) : undefined;
       const parsedYear = hasYear ? parseMetadataYearField(req.body?.year) : undefined;
+      const parsedGenre = hasGenre ? parseMetadataGenreField(req.body?.genre) : undefined;
 
       if (parsedTitle === null) { res.status(400).json({ error: "title must be a string or null" }); return; }
       if (parsedArtist === null) { res.status(400).json({ error: "artist must be a string or null" }); return; }
       if (parsedAlbum === null) { res.status(400).json({ error: "album must be a string or null" }); return; }
       if (parsedYear === null) { res.status(400).json({ error: "year must be an integer between 1000 and 2999, or null" }); return; }
+      if (parsedGenre === null) { res.status(400).json({ error: "genre must be an array of strings or null" }); return; }
 
       const currentOverrides = await readTrackMetadataOverrides();
-      const overridePatch: Record<string, { title?: string; artist?: string; album?: string; year?: number }> = {};
+      const overridePatch: Record<string, { title?: string; artist?: string; album?: string; year?: number; genre?: string[] }> = {};
       const updated: string[] = [];
       const notFound: string[] = [];
 
@@ -376,7 +385,8 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
           title: hasTitle ? parsedTitle : current.title,
           artist: hasArtist ? parsedArtist : current.artist,
           album: hasAlbum ? parsedAlbum : current.album,
-          year: hasYear ? parsedYear : current.year
+          year: hasYear ? parsedYear : current.year,
+          genre: hasGenre ? parsedGenre : current.genre
         };
         updated.push(trackId);
       }
@@ -389,7 +399,7 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
         userId: req.authUser?.id ?? "unknown",
         updatedCount: updated.length,
         notFoundCount: notFound.length,
-        fields: [hasTitle && "title", hasArtist && "artist", hasAlbum && "album", hasYear && "year"].filter(Boolean).join(", ")
+        fields: [hasTitle && "title", hasArtist && "artist", hasAlbum && "album", hasYear && "year", hasGenre && "genre"].filter(Boolean).join(", ")
       });
 
       await indexStore.rebuild();

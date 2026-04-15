@@ -5,7 +5,7 @@ import { AppShell } from "./components/AppShell";
 import type { ConfigSection } from "./components/ConfigView";
 import type { Track, User } from "./types";
 import type { LibrarySection } from "./types/library";
-import type { ViewName } from "./utils/appUtils";
+import { navigateTo, type ViewName } from "./utils/appUtils";
 import { useAccountActions } from "./hooks/useAccountActions";
 import { useAdminBackup } from "./hooks/useAdminBackup";
 import { useAdminCommands } from "./hooks/useAdminCommands";
@@ -19,6 +19,8 @@ import { useLibraryData } from "./hooks/useLibraryData";
 import { usePlaybackCommands } from "./hooks/usePlaybackCommands";
 import { usePlaybackState } from "./hooks/usePlaybackState";
 import { useRecentlyUploaded } from "./hooks/useRecentlyUploaded";
+import { useAutoPlaylists } from "./hooks/useAutoPlaylists";
+import { useForYouPlaylists } from "./hooks/useForYouPlaylists";
 import { useRadioStation } from "./hooks/useRadioStation";
 
 type AuthenticatedAppProps = {
@@ -30,6 +32,8 @@ type AuthenticatedAppProps = {
   setActiveLibrarySection: Dispatch<SetStateAction<LibrarySection>>;
   activeConfigSection: ConfigSection;
   setActiveConfigSection: Dispatch<SetStateAction<ConfigSection>>;
+  playlistDetailId: string | null;
+  setPlaylistDetailId: Dispatch<SetStateAction<string | null>>;
   notifyAuthStateChanged: (kind: "login" | "logout" | "session-change") => void;
 };
 
@@ -42,6 +46,8 @@ export function AuthenticatedApp({
   setActiveLibrarySection,
   activeConfigSection,
   setActiveConfigSection,
+  playlistDetailId,
+  setPlaylistDetailId,
   notifyAuthStateChanged
 }: AuthenticatedAppProps): JSX.Element {
   // ── UI state ──────────────────────────────────────────────────────────
@@ -87,6 +93,9 @@ export function AuthenticatedApp({
     sentinelRef: paginatedSentinelRef,
     refresh: refreshPaginatedLibrary
   } = useInfiniteLibrary({ user, filters, pageSize: 30 });
+
+  const { autoPlaylists, loading: loadingAutoPlaylists, refresh: refreshAutoPlaylists } = useAutoPlaylists();
+  const { forYouPlaylists, loading: loadingForYouPlaylists, dismiss: dismissForYouPlaylist } = useForYouPlaylists();
 
   const allTracksById = useMemo(
     () => new Map(allTracksLibrary.tracks.map((track) => [track.id, track])),
@@ -173,19 +182,27 @@ export function AuthenticatedApp({
     if (!user) {
       return [];
     }
-    return availablePlaylists.filter((pl) => pl.authorId === user.id || user.role === "admin");
+    return availablePlaylists.filter(
+      (pl) =>
+        pl.authorId === user.id ||
+        (pl.collaborators ?? []).includes(user.id) ||
+        (pl.collaborators ?? []).includes("everyone")
+    );
   }, [availablePlaylists, user]);
 
   const ownerNameById = useMemo<Record<string, string>>(() => {
-    const entries: Array<[string, string]> = [];
+    const map: Record<string, string> = {};
+    if (library.ownerNamesById) {
+      Object.assign(map, library.ownerNamesById);
+    }
     if (user) {
-      entries.push([user.id, user.username]);
+      map[user.id] = user.username;
     }
     for (const adminUser of adminUsers) {
-      entries.push([adminUser.id, adminUser.username]);
+      map[adminUser.id] = adminUser.username;
     }
-    return Object.fromEntries(entries);
-  }, [user, adminUsers]);
+    return map;
+  }, [user, adminUsers, library.ownerNamesById]);
 
   const avatarUrl = useMemo(
     () => myProfilePhotoUrl({ version: avatarVersion, userId: user?.id }),
@@ -198,7 +215,8 @@ export function AuthenticatedApp({
     handleDeleteTrack, handleUpdateTrackMetadata,
     handleBulkDeleteTracks, handleBulkUpdateTrackMetadata,
     handleCreatePlaylist, handleAddTrackToPlaylist,
-    handlePatchPlaylist, handleDeletePlaylist
+    handlePatchPlaylist, handleDeletePlaylist,
+    handleHeartPlaylist, handleReportPlaylistListen
   } = useLibraryCommands({
     manageablePlaylists, refreshCurrentLibrary, refreshAllTracks,
     refreshRecentlyUploaded, refreshPaginatedLibrary,
@@ -246,6 +264,10 @@ export function AuthenticatedApp({
       return;
     }
     setActiveView(nextView);
+    setPlaylistDetailId(null);
+    clearSelectedArtist();
+    clearSelectedArtistAlbum();
+    clearSelectedAlbum();
   }
 
   function handleCollapsePlayer(): void {
@@ -283,13 +305,32 @@ export function AuthenticatedApp({
       loadingLibrary={loadingLibrary}
       libraryWorkspaceProps={{
         activeLibrarySection,
-        onSectionChange: setActiveLibrarySection,
+        onSectionChange: (section: LibrarySection) => {
+          setActiveLibrarySection(section);
+          setPlaylistDetailId(null);
+          clearSelectedArtist();
+          clearSelectedArtistAlbum();
+          clearSelectedAlbum();
+        },
         availablePlaylists,
         ownerNameById,
+        user,
+        playlistDetailId,
+        onPlaylistDetailNavigate: (id: string | null) => {
+          setPlaylistDetailId(id);
+          navigateTo("library", "playlists", id);
+        },
         onCreatePlaylist: handleCreatePlaylist,
         onPlayPlaylist: handlePlayPlaylist,
         onPatchPlaylist: handlePatchPlaylist,
         onDeletePlaylist: handleDeletePlaylist,
+        onHeartPlaylist: handleHeartPlaylist,
+        onReportPlaylistListen: handleReportPlaylistListen,
+        autoPlaylists,
+        loadingAutoPlaylists,
+        forYouPlaylists,
+        loadingForYouPlaylists,
+        onDismissForYouPlaylist: dismissForYouPlaylist,
         allTracksById,
         libraryMetadataError,
         loadingLibraryArtists,
@@ -419,6 +460,7 @@ export function AuthenticatedApp({
       accountViewProps={{
         user,
         avatarUrl,
+        allTracksById,
         onUpdatePhoto: handleUpdateProfilePhoto,
         onUpdateEmail: handleUpdateEmail,
         onChangePassword: handleUpdateOwnPassword,
