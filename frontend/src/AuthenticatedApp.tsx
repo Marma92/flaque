@@ -301,7 +301,10 @@ export function AuthenticatedApp({
       loadingLibrary={loadingLibrary}
       libraryWorkspaceProps={{
         activeLibrarySection,
-        onSectionChange: setActiveLibrarySection,
+        onSectionChange: (section: LibrarySection) => {
+          setActiveLibrarySection(section);
+          setPlaylistDetailId(null);
+        },
         availablePlaylists,
         ownerNameById,
         user,
