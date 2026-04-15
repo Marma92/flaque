@@ -689,9 +689,9 @@ export function PlaylistDetailView({
 
           {/* Info */}
           <div className="flex min-w-0 flex-1 flex-col">
-            <div className="flex items-start gap-2">
+            <div className="flex items-center gap-2">
               <h2 className="font-display text-2xl text-flaque-ink">{playlist.name}</h2>
-              <span className={`mt-1 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
                 playlist.visibility === "public"
                   ? "bg-green-100 text-green-700"
                   : "bg-flaque-clay/30 text-flaque-steel"
