@@ -294,20 +294,19 @@ describe("PlaylistDetailView", () => {
     });
   });
 
-  // ── Edit modal ───────────────────────────────────────────────
+  // ── Inline editing ───────────────────────────────────────────
 
-  it("opens edit modal and saves changes", async () => {
+  it("enters inline edit mode and saves changes", async () => {
     const onPatch = vi.fn().mockResolvedValue(undefined);
     render(<PlaylistDetailView {...defaultProps} onPatch={onPatch} />);
 
     fireEvent.click(screen.getByText("Edit"));
-    expect(screen.getByText("Edit playlist")).toBeTruthy();
 
-    // Change name
+    // Title becomes an input
     const nameInput = screen.getByDisplayValue("My Playlist") as HTMLInputElement;
     fireEvent.change(nameInput, { target: { value: "Renamed" } });
 
-    // Change description
+    // Description becomes a textarea
     const descTextarea = screen.getByDisplayValue("A test playlist") as HTMLTextAreaElement;
     fireEvent.change(descTextarea, { target: { value: "New desc" } });
 
@@ -325,7 +324,7 @@ describe("PlaylistDetailView", () => {
     });
   });
 
-  it("edit modal shows visibility selector", async () => {
+  it("inline edit shows visibility selector", async () => {
     render(<PlaylistDetailView {...defaultProps} />);
 
     fireEvent.click(screen.getByText("Edit"));
@@ -337,21 +336,17 @@ describe("PlaylistDetailView", () => {
     expect(visibilitySelect).toBeTruthy();
   });
 
-  it("edit modal shows track list with drag handles", () => {
+  it("inline edit shows track list with drag handles", () => {
     render(<PlaylistDetailView {...defaultProps} />);
 
     fireEvent.click(screen.getByText("Edit"));
 
-    // Should show track names in the modal
-    const songOnes = screen.getAllByText("Song One");
-    expect(songOnes.length).toBeGreaterThanOrEqual(2); // one in list, one in modal
-
-    // Drag handles
+    // Drag handles appear in edit mode
     const dragHandles = screen.getAllByLabelText("Drag to reorder");
     expect(dragHandles.length).toBe(2);
   });
 
-  it("edit modal allows removing tracks", async () => {
+  it("inline edit allows removing tracks", async () => {
     const onPatch = vi.fn().mockResolvedValue(undefined);
     render(<PlaylistDetailView {...defaultProps} onPatch={onPatch} />);
 
@@ -374,15 +369,19 @@ describe("PlaylistDetailView", () => {
     });
   });
 
-  it("edit modal cancel closes without saving", () => {
+  it("inline edit cancel exits without saving", () => {
     const onPatch = vi.fn();
     render(<PlaylistDetailView {...defaultProps} onPatch={onPatch} />);
 
     fireEvent.click(screen.getByText("Edit"));
-    expect(screen.getByText("Edit playlist")).toBeTruthy();
+    // Save and Cancel buttons should be visible
+    expect(screen.getByText("Save")).toBeTruthy();
+    expect(screen.getByText("Cancel")).toBeTruthy();
 
     fireEvent.click(screen.getByText("Cancel"));
-    expect(screen.queryByText("Edit playlist")).toBeNull();
+    // Edit button reappears, Save/Cancel disappear
+    expect(screen.getByText("Edit")).toBeTruthy();
+    expect(screen.queryByText("Save")).toBeNull();
     expect(onPatch).not.toHaveBeenCalled();
   });
 
