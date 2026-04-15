@@ -15,7 +15,7 @@ RUN npm run build --workspace frontend
 
 FROM nginx:1.27-alpine AS runtime
 
-COPY frontend/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY frontend/nginx/default.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/frontend/dist /usr/share/nginx/html
 
 EXPOSE 80

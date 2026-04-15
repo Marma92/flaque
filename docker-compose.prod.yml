@@ -1,5 +1,6 @@
 services:
   backend:
+    image: que20/flaque-backend:latest
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -11,7 +12,7 @@ services:
       NODE_ENV: production
       DATA_ROOT: /app/data
     ports:
-      - "${FLAQUE_BACKEND_PORT:-4000}:4000"
+      - "${FLAQUE_BACKEND_PORT:-4000}:${BACKEND_PORT:-4000}"
     volumes:
       - type: bind
         source: ${FLAQUE_STORAGE_DIR}
@@ -33,6 +34,7 @@ services:
         target: /app/data/backups
 
   frontend:
+    image: que20/flaque-frontend:latest
     build:
       context: .
       dockerfile: frontend/Dockerfile
@@ -40,6 +42,9 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    environment:
+      BACKEND_HOST: ${BACKEND_HOST:-backend}
+      BACKEND_PORT: ${BACKEND_PORT:-4000}
     ports:
       - "${FLAQUE_FRONTEND_PORT:-8080}:80"
 

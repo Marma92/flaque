@@ -56,7 +56,7 @@ test("rejects invalid reset token in browser", async ({ page }) => {
 });
 
 test("rejects expired reset token in browser", async ({ page }) => {
-  const expiredToken = insertResetToken("admin@example.com", -1_000);
+  const expiredToken = insertResetToken("admin@localhost", -1_000);
 
   await page.goto(`/?resetToken=${encodeURIComponent(expiredToken)}`);
 
@@ -71,7 +71,7 @@ test("login and forgot-password flow works in browser", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Flaque login" })).toBeVisible();
 
   await page.getByLabel("Username or email").fill("admin");
-  await page.getByLabel("Password", { exact: true }).fill("admin-secret-123");
+  await page.getByLabel("Password", { exact: true }).fill("admin");
   await page.getByRole("button", { name: "Login" }).click();
 
   await expect(page.getByRole("button", { name: "Account" })).toBeVisible();
@@ -80,8 +80,8 @@ test("login and forgot-password flow works in browser", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "Flaque login" })).toBeVisible();
 
-  await page.getByLabel("Username or email").fill("admin@example.com");
-  await page.getByLabel("Password", { exact: true }).fill("admin-secret-123");
+  await page.getByLabel("Username or email").fill("admin@localhost");
+  await page.getByLabel("Password", { exact: true }).fill("admin");
   await page.getByRole("button", { name: "Login" }).click();
 
   await expect(page.getByRole("button", { name: "Account" })).toBeVisible();
@@ -93,22 +93,22 @@ test("login and forgot-password flow works in browser", async ({ page }) => {
   const countBeforeForgot = readPasswordResetTokenCount();
 
   await page.getByRole("button", { name: "Forgot password?" }).click();
-  await page.getByLabel("Username or email").fill("admin@example.com");
+  await page.getByLabel("Username or email").fill("admin@localhost");
   await page.getByRole("button", { name: "Send recovery email" }).click();
 
   await expect(page.getByText("If this account exists, a recovery email has been sent.")).toBeVisible();
   await expect.poll(readPasswordResetTokenCount).toBeGreaterThan(countBeforeForgot);
 
   const newPassword = "admin-reset-e2e-456";
-  const resetToken = insertResetToken("admin@example.com");
+  const resetToken = insertResetToken("admin@localhost");
   await page.goto(`/?resetToken=${encodeURIComponent(resetToken)}`);
 
   await submitResetPasswordForm(page, newPassword);
 
   await expect(page.getByText("Password reset successful. You can now log in.")).toBeVisible();
 
-  await page.getByLabel("Username or email").fill("admin@example.com");
-  await page.getByLabel("Password", { exact: true }).fill("admin-secret-123");
+  await page.getByLabel("Username or email").fill("admin@localhost");
+  await page.getByLabel("Password", { exact: true }).fill("admin");
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page.getByText("Invalid credentials")).toBeVisible();
 

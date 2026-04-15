@@ -36,18 +36,20 @@ export async function setupTestServer(options: BootstrapOptions): Promise<void> 
 
   const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), options.tempDirPrefix));
   process.env.DATA_ROOT = dataRoot;
-  process.env.ADMIN_USERNAME = "admin";
-  process.env.ADMIN_PASSWORD = "admin-secret-123";
-  process.env.ADMIN_EMAIL = "admin@test.local";
   process.env.CORS_ORIGIN = "http://localhost:5173";
 
   const { ensureBaseDirectories } = await import("../utils/fs");
-  const { initializeAuthDatabase, ensureDefaultAdmin } = await import("../auth/db");
+  const { initializeAuthDatabase, ensureDefaultAdmin, findUserByUsername, updateUserEmail, updateUserPassword } = await import("../auth/db");
   const { createApp } = await import("../app");
 
   await ensureBaseDirectories();
   initializeAuthDatabase();
   ensureDefaultAdmin();
+  const adminUser = findUserByUsername("admin");
+  if (adminUser) {
+    updateUserEmail(adminUser.id, "admin@test.local");
+    updateUserPassword(adminUser.id, "admin-secret-123");
+  }
 
   if (options.beforeInit) {
     await options.beforeInit();
