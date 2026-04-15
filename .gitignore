@@ -19,6 +19,7 @@ data/cache/transcodes/*
 data/cache/tmp-uploads/*
 !data/cache/tmp-uploads/.gitkeep
 data/index/*
+data/state/*
 !data/index/.gitkeep
 data/**/*.json
 data/storage/music/**

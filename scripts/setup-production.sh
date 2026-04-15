@@ -622,7 +622,8 @@ UPDATE_SECRET="$(head -c 32 /dev/urandom | xxd -p -c 64 2>/dev/null || openssl r
 
 umask 077
 cat > "${ENV_FILE}" <<EOF
-PORT=4000
+BACKEND_PORT=${BACKEND_PORT}
+BACKEND_HOST=backend
 CORS_ORIGIN=${CORS_ORIGIN}
 ADMIN_USERNAME=${ADMIN_USERNAME}
 ADMIN_EMAIL=${ADMIN_EMAIL}

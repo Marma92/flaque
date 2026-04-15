@@ -69,7 +69,7 @@ async function bootstrap(): Promise<void> {
 
   const app = createApp(indexStore);
   const server = createServer(app);
-  const port = Number(process.env.PORT ?? 4000);
+  const port = Number(process.env.BACKEND_PORT ?? process.env.PORT ?? 4000);
 
   server.requestTimeout = readNonNegativeIntEnv("HTTP_REQUEST_TIMEOUT_MS", 0);
   server.timeout = readNonNegativeIntEnv("HTTP_SOCKET_TIMEOUT_MS", 0);

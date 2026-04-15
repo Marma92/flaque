@@ -88,14 +88,13 @@ sudo apt-get install -y ffmpeg
 
 ```bash
 npm install
-cp backend/.env.example backend/.env
+cp .env.example backend/.env
 ```
 
-Set at least the following values in `backend/.env`:
+At first backend startup, if no user exists yet, a default admin account is created automatically with:
 
-- `ADMIN_USERNAME`
-- `ADMIN_EMAIL`
-- `ADMIN_PASSWORD`
+- username: `admin`
+- password: `admin`
 
 To enable password recovery emails, also configure SMTP:
 
