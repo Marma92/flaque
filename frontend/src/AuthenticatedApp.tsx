@@ -185,7 +185,6 @@ export function AuthenticatedApp({
     return availablePlaylists.filter(
       (pl) =>
         pl.authorId === user.id ||
-        user.role === "admin" ||
         (pl.collaborators ?? []).includes(user.id) ||
         (pl.collaborators ?? []).includes("everyone")
     );
