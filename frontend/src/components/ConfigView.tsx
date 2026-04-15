@@ -27,7 +27,7 @@ export type ConfigViewProps = {
   onSectionChange: (section: ConfigSection) => void;
 };
 
-export type ConfigSection = "index" | "files" | "users" | "server" | "backup";
+export type ConfigSection = "index" | "files" | "users" | "server" | "backup" | "library";
 
 function normalizeSearch(value: string): string {
   return value.trim().toLowerCase();

@@ -55,6 +55,7 @@ describe("AccountView", () => {
       <AccountView
         user={createUser()}
         avatarUrl="/api/users/me/photo"
+        allTracksById={new Map()}
         onUpdatePhoto={vi.fn().mockResolvedValue(undefined)}
         onUpdateEmail={vi.fn().mockResolvedValue(undefined)}
         onChangePassword={vi.fn().mockResolvedValue(undefined)}
@@ -93,6 +94,7 @@ describe("AccountView", () => {
       <AccountView
         user={createUser()}
         avatarUrl="/api/users/me/photo"
+        allTracksById={new Map()}
         onUpdatePhoto={vi.fn().mockResolvedValue(undefined)}
         onUpdateEmail={vi.fn().mockResolvedValue(undefined)}
         onChangePassword={vi.fn().mockResolvedValue(undefined)}
@@ -127,6 +129,7 @@ describe("AccountView", () => {
       <AccountView
         user={createUser()}
         avatarUrl="/api/users/me/photo"
+        allTracksById={new Map()}
         onUpdatePhoto={vi.fn().mockResolvedValue(undefined)}
         onUpdateEmail={vi.fn().mockResolvedValue(undefined)}
         onChangePassword={vi.fn().mockResolvedValue(undefined)}

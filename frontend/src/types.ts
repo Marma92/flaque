@@ -107,6 +107,7 @@ export type LibraryResponse = {
   totalTracks: number;
   totalPlaylists?: number;
   owners: string[];
+  ownerNamesById?: Record<string, string>;
   artists: ArtistEntry[];
   albums: AlbumEntry[];
   tracks: Track[];
@@ -158,4 +159,29 @@ export type RadioQueueResponse = {
     id: string;
     trackList: RadioTrack[];
   } | null;
+};
+
+export type AutoPlaylistSummary = {
+  id: string;
+  name: string;
+  genre: string;
+  decade: number;
+  trackCount: number;
+  generatedAt: string;
+};
+
+export type AutoPlaylistDetail = AutoPlaylistSummary & {
+  trackIds: string[];
+};
+
+export type ForYouPlaylistSummary = {
+  id: string;
+  name: string;
+  seedArtist: string;
+  trackCount: number;
+  generatedAt: string;
+};
+
+export type ForYouPlaylistDetail = ForYouPlaylistSummary & {
+  trackIds: string[];
 };
