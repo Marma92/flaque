@@ -671,7 +671,7 @@ export function PlaylistDetailView({
                onClick={handlePlayAll}
                aria-label={`Play ${playlist.name}`}
              >
-               <svg className="h-10 w-10 text-[#ffffff] drop-shadow-md" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+               <svg className="h-10 w-10 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
                  <path d="M8 6v12l10-6-10-6z" />
                </svg>
              </button>
