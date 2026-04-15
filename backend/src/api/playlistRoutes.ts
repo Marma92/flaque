@@ -19,6 +19,7 @@ const coverUpload = multer({
   limits: { fileSize: COVER_MAX_BYTES, files: 1 }
 });
 import {
+  canEditPlaylist,
   canManagePlaylist,
   canViewPlaylist,
   createFilesystemPlaylist,
@@ -236,7 +237,7 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         return;
       }
 
-      if (!canManagePlaylist(existing, authUser)) {
+      if (!canEditPlaylist(existing, authUser)) {
         res.status(403).json({ error: "Not allowed to modify this playlist" });
         return;
       }
@@ -317,7 +318,7 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         return;
       }
 
-      if (!canManagePlaylist(existing, authUser)) {
+      if (!canEditPlaylist(existing, authUser)) {
         res.status(403).json({ error: "Not allowed to modify this playlist" });
         return;
       }
@@ -537,7 +538,7 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
           return;
         }
 
-        if (!canManagePlaylist(playlist, authUser)) {
+        if (!canEditPlaylist(playlist, authUser)) {
           res.status(403).json({ error: "Not allowed to modify this playlist" });
           return;
         }
@@ -628,7 +629,7 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         return;
       }
 
-      if (!canManagePlaylist(playlist, authUser)) {
+      if (!canEditPlaylist(playlist, authUser)) {
         res.status(403).json({ error: "Not allowed to modify this playlist" });
         return;
       }
