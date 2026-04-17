@@ -102,22 +102,32 @@ export function LibraryAlbumsSection({
       )}
 
     <section className="border border-flaque-clay/60 rounded-xl m-4 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      {!isListModeTracklistVisible ? (
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="font-display text-xl text-flaque-ink">Albums</h2>
-          </div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        {isListModeTracklistVisible ? (
+          <button
+            className="inline-flex items-center rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-2.5 py-1 text-xs font-medium text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
+            type="button"
+            onClick={onBack}
+            aria-label="Back"
+          >
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+        ) : (
+          <h2 className="font-display text-xl text-flaque-ink">Albums</h2>
+        )}
 
-          <div className="flex items-center gap-3">
-            {!selectedAlbum && (
-              <input
-                className="rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-3 py-1.5 text-sm text-flaque-ink placeholder:text-flaque-steel/60 focus:border-flaque-ink/40 focus:outline-none"
-                type="text"
-                placeholder="Search albums..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            )}
+        <div className="flex items-center gap-3">
+          {!selectedAlbum && (
+            <input
+              className="rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-3 py-1.5 text-sm text-flaque-ink placeholder:text-flaque-steel/60 focus:border-flaque-ink/40 focus:outline-none"
+              type="text"
+              placeholder="Search albums..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          )}
           <div className="inline-flex rounded-xl border border-flaque-clay/70 bg-flaque-cream/50 p-1">
             <button
               className={`rounded-lg px-3 py-1.5 text-sm transition ${
@@ -138,20 +148,8 @@ export function LibraryAlbumsSection({
               Coverflow
             </button>
           </div>
-          </div>
         </div>
-      ) : (
-        <button
-          className="mb-3 inline-flex items-center rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-2.5 py-1 text-xs font-medium text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
-          type="button"
-          onClick={onBack}
-          aria-label="Back"
-        >
-          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
-          </svg>
-        </button>
-      )}
+      </div>
 
       {libraryMetadataError ? (
         <p className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{libraryMetadataError}</p>
