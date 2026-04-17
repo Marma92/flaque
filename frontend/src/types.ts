@@ -168,6 +168,7 @@ export type AutoPlaylistSummary = {
   decade: number;
   trackCount: number;
   generatedAt: string;
+  colors?: [string, string, string];
 };
 
 export type AutoPlaylistDetail = AutoPlaylistSummary & {

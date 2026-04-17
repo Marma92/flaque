@@ -51,7 +51,8 @@ export function createAutoPlaylistRouter(indexStore: IndexStore): Router {
           genre: p.genre,
           decade: p.decade,
           trackCount: p.trackCount,
-          generatedAt: p.generatedAt
+          generatedAt: p.generatedAt,
+          colors: p.colors
         }))
       });
     } catch (error) {
