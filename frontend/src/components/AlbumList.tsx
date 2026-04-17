@@ -23,17 +23,17 @@ export function AlbumList({ albums, selectedAlbum, onAlbumSelect, onPlayAlbum, g
         return (
           <div
             key={albumKey}
-            className={`rounded-xl border p-2 text-left transition cursor-pointer ${
+            className={`rounded-xl p-2 text-left transition cursor-pointer ${
               isSelected
-                ? "border-flaque-ink bg-flaque-sand/25"
-                : "border-flaque-clay/60 bg-flaque-cream/45 hover:bg-flaque-cream"
+                ? "bg-flaque-sand/25"
+                : "hover:bg-flaque-cream/60"
             }`}
             onClick={() => onAlbumSelect(album)}
             title={album.artist ? `${album.artist} - ${album.name}${album.year ? ` (${album.year})` : ""}` : `${album.name}${album.year ? ` (${album.year})` : ""}`}
           >
             <div className="group relative">
               <img
-                className="aspect-square w-full border border-flaque-clay/50 object-cover"
+                className="aspect-square w-full object-cover"
                 src={getAlbumCoverSrc(album)}
                 alt={album.artist ? `Cover for ${album.artist} - ${album.name}${album.year ? ` (${album.year})` : ""}` : `Cover for ${album.name}${album.year ? ` (${album.year})` : ""}`}
                 onError={(event) => {
