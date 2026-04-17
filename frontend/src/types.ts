@@ -169,6 +169,7 @@ export type AutoPlaylistSummary = {
   trackCount: number;
   generatedAt: string;
   colors?: [string, string, string];
+  gradientAngle?: number;
 };
 
 export type AutoPlaylistDetail = AutoPlaylistSummary & {

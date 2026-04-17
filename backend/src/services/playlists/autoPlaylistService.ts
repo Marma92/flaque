@@ -26,6 +26,7 @@ export type AutoPlaylist = {
   trackCount: number;
   generatedAt: string;
   colors: [string, string, string];
+  gradientAngle: number;
 };
 
 export type AutoPlaylistConfig = {
@@ -192,7 +193,8 @@ export async function generateAutoPlaylists(tracks: Track[]): Promise<AutoPlayli
       trackIds: selectedTracks.map((t) => t.id),
       trackCount: selectedTracks.length,
       generatedAt,
-      colors: randomGradientColors()
+      colors: randomGradientColors(),
+      gradientAngle: Math.floor(Math.random() * 360)
     });
   }
 
@@ -235,9 +237,8 @@ export async function loadAutoPlaylists(): Promise<AutoPlaylist[]> {
       null as unknown as AutoPlaylist
     );
     if (data && data.id && data.trackIds) {
-      if (!data.colors) {
-        data.colors = randomGradientColors();
-      }
+      if (!data.colors) data.colors = randomGradientColors();
+      if (data.gradientAngle === undefined) data.gradientAngle = Math.floor(Math.random() * 360);
       playlists.push(data);
     }
   }

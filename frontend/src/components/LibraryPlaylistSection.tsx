@@ -418,7 +418,8 @@ export function LibraryPlaylistSection({
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {autoPlaylists.map((ap) => {
               const [c1, c2, c3] = ap.colors ?? ["hsl(220, 60%, 50%)", "hsl(260, 60%, 50%)", "hsl(340, 60%, 50%)"];
-              const gradientStyle = { background: `linear-gradient(135deg, ${c1}, ${c2}, ${c3})` };
+              const angle = ap.gradientAngle ?? 135;
+              const gradientStyle = { background: `linear-gradient(${angle}deg, ${c1}, ${c2}, ${c3})` };
               return (
                 <div
                   key={ap.id}
