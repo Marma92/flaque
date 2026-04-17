@@ -76,11 +76,44 @@ export function LibraryArtistsSection({
     ? artists.filter((artist) => artist.name.toLowerCase().includes(normalizedQuery))
     : artists;
 
+  const artistPhotoSrc = selectedArtist
+    ? (selectedArtist.photo
+        ? coverPathUrl(selectedArtist.photo)
+        : selectedArtist.previewTrackId
+          ? coverUrl(selectedArtist.previewTrackId)
+          : defaultCoverImage)
+    : defaultCoverImage;
+
   return (
+    <>
+      {/* Artist header — transparent, above the main section */}
+      {isArtistSelected && !isTracklistVisible && (
+        <div className="mx-4 mt-4 px-4 py-6">
+          <div className="flex items-center gap-6">
+            <img
+              className="h-36 w-36 shrink-0 rounded-full border-2 border-flaque-clay/50 object-cover shadow-md"
+              src={artistPhotoSrc}
+              alt={selectedArtist.name}
+              onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
+            />
+            <div className="min-w-0">
+              <h3 className="truncate font-display text-4xl font-bold text-flaque-ink">{selectedArtist.name}</h3>
+              <p className="mt-1 text-sm text-flaque-steel">
+                {selectedArtist.albumCount} album{selectedArtist.albumCount !== 1 ? "s" : ""}
+                {" · "}
+                {selectedArtist.trackCount} track{selectedArtist.trackCount !== 1 ? "s" : ""}
+                {" · "}
+                {formatDurationHuman(selectedArtist.totalDuration)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
     <section className="border m-4 rounded-xl border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <h2 className="font-display text-xl text-flaque-ink">Artists</h2>
-        {!isArtistSelected && (
+      {!isArtistSelected && (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h2 className="font-display text-xl text-flaque-ink">Artists</h2>
           <input
             className="rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-3 py-1.5 text-sm text-flaque-ink placeholder:text-flaque-steel/60 focus:border-flaque-ink/40 focus:outline-none"
             type="text"
@@ -88,24 +121,19 @@ export function LibraryArtistsSection({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-        )}
-      </div>
+        </div>
+      )}
       {isArtistSelected ? (
-        <>
-          <button
-            className="mt-2 inline-flex items-center rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-2.5 py-1 text-xs font-medium text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
-            type="button"
-            onClick={onArtistBack}
-            aria-label="Back"
-          >
-            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <p className="mt-2 text-sm text-flaque-steel" title={selectedArtist.name}>
-            Albums for <span className="font-medium text-flaque-ink">{selectedArtist.name}</span>
-          </p>
-        </>
+        <button
+          className={`inline-flex items-center rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-2.5 py-1 text-xs font-medium text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink${isTracklistVisible ? " mb-3" : ""}`}
+          type="button"
+          onClick={isTracklistVisible ? onArtistAlbumBack : onArtistBack}
+          aria-label="Back"
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+          </svg>
+        </button>
       ) : (
         <p className="mt-1 text-sm text-flaque-steel"></p>
       )}
@@ -121,16 +149,6 @@ export function LibraryArtistsSection({
       ) : isArtistSelected && isTracklistVisible ? (
         <div className="mt-4 overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/75">
           <div className="border-b border-flaque-clay/55 px-4 py-3">
-            <button
-              className="mb-2 inline-flex items-center rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-2.5 py-1 text-xs font-medium text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
-              type="button"
-              onClick={onArtistAlbumBack}
-            aria-label="Back"
-            >
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
-              </svg>
-            </button>
             <p className="text-xs uppercase tracking-[0.14em] text-flaque-steel">Album tracks</p>
             <p
               className="truncate text-sm text-flaque-ink"
@@ -239,5 +257,6 @@ export function LibraryArtistsSection({
         </div>
       )}
     </section>
+    </>
   );
 }

@@ -33,7 +33,7 @@ export function AlbumList({ albums, selectedAlbum, onAlbumSelect, onPlayAlbum, g
           >
             <div className="group relative">
               <img
-                className="aspect-square w-full rounded-lg border border-flaque-clay/50 object-cover"
+                className="aspect-square w-full border border-flaque-clay/50 object-cover"
                 src={getAlbumCoverSrc(album)}
                 alt={album.artist ? `Cover for ${album.artist} - ${album.name}${album.year ? ` (${album.year})` : ""}` : `Cover for ${album.name}${album.year ? ` (${album.year})` : ""}`}
                 onError={(event) => {
@@ -42,7 +42,7 @@ export function AlbumList({ albums, selectedAlbum, onAlbumSelect, onPlayAlbum, g
               />
               {onPlayAlbum ? (
                 <button
-                  className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
+                  className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
                   type="button"
                   aria-label={`Play ${album.name}${album.year ? ` (${album.year})` : ""}`}
                   onClick={(event) => {

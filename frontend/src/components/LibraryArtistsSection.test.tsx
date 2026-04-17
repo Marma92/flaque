@@ -105,7 +105,7 @@ describe("LibraryArtistsSection", () => {
       artistAlbums: [createAlbum({ name: "Geogaddi", artist: "Boards of Canada", trackCount: 2 })]
     });
 
-    expect(screen.getByText(/Albums for/i)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Boards of Canada", level: 3 })).toBeTruthy();
     expect(screen.getByText("Geogaddi")).toBeTruthy();
   });
 
