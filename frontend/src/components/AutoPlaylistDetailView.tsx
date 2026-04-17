@@ -127,6 +127,9 @@ export function AutoPlaylistDetailView({
   }
 
   const decadeLabel = detail.decade % 100 === 0 ? `${detail.decade}` : `${detail.decade % 100}s`;
+  const [c1, c2, c3] = detail.colors ?? ["hsl(220, 60%, 50%)", "hsl(260, 60%, 50%)", "hsl(340, 60%, 50%)"];
+  const angle = detail.gradientAngle ?? 135;
+  const gradientStyle = { background: `linear-gradient(${angle}deg, ${c1}, ${c2}, ${c3})` };
 
   return (
     <section className="m-4 space-y-4">
@@ -144,14 +147,14 @@ export function AutoPlaylistDetailView({
 
       {/* Header card */}
       <div className="rounded-2xl border border-flaque-clay/60 bg-gradient-to-br from-white/85 to-flaque-cream/40 p-5 shadow-panel backdrop-blur-sm">
-        <div className="flex flex-col gap-5 sm:flex-row">
+        <div className="group flex flex-col gap-5 sm:flex-row">
            {/* Genre/decade visual */}
-           <div className="relative h-48 w-48 shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-flaque-sand/50 to-flaque-clay/30 sm:self-start">
-             <div className="text-center">
-               <p className="font-display text-5xl font-bold text-flaque-ink/60">{decadeLabel}</p>
-               <p className="mt-1 text-sm font-medium text-flaque-steel">{detail.genre}</p>
+           <div className="relative h-48 w-48 shrink-0 self-center overflow-hidden rounded-2xl sm:self-start" style={gradientStyle}>
+             <div className="flex h-full w-full flex-col items-center justify-center">
+               <p className="font-display text-6xl font-extrabold text-white drop-shadow-md">{decadeLabel}</p>
+               <p className="mt-1 text-sm font-medium text-white/80">{detail.genre}</p>
              </div>
-             
+
              {/* Play button overlay */}
              <button
                type="button"
@@ -159,7 +162,7 @@ export function AutoPlaylistDetailView({
                onClick={handlePlayAll}
                aria-label={`Play ${detail.name}`}
              >
-               <svg className="h-10 w-10 text-[#ffffff] drop-shadow-md" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+               <svg className="h-12 w-12 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
                  <path d="M8 6v12l10-6-10-6z" />
                </svg>
              </button>

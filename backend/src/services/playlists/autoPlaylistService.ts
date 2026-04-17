@@ -25,6 +25,8 @@ export type AutoPlaylist = {
   trackIds: string[];
   trackCount: number;
   generatedAt: string;
+  colors: [string, string, string];
+  gradientAngle: number;
 };
 
 export type AutoPlaylistConfig = {
@@ -128,6 +130,17 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
+function randomGradientColors(): [string, string, string] {
+  const hue = Math.floor(Math.random() * 360);
+  const offsets = [0, 40 + Math.floor(Math.random() * 40), 160 + Math.floor(Math.random() * 80)];
+  return offsets.map((offset) => {
+    const h = (hue + offset) % 360;
+    const s = 55 + Math.floor(Math.random() * 25);
+    const l = 45 + Math.floor(Math.random() * 20);
+    return `hsl(${h}, ${s}%, ${l}%)`;
+  }) as [string, string, string];
+}
+
 export async function generateAutoPlaylists(tracks: Track[]): Promise<AutoPlaylist[]> {
   const config = await getAutoPlaylistConfig();
 
@@ -179,7 +192,9 @@ export async function generateAutoPlaylists(tracks: Track[]): Promise<AutoPlayli
       decade: group.decade,
       trackIds: selectedTracks.map((t) => t.id),
       trackCount: selectedTracks.length,
-      generatedAt
+      generatedAt,
+      colors: randomGradientColors(),
+      gradientAngle: Math.floor(Math.random() * 360)
     });
   }
 
@@ -222,6 +237,8 @@ export async function loadAutoPlaylists(): Promise<AutoPlaylist[]> {
       null as unknown as AutoPlaylist
     );
     if (data && data.id && data.trackIds) {
+      if (!data.colors) data.colors = randomGradientColors();
+      if (data.gradientAngle === undefined) data.gradientAngle = Math.floor(Math.random() * 360);
       playlists.push(data);
     }
   }

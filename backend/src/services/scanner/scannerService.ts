@@ -221,7 +221,7 @@ function classifyTrackChanges(
 
 function applyTrackMetadataOverride(
   track: Track,
-  metadataOverride?: { title?: string; artist?: string; album?: string; year?: number }
+  metadataOverride?: { title?: string; artist?: string; album?: string; year?: number; genre?: string[] }
 ): Track {
   if (!metadataOverride) {
     return track;
@@ -234,14 +234,15 @@ function applyTrackMetadataOverride(
       title: metadataOverride.title ?? track.tags.title,
       artist: metadataOverride.artist ?? track.tags.artist,
       album: metadataOverride.album ?? track.tags.album,
-      year: metadataOverride.year ?? track.tags.year
+      year: metadataOverride.year ?? track.tags.year,
+      genre: metadataOverride.genre ?? track.tags.genre
     }
   };
 }
 
 async function probeChangedTracks(
   changedTracks: FileSystemTrackState[],
-  metadataOverrides: Record<string, { title?: string; artist?: string; album?: string; year?: number }>,
+  metadataOverrides: Record<string, { title?: string; artist?: string; album?: string; year?: number; genre?: string[] }>,
   albumsByDirectory: Map<string, AlbumAggregate>,
   processedArtists: Set<string>,
   processedAlbums: Set<string>
@@ -256,7 +257,8 @@ async function probeChangedTracks(
       ...metadata.tags,
       title: metadataOverride?.title ?? metadata.tags.title,
       artist: metadataOverride?.artist ?? metadata.tags.artist,
-      album: metadataOverride?.album ?? metadata.tags.album
+      album: metadataOverride?.album ?? metadata.tags.album,
+      genre: metadataOverride?.genre ?? metadata.tags.genre
     };
 
     const track: Track = {
@@ -298,7 +300,7 @@ function compareTrackOrder(a: Track, b: Track): number {
 async function mergeFinalTracks(
   unchangedTracks: ClassifiedTracks["unchanged"],
   changedTracks: Track[],
-  metadataOverrides: Record<string, { title?: string; artist?: string; album?: string; year?: number }>,
+  metadataOverrides: Record<string, { title?: string; artist?: string; album?: string; year?: number; genre?: string[] }>,
   albumsByDirectory: Map<string, AlbumAggregate>,
   processedArtists: Set<string>,
   processedAlbums: Set<string>
@@ -330,7 +332,7 @@ async function mergeFinalTracks(
 async function performScan(
   mode: ScanMode,
   previousIndex: LibraryIndex | undefined,
-  metadataOverrides: Record<string, { title?: string; artist?: string; album?: string; year?: number }>
+  metadataOverrides: Record<string, { title?: string; artist?: string; album?: string; year?: number; genre?: string[] }>
 ): Promise<LibraryIndex> {
   const ownership = await readTrackOwnership();
   const filesystemState = await collectFilesystemState(ownership, metadataOverrides);

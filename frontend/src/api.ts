@@ -989,15 +989,14 @@ export async function getMyPlayStats(): Promise<PlayStatsResponse> {
 export type GenreSynonyms = Record<string, string>;
 
 export async function getGenreSynonyms(): Promise<GenreSynonyms> {
-  const payload = await requestJson<{ synonyms: GenreSynonyms }>("/api/genre/synonyms");
-  return payload.synonyms;
+  return requestJson<GenreSynonyms>("/api/genre/synonyms");
 }
 
 export async function putGenreSynonym(key: string, value: string): Promise<void> {
   await requestJson<{ ok: boolean }>("/api/genre/synonyms", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ key, value })
+    body: JSON.stringify({ from: key, to: value })
   });
 }
 

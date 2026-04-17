@@ -41,6 +41,7 @@ type AppShellProps = {
   accountViewProps: AccountViewProps;
   playerStatusMessage: string | null;
   audioPlayerProps: AudioPlayerBaseProps;
+  onAutoPlaylistsRegenerated?: () => void;
 };
 
 /**
@@ -64,7 +65,8 @@ export function AppShell({
   backupViewProps,
   accountViewProps,
   playerStatusMessage,
-  audioPlayerProps
+  audioPlayerProps,
+  onAutoPlaylistsRegenerated
 }: AppShellProps): JSX.Element {
   const shouldRenderPlayer = Boolean(audioPlayerProps.track) || activeView === "player";
 
@@ -149,7 +151,7 @@ export function AppShell({
             ) : null}
 
             {configViewProps.activeSection === "library" ? (
-              <AdminLibraryView />
+              <AdminLibraryView onAutoPlaylistsRegenerated={onAutoPlaylistsRegenerated} />
             ) : null}
           </div>
         ) : null}

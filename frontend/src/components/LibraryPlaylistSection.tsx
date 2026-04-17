@@ -416,30 +416,46 @@ export function LibraryPlaylistSection({
           </p>
         ) : (
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
-            {autoPlaylists.map((ap) => (
-              <div
-                key={ap.id}
-                className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-flaque-clay/60 bg-gradient-to-br from-flaque-ink/5 to-flaque-sand/30 shadow-sm transition hover:shadow-md"
-                onClick={() => onNavigateToPlaylist(ap.id)}
-                role="link"
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === "Enter") onNavigateToPlaylist(ap.id); }}
-              >
-                <div className="flex aspect-square w-full items-center justify-center bg-gradient-to-br from-flaque-sand/40 to-flaque-clay/20">
-                  <div className="text-center">
-                    <p className="font-display text-2xl font-bold text-flaque-ink/70">{ap.decade % 100 === 0 ? ap.decade : `${ap.decade % 100}s`}</p>
-                    <p className="mt-0.5 text-xs font-medium text-flaque-steel">{ap.genre}</p>
+            {autoPlaylists.map((ap) => {
+              const [c1, c2, c3] = ap.colors ?? ["hsl(220, 60%, 50%)", "hsl(260, 60%, 50%)", "hsl(340, 60%, 50%)"];
+              const angle = ap.gradientAngle ?? 135;
+              const gradientStyle = { background: `linear-gradient(${angle}deg, ${c1}, ${c2}, ${c3})` };
+              return (
+                <div
+                  key={ap.id}
+                  className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/85 shadow-sm transition hover:shadow-md"
+                  onClick={() => onNavigateToPlaylist(ap.id)}
+                  role="link"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === "Enter") onNavigateToPlaylist(ap.id); }}
+                >
+                  <div className="relative aspect-square w-full overflow-hidden" style={gradientStyle}>
+                    <div className="flex h-full w-full flex-col items-center justify-center">
+                      <p className="font-display text-5xl font-extrabold text-white drop-shadow-md">{ap.decade % 100 === 0 ? ap.decade : `${ap.decade % 100}s`}</p>
+                      <p className="mt-1 text-xs font-medium text-white/80">{ap.genre}</p>
+                    </div>
+
+                    {/* Play button overlay */}
+                    <button
+                      type="button"
+                      className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
+                      onClick={(e) => { e.stopPropagation(); onNavigateToPlaylist(ap.id); }}
+                      aria-label={`Play ${ap.name}`}
+                    >
+                      <svg className="h-10 w-10 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
+                        <path d="M8 6v12l10-6-10-6z" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="p-2">
+                    <p className="truncate text-xs font-semibold text-flaque-ink">{ap.name}</p>
+                    <p className="mt-0.5 text-xs text-flaque-steel">
+                      {ap.trackCount} track{ap.trackCount !== 1 ? "s" : ""}
+                    </p>
                   </div>
                 </div>
-                <div className="p-3">
-                  <p className="truncate text-sm font-semibold text-flaque-ink">{ap.name}</p>
-                  <p className="mt-0.5 text-xs text-flaque-steel">
-                    {ap.trackCount} track{ap.trackCount !== 1 ? "s" : ""}
-                    {" \u00b7 "}Generated {new Date(ap.generatedAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

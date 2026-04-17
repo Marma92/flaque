@@ -19,7 +19,11 @@ import {
   type GenreSynonyms
 } from "../api";
 
-export function AdminLibraryView(): JSX.Element {
+type AdminLibraryViewProps = {
+  onAutoPlaylistsRegenerated?: () => void;
+};
+
+export function AdminLibraryView({ onAutoPlaylistsRegenerated }: AdminLibraryViewProps): JSX.Element {
   // ── Genre synonyms ─────────────────────────────────────────────
   const [synonyms, setSynonyms] = useState<GenreSynonyms>({});
   const [loadingSynonyms, setLoadingSynonyms] = useState(true);
@@ -218,6 +222,7 @@ export function AdminLibraryView(): JSX.Element {
     try {
       const result = await regenerateAutoPlaylists();
       setRegenMessage(`Regenerated ${result.regenerated} playlist${result.regenerated !== 1 ? "s" : ""}.`);
+      onAutoPlaylistsRegenerated?.();
     } catch (err) {
       setRegenMessage(err instanceof Error ? err.message : "Failed to regenerate.");
     } finally {
