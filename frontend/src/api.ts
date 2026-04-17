@@ -1014,9 +1014,11 @@ export async function resetGenreSynonyms(): Promise<void> {
 
 export type EnrichmentStatus = {
   running: boolean;
-  processed?: number;
-  total?: number;
-  startedAt?: string;
+  processed: number;
+  total: number;
+  enriched: number;
+  failed: number;
+  startedAt: string | null;
 };
 
 export async function getEnrichmentStatus(): Promise<EnrichmentStatus> {
@@ -1033,7 +1035,6 @@ export async function stopEnrichment(): Promise<void> {
 
 export type GenreCacheStats = {
   entries: number;
-  sizeBytes: number;
 };
 
 export async function getGenreCacheStats(): Promise<GenreCacheStats> {

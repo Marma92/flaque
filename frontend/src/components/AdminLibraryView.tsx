@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import {
   clearGenreCache,
@@ -30,6 +30,7 @@ export function AdminLibraryView(): JSX.Element {
   // ── Enrichment ─────────────────────────────────────────────────
   const [enrichStatus, setEnrichStatus] = useState<EnrichmentStatus | null>(null);
   const [enrichLoading, setEnrichLoading] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Cache ──────────────────────────────────────────────────────
   const [cacheStats, setCacheStats] = useState<GenreCacheStats | null>(null);
@@ -45,12 +46,53 @@ export function AdminLibraryView(): JSX.Element {
   const [regenerating, setRegenerating] = useState(false);
   const [regenMessage, setRegenMessage] = useState<string | null>(null);
 
+  // ── Polling for enrichment status ──────────────────────────────
+
+  const pollEnrichStatus = useCallback(async () => {
+    try {
+      const status = await getEnrichmentStatus();
+      setEnrichStatus(status);
+      // Also refresh cache stats while enrichment runs
+      if (status.running) {
+        const stats = await getGenreCacheStats();
+        setCacheStats(stats);
+      }
+      return status;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  function startPolling(): void {
+    stopPolling();
+    pollRef.current = setInterval(() => { void pollEnrichStatus(); }, 2000);
+  }
+
+  function stopPolling(): void {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }
+
+  // Start/stop polling based on enrichment running state
+  useEffect(() => {
+    if (enrichStatus?.running) {
+      startPolling();
+    } else {
+      stopPolling();
+    }
+    return stopPolling;
+  }, [enrichStatus?.running]);
+
+  // ── Initial load ───────────────────────────────────────────────
+
   useEffect(() => {
     void loadSynonyms();
-    void loadEnrichStatus();
+    void pollEnrichStatus();
     void loadCacheStats();
     void loadConfig();
-  }, []);
+  }, [pollEnrichStatus]);
 
   async function loadSynonyms(): Promise<void> {
     setLoadingSynonyms(true);
@@ -62,13 +104,6 @@ export function AdminLibraryView(): JSX.Element {
     } finally {
       setLoadingSynonyms(false);
     }
-  }
-
-  async function loadEnrichStatus(): Promise<void> {
-    try {
-      const status = await getEnrichmentStatus();
-      setEnrichStatus(status);
-    } catch {}
   }
 
   async function loadCacheStats(): Promise<void> {
@@ -90,6 +125,8 @@ export function AdminLibraryView(): JSX.Element {
       setLoadingConfig(false);
     }
   }
+
+  // ── Synonym handlers ───────────────────────────────────────────
 
   async function handleAddSynonym(e: FormEvent): Promise<void> {
     e.preventDefault();
@@ -121,6 +158,8 @@ export function AdminLibraryView(): JSX.Element {
     } catch {}
   }
 
+  // ── Enrichment handlers ────────────────────────────────────────
+
   async function handleToggleEnrichment(): Promise<void> {
     setEnrichLoading(true);
     try {
@@ -129,7 +168,14 @@ export function AdminLibraryView(): JSX.Element {
       } else {
         await startEnrichment();
       }
-      await loadEnrichStatus();
+      // Give backend a moment to update, then fetch fresh status
+      await new Promise((r) => setTimeout(r, 500));
+      const fresh = await pollEnrichStatus();
+      // If enrichment just started, polling will be triggered by the state update
+      if (fresh && !fresh.running) {
+        // Enrichment finished very quickly or was stopped — refresh cache
+        await loadCacheStats();
+      }
     } catch {} finally {
       setEnrichLoading(false);
     }
@@ -141,6 +187,8 @@ export function AdminLibraryView(): JSX.Element {
       await loadCacheStats();
     } catch {}
   }
+
+  // ── Config handlers ────────────────────────────────────────────
 
   async function handleSaveConfig(e: FormEvent): Promise<void> {
     e.preventDefault();
@@ -177,7 +225,12 @@ export function AdminLibraryView(): JSX.Element {
     }
   }
 
-  const synonymEntries = Object.entries(synonyms).sort(([a], [b]) => a.localeCompare(b));
+  const synonymEntries = synonyms ? Object.entries(synonyms).sort(([a], [b]) => a.localeCompare(b)) : [];
+
+  // ── Enrichment progress display ────────────────────────────────
+  const enrichPercent = enrichStatus && enrichStatus.total > 0
+    ? Math.round((enrichStatus.processed / enrichStatus.total) * 100)
+    : 0;
 
   return (
     <div className="m-4 space-y-4">
@@ -284,18 +337,48 @@ export function AdminLibraryView(): JSX.Element {
                 ? "Stop enrichment"
                 : "Start enrichment"}
           </button>
-
-          {enrichStatus?.running && enrichStatus.processed !== undefined ? (
-            <span className="text-sm text-flaque-steel">
-              {enrichStatus.processed}{enrichStatus.total !== undefined ? ` / ${enrichStatus.total}` : ""} tracks processed
-            </span>
-          ) : null}
         </div>
+
+        {/* Progress display */}
+        {enrichStatus && enrichStatus.running ? (
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm text-flaque-steel">
+              <span>{enrichStatus.processed} / {enrichStatus.total} tracks processed</span>
+              <span className="text-flaque-steel/60">({enrichPercent}%)</span>
+            </div>
+            {enrichStatus.total > 0 ? (
+              <div className="h-2 w-full overflow-hidden rounded-full bg-flaque-clay/20">
+                <div
+                  className="h-full rounded-full bg-flaque-ink transition-all duration-500"
+                  style={{ width: `${enrichPercent}%` }}
+                />
+              </div>
+            ) : null}
+            <div className="flex gap-3 text-xs text-flaque-steel">
+              <span className="text-green-600">{enrichStatus.enriched} enriched</span>
+              {enrichStatus.failed > 0 ? (
+                <span className="text-red-500">{enrichStatus.failed} failed</span>
+              ) : null}
+            </div>
+          </div>
+        ) : enrichStatus && !enrichStatus.running && enrichStatus.processed > 0 ? (
+          <div className="mt-3 space-y-1">
+            <p className="text-sm text-flaque-steel">
+              Last run: {enrichStatus.processed} / {enrichStatus.total} tracks processed
+            </p>
+            <div className="flex gap-3 text-xs text-flaque-steel">
+              <span className="text-green-600">{enrichStatus.enriched} enriched</span>
+              {enrichStatus.failed > 0 ? (
+                <span className="text-red-500">{enrichStatus.failed} failed</span>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         {cacheStats ? (
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <span className="text-sm text-flaque-steel">
-              Cache: {cacheStats.entries} entries ({(cacheStats.sizeBytes / 1024).toFixed(1)} KB)
+              Cache: {cacheStats.entries} {cacheStats.entries === 1 ? "entry" : "entries"}
             </span>
             <button
               type="button"
