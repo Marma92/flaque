@@ -86,6 +86,31 @@ export function LibraryArtistsSection({
 
   return (
     <>
+      {/* Album header — transparent, when viewing album tracks */}
+      {isArtistSelected && isTracklistVisible && selectedArtistAlbum && (
+        <div className="mx-4 mt-4 px-4 py-6">
+          <div className="flex items-center gap-6">
+            <img
+              className="h-36 w-36 shrink-0 object-cover shadow-md"
+              src={getAlbumCoverSrc(selectedArtistAlbum)}
+              alt={selectedArtistAlbum.name}
+              onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
+            />
+            <div className="min-w-0">
+              <h3 className="truncate font-display text-4xl font-bold text-flaque-ink">{selectedArtistAlbum.name}</h3>
+              <p className="mt-1 text-base text-flaque-steel">
+                {selectedArtistAlbum.artist ?? selectedArtist.name}
+              </p>
+              <p className="mt-0.5 text-sm text-flaque-steel">
+                {selectedArtistAlbum.year ? `${selectedArtistAlbum.year} · ` : ""}
+                {selectedArtistAlbum.trackCount} track{selectedArtistAlbum.trackCount !== 1 ? "s" : ""}
+                {selectedArtistAlbum.totalDuration ? ` · ${formatDurationHuman(selectedArtistAlbum.totalDuration)}` : ""}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Artist header — transparent, above the main section */}
       {isArtistSelected && !isTracklistVisible && (
         <div className="mx-4 mt-4 px-4 py-6">
@@ -147,22 +172,13 @@ export function LibraryArtistsSection({
       ) : filteredArtists.length === 0 && !isArtistSelected ? (
         <p className="mt-3 text-sm text-flaque-steel">No artists found{normalizedQuery ? ` matching "${searchQuery.trim()}"` : " for these filters"}.</p>
       ) : isArtistSelected && isTracklistVisible ? (
-        <div className="mt-4 overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/75">
-          <div className="border-b border-flaque-clay/55 px-4 py-3">
-            <p className="text-xs uppercase tracking-[0.14em] text-flaque-steel">Album tracks</p>
-            <p
-              className="truncate text-sm text-flaque-ink"
-              title={selectedArtistAlbum.artist ? `${selectedArtistAlbum.artist} - ${selectedArtistAlbum.name}` : selectedArtistAlbum.name}
-            >
-              {selectedArtistAlbum.artist ? `${selectedArtistAlbum.artist} - ${selectedArtistAlbum.name}` : selectedArtistAlbum.name}
-            </p>
-            {loadingSelectedArtistAlbumTracks ? (
-              <p className="mt-1 text-xs text-flaque-steel">Loading album tracks...</p>
-            ) : null}
-            {selectedArtistAlbumTracksError ? (
-              <p className="mt-1 text-xs text-red-700">{selectedArtistAlbumTracksError}</p>
-            ) : null}
-          </div>
+        <div className="overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/75">
+          {loadingSelectedArtistAlbumTracks ? (
+            <p className="px-4 py-3 text-xs text-flaque-steel">Loading album tracks...</p>
+          ) : null}
+          {selectedArtistAlbumTracksError ? (
+            <p className="px-4 py-3 text-xs text-red-700">{selectedArtistAlbumTracksError}</p>
+          ) : null}
 
           <TrackList
             tracks={selectedArtistAlbumTracks}

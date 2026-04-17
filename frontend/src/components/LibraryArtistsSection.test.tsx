@@ -127,7 +127,7 @@ describe("LibraryArtistsSection", () => {
       selectedArtistAlbumTracks: [createTrack({ id: "t1", title: "Music Is Math", artist: "Boards of Canada", album: "Geogaddi" })]
     });
 
-    expect(screen.getByText("Album tracks")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Geogaddi", level: 3 })).toBeTruthy();
     expect(screen.getAllByText("Music Is Math").length).toBeGreaterThan(0);
   });
 });

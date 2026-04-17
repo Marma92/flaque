@@ -150,7 +150,7 @@ describe("LibraryAlbumsSection", () => {
     );
 
     expect(screen.getByText("Album route timeout")).toBeTruthy();
-    expect(screen.getByText("Album tracks")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Immunity", level: 3 })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Play Open Eye Signal" }));
 
     expect(onTrackSelect).toHaveBeenCalledWith(track);
