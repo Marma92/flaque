@@ -468,6 +468,7 @@ export function AuthenticatedApp({
         onRevokeSession: handleRevokeMySession,
         onLogoutOtherSessions: handleLogoutOtherSessions
       }}
+      onAutoPlaylistsRegenerated={refreshAutoPlaylists}
       playerStatusMessage={playerStatusMessage}
       audioPlayerProps={{
         track: selectedTrackRefreshed,

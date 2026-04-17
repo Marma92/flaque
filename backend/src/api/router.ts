@@ -24,6 +24,8 @@ export function createApiRouter(indexStore: IndexStore): Router {
   router.use("/auth", createAuthRouter());
   router.use(createUploadRouter(indexStore));
   router.use(createLibraryRouter(indexStore));
+  router.use(createAutoPlaylistRouter(indexStore));
+  router.use(createForYouPlaylistRouter(indexStore));
   router.use(createPlaylistRouter(indexStore));
   router.use(createRadioRouter(indexStore));
   router.use(createStreamingRouter(indexStore));
@@ -31,8 +33,6 @@ export function createApiRouter(indexStore: IndexStore): Router {
   router.use(createCoverRouter(indexStore));
   router.use(createIndexRouter(indexStore));
   router.use(createGenreRouter(indexStore));
-  router.use(createAutoPlaylistRouter(indexStore));
-  router.use(createForYouPlaylistRouter(indexStore));
   router.use(createUserRouter());
   router.use(createLogRouter());
   router.use(createServerRouter());
