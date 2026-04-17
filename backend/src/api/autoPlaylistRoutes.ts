@@ -16,7 +16,7 @@ const log = createLogger("auto-playlist-routes");
 export function createAutoPlaylistRouter(indexStore: IndexStore): Router {
   const router = Router();
 
-  router.get("/config/auto-playlists", requireAdmin, async (_req, res, next) => {
+  router.get("/config/auto-playlists", requireAuth, requireAdmin, async (_req, res, next) => {
     try {
       const config = await getAutoPlaylistConfig();
       res.json(config);
@@ -25,7 +25,7 @@ export function createAutoPlaylistRouter(indexStore: IndexStore): Router {
     }
   });
 
-  router.patch("/config/auto-playlists", requireAdmin, async (req, res, next) => {
+  router.patch("/config/auto-playlists", requireAuth, requireAdmin, async (req, res, next) => {
     try {
       const body = req.body as Record<string, unknown>;
       const patch: Record<string, number> = {};
@@ -83,7 +83,7 @@ export function createAutoPlaylistRouter(indexStore: IndexStore): Router {
     }
   });
 
-  router.post("/playlists/automatic/regenerate", requireAdmin, async (_req, res, next) => {
+  router.post("/playlists/automatic/regenerate", requireAuth, requireAdmin, async (_req, res, next) => {
     try {
       const allTracks = indexStore.getSnapshot().tracks;
       const playlists = await regenerateAutoPlaylists(allTracks);
