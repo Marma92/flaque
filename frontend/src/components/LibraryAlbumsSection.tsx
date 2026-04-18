@@ -2,7 +2,7 @@ import { coverPathUrl, coverUrl } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
 import type { AlbumEntry, Playlist, Track } from "../types";
 import { formatDurationHuman } from "../utils/format";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AlbumList } from "./AlbumList";
 import { Coverflow } from "./Coverflow";
 import { TrackList } from "./TrackList";
@@ -49,7 +49,11 @@ export function LibraryAlbumsSection({
 }: LibraryAlbumsSectionProps): JSX.Element {
   const [viewMode, setViewMode] = useState<AlbumViewMode>("list");
   const [searchQuery, setSearchQuery] = useState("");
-  const isListModeTracklistVisible = viewMode === "list" && selectedAlbum !== null;
+  const isAlbumSelected = selectedAlbum !== null;
+  const lastSelectedAlbumRef = useRef<AlbumEntry | null>(null);
+  if (selectedAlbum && viewMode === "coverflow") {
+    lastSelectedAlbumRef.current = selectedAlbum;
+  }
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredAlbums = normalizedQuery
@@ -77,7 +81,7 @@ export function LibraryAlbumsSection({
   return (
     <>
       {/* Album header — transparent, above the main section */}
-      {selectedAlbum && isListModeTracklistVisible && (
+      {isAlbumSelected && (
         <div className="mx-4 mt-4 px-4 py-6">
           <div className="flex items-center gap-6">
             <img
@@ -103,9 +107,9 @@ export function LibraryAlbumsSection({
 
     <section className="border border-flaque-clay/60 rounded-xl m-4 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        {isListModeTracklistVisible ? (
+        {isAlbumSelected ? (
           <button
-            className="inline-flex items-center rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-2.5 py-1 text-xs font-medium text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
+            className="mb-3 inline-flex items-center rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-2.5 py-1 text-xs font-medium text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
             type="button"
             onClick={onBack}
             aria-label="Back"
@@ -115,40 +119,39 @@ export function LibraryAlbumsSection({
             </svg>
           </button>
         ) : (
-          <h2 className="font-display text-xl text-flaque-ink">Albums</h2>
+          <>
+            <h2 className="font-display text-xl text-flaque-ink">Albums</h2>
+            <div className="flex items-center gap-3">
+              <input
+                className="rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-3 py-1.5 text-sm text-flaque-ink placeholder:text-flaque-steel/60 focus:border-flaque-ink/40 focus:outline-none"
+                type="text"
+                placeholder="Search albums..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <div className="inline-flex rounded-xl border border-flaque-clay/70 bg-flaque-cream/50 p-1">
+                <button
+                  className={`rounded-lg px-3 py-1.5 text-sm transition ${
+                    viewMode === "list" ? "bg-white text-flaque-ink shadow-sm" : "text-flaque-steel hover:text-flaque-ink"
+                  }`}
+                  type="button"
+                  onClick={() => setViewMode("list")}
+                >
+                  List
+                </button>
+                <button
+                  className={`rounded-lg px-3 py-1.5 text-sm transition ${
+                    viewMode === "coverflow" ? "bg-white text-flaque-ink shadow-sm" : "text-flaque-steel hover:text-flaque-ink"
+                  }`}
+                  type="button"
+                  onClick={() => setViewMode("coverflow")}
+                >
+                  Coverflow
+                </button>
+              </div>
+            </div>
+          </>
         )}
-
-        <div className="flex items-center gap-3">
-          {!selectedAlbum && (
-            <input
-              className="rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-3 py-1.5 text-sm text-flaque-ink placeholder:text-flaque-steel/60 focus:border-flaque-ink/40 focus:outline-none"
-              type="text"
-              placeholder="Search albums..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          )}
-          <div className="inline-flex rounded-xl border border-flaque-clay/70 bg-flaque-cream/50 p-1">
-            <button
-              className={`rounded-lg px-3 py-1.5 text-sm transition ${
-                viewMode === "list" ? "bg-white text-flaque-ink shadow-sm" : "text-flaque-steel hover:text-flaque-ink"
-              }`}
-              type="button"
-              onClick={() => setViewMode("list")}
-            >
-              List
-            </button>
-            <button
-              className={`rounded-lg px-3 py-1.5 text-sm transition ${
-                viewMode === "coverflow" ? "bg-white text-flaque-ink shadow-sm" : "text-flaque-steel hover:text-flaque-ink"
-              }`}
-              type="button"
-              onClick={() => setViewMode("coverflow")}
-            >
-              Coverflow
-            </button>
-          </div>
-        </div>
       </div>
 
       {libraryMetadataError ? (
@@ -161,14 +164,14 @@ export function LibraryAlbumsSection({
         <p className="mt-3 text-sm text-flaque-steel">No albums found{normalizedQuery ? ` matching "${searchQuery.trim()}"` : " for these filters"}.</p>
       ) : (
         <>
-          {viewMode === "coverflow" ? (
+          {!isAlbumSelected && viewMode === "coverflow" ? (
             <Coverflow
               albums={filteredAlbums}
-              selectedAlbum={selectedAlbum}
+              selectedAlbum={lastSelectedAlbumRef.current}
               onAlbumSelect={onAlbumSelect}
               getAlbumCoverSrc={getAlbumCoverSrc}
             />
-          ) : !isListModeTracklistVisible ? (
+          ) : !isAlbumSelected && viewMode === "list" ? (
             <AlbumList
               albums={filteredAlbums}
               selectedAlbum={selectedAlbum}
@@ -178,7 +181,7 @@ export function LibraryAlbumsSection({
             />
           ) : null}
 
-          {selectedAlbum && isListModeTracklistVisible ? (
+          {isAlbumSelected ? (
             <div className="overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/75">
               {loadingSelectedAlbumTracks ? (
                 <p className="px-4 py-3 text-xs text-flaque-steel">Loading album tracks...</p>
