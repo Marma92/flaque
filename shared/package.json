@@ -1,0 +1,8 @@
+{
+  "name": "@flaque/shared",
+  "version": "0.3.1",
+  "private": true,
+  "types": "src/index.ts",
+  "main": "src/index.ts",
+  "sideEffects": false
+}

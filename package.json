@@ -3,6 +3,7 @@
   "version": "0.3.1",
   "private": true,
   "workspaces": [
+    "shared",
     "backend",
     "frontend"
   ],
