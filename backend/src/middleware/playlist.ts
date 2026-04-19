@@ -1,9 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
 import { IndexStore } from "../services/indexer/indexStore";
 import { AppError } from "../utils/AppError";
-import { findPlaylistById } from "../api/playlistRoutes";
 import { canViewPlaylist, canEditPlaylist, canManagePlaylist } from "../services/playlists/playlistStore";
 import type { Playlist } from "../types/library";
+
+function findPlaylistById(indexStore: IndexStore, playlistId: string): Playlist | undefined {
+  const playlists = indexStore.getSnapshot().playlists ?? [];
+  return playlists.find((playlist) => playlist.id === playlistId);
+}
 
 /**
  * Middleware to load a playlist by ID and attach it to the request.
