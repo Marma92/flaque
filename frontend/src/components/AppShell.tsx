@@ -1,4 +1,6 @@
-import type { User } from "../types";
+import type { Dispatch, SetStateAction } from "react";
+
+import type { Track, User } from "../types";
 import { navigateTo, type ViewName } from "../utils/appUtils";
 import { AccountView } from "./AccountView";
 import { AdminBackupView } from "./AdminBackupView";
@@ -16,29 +18,27 @@ import { UploadView } from "./UploadView";
 type LibraryWorkspaceProps = Parameters<typeof LibraryWorkspace>[0];
 type UploadViewProps = Parameters<typeof UploadView>[0];
 type ConfigViewProps = Parameters<typeof ConfigView>[0];
-type AdminUsersViewProps = Parameters<typeof AdminUsersView>[0];
-type AdminServerViewProps = Parameters<typeof AdminServerView>[0];
-type AdminBackupViewProps = Parameters<typeof AdminBackupView>[0];
-type AccountViewProps = Omit<Parameters<typeof AccountView>[0], "onLogout">;
 type AudioPlayerBaseProps = Omit<Parameters<typeof AudioPlayer>[0], "expanded" | "onArtworkClick">;
 
 type AppShellProps = {
   activeView: ViewName;
   user: User;
+  setUser: Dispatch<SetStateAction<User | null>>;
+  setActiveView: Dispatch<SetStateAction<ViewName>>;
   onViewChange: (view: ViewName) => void;
   onPlayerCollapse: () => void;
   onLogout: () => void;
   avatarUrl: string;
   appNotice: AppNotice | null;
+  setAppNotice: Dispatch<SetStateAction<AppNotice | null>>;
   libraryError: string | null;
   loadingLibrary: boolean;
   libraryWorkspaceProps: LibraryWorkspaceProps;
   uploadViewProps: UploadViewProps;
   configViewProps: ConfigViewProps;
-  usersViewProps: AdminUsersViewProps;
-  serverViewProps: AdminServerViewProps;
-  backupViewProps: AdminBackupViewProps;
-  accountViewProps: AccountViewProps;
+  allTracksById: Map<string, Track>;
+  setAvatarVersion: Dispatch<SetStateAction<number>>;
+  notifyAuthStateChanged: (kind: "login" | "logout" | "session-change") => void;
   playerStatusMessage: string | null;
   audioPlayerProps: AudioPlayerBaseProps;
   onAutoPlaylistsRegenerated?: () => void;
@@ -50,20 +50,22 @@ type AppShellProps = {
 export function AppShell({
   activeView,
   user,
+  setUser,
+  setActiveView,
   onViewChange,
   onPlayerCollapse,
   onLogout,
   avatarUrl,
   appNotice,
+  setAppNotice,
   libraryError,
   loadingLibrary,
   libraryWorkspaceProps,
   uploadViewProps,
   configViewProps,
-  usersViewProps,
-  serverViewProps,
-  backupViewProps,
-  accountViewProps,
+  allTracksById,
+  setAvatarVersion,
+  notifyAuthStateChanged,
   playerStatusMessage,
   audioPlayerProps,
   onAutoPlaylistsRegenerated
@@ -139,15 +141,15 @@ export function AppShell({
             ) : null}
 
             {configViewProps.activeSection === "users" ? (
-              <AdminUsersView {...usersViewProps} />
+              <AdminUsersView currentUser={user} setUser={setUser} setActiveView={setActiveView} />
             ) : null}
 
             {configViewProps.activeSection === "server" ? (
-              <AdminServerView {...serverViewProps} />
+              <AdminServerView currentUser={user} />
             ) : null}
 
             {configViewProps.activeSection === "backup" ? (
-              <AdminBackupView {...backupViewProps} />
+              <AdminBackupView currentUser={user} />
             ) : null}
 
             {configViewProps.activeSection === "library" ? (
@@ -158,7 +160,16 @@ export function AppShell({
 
         {activeView === "account" ? (
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <AccountView {...accountViewProps} onLogout={onLogout} />
+            <AccountView
+              user={user}
+              setUser={setUser}
+              avatarUrl={avatarUrl}
+              allTracksById={allTracksById}
+              setAppNotice={setAppNotice}
+              setAvatarVersion={setAvatarVersion}
+              notifyAuthStateChanged={notifyAuthStateChanged}
+              onLogout={onLogout}
+            />
           </div>
         ) : null}
 

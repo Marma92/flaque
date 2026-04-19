@@ -6,6 +6,24 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { User, UserSession } from "../types";
 import { AccountView } from "./AccountView";
 
+const mockHandleUpdateProfilePhoto = vi.fn().mockResolvedValue(undefined);
+const mockHandleUpdateEmail = vi.fn().mockResolvedValue(undefined);
+const mockHandleUpdateOwnPassword = vi.fn().mockResolvedValue(undefined);
+const mockHandleListMySessions = vi.fn<() => Promise<UserSession[]>>();
+const mockHandleRevokeMySession = vi.fn<(sessionId: string) => Promise<void>>().mockResolvedValue(undefined);
+const mockHandleLogoutOtherSessions = vi.fn<() => Promise<number>>();
+
+vi.mock("../hooks/useAccountActions", () => ({
+  useAccountActions: () => ({
+    handleUpdateProfilePhoto: mockHandleUpdateProfilePhoto,
+    handleUpdateEmail: mockHandleUpdateEmail,
+    handleUpdateOwnPassword: mockHandleUpdateOwnPassword,
+    handleListMySessions: mockHandleListMySessions,
+    handleRevokeMySession: mockHandleRevokeMySession,
+    handleLogoutOtherSessions: mockHandleLogoutOtherSessions
+  })
+}));
+
 function createSession(input: {
   id: string;
   current: boolean;
@@ -36,38 +54,37 @@ function createUser(): User {
   };
 }
 
+function renderAccountView(): void {
+  render(
+    <AccountView
+      user={createUser()}
+      setUser={vi.fn()}
+      avatarUrl="/api/users/me/photo"
+      allTracksById={new Map()}
+      setAppNotice={vi.fn()}
+      setAvatarVersion={vi.fn()}
+      notifyAuthStateChanged={vi.fn()}
+      onLogout={vi.fn()}
+    />
+  );
+}
+
 describe("AccountView", () => {
   afterEach(() => {
     cleanup();
+    vi.clearAllMocks();
   });
 
   it("loads, displays and revokes a targeted session", async () => {
-    const onListSessions = vi
-      .fn<() => Promise<UserSession[]>>()
-      .mockResolvedValue([
-        createSession({ id: "session-current", current: true, label: "Laptop" }),
-        createSession({ id: "session-other", current: false, label: "Phone" })
-      ]);
+    mockHandleListMySessions.mockResolvedValue([
+      createSession({ id: "session-current", current: true, label: "Laptop" }),
+      createSession({ id: "session-other", current: false, label: "Phone" })
+    ]);
 
-    const onRevokeSession = vi.fn<(sessionId: string) => Promise<void>>().mockResolvedValue(undefined);
-
-    render(
-      <AccountView
-        user={createUser()}
-        avatarUrl="/api/users/me/photo"
-        allTracksById={new Map()}
-        onUpdatePhoto={vi.fn().mockResolvedValue(undefined)}
-        onUpdateEmail={vi.fn().mockResolvedValue(undefined)}
-        onChangePassword={vi.fn().mockResolvedValue(undefined)}
-        onListSessions={onListSessions}
-        onRevokeSession={onRevokeSession}
-        onLogoutOtherSessions={vi.fn().mockResolvedValue(0)}
-        onLogout={vi.fn()}
-      />
-    );
+    renderAccountView();
 
     await waitFor(() => {
-      expect(onListSessions).toHaveBeenCalledTimes(1);
+      expect(mockHandleListMySessions).toHaveBeenCalledTimes(1);
       expect(screen.getByText("Laptop")).toBeTruthy();
       expect(screen.getByText("Phone")).toBeTruthy();
       expect(screen.getByText("Current")).toBeTruthy();
@@ -79,34 +96,21 @@ describe("AccountView", () => {
     fireEvent.click(revokeButtons[1]);
 
     await waitFor(() => {
-      expect(onRevokeSession).toHaveBeenCalledWith("session-other");
-      expect(onListSessions).toHaveBeenCalledTimes(2);
+      expect(mockHandleRevokeMySession).toHaveBeenCalledWith("session-other");
+      expect(mockHandleListMySessions).toHaveBeenCalledTimes(2);
       expect(screen.getByText("Session revoked.")).toBeTruthy();
     });
   });
 
   it("disables logout-others when no other sessions exist", async () => {
-    const onListSessions = vi
-      .fn<() => Promise<UserSession[]>>()
-      .mockResolvedValue([createSession({ id: "session-current", current: true, label: "Laptop" })]);
+    mockHandleListMySessions.mockResolvedValue([
+      createSession({ id: "session-current", current: true, label: "Laptop" })
+    ]);
 
-    render(
-      <AccountView
-        user={createUser()}
-        avatarUrl="/api/users/me/photo"
-        allTracksById={new Map()}
-        onUpdatePhoto={vi.fn().mockResolvedValue(undefined)}
-        onUpdateEmail={vi.fn().mockResolvedValue(undefined)}
-        onChangePassword={vi.fn().mockResolvedValue(undefined)}
-        onListSessions={onListSessions}
-        onRevokeSession={vi.fn().mockResolvedValue(undefined)}
-        onLogoutOtherSessions={vi.fn().mockResolvedValue(0)}
-        onLogout={vi.fn()}
-      />
-    );
+    renderAccountView();
 
     await waitFor(() => {
-      expect(onListSessions).toHaveBeenCalledTimes(1);
+      expect(mockHandleListMySessions).toHaveBeenCalledTimes(1);
       const button = screen.getByRole("button", { name: "Logout other devices" }) as HTMLButtonElement;
       expect(button.disabled).toBe(true);
     });
@@ -119,37 +123,23 @@ describe("AccountView", () => {
     ];
     const postLogoutSessions = [createSession({ id: "session-current", current: true, label: "Laptop" })];
 
-    const onListSessions = vi
-      .fn<() => Promise<UserSession[]>>()
+    mockHandleListMySessions
       .mockResolvedValueOnce(initialSessions)
       .mockResolvedValueOnce(postLogoutSessions);
-    const onLogoutOtherSessions = vi.fn<() => Promise<number>>().mockResolvedValue(1);
+    mockHandleLogoutOtherSessions.mockResolvedValue(1);
 
-    render(
-      <AccountView
-        user={createUser()}
-        avatarUrl="/api/users/me/photo"
-        allTracksById={new Map()}
-        onUpdatePhoto={vi.fn().mockResolvedValue(undefined)}
-        onUpdateEmail={vi.fn().mockResolvedValue(undefined)}
-        onChangePassword={vi.fn().mockResolvedValue(undefined)}
-        onListSessions={onListSessions}
-        onRevokeSession={vi.fn().mockResolvedValue(undefined)}
-        onLogoutOtherSessions={onLogoutOtherSessions}
-        onLogout={vi.fn()}
-      />
-    );
+    renderAccountView();
 
     await waitFor(() => {
-      expect(onListSessions).toHaveBeenCalledTimes(1);
+      expect(mockHandleListMySessions).toHaveBeenCalledTimes(1);
       expect(screen.getByRole("button", { name: "Logout other devices" })).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Logout other devices" }));
 
     await waitFor(() => {
-      expect(onLogoutOtherSessions).toHaveBeenCalledTimes(1);
-      expect(onListSessions).toHaveBeenCalledTimes(2);
+      expect(mockHandleLogoutOtherSessions).toHaveBeenCalledTimes(1);
+      expect(mockHandleListMySessions).toHaveBeenCalledTimes(2);
       expect(screen.getByText("1 session logged out.")).toBeTruthy();
     });
   });

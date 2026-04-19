@@ -1,33 +1,12 @@
 import { useState } from "react";
 
-import type { LogFile, LogEntry, StorageUsage, SystemStats, VersionInfo, UpdateStatus } from "../api";
-import type { SystemStatsDataPoint } from "../hooks/useAdminServer";
+import type { LogEntry, StorageUsage, SystemStats, UpdateStatus, VersionInfo } from "../api";
+import type { User } from "../types";
+import { useAdminServer, type SystemStatsDataPoint } from "../hooks/useAdminServer";
 import { formatSize } from "../utils/format";
 
 type AdminServerViewProps = {
-  versionInfo: VersionInfo | null;
-  loadingVersion: boolean;
-  updateStatus: UpdateStatus | null;
-  onTriggerUpdate: () => Promise<void>;
-  onCheckForUpdates: () => Promise<void>;
-  storageUsage: StorageUsage | null;
-  loadingStorage: boolean;
-  systemStats: SystemStats | null;
-  systemStatsHistory: SystemStatsDataPoint[];
-  loadingSystemStats: boolean;
-  logFiles: LogFile[];
-  loadingFiles: boolean;
-  selectedFile: string | null;
-  onFileChange: (file: string) => void;
-  entries: LogEntry[];
-  loadingEntries: boolean;
-  error: string | null;
-  total: number;
-  levelFilter: number | null;
-  onLevelFilterChange: (level: number | null) => void;
-  onRefresh: () => Promise<void>;
-  onLoadMore: () => Promise<void>;
-  hasMore: boolean;
+  currentUser: User;
 };
 
 function formatLogTime(epochMs: number): { hm: string; s: string; ms: string } {
@@ -407,31 +386,19 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate, o
   );
 }
 
-export function AdminServerView({
-  versionInfo,
-  loadingVersion,
-  updateStatus,
-  onTriggerUpdate,
-  onCheckForUpdates,
-  storageUsage,
-  loadingStorage,
-  systemStats,
-  systemStatsHistory,
-  loadingSystemStats,
-  logFiles,
-  loadingFiles,
-  selectedFile,
-  onFileChange,
-  entries,
-  loadingEntries,
-  error,
-  total,
-  levelFilter,
-  onLevelFilterChange,
-  onRefresh,
-  onLoadMore,
-  hasMore
-}: AdminServerViewProps): JSX.Element {
+export function AdminServerView({ currentUser }: AdminServerViewProps): JSX.Element {
+  const {
+    versionInfo, loadingVersion,
+    updateStatus, onTriggerUpdate, onCheckForUpdates,
+    storageUsage, loadingStorage,
+    systemStats, systemStatsHistory, loadingSystemStats,
+    logFiles, loadingFiles: loadingFiles,
+    selectedFile, setSelectedFile: onFileChange,
+    entries, loadingEntries,
+    serverError: error, total,
+    levelFilter, setLevelFilter: onLevelFilterChange,
+    refreshServer: onRefresh, loadMore: onLoadMore, hasMore
+  } = useAdminServer({ user: currentUser });
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   function toggleExpanded(index: number): void {

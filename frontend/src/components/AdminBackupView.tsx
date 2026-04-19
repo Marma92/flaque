@@ -1,24 +1,12 @@
 import { useState } from "react";
 
-import type { BackupConfig, BackupEntry } from "../api";
 import { getBackupDownloadUrl } from "../api";
+import type { User } from "../types";
+import { useAdminBackup } from "../hooks/useAdminBackup";
 import { formatDate, formatSize } from "../utils/format";
 
 type AdminBackupViewProps = {
-  backups: BackupEntry[];
-  loadingBackups: boolean;
-  config: BackupConfig | null;
-  loadingConfig: boolean;
-  error: string | null;
-  message: string | null;
-  creating: boolean;
-  restoring: boolean;
-  onCreateBackup: () => Promise<void>;
-  onDeleteBackup: (id: string) => Promise<void>;
-  onRestoreBackup: (id: string) => Promise<void>;
-  onUpdateConfig: (config: Partial<BackupConfig>) => Promise<void>;
-  onPurgeExpired: () => Promise<void>;
-  onRefresh: () => Promise<void>;
+  currentUser: User;
 };
 
 function formatBackupId(id: string): string {
@@ -28,22 +16,16 @@ function formatBackupId(id: string): string {
   return `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]}:${match[6]}`;
 }
 
-export function AdminBackupView({
-  backups,
-  loadingBackups,
-  config,
-  loadingConfig,
-  error,
-  message,
-  creating,
-  restoring,
-  onCreateBackup,
-  onDeleteBackup,
-  onRestoreBackup,
-  onUpdateConfig,
-  onPurgeExpired,
-  onRefresh
-}: AdminBackupViewProps): JSX.Element {
+export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Element {
+  const {
+    backups, loadingBackups,
+    config, loadingConfig: loadingConfig,
+    backupError: error, backupMessage: message,
+    creating, restoring,
+    onCreateBackup, onDeleteBackup, onRestoreBackup,
+    onUpdateConfig, onPurgeExpired: onPurgeExpired,
+    refreshBackups: onRefresh
+  } = useAdminBackup({ user: currentUser });
   const [confirmRestoreId, setConfirmRestoreId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editingSchedule, setEditingSchedule] = useState(false);
