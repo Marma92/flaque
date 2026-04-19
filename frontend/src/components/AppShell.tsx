@@ -34,6 +34,7 @@ type AppShellProps = {
   libraryError: string | null;
   loadingLibrary: boolean;
   libraryWorkspaceProps: LibraryWorkspaceProps;
+  onLibrarySectionChange: (section: LibraryWorkspaceProps["activeLibrarySection"]) => void;
   uploadViewProps: UploadViewProps;
   configViewProps: ConfigViewProps;
   allTracksById: Map<string, Track>;
@@ -61,6 +62,7 @@ export function AppShell({
   libraryError,
   loadingLibrary,
   libraryWorkspaceProps,
+  onLibrarySectionChange,
   uploadViewProps,
   configViewProps,
   allTracksById,
@@ -106,7 +108,7 @@ export function AppShell({
         user={user}
         avatarUrl={avatarUrl}
         onViewChange={onViewChange}
-        onLibrarySectionChange={libraryWorkspaceProps.onSectionChange}
+        onLibrarySectionChange={onLibrarySectionChange}
       />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

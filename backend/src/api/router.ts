@@ -10,7 +10,7 @@ import { createLibraryRouter } from "./libraryRoutes";
 import { createLogRouter } from "./logRoutes";
 import { createPlayCountRouter } from "./playCountRoutes";
 import { createServerRouter } from "./serverRoutes";
-import { createUnifiedPlaylistRouter } from "./unifiedPlaylistRoutes";
+import { createPlaylistRouter } from "./playlistRoutes";
 import { createRadioRouter } from "./radioRoutes";
 import { createStreamingRouter } from "./streamingRoutes";
 import { createUploadRouter } from "./uploadRoutes";
@@ -23,7 +23,7 @@ export function createApiRouter(indexStore: IndexStore): Router {
   router.use("/auth", createAuthRouter());
   router.use(createUploadRouter(indexStore));
   router.use(createLibraryRouter(indexStore));
-  router.use("/playlists", createUnifiedPlaylistRouter(indexStore));
+  router.use("/playlists", createPlaylistRouter(indexStore));
   router.use(createRadioRouter(indexStore));
   router.use(createStreamingRouter(indexStore));
   router.use(createPlayCountRouter(indexStore));

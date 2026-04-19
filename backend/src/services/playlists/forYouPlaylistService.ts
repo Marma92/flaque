@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { createLogger } from "../../utils/logger";
 import { dataRoot, usersStorageRoot } from "../../utils/paths";
-import { ensureDir, readJsonFile, writeJsonAtomic } from "../../utils/fs";
+import { ensureDir, readJsonFile, updateJsonFile, writeJsonAtomic } from "../../utils/fs";
 import { normalizeGenreLabel } from "../genre/genreSynonymService";
 import { getUserTopArtists, getUserPlayCounts } from "../activity/playCountStore";
 import type { IndexStore } from "../indexer/indexStore";
@@ -119,12 +119,6 @@ async function readDismissals(userId: string): Promise<DismissedEntry[]> {
   return data.dismissed;
 }
 
-async function writeDismissals(userId: string, entries: DismissedEntry[]): Promise<void> {
-  const filePath = dismissedPath(userId);
-  await ensureDir(path.dirname(filePath));
-  await writeJsonAtomic(filePath, { dismissed: entries });
-}
-
 function getActiveDismissals(entries: DismissedEntry[]): Set<string> {
   const now = Date.now();
   const active = new Set<string>();
@@ -138,14 +132,20 @@ function getActiveDismissals(entries: DismissedEntry[]): Set<string> {
 }
 
 export async function dismissForYouPlaylist(userId: string, playlistId: string): Promise<void> {
-  const entries = await readDismissals(userId);
-  const existing = entries.find((e) => e.playlistId === playlistId);
-  if (existing) {
-    existing.dismissedAt = new Date().toISOString();
-  } else {
-    entries.push({ playlistId, dismissedAt: new Date().toISOString() });
-  }
-  await writeDismissals(userId, entries);
+  await updateJsonFile<DismissedFile>(
+    dismissedPath(userId),
+    { dismissed: [] },
+    (current) => {
+      const entries = Array.isArray(current?.dismissed) ? [...current.dismissed] : [];
+      const existing = entries.find((e) => e.playlistId === playlistId);
+      if (existing) {
+        existing.dismissedAt = new Date().toISOString();
+      } else {
+        entries.push({ playlistId, dismissedAt: new Date().toISOString() });
+      }
+      return { dismissed: entries };
+    }
+  );
   log.info(`User ${userId} dismissed for-you playlist ${playlistId}`);
 }
 

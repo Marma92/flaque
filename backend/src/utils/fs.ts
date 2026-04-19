@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 
 import {
   backupsRoot,
@@ -58,6 +59,52 @@ export async function readJsonFile<T>(filePath: string, fallback: T): Promise<T>
   } catch {
     return fallback;
   }
+}
+
+const fileLocks = new Map<string, Promise<unknown>>();
+
+/**
+ * Serializes async work on a file path within this process. Prevents concurrent
+ * read-modify-write races on JSON stores (play counts, ownership, playlist
+ * metadata, etc.) while the app is still using flat files.
+ *
+ * In-process only — a single-process Node server is assumed. Multi-process
+ * deployments would need OS-level locking (e.g. proper-lockfile).
+ */
+export async function withFileLock<T>(filePath: string, fn: () => Promise<T>): Promise<T> {
+  const key = path.resolve(filePath);
+  const previous = fileLocks.get(key) ?? Promise.resolve();
+  const next = previous.then(fn, fn);
+  fileLocks.set(key, next);
+  try {
+    return await next;
+  } finally {
+    if (fileLocks.get(key) === next) {
+      fileLocks.delete(key);
+    }
+  }
+}
+
+/**
+ * Reads a JSON file, applies the updater, and writes the result atomically —
+ * all under a per-path lock. Skips the write if the updater returns
+ * `undefined`, letting callers abort mutations when no changes are needed.
+ */
+export async function updateJsonFile<T>(
+  filePath: string,
+  fallback: T,
+  updater: (current: T) => T | undefined | Promise<T | undefined>
+): Promise<T> {
+  return withFileLock(filePath, async () => {
+    const current = await readJsonFile<T>(filePath, fallback);
+    const next = await updater(current);
+    if (next === undefined) {
+      return current;
+    }
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await writeJsonAtomic(filePath, next);
+    return next;
+  });
 }
 
 export async function ensureBaseDirectories(): Promise<void> {

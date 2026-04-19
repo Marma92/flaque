@@ -4,7 +4,7 @@ import defaultCoverImage from "../assets/default-cover.png";
 import { coverUrl, playlistCoverUrl } from "../api";
 import type { AutoPlaylistSummary, ForYouPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
 
-type LibraryPlaylistSectionProps = {
+export type LibraryPlaylistSectionProps = {
   availablePlaylists: Playlist[];
   manageablePlaylists: Playlist[];
   ownerNameById: Record<string, string>;

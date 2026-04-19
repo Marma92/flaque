@@ -6,17 +6,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { User } from "../types";
 import { useSessionRoutingState } from "./useSessionRoutingState";
 
-const { getCurrentUserMock, loginMock } = vi.hoisted(() => {
+const { getCurrentUserMock, loginMock, setUnauthorizedHandlerMock } = vi.hoisted(() => {
   return {
     getCurrentUserMock: vi.fn<() => Promise<User | null>>(),
-    loginMock: vi.fn<(username: string, password: string) => Promise<User>>()
+    loginMock: vi.fn<(username: string, password: string) => Promise<User>>(),
+    setUnauthorizedHandlerMock: vi.fn<(handler: ((endpoint: string) => void) | null) => void>()
   };
 });
 
 vi.mock("../api", () => {
   return {
     getCurrentUser: getCurrentUserMock,
-    login: loginMock
+    login: loginMock,
+    setUnauthorizedHandler: setUnauthorizedHandlerMock
   };
 });
 

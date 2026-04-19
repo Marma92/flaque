@@ -269,86 +269,114 @@ export function AuthenticatedApp({
       loadingLibrary={loadingLibrary}
       libraryWorkspaceProps={{
         activeLibrarySection,
-        onSectionChange: (section: LibrarySection) => {
-          setActiveLibrarySection(section);
-          setPlaylistDetailId(null);
-          clearSelectedArtist();
-          clearSelectedArtistAlbum();
-          clearSelectedAlbum();
+        playlistsProps: {
+          playlistDetailId,
+          onPlaylistDetailNavigate: (id: string | null) => {
+            setPlaylistDetailId(id);
+            navigateTo("library", "playlists", id);
+          },
+          availablePlaylists,
+          manageablePlaylists,
+          ownerNameById,
+          allTracksById,
+          user,
+          onCreatePlaylist: handleCreatePlaylist,
+          onPlayPlaylist: handlePlayPlaylist,
+          onPatchPlaylist: handlePatchPlaylist,
+          onDeletePlaylist: handleDeletePlaylist,
+          onHeartPlaylist: handleHeartPlaylist,
+          onReportPlaylistListen: handleReportPlaylistListen,
+          autoPlaylists,
+          loadingAutoPlaylists,
+          forYouPlaylists,
+          loadingForYouPlaylists,
+          onDismissForYouPlaylist: dismissForYouPlaylist
         },
-        availablePlaylists,
-        ownerNameById,
-        user,
-        playlistDetailId,
-        onPlaylistDetailNavigate: (id: string | null) => {
-          setPlaylistDetailId(id);
-          navigateTo("library", "playlists", id);
+        artistsProps: {
+          libraryMetadataError,
+          loadingArtists: loadingLibraryArtists,
+          artists: libraryArtists,
+          selectedArtist,
+          artistAlbums,
+          selectedArtistAlbum,
+          selectedArtistAlbumTracks,
+          loadingSelectedArtistAlbumTracks,
+          selectedArtistAlbumTracksError,
+          loadingArtistAlbums,
+          currentTrackId: selectedTrackRefreshed?.id,
+          ownerNameById,
+          onArtistSelect: selectArtist,
+          onArtistBack: clearSelectedArtist,
+          onArtistAlbumSelect: selectArtistAlbum,
+          onArtistAlbumBack: clearSelectedArtistAlbum,
+          onArtistAlbumTrackSelect: (track) => requestTrackPlaybackWithStatus(track, selectedArtistAlbumTracks),
+          onPlayAlbum: handlePlayAlbum,
+          playlists: manageablePlaylists,
+          onAddTrackToPlaylist: handleAddTrackToPlaylist
         },
-        onCreatePlaylist: handleCreatePlaylist,
-        onPlayPlaylist: handlePlayPlaylist,
-        onPatchPlaylist: handlePatchPlaylist,
-        onDeletePlaylist: handleDeletePlaylist,
-        onHeartPlaylist: handleHeartPlaylist,
-        onReportPlaylistListen: handleReportPlaylistListen,
-        autoPlaylists,
-        loadingAutoPlaylists,
-        forYouPlaylists,
-        loadingForYouPlaylists,
-        onDismissForYouPlaylist: dismissForYouPlaylist,
-        allTracksById,
-        libraryMetadataError,
-        loadingLibraryArtists,
-        libraryArtists,
-        selectedArtist,
-        artistAlbums,
-        selectedArtistAlbum,
-        selectedArtistAlbumTracks,
-        loadingSelectedArtistAlbumTracks,
-        selectedArtistAlbumTracksError,
-        loadingArtistAlbums,
-        onArtistSelect: selectArtist,
-        onArtistBack: clearSelectedArtist,
-        onArtistAlbumSelect: selectArtistAlbum,
-        onArtistAlbumBack: clearSelectedArtistAlbum,
-        onArtistAlbumTrackSelect: (track) => requestTrackPlaybackWithStatus(track, selectedArtistAlbumTracks),
-        onPlayAlbum: handlePlayAlbum,
-        loadingLibraryAlbums,
-        libraryAlbums,
-        selectedAlbum,
-        selectedAlbumTracks,
-        loadingSelectedAlbumTracks,
-        selectedAlbumTracksError,
-        currentTrackId: selectedTrackRefreshed?.id,
-        onAlbumSelect: selectAlbum,
-        onAlbumBack: clearSelectedAlbum,
-        onAlbumTrackSelect: (track) => requestTrackPlaybackWithStatus(track, selectedAlbumTracks),
-        recentTracks,
-        onRecentTrackReplay: handleReplayRecentTrack,
-        library,
-        filters,
-        onFilterChange: (next) => setFilters(next),
-        onLibraryTrackSelect: (track) => requestTrackPlaybackWithStatus(track, paginatedTracks),
-        manageablePlaylists,
-        onAddTrackToPlaylist: handleAddTrackToPlaylist,
-        recentlyUploadedTracks,
-        recentlyUploadedLoading,
-        recentlyUploadedPeriod,
-        onRecentlyUploadedPeriodChange: setRecentlyUploadedPeriod,
-        radioLoading: loadingRadio,
-        radioStationId,
-        radioCurrentTrack,
-        radioNextTrack,
-        onStartRadioPlayback: () => {
-          setActiveView("player");
-          startRadioPlayback();
+        albumsProps: {
+          libraryMetadataError,
+          loadingAlbums: loadingLibraryAlbums,
+          albums: libraryAlbums,
+          selectedAlbum,
+          selectedAlbumTracks,
+          loadingSelectedAlbumTracks,
+          selectedAlbumTracksError,
+          currentTrackId: selectedTrackRefreshed?.id,
+          ownerNameById,
+          onAlbumSelect: selectAlbum,
+          onPlayAlbum: handlePlayAlbum,
+          onBack: clearSelectedAlbum,
+          onTrackSelect: (track) => requestTrackPlaybackWithStatus(track, selectedAlbumTracks),
+          playlists: manageablePlaylists,
+          onAddTrackToPlaylist: handleAddTrackToPlaylist
         },
-        paginatedTracks,
-        paginatedTotal,
-        paginatedLoading,
-        paginatedLoadingMore,
-        paginatedHasMore,
-        paginatedSentinelRef
+        homeProps: {
+          recentTracks,
+          onRecentTrackReplay: handleReplayRecentTrack,
+          recentlyUploadedTracks,
+          recentlyUploadedLoading,
+          recentlyUploadedPeriod,
+          onRecentlyUploadedPeriodChange: setRecentlyUploadedPeriod,
+          onRecentlyUploadedTrackSelect: (track) => requestTrackPlaybackWithStatus(track, paginatedTracks),
+          ownerNameById,
+          radioLoading: loadingRadio,
+          radioStationId,
+          radioCurrentTrack,
+          radioNextTrack,
+          onStartRadioPlayback: () => {
+            setActiveView("player");
+            startRadioPlayback();
+          },
+          onNavigateToLibrary: () => {
+            navigateTo("library", "music");
+            setActiveLibrarySection("music");
+            setPlaylistDetailId(null);
+            clearSelectedArtist();
+            clearSelectedArtistAlbum();
+            clearSelectedAlbum();
+          }
+        },
+        musicProps: {
+          owners: library.owners,
+          ownerNameById,
+          artists: library.artists,
+          albums: library.albums,
+          filters,
+          onFilterChange: (next) => setFilters(next),
+          tracks: paginatedTracks,
+          total: paginatedTotal,
+          loading: paginatedLoading,
+          loadingMore: paginatedLoadingMore,
+          hasMore: paginatedHasMore,
+          sentinelRef: paginatedSentinelRef,
+          currentTrackId: selectedTrackRefreshed?.id,
+          onTrackSelect: (track) => requestTrackPlaybackWithStatus(track, paginatedTracks),
+          playlists: manageablePlaylists,
+          onAddTrackToPlaylist: handleAddTrackToPlaylist
+        }
       }}
+      onLibrarySectionChange={setActiveLibrarySection}
       uploadViewProps={{
         onUpload: handleUpload,
         onInspectFile: handleInspectUploadFile

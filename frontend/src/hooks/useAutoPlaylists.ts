@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 
 import { getAutoPlaylists } from "../api";
 import type { AutoPlaylistSummary } from "../types";
+import { useQuery } from "./useQuery";
 
 type UseAutoPlaylistsResult = {
   autoPlaylists: AutoPlaylistSummary[];
@@ -9,21 +10,10 @@ type UseAutoPlaylistsResult = {
   refresh: () => void;
 };
 
+const EMPTY: AutoPlaylistSummary[] = [];
+
 export function useAutoPlaylists(): UseAutoPlaylistsResult {
-  const [autoPlaylists, setAutoPlaylists] = useState<AutoPlaylistSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetch = useCallback(() => {
-    setLoading(true);
-    getAutoPlaylists()
-      .then(setAutoPlaylists)
-      .catch(() => setAutoPlaylists([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    fetch();
-  }, [fetch]);
-
-  return { autoPlaylists, loading, refresh: fetch };
+  const fetcher = useCallback(() => getAutoPlaylists(), []);
+  const { data, loading, refresh } = useQuery<AutoPlaylistSummary[]>(fetcher, EMPTY);
+  return { autoPlaylists: data, loading, refresh };
 }

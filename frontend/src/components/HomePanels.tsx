@@ -3,7 +3,7 @@ import type { UploadPeriod } from "../hooks/useRecentlyUploaded";
 import { RecentTracksPanel } from "./RecentTracksPanel";
 import { RecentlyUploadedPanel } from "./RecentlyUploadedPanel";
 
-type HomePanelsProps = {
+export type HomePanelsProps = {
   recentTracks: Track[];
   onRecentTrackReplay: (track: Track) => void;
   recentlyUploadedTracks: Track[];

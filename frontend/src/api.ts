@@ -35,6 +35,22 @@ type RequestOptions = RequestInit & {
   skipJson?: boolean;
 };
 
+type UnauthorizedHandler = (endpoint: string) => void;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+// Paths where a 401 is part of the normal login flow rather than a session
+// loss — do not fire the global handler for these.
+const UNAUTHORIZED_BYPASS = new Set([
+  "/api/auth/me",
+  "/api/auth/login",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password"
+]);
+
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+  unauthorizedHandler = handler;
+}
+
 function withApiBase(path: string): string {
   if (/^https?:\/\//i.test(path)) {
     return path;
@@ -61,6 +77,11 @@ async function requestJson<T>(path: string, options: RequestOptions = {}): Promi
     } catch (parseError) {
       console.warn(`Failed to parse error response from ${options.method ?? "GET"} ${path}:`, parseError);
     }
+
+    if (response.status === 401 && !UNAUTHORIZED_BYPASS.has(path) && unauthorizedHandler) {
+      unauthorizedHandler(path);
+    }
+
     throw new ApiError(response.status, path, message);
   }
 

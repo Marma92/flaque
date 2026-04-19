@@ -5,7 +5,7 @@ import path from "node:path";
 import type { AuthUser } from "../../types/auth";
 import type { Playlist, PlaylistVisibility, Track } from "../../types/library";
 import { usersStorageRoot } from "../../utils/paths";
-import { writeJsonAtomic } from "../../utils/fs";
+import { withFileLock, writeJsonAtomic } from "../../utils/fs";
 import { resolveTrackAbsolutePath, toDataRelativePath } from "../storage/storageService";
 
 const PLAYLIST_METADATA_FILE = "playlist.json";
@@ -523,15 +523,18 @@ async function patchPlaylistMetadataFile(
   playlistId: string,
   updater: (metadata: PlaylistMetadata) => PlaylistMetadata
 ): Promise<PlaylistMetadata> {
-  const metadata = await readPlaylistMetadata(playlistId);
-  if (!metadata) {
-    throw new Error("Playlist metadata not found");
-  }
-
-  const updated = updater(metadata);
   const { authorId, slug } = parsePlaylistIdOrThrow(playlistId);
-  await writeJsonAtomic(getPlaylistMetadataPath(authorId, slug), updated);
-  return updated;
+  const metadataFilePath = getPlaylistMetadataPath(authorId, slug);
+
+  return withFileLock(metadataFilePath, async () => {
+    const metadata = await readPlaylistMetadata(playlistId);
+    if (!metadata) {
+      throw new Error("Playlist metadata not found");
+    }
+    const updated = updater(metadata);
+    await writeJsonAtomic(metadataFilePath, updated);
+    return updated;
+  });
 }
 
 export async function togglePlaylistHeart(
