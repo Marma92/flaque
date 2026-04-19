@@ -5,6 +5,7 @@ import path from "node:path";
 import { Router } from "express";
 
 import { requireAdmin, requireAuth } from "../auth/middleware";
+import { AppError } from "../utils/AppError";
 import { backupsRoot, cacheRoot, configRoot, dataRoot, indexRoot, logsRoot, storageRoot } from "../utils/paths";
 
 const LOG_FILE_PATTERN = /^flaque\.(\d{4}-\d{2}-\d{2}\.)?\d+\.log$/;
@@ -135,8 +136,7 @@ export function createLogRouter(): Router {
       const filePath = safeResolveLogPath(fileName);
 
       if (!filePath) {
-        res.status(400).json({ error: "Invalid log file name" });
-        return;
+        return next(new AppError("Invalid log file name", 400));
       }
 
       let content: string;

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 
-import defaultCoverImage from "../assets/default-cover.png";
-import type { AlbumListProps } from "./AlbumList";
+import type { AlbumEntry } from "../types";
 import { getAlbumKey } from "../utils/appUtils";
+import { defaultCoverImage, getAlbumCoverSrc } from "../utils/covers";
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -55,7 +55,13 @@ function coverTransform(progress: number): string {
   return `translateX(${tx.toFixed(1)}%) rotateY(${ry.toFixed(1)}deg) translateZ(${tz.toFixed(2)}em) scale(${s.toFixed(3)})`;
 }
 
-export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverSrc }: AlbumListProps): JSX.Element {
+type CoverflowProps = {
+  albums: AlbumEntry[];
+  selectedAlbum: AlbumEntry | null;
+  onAlbumSelect: (album: AlbumEntry) => void;
+};
+
+export function Coverflow({ albums, selectedAlbum, onAlbumSelect }: CoverflowProps): JSX.Element {
   const selectedKey = selectedAlbum ? getAlbumKey(selectedAlbum) : null;
   const wrapperRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);

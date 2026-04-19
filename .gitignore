@@ -35,3 +35,5 @@ backend/dist/
 .e2e/data/
 playwright-report/
 test-results/
+
+.claude/settings.local.json

@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import { requireAdmin, requireAuth } from "../auth/middleware";
 import { getVersionCheckResult, forceVersionCheck } from "../services/versionCheck";
+import { AppError } from "../utils/AppError";
 import { createLogger } from "../utils/logger";
 
 const log = createLogger("server");
@@ -27,8 +28,7 @@ export function createServerRouter(): Router {
     try {
       const secret = process.env.UPDATE_SECRET;
       if (!secret) {
-        res.status(501).json({ error: "Self-update is not configured" });
-        return;
+        return next(new AppError("Self-update is not configured", 501));
       }
 
       log.info("Server update initiated", { userId: _req.authUser?.id ?? "unknown" });

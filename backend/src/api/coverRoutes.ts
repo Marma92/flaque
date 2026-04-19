@@ -5,6 +5,7 @@ import { Router } from "express";
 import { requireAuth } from "../auth/middleware";
 import type { IndexStore } from "../services/indexer/indexStore";
 import { findCoverFileByTrackId } from "../services/storage/coverService";
+import { AppError } from "../utils/AppError";
 import { fileExists, readJsonFile } from "../utils/fs";
 import { createLogger } from "../utils/logger";
 import { ALBUM_METADATA_FILE } from "../utils/music";
@@ -46,22 +47,19 @@ export function createCoverRouter(indexStore: IndexStore): Router {
     try {
       const relativePath = typeof req.query.path === "string" ? req.query.path.trim() : "";
       if (!relativePath) {
-        res.status(400).json({ error: "path query parameter is required" });
-        return;
+        return next(new AppError("path query parameter is required", 400));
       }
 
       const extension = path.extname(relativePath).toLowerCase();
       if (!ALLOWED_IMAGE_EXTENSIONS.has(extension)) {
-        res.status(400).json({ error: "Unsupported image path" });
-        return;
+        return next(new AppError("Unsupported image path", 400));
       }
 
       const absolutePath = resolveDataRelativePath(relativePath);
       const hasFile = await fileExists(absolutePath);
       if (!hasFile) {
         log.warn("Cover not found for path", { path: relativePath });
-        res.status(404).json({ error: "Cover not found" });
-        return;
+        return next(new AppError("Cover not found", 404));
       }
 
       res.setHeader("Cache-Control", "private, max-age=86400");
@@ -75,15 +73,13 @@ export function createCoverRouter(indexStore: IndexStore): Router {
     try {
       const trackId = req.params.id;
       if (!trackId) {
-        res.status(400).json({ error: "Track id is required" });
-        return;
+        return next(new AppError("Track id is required", 400));
       }
 
       const coverPath = (await resolveAlbumCoverByTrackId(indexStore, trackId)) ?? (await findCoverFileByTrackId(trackId));
       if (!coverPath) {
         log.warn("Cover not found for track", { trackId });
-        res.status(404).json({ error: "Cover not found" });
-        return;
+        return next(new AppError("Cover not found", 404));
       }
 
       res.setHeader("Cache-Control", "private, max-age=86400");

@@ -23,6 +23,7 @@ import {
 import { filterPlayablePlaylists } from "../services/playlists/playlistStore";
 import { deleteTrackCover } from "../services/storage/coverService";
 import { resolveTrackAbsolutePath } from "../services/storage/storageService";
+import { AppError } from "../utils/AppError";
 import { resolveDataRelativePath } from "../utils/paths";
 import {
   filterTracks,
@@ -131,11 +132,10 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
   });
 
   // GET /tracks
-  router.get("/tracks", requireAuth, (req, res) => {
+  router.get("/tracks", requireAuth, (req, res, next) => {
     const parsedQuery = readTracksQuery(req.query as Record<string, unknown>);
     if ("error" in parsedQuery) {
-      res.status(400).json({ error: parsedQuery.error });
-      return;
+      return next(new AppError(parsedQuery.error, 400));
     }
 
     const ownerNamesById = getOwnerNamesById();
@@ -161,23 +161,20 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
   });
 
   // GET /tracks/:id/adjacent
-  router.get("/tracks/:id/adjacent", requireAuth, (req, res) => {
+  router.get("/tracks/:id/adjacent", requireAuth, (req, res, next) => {
     const trackId = req.params.id;
     if (!trackId) {
-      res.status(400).json({ error: "Track id is required" });
-      return;
+      return next(new AppError("Track id is required", 400));
     }
 
     const direction = readDirection(req.query.direction);
     if (!direction) {
-      res.status(400).json({ error: "direction must be next or previous" });
-      return;
+      return next(new AppError("direction must be next or previous", 400));
     }
 
     const wrap = readWrap(req.query.wrap);
     if (!indexStore.hasTrack(trackId)) {
-      res.status(404).json({ error: "Track not found" });
-      return;
+      return next(new AppError("Track not found", 404));
     }
 
     const ownerNamesById = getOwnerNamesById();
@@ -202,8 +199,7 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
     try {
       const trackId = req.params.id;
       if (!trackId) {
-        res.status(400).json({ error: "Track id is required" });
-        return;
+        return next(new AppError("Track id is required", 400));
       }
 
       const hasTitle = hasOwnProperty(req.body, "title");
@@ -213,14 +209,12 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       const hasGenre = hasOwnProperty(req.body, "genre");
 
       if (!hasTitle && !hasArtist && !hasAlbum && !hasYear && !hasGenre) {
-        res.status(400).json({ error: "At least one metadata field is required: title, artist, album, year, genre" });
-        return;
+        return next(new AppError("At least one metadata field is required: title, artist, album, year, genre", 400));
       }
 
       const currentTrack = indexStore.getTrackById(trackId);
       if (!currentTrack) {
-        res.status(404).json({ error: "Track not found" });
-        return;
+        return next(new AppError("Track not found", 404));
       }
 
       const parsedTitle = hasTitle ? parseMetadataField(req.body?.title) : undefined;
@@ -229,11 +223,11 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       const parsedYear = hasYear ? parseMetadataYearField(req.body?.year) : undefined;
       const parsedGenre = hasGenre ? parseMetadataGenreField(req.body?.genre) : undefined;
 
-      if (parsedTitle === null) { res.status(400).json({ error: "title must be a string or null" }); return; }
-      if (parsedArtist === null) { res.status(400).json({ error: "artist must be a string or null" }); return; }
-      if (parsedAlbum === null) { res.status(400).json({ error: "album must be a string or null" }); return; }
-      if (parsedYear === null) { res.status(400).json({ error: "year must be an integer between 1000 and 2999, or null" }); return; }
-      if (parsedGenre === null) { res.status(400).json({ error: "genre must be an array of strings or null" }); return; }
+      if (parsedTitle === null) return next(new AppError("title must be a string or null", 400));
+      if (parsedArtist === null) return next(new AppError("artist must be a string or null", 400));
+      if (parsedAlbum === null) return next(new AppError("album must be a string or null", 400));
+      if (parsedYear === null) return next(new AppError("year must be an integer between 1000 and 2999, or null", 400));
+      if (parsedGenre === null) return next(new AppError("genre must be an array of strings or null", 400));
 
       const currentOverrides = await readTrackMetadataOverrides();
       const currentOverride = currentOverrides[trackId] ?? {};
@@ -279,14 +273,12 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
     try {
       const trackIds = req.body?.trackIds;
       if (!Array.isArray(trackIds) || trackIds.length === 0) {
-        res.status(400).json({ error: "trackIds array is required" });
-        return;
+        return next(new AppError("trackIds array is required", 400));
       }
 
       const validIds = trackIds.filter((id): id is string => typeof id === "string" && id.length > 0);
       if (validIds.length === 0) {
-        res.status(400).json({ error: "No valid track ids provided" });
-        return;
+        return next(new AppError("No valid track ids provided", 400));
       }
 
       const deleted: string[] = [];
@@ -335,14 +327,12 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
     try {
       const trackIds = req.body?.trackIds;
       if (!Array.isArray(trackIds) || trackIds.length === 0) {
-        res.status(400).json({ error: "trackIds array is required" });
-        return;
+        return next(new AppError("trackIds array is required", 400));
       }
 
       const validIds = trackIds.filter((id): id is string => typeof id === "string" && id.length > 0);
       if (validIds.length === 0) {
-        res.status(400).json({ error: "No valid track ids provided" });
-        return;
+        return next(new AppError("No valid track ids provided", 400));
       }
 
       const hasTitle = hasOwnProperty(req.body, "title");
@@ -352,8 +342,7 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       const hasGenre = hasOwnProperty(req.body, "genre");
 
       if (!hasTitle && !hasArtist && !hasAlbum && !hasYear && !hasGenre) {
-        res.status(400).json({ error: "At least one metadata field is required: title, artist, album, year, genre" });
-        return;
+        return next(new AppError("At least one metadata field is required: title, artist, album, year, genre", 400));
       }
 
       const parsedTitle = hasTitle ? parseMetadataField(req.body?.title) : undefined;
@@ -362,11 +351,11 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       const parsedYear = hasYear ? parseMetadataYearField(req.body?.year) : undefined;
       const parsedGenre = hasGenre ? parseMetadataGenreField(req.body?.genre) : undefined;
 
-      if (parsedTitle === null) { res.status(400).json({ error: "title must be a string or null" }); return; }
-      if (parsedArtist === null) { res.status(400).json({ error: "artist must be a string or null" }); return; }
-      if (parsedAlbum === null) { res.status(400).json({ error: "album must be a string or null" }); return; }
-      if (parsedYear === null) { res.status(400).json({ error: "year must be an integer between 1000 and 2999, or null" }); return; }
-      if (parsedGenre === null) { res.status(400).json({ error: "genre must be an array of strings or null" }); return; }
+      if (parsedTitle === null) return next(new AppError("title must be a string or null", 400));
+      if (parsedArtist === null) return next(new AppError("artist must be a string or null", 400));
+      if (parsedAlbum === null) return next(new AppError("album must be a string or null", 400));
+      if (parsedYear === null) return next(new AppError("year must be an integer between 1000 and 2999, or null", 400));
+      if (parsedGenre === null) return next(new AppError("genre must be an array of strings or null", 400));
 
       const currentOverrides = await readTrackMetadataOverrides();
       const overridePatch: Record<string, { title?: string; artist?: string; album?: string; year?: number; genre?: string[] }> = {};
@@ -417,14 +406,12 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
     try {
       const trackId = req.params.id;
       if (!trackId) {
-        res.status(400).json({ error: "Track id is required" });
-        return;
+        return next(new AppError("Track id is required", 400));
       }
 
       const track = indexStore.getTrackById(trackId);
       if (!track) {
-        res.status(404).json({ error: "Track not found" });
-        return;
+        return next(new AppError("Track not found", 404));
       }
 
       const absolutePath = resolveTrackAbsolutePath(track.path);
@@ -472,8 +459,7 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
     try {
       const normalizedArtist = req.params.artist?.trim().toLowerCase();
       if (!normalizedArtist) {
-        res.status(400).json({ error: "Artist is required" });
-        return;
+        return next(new AppError("Artist is required", 400));
       }
 
       const ownerNamesById = getOwnerNamesById();
@@ -515,8 +501,7 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
     try {
       const albumId = req.params.albumId?.trim();
       if (!albumId) {
-        res.status(400).json({ error: "Album id is required" });
-        return;
+        return next(new AppError("Album id is required", 400));
       }
 
       const ownerNamesById = getOwnerNamesById();
@@ -531,8 +516,7 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
           (track) => normalizeAlbumName(track.tags.album) === collaborativeAlbum.normalizedAlbumName
         );
         if (matchingTracks.length === 0) {
-          res.status(404).json({ error: "Album not found" });
-          return;
+          return next(new AppError("Album not found", 404));
         }
         matchingTracks.sort(compareAlbumTrackOrder);
         res.json(buildAlbumResponse(albumId, matchingTracks[0]?.tags.album, matchingTracks[0]?.cover, matchingTracks));
@@ -571,8 +555,7 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       }
 
       if (albumTracks.length === 0) {
-        res.status(404).json({ error: "Album not found" });
-        return;
+        return next(new AppError("Album not found", 404));
       }
 
       albumTracks.sort(compareAlbumTrackOrder);

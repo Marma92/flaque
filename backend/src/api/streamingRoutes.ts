@@ -11,6 +11,7 @@ import {
   streamTranscodedAudio,
   type TranscodeFormat
 } from "../services/streaming/transcodeService";
+import { AppError } from "../utils/AppError";
 import { createLogger } from "../utils/logger";
 
 const log = createLogger("streaming");
@@ -37,22 +38,17 @@ export function createStreamingRouter(indexStore: IndexStore): Router {
     try {
       const trackId = req.params.id;
       if (!trackId) {
-        res.status(400).json({ error: "Track id is required" });
-        return;
+        return next(new AppError("Track id is required", 400));
       }
 
       const track = indexStore.getTrackById(trackId);
       if (!track) {
-        res.status(404).json({ error: "Track not found" });
-        return;
+        return next(new AppError("Track not found", 404));
       }
 
       const transcode = parseTranscodeFormat(req.query.transcode);
       if (transcode === null) {
-        res
-          .status(400)
-          .json({ error: "transcode must be one of: opus, mp3 (or omitted for source stream)" });
-        return;
+        return next(new AppError("transcode must be one of: opus, mp3 (or omitted for source stream)", 400));
       }
 
       const absolutePath = resolveTrackAbsolutePath(track.path);
@@ -67,8 +63,7 @@ export function createStreamingRouter(indexStore: IndexStore): Router {
 
       if (transcode) {
         if (!isFlacTrack(track)) {
-          res.status(400).json({ error: transcodeErrorMessage(transcode) });
-          return;
+          return next(new AppError(transcodeErrorMessage(transcode), 400));
         }
 
         await streamTranscodedAudio(req, res, absolutePath, transcode);

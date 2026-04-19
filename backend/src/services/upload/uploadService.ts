@@ -13,6 +13,7 @@ import { ensureTrackCover } from "../storage/coverService";
 import { toDataRelativePath } from "../storage/storageService";
 import { registerTrackOwner } from "../storage/ownershipStore";
 import type { Track } from "../../types/library";
+import { AppError } from "../../utils/AppError";
 import { fileExists, moveFile, writeJsonAtomic } from "../../utils/fs";
 import { createTrackId, hashFile } from "../../utils/hash";
 import { getAudioMimeType, getSupportedAudioExtensions, isSupportedAudioFile } from "../../utils/mime";
@@ -169,7 +170,7 @@ export async function processUploadedFile(
   manualYear?: number
 ): Promise<ProcessedUpload> {
   if (!isSupportedAudioFile(uploadedFile.originalname)) {
-    throw new Error(`Unsupported audio format: ${uploadedFile.originalname}`);
+    throw new AppError(`Unsupported audio format: ${uploadedFile.originalname}`, 400);
   }
 
   const metadata = await extractAudioMetadata(uploadedFile.path);

@@ -1,6 +1,6 @@
-import defaultCoverImage from "../assets/default-cover.png";
 import type { AlbumEntry } from "../types";
 import { getAlbumKey } from "../utils/appUtils";
+import { defaultCoverImage, getAlbumCoverSrc } from "../utils/covers";
 import { formatDurationHuman } from "../utils/format";
 
 export type AlbumListProps = {
@@ -8,10 +8,9 @@ export type AlbumListProps = {
   selectedAlbum: AlbumEntry | null;
   onAlbumSelect: (album: AlbumEntry) => void;
   onPlayAlbum?: (album: AlbumEntry) => void;
-  getAlbumCoverSrc: (album: AlbumEntry) => string;
 };
 
-export function AlbumList({ albums, selectedAlbum, onAlbumSelect, onPlayAlbum, getAlbumCoverSrc }: AlbumListProps): JSX.Element {
+export function AlbumList({ albums, selectedAlbum, onAlbumSelect, onPlayAlbum }: AlbumListProps): JSX.Element {
   const selectedKey = selectedAlbum ? getAlbumKey(selectedAlbum) : null;
 
   return (

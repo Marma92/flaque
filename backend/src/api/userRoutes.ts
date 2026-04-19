@@ -23,6 +23,7 @@ import { verifyPassword } from "../auth/password";
 import { getSessionTtlMs, setSessionCookie } from "../auth/session";
 import { createSession } from "../auth/sessionDb";
 import type { UserRole } from "../types/auth";
+import { AppError } from "../utils/AppError";
 import { ensureDir, fileExists } from "../utils/fs";
 import { createLogger } from "../utils/logger";
 import { usersStorageRoot } from "../utils/paths";
@@ -113,8 +114,7 @@ export function createUserRouter(): Router {
     try {
       const authUser = req.authUser;
       if (!authUser) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
+        return next(new AppError("Unauthorized", 401));
       }
 
       res.setHeader("Cache-Control", "private, no-store, max-age=0, must-revalidate");
@@ -122,8 +122,7 @@ export function createUserRouter(): Router {
 
       const profilePhotoPath = await resolveUserProfilePhotoPath(authUser.id);
       if (!profilePhotoPath) {
-        res.status(404).json({ error: "Profile photo not found" });
-        return;
+        return next(new AppError("Profile photo not found", 404));
       }
 
       res.sendFile(profilePhotoPath);
@@ -139,8 +138,7 @@ export function createUserRouter(): Router {
       });
     } catch (error) {
       if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
-        res.status(400).json({ error: `Profile photo must be <= ${Math.floor(PROFILE_PHOTO_MAX_BYTES / (1024 * 1024))} MB` });
-        return;
+        return next(new AppError(`Profile photo must be <= ${Math.floor(PROFILE_PHOTO_MAX_BYTES / (1024 * 1024))} MB`, 400));
       }
       next(error);
       return;
@@ -149,27 +147,23 @@ export function createUserRouter(): Router {
     try {
       const authUser = req.authUser;
       if (!authUser) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
+        return next(new AppError("Unauthorized", 401));
       }
 
       const file = req.file;
       if (!file) {
-        res.status(400).json({ error: "photo file is required" });
-        return;
+        return next(new AppError("photo file is required", 400));
       }
 
       if (!file.mimetype.toLowerCase().startsWith("image/")) {
-        res.status(400).json({ error: "Unsupported image format" });
-        return;
+        return next(new AppError("Unsupported image format", 400));
       }
 
       let convertedBuffer: Buffer;
       try {
         convertedBuffer = await convertProfilePhotoToWebp(file.buffer);
       } catch {
-        res.status(400).json({ error: "Invalid image file" });
-        return;
+        return next(new AppError("Invalid image file", 400));
       }
 
       const profileDir = getUserProfileDir(authUser.id);
@@ -194,30 +188,26 @@ export function createUserRouter(): Router {
     }
   });
 
-  router.post("/users/me/password", requireAuth, (req, res) => {
+  router.post("/users/me/password", requireAuth, (req, res, next) => {
     const currentPassword = typeof req.body?.currentPassword === "string" ? req.body.currentPassword : "";
     const nextPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword : "";
 
     if (currentPassword.length === 0) {
-      res.status(400).json({ error: "currentPassword is required" });
-      return;
+      return next(new AppError("currentPassword is required", 400));
     }
 
     const passwordError = validatePassword(nextPassword);
     if (passwordError) {
-      res.status(400).json({ error: passwordError });
-      return;
+      return next(new AppError(passwordError, 400));
     }
 
     if (currentPassword === nextPassword) {
-      res.status(400).json({ error: "New password must be different from the current password" });
-      return;
+      return next(new AppError("New password must be different from the current password", 400));
     }
 
     const authUser = req.authUser;
     if (!authUser) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
+      return next(new AppError("Unauthorized", 401));
     }
 
     const existingUser = findUserByUsername(authUser.username);
@@ -227,14 +217,12 @@ export function createUserRouter(): Router {
         reason: "invalid-current-password",
         ip: getClientIp(req) ?? "unknown"
       });
-      res.status(401).json({ error: "Current password is invalid" });
-      return;
+      return next(new AppError("Current password is invalid", 401));
     }
 
     const updated = updateUserPassword(authUser.id, nextPassword);
     if (!updated) {
-      res.status(404).json({ error: "User not found" });
-      return;
+      return next(new AppError("User not found", 404));
     }
 
     emitSecurityAuditLog("info", "user-password-changed", {
@@ -257,21 +245,18 @@ export function createUserRouter(): Router {
     try {
       const authUser = req.authUser;
       if (!authUser) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
+        return next(new AppError("Unauthorized", 401));
       }
 
       const email = normalizeOptionalString(req.body?.email) ?? "";
       const emailError = validateEmail(email);
       if (emailError) {
-        res.status(400).json({ error: emailError });
-        return;
+        return next(new AppError(emailError, 400));
       }
 
       const updated = updateUserEmail(authUser.id, email);
       if (!updated) {
-        res.status(404).json({ error: "User not found" });
-        return;
+        return next(new AppError("User not found", 404));
       }
 
       emitSecurityAuditLog("info", "user-email-changed", {
@@ -283,8 +268,7 @@ export function createUserRouter(): Router {
       res.json({ ok: true, user: updatedUser });
     } catch (error) {
       if (isSqliteUniqueError(error)) {
-        res.status(409).json({ error: "Email address already in use" });
-        return;
+        return next(new AppError("Email address already in use", 409));
       }
       next(error);
     }
@@ -303,31 +287,26 @@ export function createUserRouter(): Router {
 
       const usernameError = validateUsername(username);
       if (usernameError) {
-        res.status(400).json({ error: usernameError });
-        return;
+        return next(new AppError(usernameError, 400));
       }
 
       const passwordError = validatePassword(password);
       if (passwordError) {
-        res.status(400).json({ error: passwordError });
-        return;
+        return next(new AppError(passwordError, 400));
       }
 
       const emailError = validateEmail(email);
       if (emailError) {
-        res.status(400).json({ error: emailError });
-        return;
+        return next(new AppError(emailError, 400));
       }
 
       if (!role) {
-        res.status(400).json({ error: "Role must be either user or admin" });
-        return;
+        return next(new AppError("Role must be either user or admin", 400));
       }
 
       const existing = findUserByUsername(username);
       if (existing) {
-        res.status(409).json({ error: "Username already exists" });
-        return;
+        return next(new AppError("Username already exists", 409));
       }
 
       const user = createUser(username, password, role, email);
@@ -345,11 +324,9 @@ export function createUserRouter(): Router {
       if (isSqliteUniqueError(error)) {
         const errorMessage = (error as Error).message ?? "";
         if (errorMessage.includes("email")) {
-          res.status(409).json({ error: "Email address already in use" });
-          return;
+          return next(new AppError("Email address already in use", 409));
         }
-        res.status(409).json({ error: "Username already exists" });
-        return;
+        return next(new AppError("Username already exists", 409));
       }
 
       next(error);
@@ -361,8 +338,7 @@ export function createUserRouter(): Router {
       const userId = req.params.id;
 
       if (!userId) {
-        res.status(400).json({ error: "User id is required" });
-        return;
+        return next(new AppError("User id is required", 400));
       }
 
       const hasUsername = hasOwnProperty(req.body, "username");
@@ -370,22 +346,19 @@ export function createUserRouter(): Router {
       const hasEmail = hasOwnProperty(req.body, "email");
 
       if (!hasUsername && !hasRole && !hasEmail) {
-        res.status(400).json({ error: "At least one field must be provided: username, role, or email" });
-        return;
+        return next(new AppError("At least one field must be provided: username, role, or email", 400));
       }
 
       let nextUsername: string | undefined;
       if (hasUsername) {
         const parsedUsername = normalizeOptionalString(req.body?.username);
         if (!parsedUsername) {
-          res.status(400).json({ error: "username must be a string" });
-          return;
+          return next(new AppError("username must be a string", 400));
         }
 
         const usernameError = validateUsername(parsedUsername);
         if (usernameError) {
-          res.status(400).json({ error: usernameError });
-          return;
+          return next(new AppError(usernameError, 400));
         }
 
         nextUsername = parsedUsername;
@@ -395,8 +368,7 @@ export function createUserRouter(): Router {
       if (hasRole) {
         nextRole = parseRole(req.body?.role) ?? undefined;
         if (!nextRole) {
-          res.status(400).json({ error: "Role must be either user or admin" });
-          return;
+          return next(new AppError("Role must be either user or admin", 400));
         }
       }
 
@@ -404,14 +376,12 @@ export function createUserRouter(): Router {
       if (hasEmail) {
         const parsedEmail = normalizeOptionalString(req.body?.email);
         if (!parsedEmail) {
-          res.status(400).json({ error: "email must be a string" });
-          return;
+          return next(new AppError("email must be a string", 400));
         }
 
         const emailError = validateEmail(parsedEmail);
         if (emailError) {
-          res.status(400).json({ error: emailError });
-          return;
+          return next(new AppError(emailError, 400));
         }
 
         nextEmail = parsedEmail;
@@ -419,8 +389,7 @@ export function createUserRouter(): Router {
 
       const existingUser = findUserById(userId);
       if (!existingUser) {
-        res.status(404).json({ error: "User not found" });
-        return;
+        return next(new AppError("User not found", 404));
       }
 
       const shouldChangeUsername =
@@ -436,37 +405,32 @@ export function createUserRouter(): Router {
       if (shouldChangeUsername && nextUsername) {
         const usernameOwner = findUserByUsername(nextUsername);
         if (usernameOwner && usernameOwner.id !== existingUser.id) {
-          res.status(409).json({ error: "Username already exists" });
-          return;
+          return next(new AppError("Username already exists", 409));
         }
       }
 
       if (existingUser.role === "admin" && nextRole === "user" && countUsersByRole("admin") <= 1) {
-        res.status(400).json({ error: "Cannot demote the last admin account" });
-        return;
+        return next(new AppError("Cannot demote the last admin account", 400));
       }
 
       if (shouldChangeUsername && nextUsername) {
         const updated = updateUserUsername(userId, nextUsername);
         if (!updated) {
-          res.status(404).json({ error: "User not found" });
-          return;
+          return next(new AppError("User not found", 404));
         }
       }
 
       if (shouldChangeRole && nextRole) {
         const updated = updateUserRole(userId, nextRole);
         if (!updated) {
-          res.status(404).json({ error: "User not found" });
-          return;
+          return next(new AppError("User not found", 404));
         }
       }
 
       if (shouldChangeEmail && nextEmail) {
         const updated = updateUserEmail(userId, nextEmail);
         if (!updated) {
-          res.status(404).json({ error: "User not found" });
-          return;
+          return next(new AppError("User not found", 404));
         }
       }
 
@@ -484,8 +448,7 @@ export function createUserRouter(): Router {
 
       const updatedUser = findUserById(userId);
       if (!updatedUser) {
-        res.status(404).json({ error: "User not found" });
-        return;
+        return next(new AppError("User not found", 404));
       }
 
       res.json({ user: updatedUser });
@@ -493,42 +456,36 @@ export function createUserRouter(): Router {
       if (isSqliteUniqueError(error)) {
         const errorMessage = (error as Error).message ?? "";
         if (errorMessage.includes("email")) {
-          res.status(409).json({ error: "Email address already in use" });
-          return;
+          return next(new AppError("Email address already in use", 409));
         }
-        res.status(409).json({ error: "Username already exists" });
-        return;
+        return next(new AppError("Username already exists", 409));
       }
 
       next(error);
     }
   });
 
-  router.post("/users/:id/reset-password", requireAuth, requireAdmin, (req, res) => {
+  router.post("/users/:id/reset-password", requireAuth, requireAdmin, (req, res, next) => {
     const userId = req.params.id;
     const password = typeof req.body?.password === "string" ? req.body.password : "";
 
     if (!userId) {
-      res.status(400).json({ error: "User id is required" });
-      return;
+      return next(new AppError("User id is required", 400));
     }
 
     const passwordError = validatePassword(password);
     if (passwordError) {
-      res.status(400).json({ error: passwordError });
-      return;
+      return next(new AppError(passwordError, 400));
     }
 
     const existingUser = findUserById(userId);
     if (!existingUser) {
-      res.status(404).json({ error: "User not found" });
-      return;
+      return next(new AppError("User not found", 404));
     }
 
     const updated = updateUserPassword(userId, password);
     if (!updated) {
-      res.status(404).json({ error: "User not found" });
-      return;
+      return next(new AppError("User not found", 404));
     }
 
     emitSecurityAuditLog("info", "admin-user-password-reset", {
@@ -548,34 +505,29 @@ export function createUserRouter(): Router {
     });
   });
 
-  router.delete("/users/:id", requireAuth, requireAdmin, (req, res) => {
+  router.delete("/users/:id", requireAuth, requireAdmin, (req, res, next) => {
     const userId = req.params.id;
 
     if (!userId) {
-      res.status(400).json({ error: "User id is required" });
-      return;
+      return next(new AppError("User id is required", 400));
     }
 
     if (req.authUser?.id === userId) {
-      res.status(400).json({ error: "You cannot delete your own account" });
-      return;
+      return next(new AppError("You cannot delete your own account", 400));
     }
 
     const existingUser = findUserById(userId);
     if (!existingUser) {
-      res.status(404).json({ error: "User not found" });
-      return;
+      return next(new AppError("User not found", 404));
     }
 
     if (existingUser.role === "admin" && countUsersByRole("admin") <= 1) {
-      res.status(400).json({ error: "Cannot delete the last admin account" });
-      return;
+      return next(new AppError("Cannot delete the last admin account", 400));
     }
 
     const deleted = deleteUserById(userId);
     if (!deleted) {
-      res.status(404).json({ error: "User not found" });
-      return;
+      return next(new AppError("User not found", 404));
     }
 
     emitSecurityAuditLog("info", "admin-user-deleted", {

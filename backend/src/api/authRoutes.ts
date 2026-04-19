@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 
 import { Router, type Request, type Response } from "express";
 
+import { AppError } from "../utils/AppError";
+
 import { findUserByLogin, updateUserPassword } from "../auth/db";
 import { requireAuth } from "../auth/middleware";
 import { verifyPassword } from "../auth/password";
@@ -195,7 +197,7 @@ function buildPasswordResetUrl(req: Request, token: string): string {
 export function createAuthRouter(): Router {
   const router = Router();
 
-  router.post("/login", (req, res) => {
+  router.post("/login", (req, res, next) => {
     const login = normalizeOptionalString(req.body?.login ?? req.body?.username) ?? "";
     const password = typeof req.body?.password === "string" ? req.body.password : "";
     const ip = getClientIp(req) ?? "unknown";
@@ -222,8 +224,7 @@ export function createAuthRouter(): Router {
         ip,
         loginFingerprint
       });
-      res.status(400).json({ error: "login and password are required" });
-      return;
+      return next(new AppError("login and password are required", 400));
     }
 
     const user = findUserByLogin(login);
@@ -232,8 +233,7 @@ export function createAuthRouter(): Router {
         ip,
         loginFingerprint
       });
-      res.status(401).json({ error: "Invalid credentials" });
-      return;
+      return next(new AppError("Invalid credentials", 401));
     }
 
     const session = createSession({
@@ -259,7 +259,7 @@ export function createAuthRouter(): Router {
     });
   });
 
-  router.post("/forgot-password", async (req, res) => {
+  router.post("/forgot-password", async (req, res, next) => {
     const startedAt = Date.now();
     const login = normalizeOptionalString(req.body?.login ?? req.body?.username ?? req.body?.email) ?? "";
     const ip = getClientIp(req) ?? "unknown";
@@ -286,8 +286,7 @@ export function createAuthRouter(): Router {
         ip,
         loginFingerprint
       });
-      res.status(400).json({ error: "login is required" });
-      return;
+      return next(new AppError("login is required", 400));
     }
 
     emitAuthAuditLog("info", "forgot-password-requested", {
@@ -323,7 +322,7 @@ export function createAuthRouter(): Router {
     res.json({ ok: true });
   });
 
-  router.post("/reset-password", (req, res) => {
+  router.post("/reset-password", (req, res, next) => {
     const token = normalizeOptionalString(req.body?.token) ?? "";
     const newPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword : "";
     const ip = getClientIp(req) ?? "unknown";
@@ -348,14 +347,12 @@ export function createAuthRouter(): Router {
       emitAuthAuditLog("warn", "reset-password-bad-request", {
         ip
       });
-      res.status(400).json({ error: "token and newPassword are required" });
-      return;
+      return next(new AppError("token and newPassword are required", 400));
     }
 
     const passwordError = validatePassword(newPassword);
     if (passwordError) {
-      res.status(400).json({ error: passwordError });
-      return;
+      return next(new AppError(passwordError, 400));
     }
 
     const consumedToken = consumePasswordResetToken(token);
@@ -363,8 +360,7 @@ export function createAuthRouter(): Router {
       emitAuthAuditLog("warn", "reset-password-invalid-token", {
         ip
       });
-      res.status(400).json({ error: "Invalid or expired reset token" });
-      return;
+      return next(new AppError("Invalid or expired reset token", 400));
     }
 
     const updated = updateUserPassword(consumedToken.userId, newPassword);
@@ -373,8 +369,7 @@ export function createAuthRouter(): Router {
         ip,
         userId: consumedToken.userId
       });
-      res.status(400).json({ error: "Invalid or expired reset token" });
-      return;
+      return next(new AppError("Invalid or expired reset token", 400));
     }
 
     emitAuthAuditLog("info", "reset-password-succeeded", {
@@ -402,12 +397,11 @@ export function createAuthRouter(): Router {
     res.json({ user: req.authUser });
   });
 
-  router.get("/sessions", requireAuth, (req, res) => {
+  router.get("/sessions", requireAuth, (req, res, next) => {
     const authUser = req.authUser;
     const currentSessionId = req.sessionId;
     if (!authUser || !currentSessionId) {
-      res.status(401).json({ error: "Authentication required" });
-      return;
+      return next(new AppError("Authentication required", 401));
     }
 
     const sessions = listSessionsByUserId(authUser.id).map((session) => ({
@@ -418,25 +412,22 @@ export function createAuthRouter(): Router {
     res.json({ sessions });
   });
 
-  router.delete("/sessions/:id", requireAuth, (req, res) => {
+  router.delete("/sessions/:id", requireAuth, (req, res, next) => {
     const authUser = req.authUser;
     const currentSessionId = req.sessionId;
     const targetSessionId = typeof req.params?.id === "string" ? req.params.id.trim() : "";
 
     if (!authUser || !currentSessionId) {
-      res.status(401).json({ error: "Authentication required" });
-      return;
+      return next(new AppError("Authentication required", 401));
     }
 
     if (!targetSessionId) {
-      res.status(400).json({ error: "session id is required" });
-      return;
+      return next(new AppError("session id is required", 400));
     }
 
     const deleted = deleteSessionForUser(targetSessionId, authUser.id);
     if (!deleted) {
-      res.status(404).json({ error: "Session not found" });
-      return;
+      return next(new AppError("Session not found", 404));
     }
 
     emitAuthAuditLog("info", "session-revoked", {
@@ -453,12 +444,11 @@ export function createAuthRouter(): Router {
     res.status(204).send();
   });
 
-  router.post("/logout-others", requireAuth, (req, res) => {
+  router.post("/logout-others", requireAuth, (req, res, next) => {
     const authUser = req.authUser;
     const currentSessionId = req.sessionId;
     if (!authUser || !currentSessionId) {
-      res.status(401).json({ error: "Authentication required" });
-      return;
+      return next(new AppError("Authentication required", 401));
     }
 
     const revoked = deleteOtherUserSessions(authUser.id, currentSessionId);

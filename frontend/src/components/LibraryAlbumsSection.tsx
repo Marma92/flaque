@@ -1,6 +1,5 @@
-import { coverPathUrl, coverUrl } from "../api";
-import defaultCoverImage from "../assets/default-cover.png";
 import type { AlbumEntry, Playlist, Track } from "../types";
+import { defaultCoverImage, getAlbumCoverSrc } from "../utils/covers";
 import { formatDurationHuman } from "../utils/format";
 import { useRef, useState } from "react";
 import { AlbumList } from "./AlbumList";
@@ -63,18 +62,6 @@ export function LibraryAlbumsSection({
           (album.artist && album.artist.toLowerCase().includes(normalizedQuery))
       )
     : albums;
-
-  function getAlbumCoverSrc(album: AlbumEntry): string {
-    if (album.cover) {
-      return coverPathUrl(album.cover);
-    }
-
-    if (album.previewTrackId) {
-      return coverUrl(album.previewTrackId);
-    }
-
-    return defaultCoverImage;
-  }
 
   const albumCoverSrc = selectedAlbum ? getAlbumCoverSrc(selectedAlbum) : defaultCoverImage;
 
@@ -170,7 +157,6 @@ export function LibraryAlbumsSection({
                 albums={filteredAlbums}
                 selectedAlbum={lastSelectedAlbumRef.current}
                 onAlbumSelect={onAlbumSelect}
-                getAlbumCoverSrc={getAlbumCoverSrc}
               />
             </div>
           ) : !isAlbumSelected && viewMode === "list" ? (
@@ -179,7 +165,6 @@ export function LibraryAlbumsSection({
               selectedAlbum={selectedAlbum}
               onAlbumSelect={onAlbumSelect}
               onPlayAlbum={onPlayAlbum}
-              getAlbumCoverSrc={getAlbumCoverSrc}
             />
           ) : null}
 

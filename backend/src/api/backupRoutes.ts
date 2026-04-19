@@ -15,6 +15,7 @@ import {
   writeBackupConfig,
   type BackupConfig
 } from "../services/backup/backupService";
+import { AppError } from "../utils/AppError";
 import { backupsRoot } from "../utils/paths";
 import { createLogger } from "../utils/logger";
 
@@ -103,16 +104,14 @@ export function createBackupRouter(): Router {
     try {
       const safeId = sanitizeBackupId(req.params.id);
       if (!safeId) {
-        res.status(400).json({ error: "Invalid backup id" });
-        return;
+        return next(new AppError("Invalid backup id", 400));
       }
 
       const dbPath = path.join(backupsRoot, safeId, "users.db");
       try {
         await fs.access(dbPath);
       } catch {
-        res.status(404).json({ error: "Backup not found" });
-        return;
+        return next(new AppError("Backup not found", 404));
       }
 
       res.setHeader("Content-Disposition", `attachment; filename="flaque-backup-${safeId}.db"`);
@@ -129,14 +128,12 @@ export function createBackupRouter(): Router {
     try {
       const safeId = sanitizeBackupId(req.params.id);
       if (!safeId) {
-        res.status(400).json({ error: "Invalid backup id" });
-        return;
+        return next(new AppError("Invalid backup id", 400));
       }
 
       const deleted = await deleteBackup(safeId);
       if (!deleted) {
-        res.status(404).json({ error: "Backup not found" });
-        return;
+        return next(new AppError("Backup not found", 404));
       }
 
       log.info("Backup deleted", { backupId: safeId, userId: req.authUser?.id ?? "unknown" });
@@ -151,8 +148,7 @@ export function createBackupRouter(): Router {
     try {
       const safeId = sanitizeBackupId(req.params.id);
       if (!safeId) {
-        res.status(400).json({ error: "Invalid backup id" });
-        return;
+        return next(new AppError("Invalid backup id", 400));
       }
 
       await restoreDatabase(safeId);
