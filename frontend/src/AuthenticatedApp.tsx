@@ -6,10 +6,6 @@ import type { ConfigSection } from "./components/ConfigView";
 import type { Track, User } from "./types";
 import type { LibrarySection } from "./types/library";
 import { navigateTo, type ViewName } from "./utils/appUtils";
-import { useAccountActions } from "./hooks/useAccountActions";
-import { useAdminBackup } from "./hooks/useAdminBackup";
-import { useAdminCommands } from "./hooks/useAdminCommands";
-import { useAdminServer } from "./hooks/useAdminServer";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import { useAppNotice } from "./hooks/useAppNotice";
 import { useDocumentTitle } from "./hooks/useDocumentTitle";
@@ -147,35 +143,8 @@ export function AuthenticatedApp({
   const isRadioStopped = !isRadioPlaybackActive && selectedTrackRefreshed?.owner === "radio";
 
   // ── Admin ─────────────────────────────────────────────────────────────
-  const { adminUsers, loadingAdminUsers, adminError, refreshAdminUsers, clearAdminState } = useAdminUsers({ user });
+  const { adminUsers, clearAdminState } = useAdminUsers({ user });
 
-  const {
-    versionInfo, loadingVersion,
-    updateStatus, onTriggerUpdate, onCheckForUpdates,
-    storageUsage, loadingStorage,
-    systemStats, systemStatsHistory, loadingSystemStats,
-    logFiles, loadingFiles: loadingLogFiles,
-    selectedFile: selectedLogFile, setSelectedFile: setSelectedLogFile,
-    entries: logEntries, loadingEntries: loadingLogEntries,
-    serverError: logsError, total: logTotal,
-    levelFilter: logLevelFilter, setLevelFilter: setLogLevelFilter,
-    refreshServer: refreshLogs, loadMore: loadMoreLogs, hasMore: hasMoreLogs
-  } = useAdminServer({ user });
-
-  const {
-    backups, loadingBackups,
-    config: backupConfig, loadingConfig: loadingBackupConfig,
-    backupError, backupMessage,
-    creating: creatingBackup, restoring: restoringBackup,
-    onCreateBackup, onDeleteBackup, onRestoreBackup,
-    onUpdateConfig: onUpdateBackupConfig,
-    onPurgeExpired: onPurgeExpiredBackups,
-    refreshBackups
-  } = useAdminBackup({ user });
-
-  const { handleCreateUser, handleDeleteUser, handleResetUserPassword, handlePatchUser } = useAdminCommands({
-    user, setUser, setActiveView, clearAdminState, refreshAdminUsers
-  });
 
   // ── Derived data ──────────────────────────────────────────────────────
   const manageablePlaylists = useMemo(() => {
@@ -233,11 +202,6 @@ export function AuthenticatedApp({
     requestTrackPlayback, replayRecentTrack, setSelectedTrack,
     setPlayerStatusMessage, setLibraryError, setAppNotice
   });
-
-  const {
-    handleUpdateProfilePhoto, handleUpdateEmail, handleUpdateOwnPassword,
-    handleListMySessions, handleRevokeMySession, handleLogoutOtherSessions
-  } = useAccountActions({ notifyAuthStateChanged, setAppNotice, setAvatarVersion, setUser });
 
   // ── Side effects ──────────────────────────────────────────────────────
 
@@ -405,69 +369,12 @@ export function AuthenticatedApp({
         onBulkDeleteTracks: handleBulkDeleteTracks,
         onBulkUpdateTrackMetadata: handleBulkUpdateTrackMetadata
       }}
-      usersViewProps={{
-        currentUser: user,
-        users: adminUsers,
-        loading: loadingAdminUsers,
-        error: adminError,
-        onRefresh: refreshAdminUsers,
-        onCreateUser: handleCreateUser,
-        onPatchUser: handlePatchUser,
-        onDeleteUser: handleDeleteUser,
-        onResetPassword: handleResetUserPassword
-      }}
-      serverViewProps={{
-        versionInfo,
-        loadingVersion,
-        updateStatus,
-        onTriggerUpdate,
-        onCheckForUpdates,
-        storageUsage,
-        loadingStorage,
-        systemStats,
-        systemStatsHistory,
-        loadingSystemStats,
-        logFiles,
-        loadingFiles: loadingLogFiles,
-        selectedFile: selectedLogFile,
-        onFileChange: setSelectedLogFile,
-        entries: logEntries,
-        loadingEntries: loadingLogEntries,
-        error: logsError,
-        total: logTotal,
-        levelFilter: logLevelFilter,
-        onLevelFilterChange: setLogLevelFilter,
-        onRefresh: refreshLogs,
-        onLoadMore: loadMoreLogs,
-        hasMore: hasMoreLogs
-      }}
-      backupViewProps={{
-        backups,
-        loadingBackups,
-        config: backupConfig,
-        loadingConfig: loadingBackupConfig,
-        error: backupError,
-        message: backupMessage,
-        creating: creatingBackup,
-        restoring: restoringBackup,
-        onCreateBackup,
-        onDeleteBackup,
-        onRestoreBackup,
-        onUpdateConfig: onUpdateBackupConfig,
-        onPurgeExpired: onPurgeExpiredBackups,
-        onRefresh: refreshBackups
-      }}
-      accountViewProps={{
-        user,
-        avatarUrl,
-        allTracksById,
-        onUpdatePhoto: handleUpdateProfilePhoto,
-        onUpdateEmail: handleUpdateEmail,
-        onChangePassword: handleUpdateOwnPassword,
-        onListSessions: handleListMySessions,
-        onRevokeSession: handleRevokeMySession,
-        onLogoutOtherSessions: handleLogoutOtherSessions
-      }}
+      setUser={setUser}
+      setActiveView={setActiveView}
+      setAppNotice={setAppNotice}
+      allTracksById={allTracksById}
+      setAvatarVersion={setAvatarVersion}
+      notifyAuthStateChanged={notifyAuthStateChanged}
       onAutoPlaylistsRegenerated={refreshAutoPlaylists}
       playerStatusMessage={playerStatusMessage}
       audioPlayerProps={{

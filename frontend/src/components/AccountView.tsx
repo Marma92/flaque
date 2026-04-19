@@ -1,18 +1,18 @@
-import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, type Dispatch, FormEvent, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { coverUrl, getMyPlayStats, type PlayStatsResponse } from "../api";
+import type { AppNotice } from "./AppStatusBanners";
 import type { Track, User, UserSession } from "../types";
+import { useAccountActions } from "../hooks/useAccountActions";
 
 type AccountViewProps = {
   user: User;
+  setUser: Dispatch<SetStateAction<User | null>>;
   avatarUrl: string;
   allTracksById: Map<string, Track>;
-  onUpdatePhoto: (file: File) => Promise<void>;
-  onUpdateEmail: (email: string) => Promise<void>;
-  onChangePassword: (input: { currentPassword: string; newPassword: string }) => Promise<void>;
-  onListSessions: () => Promise<UserSession[]>;
-  onRevokeSession: (sessionId: string) => Promise<void>;
-  onLogoutOtherSessions: () => Promise<number>;
+  setAppNotice: Dispatch<SetStateAction<AppNotice | null>>;
+  setAvatarVersion: Dispatch<SetStateAction<number>>;
+  notifyAuthStateChanged: (kind: "login" | "logout" | "session-change") => void;
   onLogout: () => Promise<void> | void;
 };
 
@@ -51,16 +51,22 @@ function getSessionTitle(session: UserSession): string {
 
 export function AccountView({
   user,
+  setUser,
   avatarUrl,
   allTracksById,
-  onUpdatePhoto,
-  onUpdateEmail,
-  onChangePassword,
-  onListSessions,
-  onRevokeSession,
-  onLogoutOtherSessions,
+  setAppNotice,
+  setAvatarVersion,
+  notifyAuthStateChanged,
   onLogout
 }: AccountViewProps): JSX.Element {
+  const {
+    handleUpdateProfilePhoto: onUpdatePhoto,
+    handleUpdateEmail: onUpdateEmail,
+    handleUpdateOwnPassword: onChangePassword,
+    handleListMySessions: onListSessions,
+    handleRevokeMySession: onRevokeSession,
+    handleLogoutOtherSessions: onLogoutOtherSessions
+  } = useAccountActions({ notifyAuthStateChanged, setAppNotice, setAvatarVersion, setUser });
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [selectedPhotoPreviewUrl, setSelectedPhotoPreviewUrl] = useState<string | null>(null);

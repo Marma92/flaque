@@ -1,33 +1,18 @@
-import { FormEvent, useMemo, useState } from "react";
+import { type Dispatch, FormEvent, type SetStateAction, useMemo, useState } from "react";
 
 import type { User } from "../types";
+import type { ViewName } from "../utils/appUtils";
+import { useAdminUsers } from "../hooks/useAdminUsers";
+import { useAdminCommands } from "../hooks/useAdminCommands";
 import { UserActionsModal } from "./UserActionsModal";
 import type { ModalState } from "./UserActionsModal";
-
-type NewUserInput = {
-  username: string;
-  password: string;
-  email: string;
-  role: "user" | "admin";
-};
 
 type UserRoleFilter = "all" | "user" | "admin";
 
 type AdminUsersViewProps = {
   currentUser: User;
-  users: User[];
-  loading: boolean;
-  error: string | null;
-  onRefresh: () => Promise<void>;
-  onCreateUser: (input: NewUserInput) => Promise<void>;
-  onPatchUser: (input: {
-    userId: string;
-    username?: string;
-    email?: string;
-    role?: "user" | "admin";
-  }) => Promise<void>;
-  onDeleteUser: (userId: string) => Promise<void>;
-  onResetPassword: (userId: string, password: string) => Promise<void>;
+  setUser: Dispatch<SetStateAction<User | null>>;
+  setActiveView: Dispatch<SetStateAction<ViewName>>;
 };
 
 function normalize(value: string): string {
@@ -36,15 +21,13 @@ function normalize(value: string): string {
 
 export function AdminUsersView({
   currentUser,
-  users,
-  loading,
-  error,
-  onRefresh,
-  onCreateUser,
-  onPatchUser,
-  onDeleteUser,
-  onResetPassword
+  setUser,
+  setActiveView
 }: AdminUsersViewProps): JSX.Element {
+  const { adminUsers: users, loadingAdminUsers: loading, adminError: error, refreshAdminUsers, clearAdminState } = useAdminUsers({ user: currentUser });
+  const { handleCreateUser: onCreateUser, handlePatchUser: onPatchUser, handleDeleteUser: onDeleteUser, handleResetUserPassword: onResetPassword } = useAdminCommands({
+    user: currentUser, setUser, setActiveView, clearAdminState, refreshAdminUsers
+  });
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
@@ -108,7 +91,7 @@ export function AdminUsersView({
   async function handleRefresh(): Promise<void> {
     setRefreshing(true);
     try {
-      await onRefresh();
+      await refreshAdminUsers();
     } finally {
       setRefreshing(false);
     }
