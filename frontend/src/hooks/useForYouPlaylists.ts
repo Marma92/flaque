@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 
 import { getForYouPlaylists, dismissForYouPlaylist as apiDismiss } from "../api";
 import type { ForYouPlaylistSummary } from "../types";
+import { useQuery } from "./useQuery";
 
 type UseForYouPlaylistsResult = {
   forYouPlaylists: ForYouPlaylistSummary[];
@@ -10,26 +11,16 @@ type UseForYouPlaylistsResult = {
   dismiss: (playlistId: string) => Promise<void>;
 };
 
+const EMPTY: ForYouPlaylistSummary[] = [];
+
 export function useForYouPlaylists(): UseForYouPlaylistsResult {
-  const [forYouPlaylists, setForYouPlaylists] = useState<ForYouPlaylistSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetch = useCallback(() => {
-    setLoading(true);
-    getForYouPlaylists()
-      .then(setForYouPlaylists)
-      .catch(() => setForYouPlaylists([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    fetch();
-  }, [fetch]);
+  const fetcher = useCallback(() => getForYouPlaylists(), []);
+  const { data, loading, refresh, setData } = useQuery<ForYouPlaylistSummary[]>(fetcher, EMPTY);
 
   const dismiss = useCallback(async (playlistId: string) => {
     await apiDismiss(playlistId);
-    setForYouPlaylists((prev) => prev.filter((p) => p.id !== playlistId));
-  }, []);
+    setData((prev) => prev.filter((p) => p.id !== playlistId));
+  }, [setData]);
 
-  return { forYouPlaylists, loading, refresh: fetch, dismiss };
+  return { forYouPlaylists: data, loading, refresh, dismiss };
 }

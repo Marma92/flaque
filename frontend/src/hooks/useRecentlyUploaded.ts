@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { getTracks } from "../api";
 import type { Track, User } from "../types";
+import { useQuery } from "./useQuery";
 
 export type UploadPeriod = "7d" | "30d";
 
@@ -23,59 +24,27 @@ type UseRecentlyUploadedResult = {
   refresh: () => void;
 };
 
+const EMPTY: Track[] = [];
+
 export function useRecentlyUploaded({
   user,
   ownerFilter
 }: UseRecentlyUploadedArgs): UseRecentlyUploadedResult {
-  const [tracks, setTracks] = useState<Track[]>([]);
-  const [loading, setLoading] = useState(false);
   const [period, setPeriod] = useState<UploadPeriod>("7d");
-  const [refreshNonce, setRefreshNonce] = useState(0);
-  const requestIdRef = useRef(0);
 
-  useEffect(() => {
-    if (!user) {
-      setTracks([]);
-      setLoading(false);
-      return;
-    }
-
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
-
-    setLoading(true);
-
+  const fetcher = useCallback(async () => {
     const addedAfter = new Date(Date.now() - PERIOD_MS[period]).toISOString();
-
-    getTracks({
+    const response = await getTracks({
       sortBy: "addedAt",
       sortDir: "desc",
       limit: 12,
       addedAfter,
       owner: ownerFilter
-    })
-      .then((response) => {
-        if (requestIdRef.current !== requestId) {
-          return;
-        }
-        setTracks(response.tracks);
-      })
-      .catch(() => {
-        if (requestIdRef.current !== requestId) {
-          return;
-        }
-        setTracks([]);
-      })
-      .finally(() => {
-        if (requestIdRef.current === requestId) {
-          setLoading(false);
-        }
-      });
-  }, [user, ownerFilter, period, refreshNonce]);
+    });
+    return response.tracks;
+  }, [period, ownerFilter]);
 
-  function refresh(): void {
-    setRefreshNonce((n) => n + 1);
-  }
+  const { data, loading, refresh } = useQuery<Track[]>(fetcher, EMPTY, { enabled: Boolean(user) });
 
-  return { tracks, loading, period, setPeriod, refresh };
+  return { tracks: data, loading, period, setPeriod, refresh };
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
-import { getCurrentUser, login } from "../api";
+import { getCurrentUser, login, setUnauthorizedHandler } from "../api";
 import type { ConfigSection } from "../components/ConfigView";
 import type { User } from "../types";
 import type { LibrarySection } from "../types/library";
@@ -90,6 +90,16 @@ export function useSessionRoutingState(): UseSessionRoutingStateResult {
 
   useEffect(() => {
     void refreshCurrentSession();
+  }, []);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setUser(null);
+      notifyAuthStateChanged("logout");
+    });
+    return () => {
+      setUnauthorizedHandler(null);
+    };
   }, []);
 
   useEffect(() => {
