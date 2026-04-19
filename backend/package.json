@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@flaque/shared": "*",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.9.0",
     "cookie-parser": "^1.4.7",

@@ -5,4 +5,4 @@ export type {
   Track,
   TrackTagExtraValue,
   TrackTags
-} from "@flaque/shared";
+} from "./library";
