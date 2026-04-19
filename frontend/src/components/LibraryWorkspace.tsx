@@ -158,7 +158,7 @@ export function LibraryWorkspace({
   paginatedSentinelRef
 }: LibraryWorkspaceProps): JSX.Element {
   return (
-    <div className="h-full min-h-0 space-y-4 overflow-y-auto">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto">
       {activeLibrarySection === "playlists" ? (
         playlistDetailId && playlistDetailId.startsWith("for-you:") ? (
           <ForYouPlaylistDetailView

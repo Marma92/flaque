@@ -121,6 +121,24 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverS
     };
   }, [updateTransforms, albums]);
 
+  // Scroll to the selected album on mount
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper || !selectedKey) return;
+
+    const items = wrapper.querySelectorAll<HTMLElement>(".cards li");
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].classList.contains("selected")) {
+        wrapper.scrollTo({
+          left: items[i].offsetLeft - wrapper.clientWidth / 2 + items[i].offsetWidth / 2,
+          behavior: "instant"
+        });
+        break;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <>
       <style>{`
@@ -339,8 +357,8 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect, getAlbumCoverS
           </ul>
         </div>
         <div className="coverflow-label" ref={labelRef}>
-          <span className="coverflow-title">{albums[0]?.name ?? ""}</span>
-          <span className="coverflow-artist">{albums[0]?.artist ?? ""}</span>
+          <span className="coverflow-title">{(selectedAlbum ?? albums[0])?.name ?? ""}</span>
+          <span className="coverflow-artist">{(selectedAlbum ?? albums[0])?.artist ?? ""}</span>
         </div>
       </section>
     </>

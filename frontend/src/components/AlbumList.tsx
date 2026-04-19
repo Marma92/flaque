@@ -23,17 +23,17 @@ export function AlbumList({ albums, selectedAlbum, onAlbumSelect, onPlayAlbum, g
         return (
           <div
             key={albumKey}
-            className={`rounded-xl border p-2 text-left transition cursor-pointer ${
+            className={`rounded-xl p-2 text-left transition cursor-pointer ${
               isSelected
-                ? "border-flaque-ink bg-flaque-sand/25"
-                : "border-flaque-clay/60 bg-flaque-cream/45 hover:bg-flaque-cream"
+                ? "bg-flaque-sand/25"
+                : "hover:bg-flaque-cream/60"
             }`}
             onClick={() => onAlbumSelect(album)}
             title={album.artist ? `${album.artist} - ${album.name}${album.year ? ` (${album.year})` : ""}` : `${album.name}${album.year ? ` (${album.year})` : ""}`}
           >
             <div className="group relative">
               <img
-                className="aspect-square w-full rounded-lg border border-flaque-clay/50 object-cover"
+                className="aspect-square w-full object-cover"
                 src={getAlbumCoverSrc(album)}
                 alt={album.artist ? `Cover for ${album.artist} - ${album.name}${album.year ? ` (${album.year})` : ""}` : `Cover for ${album.name}${album.year ? ` (${album.year})` : ""}`}
                 onError={(event) => {
@@ -42,7 +42,7 @@ export function AlbumList({ albums, selectedAlbum, onAlbumSelect, onPlayAlbum, g
               />
               {onPlayAlbum ? (
                 <button
-                  className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
+                  className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
                   type="button"
                   aria-label={`Play ${album.name}${album.year ? ` (${album.year})` : ""}`}
                   onClick={(event) => {
