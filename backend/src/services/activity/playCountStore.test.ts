@@ -29,8 +29,8 @@ describe("playCountStore", () => {
   it("records the first play with count=1 and a timestamp", async () => {
     await incrementPlayCount("user-1", "track-a");
     const counts = await getUserPlayCounts("user-1");
-    expect(counts["track-a"].count).toBe(1);
-    expect(counts["track-a"].lastPlayedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(counts["track-a"]?.count).toBe(1);
+    expect(counts["track-a"]?.lastPlayedAt ?? "").toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
   it("accumulates concurrent increments without losing any", async () => {
@@ -38,7 +38,7 @@ describe("playCountStore", () => {
       Array.from({ length: 50 }, () => incrementPlayCount("user-1", "track-a"))
     );
     const counts = await getUserPlayCounts("user-1");
-    expect(counts["track-a"].count).toBe(50);
+    expect(counts["track-a"]?.count).toBe(50);
   });
 
   it("tracks distinct tracks independently", async () => {
@@ -48,8 +48,8 @@ describe("playCountStore", () => {
       incrementPlayCount("user-1", "track-a")
     ]);
     const counts = await getUserPlayCounts("user-1");
-    expect(counts["track-a"].count).toBe(2);
-    expect(counts["track-b"].count).toBe(1);
+    expect(counts["track-a"]?.count).toBe(2);
+    expect(counts["track-b"]?.count).toBe(1);
   });
 
   it("isolates counts between users", async () => {
@@ -57,7 +57,7 @@ describe("playCountStore", () => {
     await incrementPlayCount("user-2", "track-a");
     await incrementPlayCount("user-2", "track-a");
 
-    expect((await getUserPlayCounts("user-1"))["track-a"].count).toBe(1);
-    expect((await getUserPlayCounts("user-2"))["track-a"].count).toBe(2);
+    expect((await getUserPlayCounts("user-1"))["track-a"]?.count).toBe(1);
+    expect((await getUserPlayCounts("user-2"))["track-a"]?.count).toBe(2);
   });
 });
