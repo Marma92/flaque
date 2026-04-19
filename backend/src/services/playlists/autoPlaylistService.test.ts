@@ -44,7 +44,6 @@ import {
 
 function makeTrack(overrides: Partial<Track> & { id: string }): Track {
   return {
-    id: overrides.id,
     owner: "user-1",
     path: `/music/${overrides.id}.flac`,
     duration: 240,
