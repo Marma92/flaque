@@ -4,7 +4,7 @@ import type { AlbumEntry, ArtistEntry, Playlist, Track } from "../types";
 import type { LibraryFilters } from "../types/library";
 import { TrackList } from "./TrackList";
 
-type PaginatedLibraryProps = {
+export type PaginatedLibraryProps = {
   // Filter metadata (from existing library response)
   owners: string[];
   ownerNameById?: Record<string, string>;

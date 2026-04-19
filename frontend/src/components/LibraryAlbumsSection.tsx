@@ -6,7 +6,7 @@ import { AlbumList } from "./AlbumList";
 import { Coverflow } from "./Coverflow";
 import { TrackList } from "./TrackList";
 
-type LibraryAlbumsSectionProps = {
+export type LibraryAlbumsSectionProps = {
   libraryMetadataError: string | null;
   loadingAlbums: boolean;
   albums: AlbumEntry[];

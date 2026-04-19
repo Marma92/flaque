@@ -6,7 +6,7 @@ import { formatDurationHuman } from "../utils/format";
 import { AlbumList } from "./AlbumList";
 import { TrackList } from "./TrackList";
 
-type LibraryArtistsSectionProps = {
+export type LibraryArtistsSectionProps = {
   libraryMetadataError: string | null;
   loadingArtists: boolean;
   artists: ArtistEntry[];

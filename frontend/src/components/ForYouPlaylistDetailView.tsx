@@ -4,7 +4,7 @@ import { coverUrl, getForYouPlaylistDetail } from "../api";
 import type { ForYouPlaylistDetail, Playlist, Track } from "../types";
 import { getTrackDisplayArtist, getTrackDisplayTitle } from "../utils/tracks";
 
-type ForYouPlaylistDetailViewProps = {
+export type ForYouPlaylistDetailViewProps = {
   playlistId: string;
   allTracksById: Map<string, Track>;
   onBack: () => void;

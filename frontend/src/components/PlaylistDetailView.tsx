@@ -22,7 +22,7 @@ import { coverUrl, deletePlaylistCover, getUsers, playlistCoverUrl, uploadPlayli
 import type { Playlist, PlaylistVisibility, Track, User } from "../types";
 import { getTrackDisplayArtist, getTrackDisplayTitle } from "../utils/tracks";
 
-type PlaylistDetailViewProps = {
+export type PlaylistDetailViewProps = {
   playlistId: string;
   availablePlaylists: Playlist[];
   manageablePlaylists: Playlist[];

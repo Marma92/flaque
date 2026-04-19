@@ -4,7 +4,7 @@ import { coverUrl, getAutoPlaylistDetail } from "../api";
 import type { AutoPlaylistDetail, Playlist, Track } from "../types";
 import { getTrackDisplayArtist, getTrackDisplayTitle } from "../utils/tracks";
 
-type AutoPlaylistDetailViewProps = {
+export type AutoPlaylistDetailViewProps = {
   playlistId: string;
   allTracksById: Map<string, Track>;
   onBack: () => void;
