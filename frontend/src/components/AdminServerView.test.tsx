@@ -18,7 +18,8 @@ const defaultVersionInfo: VersionInfo = {
   isUpdateAvailable: false,
   releaseName: null,
   releaseUrl: null,
-  checkedAt: Date.now()
+  publishedAt: null,
+  checkedAt: new Date().toISOString()
 };
 
 const defaultSystemStats: SystemStats = {
