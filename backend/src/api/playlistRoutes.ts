@@ -94,7 +94,7 @@ function mapPlaylistResponse(playlist: Playlist): Playlist & { trackCount: numbe
   };
 }
 
-function findPlaylistById(indexStore: IndexStore, playlistId: string): Playlist | undefined {
+export function findPlaylistById(indexStore: IndexStore, playlistId: string): Playlist | undefined {
   const playlists = indexStore.getSnapshot().playlists ?? [];
   return playlists.find((playlist) => playlist.id === playlistId);
 }

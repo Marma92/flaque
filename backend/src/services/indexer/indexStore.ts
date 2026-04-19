@@ -75,9 +75,20 @@ export class IndexStore {
     return this.tracksById.has(trackId);
   }
 
-  getTracksByOwner(owner: string): Track[] {
-    return [...(this.tracksByOwner.get(normalizeIndexKey(owner)) ?? [])];
-  }
+   getTracksByOwner(owner: string): Track[] {
+     return [...(this.tracksByOwner.get(normalizeIndexKey(owner)) ?? [])];
+   }
+
+   getTracksById(trackIds: string[]): Map<string, Track> {
+     const map = new Map<string, Track>();
+     for (const id of trackIds) {
+       const track = this.tracksById.get(id);
+       if (track) {
+         map.set(id, track);
+       }
+     }
+     return map;
+   }
 
   getTracksByArtist(artist: string): Track[] {
     return [...(this.tracksByArtist.get(normalizeIndexKey(artist)) ?? [])];

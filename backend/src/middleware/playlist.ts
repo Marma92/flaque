@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { IndexStore } from "../services/indexer/indexStore";
 import { AppError } from "../utils/AppError";
-import { findPlaylistById } from "./playlistRoutes";
+import { findPlaylistById } from "../api/playlistRoutes";
 import { canViewPlaylist, canEditPlaylist, canManagePlaylist } from "../services/playlists/playlistStore";
 import type { Playlist } from "../types/library";
 
@@ -75,6 +75,10 @@ export function resolveTrackIds(
 
     if (!Array.isArray(trackIds)) {
       return next(new AppError("trackIds must be an array of track ids", 400));
+    }
+
+    if (trackIds.length === 0) {
+      return next();
     }
 
     // Validate each track ID is a string
