@@ -1,11 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
+import multer from "multer";
 import { AppError } from "../utils/AppError";
+import { createLogger } from "../utils/logger";
 
-/**
- * Centralized error handling middleware.
- * Converts AppError instances to appropriate JSON responses.
- * For non-AppError, returns a generic 500 error.
- */
+const log = createLogger("http");
+
 export function errorHandler(
   err: unknown,
   _req: Request,
@@ -21,8 +20,15 @@ export function errorHandler(
     return;
   }
 
-  // Log unexpected errors (in a real app, you would use a logger)
-  console.error("Unexpected error:", err);
+  if (err instanceof multer.MulterError) {
+    const status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+    res.status(status).json({ error: err.message });
+    return;
+  }
+
+  const message = err instanceof Error ? err.message : String(err);
+  const stack = err instanceof Error ? err.stack : undefined;
+  log.error("Unhandled request error", { message, stack });
 
   res.status(500).json({
     error: "Internal Server Error",

@@ -26,6 +26,7 @@ import {
   SessionForbiddenError
 } from "../services/upload/chunkedUploadService";
 import type { Track } from "../types/library";
+import { AppError } from "../utils/AppError";
 import { fileExists } from "../utils/fs";
 import { getAudioMimeType, getSupportedAudioExtensions, isSupportedAudioFile } from "../utils/mime";
 import { tmpUploadsRoot } from "../utils/paths";
@@ -154,7 +155,7 @@ function createAudioUpload(maxUploadBytes: number): multer.Multer {
         callback(null, true);
         return;
       }
-      callback(new Error("Unsupported audio format"));
+      callback(new AppError("Unsupported audio format", 400));
     }
   });
 }
@@ -339,20 +340,18 @@ async function resolveTempPathFile(
   return { ok: true, file };
 }
 
-function requireOwnerId(req: { authUser?: { id?: string } }, res: Response): string | undefined {
+function requireOwnerId(req: { authUser?: { id?: string } }): string {
   const ownerId = req.authUser?.id;
   if (!ownerId) {
-    res.status(401).json({ error: "Authentication required" });
-    return undefined;
+    throw new AppError("Authentication required", 401);
   }
   return ownerId;
 }
 
-function requireSessionId(req: { body?: Record<string, unknown> }, res: Response): string | undefined {
+function requireSessionId(req: { body?: Record<string, unknown> }): string {
   const sessionId = normalizeOptionalString(req.body?.sessionId);
   if (!sessionId) {
-    res.status(400).json({ error: "sessionId is required" });
-    return undefined;
+    throw new AppError("sessionId is required", 400);
   }
   return sessionId;
 }
@@ -392,10 +391,9 @@ function parseUploadRequestBody(body: unknown): ParsedUploadRequestBody {
  * Shared catch-block body for chunked endpoints. Maps SessionForbiddenError
  * to a 403 and forwards everything else to Express's error handler.
  */
-function handleChunkedError(error: unknown, res: Response, next: NextFunction): void {
+function handleChunkedError(error: unknown, _res: Response, next: NextFunction): void {
   if (error instanceof SessionForbiddenError) {
-    res.status(403).json({ error: "Upload session does not belong to you" });
-    return;
+    return next(new AppError("Upload session does not belong to you", 403));
   }
   next(error);
 }
@@ -410,25 +408,21 @@ export function createUploadRouter(indexStore: IndexStore): Router {
 
   router.post("/upload/chunked/init", requireAuth, async (req, res, next) => {
     try {
-      const ownerId = requireOwnerId(req, res);
-      if (!ownerId) return;
+      const ownerId = requireOwnerId(req);
 
       const fileName = normalizeOptionalString(req.body?.fileName);
       const fileSize = Number(req.body?.fileSize);
 
       if (!fileName || !Number.isFinite(fileSize) || fileSize <= 0) {
-        res.status(400).json({ error: "fileName and fileSize are required" });
-        return;
+        return next(new AppError("fileName and fileSize are required", 400));
       }
 
       if (fileSize > maxUploadBytes) {
-        res.status(413).json({ error: `File exceeds maximum upload size of ${maxUploadBytes} bytes` });
-        return;
+        return next(new AppError(`File exceeds maximum upload size of ${maxUploadBytes} bytes`, 413));
       }
 
       if (!isSupportedAudioFile(fileName)) {
-        res.status(400).json({ error: "Unsupported audio format" });
-        return;
+        return next(new AppError("Unsupported audio format", 400));
       }
 
       const session = await initChunkedUpload(ownerId, fileName, fileSize);
@@ -448,21 +442,16 @@ export function createUploadRouter(indexStore: IndexStore): Router {
     chunkUpload.single("chunk"),
     async (req, res, next) => {
       try {
-        const ownerId = requireOwnerId(req, res);
-        if (!ownerId) return;
-
-        const sessionId = requireSessionId(req, res);
-        if (!sessionId) return;
+        const ownerId = requireOwnerId(req);
+        const sessionId = requireSessionId(req);
 
         const chunkIndex = Number(req.body?.chunkIndex);
         if (!Number.isFinite(chunkIndex)) {
-          res.status(400).json({ error: "chunkIndex is required" });
-          return;
+          return next(new AppError("chunkIndex is required", 400));
         }
 
         if (!req.file?.buffer) {
-          res.status(400).json({ error: "Chunk data is required" });
-          return;
+          return next(new AppError("Chunk data is required", 400));
         }
 
         const session = await saveChunk(sessionId, ownerId, chunkIndex, req.file.buffer);
@@ -478,16 +467,12 @@ export function createUploadRouter(indexStore: IndexStore): Router {
 
   router.post("/upload/chunked/complete", requireAuth, async (req, res, next) => {
     try {
-      const ownerId = requireOwnerId(req, res);
-      if (!ownerId) return;
-
-      const sessionId = requireSessionId(req, res);
-      if (!sessionId) return;
+      const ownerId = requireOwnerId(req);
+      const sessionId = requireSessionId(req);
 
       const session = getOwnedSession(sessionId, ownerId);
       if (!session) {
-        res.status(404).json({ error: "Upload session not found" });
-        return;
+        return next(new AppError("Upload session not found", 404));
       }
 
       const assembledPath = await assembleChunks(sessionId, ownerId);
@@ -503,11 +488,8 @@ export function createUploadRouter(indexStore: IndexStore): Router {
 
   router.post("/upload/chunked/cancel", requireAuth, async (req, res, next) => {
     try {
-      const ownerId = requireOwnerId(req, res);
-      if (!ownerId) return;
-
-      const sessionId = requireSessionId(req, res);
-      if (!sessionId) return;
+      const ownerId = requireOwnerId(req);
+      const sessionId = requireSessionId(req);
 
       await cancelChunkedUpload(sessionId, ownerId);
       res.json({ cancelled: true });
@@ -530,19 +512,16 @@ export function createUploadRouter(indexStore: IndexStore): Router {
       if (tempPath && !uploadedFile) {
         const resolved = await resolveTempPathFile(tempPath, originalFileName, maxUploadBytes);
         if (!resolved.ok) {
-          res.status(resolved.status).json({ error: resolved.error });
-          return;
+          return next(new AppError(resolved.error, resolved.status));
         }
         uploadedFile = resolved.file;
       }
 
       if (!uploadedFile) {
-        res.status(400).json({ error: "A file is required" });
-        return;
+        return next(new AppError("A file is required", 400));
       }
 
-      const ownerId = requireOwnerId(req, res);
-      if (!ownerId) return;
+      const ownerId = requireOwnerId(req);
 
       const parsedBody = parseUploadRequestBody(req.body);
 
@@ -590,12 +569,10 @@ export function createUploadRouter(indexStore: IndexStore): Router {
 
       try {
         if (uploadedFiles.length === 0) {
-          res.status(400).json({ error: "At least one file is required" });
-          return;
+          return next(new AppError("At least one file is required", 400));
         }
 
-        const ownerId = requireOwnerId(req, res);
-        if (!ownerId) return;
+        const ownerId = requireOwnerId(req);
 
         const parsedBody = parseUploadRequestBody(req.body);
 

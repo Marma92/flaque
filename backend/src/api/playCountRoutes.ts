@@ -3,6 +3,7 @@ import { Router } from "express";
 import { requireAuth } from "../auth/middleware";
 import type { IndexStore } from "../services/indexer/indexStore";
 import { incrementPlayCount, getUserPlayStats } from "../services/activity/playCountStore";
+import { AppError } from "../utils/AppError";
 import { createLogger } from "../utils/logger";
 
 const log = createLogger("play-counts");
@@ -14,19 +15,16 @@ export function createPlayCountRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.authUser?.id;
       if (!userId) {
-        res.status(401).json({ error: "Authentication required" });
-        return;
+        return next(new AppError("Authentication required", 401));
       }
 
       const trackId = req.params.id;
       if (!trackId) {
-        res.status(400).json({ error: "Track id is required" });
-        return;
+        return next(new AppError("Track id is required", 400));
       }
 
       if (!indexStore.hasTrack(trackId)) {
-        res.status(404).json({ error: "Track not found" });
-        return;
+        return next(new AppError("Track not found", 404));
       }
 
       await incrementPlayCount(userId, trackId);
@@ -41,8 +39,7 @@ export function createPlayCountRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.authUser?.id;
       if (!userId) {
-        res.status(401).json({ error: "Authentication required" });
-        return;
+        return next(new AppError("Authentication required", 401));
       }
 
       const stats = await getUserPlayStats(userId, indexStore);

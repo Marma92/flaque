@@ -14,6 +14,7 @@ import {
   resetSynonymsToDefaults
 } from "../services/genre/genreSynonymService";
 import { getGenreCacheStats, clearGenreCache } from "../services/genre/musicBrainzService";
+import { AppError } from "../utils/AppError";
 import { createLogger } from "../utils/logger";
 
 const log = createLogger("genre-routes");
@@ -48,11 +49,10 @@ export function createGenreRouter(indexStore: IndexStore): Router {
     res.json(getSynonyms());
   });
 
-  router.put("/genre/synonyms", requireAuth, requireAdmin, (req, res) => {
+  router.put("/genre/synonyms", requireAuth, requireAdmin, (req, res, next) => {
     const { from, to } = req.body as { from?: string; to?: string };
     if (typeof from !== "string" || !from.trim() || typeof to !== "string" || !to.trim()) {
-      res.status(400).json({ error: "Both 'from' and 'to' must be non-empty strings" });
-      return;
+      return next(new AppError("Both 'from' and 'to' must be non-empty strings", 400));
     }
 
     setSynonym(from, to);
@@ -60,17 +60,15 @@ export function createGenreRouter(indexStore: IndexStore): Router {
     res.json({ from: from.trim().toLowerCase(), to: to.trim() });
   });
 
-  router.delete("/genre/synonyms/:key", requireAuth, requireAdmin, (req, res) => {
+  router.delete("/genre/synonyms/:key", requireAuth, requireAdmin, (req, res, next) => {
     const key = req.params.key;
     if (!key) {
-      res.status(400).json({ error: "Synonym key required" });
-      return;
+      return next(new AppError("Synonym key required", 400));
     }
 
     const removed = removeSynonym(key);
     if (!removed) {
-      res.status(404).json({ error: "Synonym not found" });
-      return;
+      return next(new AppError("Synonym not found", 404));
     }
 
     log.info("Genre synonym removed", { key, userId: req.authUser?.id ?? "unknown" });
