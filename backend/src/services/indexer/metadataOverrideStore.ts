@@ -1,4 +1,4 @@
-import { readJsonFile, writeJsonAtomic } from "../../utils/fs";
+import { readJsonFile, updateJsonFile } from "../../utils/fs";
 import { metadataOverridesFilePath } from "../../utils/paths";
 
 export type TrackMetadataOverride = {
@@ -98,61 +98,62 @@ export async function readTrackMetadataOverrides(): Promise<TrackMetadataOverrid
 export async function mergeTrackMetadataOverrides(
   patch: TrackMetadataOverridesMap
 ): Promise<TrackMetadataOverridesMap> {
-  const current = await readTrackMetadataOverrides();
-  let hasChanges = false;
+  return updateJsonFile<TrackMetadataOverridesMap>(
+    metadataOverridesFilePath,
+    {},
+    (raw) => {
+      const current = normalizeOverrides(raw);
+      let hasChanges = false;
 
-  for (const [trackId, override] of Object.entries(patch)) {
-    const safeTrackId = trackId.trim();
-    if (!safeTrackId) {
-      continue;
-    }
+      for (const [trackId, override] of Object.entries(patch)) {
+        const safeTrackId = trackId.trim();
+        if (!safeTrackId) continue;
 
-    const cleanOverride = normalizeOverride(override);
-    const existing = current[safeTrackId];
+        const cleanOverride = normalizeOverride(override);
+        const existing = current[safeTrackId];
 
-    if (!cleanOverride) {
-      if (existing) {
-        delete current[safeTrackId];
+        if (!cleanOverride) {
+          if (existing) {
+            delete current[safeTrackId];
+            hasChanges = true;
+          }
+          continue;
+        }
+
+        if (
+          existing?.title === cleanOverride.title &&
+          existing?.artist === cleanOverride.artist &&
+          existing?.album === cleanOverride.album &&
+          existing?.year === cleanOverride.year &&
+          JSON.stringify(existing?.genre) === JSON.stringify(cleanOverride.genre)
+        ) {
+          continue;
+        }
+
+        current[safeTrackId] = cleanOverride;
         hasChanges = true;
       }
-      continue;
+
+      return hasChanges ? current : undefined;
     }
-
-    if (
-      existing?.title === cleanOverride.title &&
-      existing?.artist === cleanOverride.artist &&
-      existing?.album === cleanOverride.album &&
-      existing?.year === cleanOverride.year &&
-      JSON.stringify(existing?.genre) === JSON.stringify(cleanOverride.genre)
-    ) {
-      continue;
-    }
-
-    current[safeTrackId] = cleanOverride;
-    hasChanges = true;
-  }
-
-  if (hasChanges) {
-    await writeJsonAtomic(metadataOverridesFilePath, current);
-  }
-
-  return current;
+  );
 }
 
 export async function pruneTrackMetadataOverrides(validTrackIds: string[]): Promise<void> {
-  const current = await readTrackMetadataOverrides();
   const keep = new Set(validTrackIds);
-  let hasChanges = false;
-
-  for (const trackId of Object.keys(current)) {
-    if (keep.has(trackId)) {
-      continue;
+  await updateJsonFile<TrackMetadataOverridesMap>(
+    metadataOverridesFilePath,
+    {},
+    (raw) => {
+      const current = normalizeOverrides(raw);
+      let hasChanges = false;
+      for (const trackId of Object.keys(current)) {
+        if (!keep.has(trackId)) {
+          delete current[trackId];
+          hasChanges = true;
+        }
+      }
+      return hasChanges ? current : undefined;
     }
-    delete current[trackId];
-    hasChanges = true;
-  }
-
-  if (hasChanges) {
-    await writeJsonAtomic(metadataOverridesFilePath, current);
-  }
+  );
 }

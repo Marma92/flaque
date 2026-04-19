@@ -1,11 +1,8 @@
 import path from "node:path";
 
-import { readJsonFile, writeJsonAtomic, ensureDir } from "../../utils/fs";
+import { readJsonFile, updateJsonFile } from "../../utils/fs";
 import { usersStorageRoot } from "../../utils/paths";
 import type { IndexStore } from "../indexer/indexStore";
-import { createLogger } from "../../utils/logger";
-
-const log = createLogger("play-counts");
 
 type TrackPlayCount = {
   count: number;
@@ -29,20 +26,20 @@ async function readPlayCounts(userId: string): Promise<PlayCountsFile> {
   return data;
 }
 
-async function writePlayCounts(userId: string, data: PlayCountsFile): Promise<void> {
-  const filePath = playCountsPath(userId);
-  await ensureDir(path.dirname(filePath));
-  await writeJsonAtomic(filePath, data);
-}
-
 export async function incrementPlayCount(userId: string, trackId: string): Promise<void> {
-  const data = await readPlayCounts(userId);
-  const existing = data.tracks[trackId];
-  data.tracks[trackId] = {
-    count: (existing?.count ?? 0) + 1,
-    lastPlayedAt: new Date().toISOString()
-  };
-  await writePlayCounts(userId, data);
+  await updateJsonFile<PlayCountsFile>(
+    playCountsPath(userId),
+    { tracks: {} },
+    (current) => {
+      const tracks = current?.tracks && typeof current.tracks === "object" ? { ...current.tracks } : {};
+      const existing = tracks[trackId];
+      tracks[trackId] = {
+        count: (existing?.count ?? 0) + 1,
+        lastPlayedAt: new Date().toISOString()
+      };
+      return { tracks };
+    }
+  );
 }
 
 export async function getUserPlayCounts(
