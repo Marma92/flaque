@@ -105,7 +105,7 @@ export function LibraryAlbumsSection({
         </div>
       )}
 
-    <section className="border border-flaque-clay/60 rounded-xl m-4 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+    <section className={`border border-flaque-clay/60 rounded-xl m-4 bg-white/85 p-5 shadow-panel backdrop-blur-sm${!isAlbumSelected && viewMode === "coverflow" ? " flex flex-1 flex-col" : ""}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         {isAlbumSelected ? (
           <button
@@ -165,12 +165,14 @@ export function LibraryAlbumsSection({
       ) : (
         <>
           {!isAlbumSelected && viewMode === "coverflow" ? (
-            <Coverflow
-              albums={filteredAlbums}
-              selectedAlbum={lastSelectedAlbumRef.current}
-              onAlbumSelect={onAlbumSelect}
-              getAlbumCoverSrc={getAlbumCoverSrc}
-            />
+            <div className="flex flex-1 items-center">
+              <Coverflow
+                albums={filteredAlbums}
+                selectedAlbum={lastSelectedAlbumRef.current}
+                onAlbumSelect={onAlbumSelect}
+                getAlbumCoverSrc={getAlbumCoverSrc}
+              />
+            </div>
           ) : !isAlbumSelected && viewMode === "list" ? (
             <AlbumList
               albums={filteredAlbums}
