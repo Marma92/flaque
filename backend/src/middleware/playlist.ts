@@ -31,24 +31,18 @@ export function loadPlaylist(
     }
 
     // Check access permissions
-    if (requireAuth) {
-      const canView = canViewPlaylist(playlist, req.authUser);
-      if (!canView) {
+    if (requireAuth && req.authUser) {
+      const authUser = req.authUser;
+      if (!canViewPlaylist(playlist, authUser)) {
         return next(new AppError("Not allowed to access this playlist", 403));
       }
 
-      if (requireEdit) {
-        const canEdit = canEditPlaylist(playlist, req.authUser);
-        if (!canEdit) {
-          return next(new AppError("Not allowed to modify this playlist", 403));
-        }
+      if (requireEdit && !canEditPlaylist(playlist, authUser)) {
+        return next(new AppError("Not allowed to modify this playlist", 403));
       }
 
-      if (requireManage) {
-        const canManage = canManagePlaylist(playlist, req.authUser);
-        if (!canManage) {
-          return next(new AppError("Not allowed to delete this playlist", 403));
-        }
+      if (requireManage && !canManagePlaylist(playlist, authUser)) {
+        return next(new AppError("Not allowed to delete this playlist", 403));
       }
     }
 

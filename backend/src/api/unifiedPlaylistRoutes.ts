@@ -1,9 +1,13 @@
+import fsPromises from "node:fs/promises";
+import path from "node:path";
+
 import { Router } from "express";
 import multer from "multer";
 
 import { createLogger } from "../utils/logger";
 import { requireAdmin, requireAuth } from "../auth/middleware";
 import type { IndexStore } from "../services/indexer/indexStore";
+import { ensureDir } from "../utils/fs";
 import {
   getAutoPlaylistConfig,
   updateAutoPlaylistConfig,

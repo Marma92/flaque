@@ -1,12 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { Request, Response, NextFunction } from "express";
-import type { IndexStore, Track } from "../services/indexer/indexStore";
+
 import { loadPlaylist, resolveTrackIds } from "./playlist";
 import { AppError } from "../utils/AppError";
-import type { Playlist, PlaylistVisibility } from "../types/library";
-import { canViewPlaylist } from "../../services/playlists/playlistStore";
+import type { IndexStore } from "../services/indexer/indexStore";
+import type { Playlist, Track } from "../types/library";
+import type { AuthUser } from "../types/auth";
 
-// Mock data
 const mockTrackA: Track = {
   id: "track-a",
   owner: "user-1",
@@ -14,11 +14,7 @@ const mockTrackA: Track = {
   duration: 180,
   mimeType: "audio/mpeg",
   codec: "mp3",
-  tags: {
-    title: "Track A",
-    artist: "Artist A",
-    album: "Album A"
-  }
+  tags: { title: "Track A", artist: "Artist A", album: "Album A" }
 };
 
 const mockTrackB: Track = {
@@ -28,204 +24,211 @@ const mockTrackB: Track = {
   duration: 240,
   mimeType: "audio/mpeg",
   codec: "mp3",
-  tags: {
-    title: "Track B",
-    artist: "Artist B",
-    album: "Album B"
-  }
+  tags: { title: "Track B", artist: "Artist B", album: "Album B" }
 };
 
 const mockPlaylist: Playlist = {
   id: "user-1:my-playlist",
   name: "My Playlist",
   authorId: "user-1",
-  visibility: "public" as PlaylistVisibility,
+  visibility: "public",
   description: "Test playlist",
   trackIds: ["track-a", "track-b"],
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+  cover: null,
   hearts: [],
+  heartCount: 0,
   listenCount: 0,
   collaborators: []
 };
 
-const mockIndexStore: IndexStore = {
-  getSnapshot: vi.fn(),
-  getTrackById: vi.fn(),
-  getTracksByArtistId: vi.fn(),
-  getTracksByAlbumId: vi.fn(),
-  getTracksByGenre: vi.fn(),
-  getTracksById: vi.fn(),
-  refreshLibrary: vi.fn(),
-  refreshPlaylists: vi.fn(),
-  getArtistById: vi.fn(),
-  getAlbumById: vi.fn(),
-  getGenres: vi.fn(),
-  getUserById: vi.fn(),
-  getAuthState: vi.fn(),
-  getAuthStatus: vi.fn()
+const mockUser: AuthUser = {
+  id: "user-1",
+  username: "user-1",
+  email: "user1@example.com",
+  role: "user"
 };
+
+function createMockIndexStore(overrides: Partial<{
+  playlists: Playlist[];
+  tracksById: Map<string, Track>;
+}> = {}): IndexStore {
+  const playlists = overrides.playlists ?? [];
+  const tracksById = overrides.tracksById ?? new Map();
+  return {
+    getSnapshot: vi.fn(() => ({
+      tracks: [],
+      artists: [],
+      albums: [],
+      playlists
+    })),
+    getTracksById: vi.fn((ids: string[]) => {
+      const map = new Map<string, Track>();
+      for (const id of ids) {
+        const track = tracksById.get(id);
+        if (track) map.set(id, track);
+      }
+      return map;
+    })
+  } as unknown as IndexStore;
+}
 
 describe("Playlist Middleware", () => {
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
-  let mockNext: vi.Mock<NextFunction>;
+  let mockNext: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     mockReq = {
-      authUser: { id: "user-1", role: "user" },
+      authUser: mockUser,
       params: {},
       body: {}
     };
     mockRes = {
       status: vi.fn().mockReturnThis(),
-      json: vi.fn().mockReturnThis(),
-    } as Partial<Response>;
+      json: vi.fn().mockReturnThis()
+    };
     mockNext = vi.fn();
-
-    // Reset mocks
-    vi.clearAllMocks();
   });
 
   describe("loadPlaylist", () => {
-    it("should attach playlist to request when found and user can view", async () => {
-      mockReq.params.id = "user-1:my-playlist";
-      mockIndexStore.getSnapshot.mockReturnValue({ playlists: [mockPlaylist] });
+    it("attaches playlist to request when found and user can view", async () => {
+      mockReq.params!.id = "user-1:my-playlist";
+      const indexStore = createMockIndexStore({ playlists: [mockPlaylist] });
 
-      const middleware = loadPlaylist(mockIndexStore);
-      await middleware(mockReq as Request, mockRes as Response, mockNext);
-
-      expect((mockReq as any).playlist).toEqual(mockPlaylist);
-      expect(mockNext).toHaveBeenCalled();
-      expect(mockRes.status).not.toHaveBeenCalled();
-    });
-
-    it("should call next with AppError when authentication required but not provided", async () => {
-      mockReq.authUser = undefined;
-      mockReq.params.id = "user-1:my-playlist";
-
-      const middleware = loadPlaylist(mockIndexStore, true);
-      await middleware(mockReq as Request, mockRes as Response, mockNext);
-
-      expect(mockNext).toHaveBeenCalledWith(new AppError("Authentication required", 401));
-      expect(mockRes.status).not.toHaveBeenCalled();
-      expect(mockRes.json).not.toHaveBeenCalled();
-    });
-
-    it("should call next with AppError when playlist not found", async () => {
-      mockReq.params.id = "non-existent";
-      mockIndexStore.getSnapshot.mockReturnValue({ playlists: [] });
-
-      const middleware = loadPlaylist(mockIndexStore);
-      await middleware(mockReq as Request, mockRes as Response, mockNext);
-
-      expect(mockNext).toHaveBeenCalledWith(new AppError("Playlist not found", 404));
-      expect(mockRes.status).not.toHaveBeenCalled();
-      expect(mockRes.json).not.toHaveBeenCalled();
-    });
-
-    it("should call next with AppError when user cannot view playlist", async () => {
-      mockReq.params.id = "user-1:my-playlist";
-      mockIndexStore.getSnapshot.mockReturnValue({ playlists: [mockPlaylist] });
-      
-      // Import the function directly like in playlistStore.test.ts
-      const playlistStore = await import("../services/playlists/playlistStore");
-      vi.spyOn(playlistStore, "canViewPlaylist").mockImplementation(() => false);
-
-      const middleware = loadPlaylist(mockIndexStore);
-      await middleware(mockReq as Request, mockRes as Response, mockNext);
-
-      expect(mockNext).toHaveBeenCalledWith(new AppError("Not allowed to access this playlist", 403));
-      expect(mockRes.status).not.toHaveBeenCalled();
-      expect(mockRes.json).not.toHaveBeenCalled();
-    });
-
-    it("should not require authentication when requireAuth=false", async () => {
-      mockReq.authUser = undefined;
-      mockReq.params.id = "user-1:my-playlist";
-      mockIndexStore.getSnapshot.mockReturnValue({ playlists: [mockPlaylist] });
-
-      const middleware = loadPlaylist(mockIndexStore, false);
-      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      const middleware = loadPlaylist(indexStore);
+      await middleware(mockReq as Request, mockRes as Response, mockNext as NextFunction);
 
       expect((mockReq as any).playlist).toEqual(mockPlaylist);
-      expect(mockNext).toHaveBeenCalled();
+      expect(mockNext).toHaveBeenCalledWith();
+    });
+
+    it("calls next with 401 when authentication required but not provided", async () => {
+      mockReq.authUser = undefined;
+      mockReq.params!.id = "user-1:my-playlist";
+      const indexStore = createMockIndexStore();
+
+      const middleware = loadPlaylist(indexStore, true);
+      await middleware(mockReq as Request, mockRes as Response, mockNext as NextFunction);
+
+      const err = mockNext.mock.calls[0]?.[0];
+      expect(err).toBeInstanceOf(AppError);
+      expect(err.statusCode).toBe(401);
+    });
+
+    it("calls next with 404 when playlist not found", async () => {
+      mockReq.params!.id = "non-existent";
+      const indexStore = createMockIndexStore({ playlists: [] });
+
+      const middleware = loadPlaylist(indexStore);
+      await middleware(mockReq as Request, mockRes as Response, mockNext as NextFunction);
+
+      const err = mockNext.mock.calls[0]?.[0];
+      expect(err).toBeInstanceOf(AppError);
+      expect(err.statusCode).toBe(404);
+    });
+
+    it("calls next with 403 when user cannot view a private playlist owned by someone else", async () => {
+      const privatePlaylist: Playlist = {
+        ...mockPlaylist,
+        id: "other-user:secret",
+        authorId: "other-user",
+        visibility: "private"
+      };
+      mockReq.params!.id = privatePlaylist.id;
+      const indexStore = createMockIndexStore({ playlists: [privatePlaylist] });
+
+      const middleware = loadPlaylist(indexStore);
+      await middleware(mockReq as Request, mockRes as Response, mockNext as NextFunction);
+
+      const err = mockNext.mock.calls[0]?.[0];
+      expect(err).toBeInstanceOf(AppError);
+      expect(err.statusCode).toBe(403);
+    });
+
+    it("allows public access when requireAuth=false", async () => {
+      mockReq.authUser = undefined;
+      mockReq.params!.id = mockPlaylist.id;
+      const indexStore = createMockIndexStore({ playlists: [mockPlaylist] });
+
+      const middleware = loadPlaylist(indexStore, false);
+      await middleware(mockReq as Request, mockRes as Response, mockNext as NextFunction);
+
+      expect((mockReq as any).playlist).toEqual(mockPlaylist);
+      expect(mockNext).toHaveBeenCalledWith();
     });
   });
 
   describe("resolveTrackIds", () => {
-    it("should resolve track IDs to Track objects and attach to request", async () => {
+    it("resolves track IDs to Track objects and attaches to request", async () => {
       mockReq.body.trackIds = ["track-a", "track-b"];
-      mockIndexStore.getTracksById.mockReturnValue(new Map([
-        ["track-a", mockTrackA],
-        ["track-b", mockTrackB]
-      ]));
+      const indexStore = createMockIndexStore({
+        tracksById: new Map([
+          ["track-a", mockTrackA],
+          ["track-b", mockTrackB]
+        ])
+      });
 
-      const middleware = resolveTrackIds(mockIndexStore);
-      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      const middleware = resolveTrackIds(indexStore);
+      await middleware(mockReq as Request, mockRes as Response, mockNext as NextFunction);
 
       expect((mockReq as any).tracks).toEqual([mockTrackA, mockTrackB]);
-      expect(mockNext).toHaveBeenCalled();
-      expect(mockRes.status).not.toHaveBeenCalled();
-      expect(mockRes.json).not.toHaveBeenCalled();
+      expect(mockNext).toHaveBeenCalledWith();
     });
 
-    it("should handle empty trackIds array", async () => {
+    it("handles empty trackIds array", async () => {
       mockReq.body.trackIds = [];
+      const indexStore = createMockIndexStore();
 
-      const middleware = resolveTrackIds(mockIndexStore);
-      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      const middleware = resolveTrackIds(indexStore);
+      await middleware(mockReq as Request, mockRes as Response, mockNext as NextFunction);
 
-      expect(mockNext).toHaveBeenCalled();
-      expect(mockRes.status).not.toHaveBeenCalled();
-      expect(mockRes.json).not.toHaveBeenCalled();
+      expect(mockNext).toHaveBeenCalledWith();
     });
 
-    it("should handle missing trackIds in request", async () => {
-      // No trackIds in body
-      const middleware = resolveTrackIds(mockIndexStore);
-      await middleware(mockReq as Request, mockRes as Response, mockNext);
+    it("passes through when trackIds missing from body", async () => {
+      const indexStore = createMockIndexStore();
 
-      // Should not attach anything and call next
-      expect(mockNext).toHaveBeenCalled();
+      const middleware = resolveTrackIds(indexStore);
+      await middleware(mockReq as Request, mockRes as Response, mockNext as NextFunction);
+
+      expect(mockNext).toHaveBeenCalledWith();
     });
 
-    it("should call next with AppError when trackIds is not an array", async () => {
-      mockReq.body.trackIds = "not-an-array" as any;
+    it("calls next with AppError when trackIds is not an array", async () => {
+      mockReq.body.trackIds = "not-an-array";
+      const indexStore = createMockIndexStore();
 
-      const middleware = resolveTrackIds(mockIndexStore);
-      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      const middleware = resolveTrackIds(indexStore);
+      await middleware(mockReq as Request, mockRes as Response, mockNext as NextFunction);
 
-      expect(mockNext).toHaveBeenCalledWith(new AppError("trackIds must be an array of track ids", 400));
-      expect(mockRes.status).not.toHaveBeenCalled();
-      expect(mockRes.json).not.toHaveBeenCalled();
+      const err = mockNext.mock.calls[0]?.[0];
+      expect(err).toBeInstanceOf(AppError);
+      expect(err.statusCode).toBe(400);
     });
 
-    it("should call next with AppError when trackIds contains non-string values", async () => {
-      mockReq.body.trackIds = ["valid", 123] as any;
+    it("calls next with AppError when trackIds contains non-string values", async () => {
+      mockReq.body.trackIds = ["valid", 123];
+      const indexStore = createMockIndexStore();
 
-      const middleware = resolveTrackIds(mockIndexStore);
-      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      const middleware = resolveTrackIds(indexStore);
+      await middleware(mockReq as Request, mockRes as Response, mockNext as NextFunction);
 
-      expect(mockNext).toHaveBeenCalledWith(new AppError("trackIds must be an array of track ids", 400));
-      expect(mockRes.status).not.toHaveBeenCalled();
-      expect(mockRes.json).not.toHaveBeenCalled();
+      const err = mockNext.mock.calls[0]?.[0];
+      expect(err).toBeInstanceOf(AppError);
+      expect(err.statusCode).toBe(400);
     });
 
-    it("should handle tracks that are not found in index", async () => {
+    it("filters out track IDs not present in the index", async () => {
       mockReq.body.trackIds = ["track-a", "non-existent"];
-      mockIndexStore.getTracksById.mockReturnValue(new Map([
-        ["track-a", mockTrackA]
-        // track-b not found
-      ]));
+      const indexStore = createMockIndexStore({
+        tracksById: new Map([["track-a", mockTrackA]])
+      });
 
-      const middleware = resolveTrackIds(mockIndexStore);
-      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      const middleware = resolveTrackIds(indexStore);
+      await middleware(mockReq as Request, mockRes as Response, mockNext as NextFunction);
 
-      expect((mockReq as any).tracks).toEqual([mockTrackA]); // Only found track
-      expect(mockNext).toHaveBeenCalled();
-      expect(mockRes.status).not.toHaveBeenCalled();
-      expect(mockRes.json).not.toHaveBeenCalled();
+      expect((mockReq as any).tracks).toEqual([mockTrackA]);
+      expect(mockNext).toHaveBeenCalledWith();
     });
   });
 });
