@@ -10,6 +10,7 @@ import {
   dismissForYouPlaylist,
   getUserDismissals
 } from "../services/playlists/forYouPlaylistService";
+import { AppError } from "../utils/AppError";
 
 const log = createLogger("for-you-routes");
 
@@ -20,8 +21,7 @@ export function createForYouPlaylistRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.authUser?.id;
       if (!userId) {
-        res.status(401).json({ error: "Authentication required" });
-        return;
+        return next(new AppError("Authentication required", 401));
       }
 
       const playlists = await loadForYouPlaylists(userId);
@@ -47,20 +47,17 @@ export function createForYouPlaylistRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.authUser?.id;
       if (!userId) {
-        res.status(401).json({ error: "Authentication required" });
-        return;
+        return next(new AppError("Authentication required", 401));
       }
 
       const id = req.params.id;
       if (!id) {
-        res.status(400).json({ error: "Playlist id is required" });
-        return;
+        return next(new AppError("Playlist id is required", 400));
       }
 
       const playlist = await getForYouPlaylistById(userId, id);
       if (!playlist) {
-        res.status(404).json({ error: "For-you playlist not found" });
-        return;
+        return next(new AppError("For-you playlist not found", 404));
       }
 
       const tracks = playlist.trackIds

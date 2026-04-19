@@ -10,6 +10,7 @@ import {
   getAutoPlaylistById,
   regenerateAutoPlaylists
 } from "../services/playlists/autoPlaylistService";
+import { AppError } from "../utils/AppError";
 
 const log = createLogger("auto-playlist-routes");
 
@@ -61,19 +62,17 @@ export function createAutoPlaylistRouter(indexStore: IndexStore): Router {
     }
   });
 
-  router.get("/playlists/automatic/:id", requireAuth, async (req, res, next) => {
-    try {
-      const id = req.params.id;
-      if (!id) {
-        res.status(400).json({ error: "Playlist id is required" });
-        return;
-      }
+router.get("/playlists/automatic/:id", requireAuth, async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return next(new AppError("Playlist id is required", 400));
+    }
 
-      const playlist = await getAutoPlaylistById(id);
-      if (!playlist) {
-        res.status(404).json({ error: "Auto playlist not found" });
-        return;
-      }
+    const playlist = await getAutoPlaylistById(id);
+    if (!playlist) {
+      return next(new AppError("Auto playlist not found", 404));
+    }
 
       const tracks = playlist.trackIds
         .map((trackId) => indexStore.getTrackById(trackId))

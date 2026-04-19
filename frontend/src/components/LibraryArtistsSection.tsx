@@ -1,8 +1,7 @@
 import { useState } from "react";
 
-import { coverPathUrl, coverUrl } from "../api";
-import defaultCoverImage from "../assets/default-cover.png";
 import type { AlbumEntry, ArtistEntry, Playlist, Track } from "../types";
+import { defaultCoverImage, getAlbumCoverSrc, getArtistPhotoSrc } from "../utils/covers";
 import { formatDurationHuman } from "../utils/format";
 import { AlbumList } from "./AlbumList";
 import { TrackList } from "./TrackList";
@@ -55,17 +54,6 @@ export function LibraryArtistsSection({
   playlists,
   onAddTrackToPlaylist
 }: LibraryArtistsSectionProps): JSX.Element {
-  function getAlbumCoverSrc(album: AlbumEntry): string {
-    if (album.cover) {
-      return coverPathUrl(album.cover);
-    }
-
-    if (album.previewTrackId) {
-      return coverUrl(album.previewTrackId);
-    }
-
-    return defaultCoverImage;
-  }
 
   const [searchQuery, setSearchQuery] = useState("");
   const isArtistSelected = selectedArtist !== null;
@@ -77,11 +65,7 @@ export function LibraryArtistsSection({
     : artists;
 
   const artistPhotoSrc = selectedArtist
-    ? (selectedArtist.photo
-        ? coverPathUrl(selectedArtist.photo)
-        : selectedArtist.previewTrackId
-          ? coverUrl(selectedArtist.previewTrackId)
-          : defaultCoverImage)
+    ? getArtistPhotoSrc(selectedArtist)
     : defaultCoverImage;
 
   return (
@@ -202,7 +186,6 @@ export function LibraryArtistsSection({
           selectedAlbum={selectedArtistAlbum}
           onAlbumSelect={onArtistAlbumSelect}
           onPlayAlbum={onPlayAlbum}
-          getAlbumCoverSrc={getAlbumCoverSrc}
         />
       ) : (
         <div className="mt-3">
@@ -230,11 +213,7 @@ export function LibraryArtistsSection({
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {grouped.get(letter)!.map((artist) => {
-                    const artistPhoto = artist.photo
-                      ? coverPathUrl(artist.photo)
-                      : artist.previewTrackId
-                        ? coverUrl(artist.previewTrackId)
-                        : defaultCoverImage;
+                    const artistPhoto = getArtistPhotoSrc(artist);
 
                     return (
                       <button

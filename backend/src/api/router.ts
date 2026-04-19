@@ -1,9 +1,7 @@
 import { Router } from "express";
 
 import { IndexStore } from "../services/indexer/indexStore";
-import { createAutoPlaylistRouter } from "./autoPlaylistRoutes";
 import { createAuthRouter } from "./authRoutes";
-import { createForYouPlaylistRouter } from "./forYouPlaylistRoutes";
 import { createBackupRouter } from "./backupRoutes";
 import { createCoverRouter } from "./coverRoutes";
 import { createGenreRouter } from "./genreRoutes";
@@ -11,12 +9,13 @@ import { createIndexRouter } from "./indexRoutes";
 import { createLibraryRouter } from "./libraryRoutes";
 import { createLogRouter } from "./logRoutes";
 import { createPlayCountRouter } from "./playCountRoutes";
-import { createPlaylistRouter } from "./playlistRoutes";
-import { createRadioRouter } from "./radioRoutes";
 import { createServerRouter } from "./serverRoutes";
+import { createUnifiedPlaylistRouter } from "./unifiedPlaylistRoutes";
+import { createRadioRouter } from "./radioRoutes";
 import { createStreamingRouter } from "./streamingRoutes";
 import { createUploadRouter } from "./uploadRoutes";
 import { createUserRouter } from "./userRoutes";
+import { errorHandler } from "../middleware/errorHandler";
 
 export function createApiRouter(indexStore: IndexStore): Router {
   const router = Router();
@@ -24,9 +23,7 @@ export function createApiRouter(indexStore: IndexStore): Router {
   router.use("/auth", createAuthRouter());
   router.use(createUploadRouter(indexStore));
   router.use(createLibraryRouter(indexStore));
-  router.use(createAutoPlaylistRouter(indexStore));
-  router.use(createForYouPlaylistRouter(indexStore));
-  router.use(createPlaylistRouter(indexStore));
+  router.use("/playlists", createUnifiedPlaylistRouter(indexStore));
   router.use(createRadioRouter(indexStore));
   router.use(createStreamingRouter(indexStore));
   router.use(createPlayCountRouter(indexStore));
@@ -37,6 +34,9 @@ export function createApiRouter(indexStore: IndexStore): Router {
   router.use(createLogRouter());
   router.use(createServerRouter());
   router.use(createBackupRouter());
+
+  // Global error handler
+  router.use(errorHandler);
 
   return router;
 }
