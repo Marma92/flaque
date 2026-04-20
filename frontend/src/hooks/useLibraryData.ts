@@ -195,9 +195,7 @@ export function useLibraryData({
     setLoadingLibraryArtists(true);
     setLibraryMetadataError(null);
 
-    getArtists({
-      q: filters.q
-    })
+    getArtists({})
       .then((artists) => {
         if (artistsRequestIdRef.current !== requestId) {
           return;
@@ -217,7 +215,7 @@ export function useLibraryData({
           setLoadingLibraryArtists(false);
         }
       });
-  }, [activeLibrarySection, activeView, filters.q, user]);
+  }, [activeLibrarySection, activeView, user]);
 
   useEffect(() => {
     if (activeLibrarySection !== "artists") {
@@ -251,9 +249,7 @@ export function useLibraryData({
     setLoadingArtistAlbums(true);
     setLibraryMetadataError(null);
 
-    getArtistAlbums(selectedArtist.normalizedName, {
-      q: filters.q
-    })
+    getArtistAlbums(selectedArtist.normalizedName, {})
       .then((albums) => {
         if (artistAlbumsRequestIdRef.current !== requestId) {
           return;
@@ -285,7 +281,7 @@ export function useLibraryData({
           setLoadingArtistAlbums(false);
         }
       });
-  }, [activeLibrarySection, filters.q, selectedArtist]);
+  }, [activeLibrarySection, selectedArtist]);
 
   useEffect(() => {
     if (activeLibrarySection !== "artists" || !selectedArtistAlbum) {
@@ -351,9 +347,7 @@ export function useLibraryData({
     setLoadingLibraryAlbums(true);
     setLibraryMetadataError(null);
 
-    getAlbums({
-      q: filters.q
-    })
+    getAlbums({})
       .then((albums) => {
         if (albumsRequestIdRef.current !== requestId) {
           return;
@@ -373,7 +367,7 @@ export function useLibraryData({
           setLoadingLibraryAlbums(false);
         }
       });
-  }, [activeLibrarySection, activeView, filters.q, user]);
+  }, [activeLibrarySection, activeView, user]);
 
   useEffect(() => {
     if (activeLibrarySection !== "albums") {
