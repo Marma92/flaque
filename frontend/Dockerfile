@@ -5,9 +5,11 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
+COPY shared/package.json shared/package.json
 
 RUN npm ci
 
+COPY shared shared
 COPY frontend frontend
 
 RUN npm run build --workspace frontend

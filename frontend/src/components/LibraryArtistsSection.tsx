@@ -4,6 +4,7 @@ import type { AlbumEntry, ArtistEntry, Playlist, Track } from "../types";
 import { defaultCoverImage, getAlbumCoverSrc, getArtistPhotoSrc } from "../utils/covers";
 import { formatDurationHuman } from "../utils/format";
 import { AlbumList } from "./AlbumList";
+import { ArtistCard } from "./ArtistCard";
 import { TrackList } from "./TrackList";
 
 export type LibraryArtistsSectionProps = {
@@ -212,38 +213,13 @@ export function LibraryArtistsSection({
                   <div className="flex-1 h-[2px] border-t-[2px] border-flaque-clay/40" style={{ maskImage: "linear-gradient(to right, black 50%, transparent)", WebkitMaskImage: "linear-gradient(to right, black 50%, transparent)" }} />
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                  {grouped.get(letter)!.map((artist) => {
-                    const artistPhoto = getArtistPhotoSrc(artist);
-
-                    return (
-                      <button
-                        key={artist.name}
-                        className="aspect-square rounded-xl bg-white/85 p-3 text-center transition hover:bg-flaque-cream"
-                        title={artist.name}
-                        type="button"
-                        onClick={() => onArtistSelect(artist)}
-                      >
-                        <img
-                          className="mx-auto h-full max-h-44 w-full max-w-44 rounded-full border border-flaque-clay/50 object-cover"
-                          src={artistPhoto}
-                          alt={`Artwork for ${artist.name}`}
-                          onError={(event) => {
-                            event.currentTarget.src = defaultCoverImage;
-                          }}
-                        />
-                        <div className="mt-2 min-w-0">
-                          <p className="truncate text-sm font-medium text-flaque-ink">{artist.name}</p>
-                          <p className="text-xs text-flaque-steel">
-                            {artist.albumCount} album{artist.albumCount !== 1 ? "s" : ""}
-                            {" · "}
-                            {artist.trackCount} track{artist.trackCount !== 1 ? "s" : ""}
-                            {" · "}
-                            {formatDurationHuman(artist.totalDuration)}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
+                  {grouped.get(letter)!.map((artist) => (
+                    <ArtistCard
+                      key={artist.name}
+                      artist={artist}
+                      onSelect={onArtistSelect}
+                    />
+                  ))}
                 </div>
                 {idx < sortedKeys.length - 1 && <div className="mb-4" />}
               </div>
