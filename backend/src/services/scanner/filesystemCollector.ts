@@ -82,12 +82,26 @@ async function sortRootMusicFiles(
 async function collectAudioFiles(rootDir: string): Promise<string[]> {
   const queue = [rootDir];
   const files: string[] = [];
+  const visitedDirs = new Set<string>();
 
   while (queue.length > 0) {
     const current = queue.pop();
     if (!current) {
       continue;
     }
+
+    // Resolve through symlinks so loops can't traverse forever.
+    let realDir: string;
+    try {
+      realDir = await fs.realpath(current);
+    } catch {
+      continue;
+    }
+
+    if (visitedDirs.has(realDir)) {
+      continue;
+    }
+    visitedDirs.add(realDir);
 
     let entries: Dirent[] = [];
     try {
@@ -97,17 +111,26 @@ async function collectAudioFiles(rootDir: string): Promise<string[]> {
     }
 
     for (const entry of entries) {
+      const absoluteEntryPath = path.join(current, entry.name);
+
+      let isDirectory = entry.isDirectory();
+      let isFile = entry.isFile();
       if (entry.isSymbolicLink()) {
-        continue;
+        try {
+          const resolved = await fs.stat(absoluteEntryPath);
+          isDirectory = resolved.isDirectory();
+          isFile = resolved.isFile();
+        } catch {
+          continue;
+        }
       }
 
-      const absoluteEntryPath = path.join(current, entry.name);
-      if (entry.isDirectory()) {
+      if (isDirectory) {
         queue.push(absoluteEntryPath);
         continue;
       }
 
-      if (entry.isFile() && isSupportedAudioFile(absoluteEntryPath)) {
+      if (isFile && isSupportedAudioFile(absoluteEntryPath)) {
         files.push(absoluteEntryPath);
       }
     }

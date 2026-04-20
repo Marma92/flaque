@@ -109,7 +109,6 @@ export function useLibraryData({
   function getAlbumTracksFromLoadedLibraries(album: AlbumEntry): Track[] {
     const selectedAlbumName = normalizeText(album.name);
     const selectedAlbumArtist = normalizeText(album.artist);
-    const ownerFilter = normalizeText(filters.owner);
 
     const trackMap = new Map<string, Track>();
     for (const track of allTracksLibrary.tracks) {
@@ -123,10 +122,6 @@ export function useLibraryData({
 
     return sourceTracks.filter((track) => {
       if (normalizeText(getTrackDisplayAlbum(track)) !== selectedAlbumName) {
-        return false;
-      }
-
-      if (ownerFilter && normalizeText(track.owner) !== ownerFilter) {
         return false;
       }
 
@@ -200,10 +195,7 @@ export function useLibraryData({
     setLoadingLibraryArtists(true);
     setLibraryMetadataError(null);
 
-    getArtists({
-      owner: filters.owner,
-      q: filters.q
-    })
+    getArtists({})
       .then((artists) => {
         if (artistsRequestIdRef.current !== requestId) {
           return;
@@ -223,7 +215,7 @@ export function useLibraryData({
           setLoadingLibraryArtists(false);
         }
       });
-  }, [activeLibrarySection, activeView, filters.owner, filters.q, user]);
+  }, [activeLibrarySection, activeView, user]);
 
   useEffect(() => {
     if (activeLibrarySection !== "artists") {
@@ -257,10 +249,7 @@ export function useLibraryData({
     setLoadingArtistAlbums(true);
     setLibraryMetadataError(null);
 
-    getArtistAlbums(selectedArtist.normalizedName, {
-      owner: filters.owner,
-      q: filters.q
-    })
+    getArtistAlbums(selectedArtist.normalizedName, {})
       .then((albums) => {
         if (artistAlbumsRequestIdRef.current !== requestId) {
           return;
@@ -292,7 +281,7 @@ export function useLibraryData({
           setLoadingArtistAlbums(false);
         }
       });
-  }, [activeLibrarySection, filters.owner, filters.q, selectedArtist]);
+  }, [activeLibrarySection, selectedArtist]);
 
   useEffect(() => {
     if (activeLibrarySection !== "artists" || !selectedArtistAlbum) {
@@ -335,7 +324,7 @@ export function useLibraryData({
           setLoadingSelectedArtistAlbumTracks(false);
         }
       });
-  }, [activeLibrarySection, allTracksLibrary.tracks, filters.owner, library.tracks, selectedArtistAlbum]);
+  }, [activeLibrarySection, allTracksLibrary.tracks, library.tracks, selectedArtistAlbum]);
 
   useEffect(() => {
     if (activeLibrarySection !== "artists" || selectedArtistAlbum) {
@@ -358,11 +347,7 @@ export function useLibraryData({
     setLoadingLibraryAlbums(true);
     setLibraryMetadataError(null);
 
-    getAlbums({
-      owner: filters.owner,
-      artist: filters.artist,
-      q: filters.q
-    })
+    getAlbums({})
       .then((albums) => {
         if (albumsRequestIdRef.current !== requestId) {
           return;
@@ -382,7 +367,7 @@ export function useLibraryData({
           setLoadingLibraryAlbums(false);
         }
       });
-  }, [activeLibrarySection, activeView, filters.artist, filters.owner, filters.q, user]);
+  }, [activeLibrarySection, activeView, user]);
 
   useEffect(() => {
     if (activeLibrarySection !== "albums") {
@@ -444,7 +429,7 @@ export function useLibraryData({
           setLoadingSelectedAlbumTracks(false);
         }
       });
-  }, [activeLibrarySection, allTracksLibrary.tracks, filters.owner, library.tracks, selectedAlbum]);
+  }, [activeLibrarySection, allTracksLibrary.tracks, library.tracks, selectedAlbum]);
 
   useEffect(() => {
     if (!user) {

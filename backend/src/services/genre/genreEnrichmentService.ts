@@ -58,6 +58,11 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
     return;
   }
 
+  // Refresh the index so tracks added since the last scan (including files
+  // dropped directly into storage rather than uploaded via the UI) are
+  // considered.
+  await indexStore.rebuild();
+
   const tracks = indexStore.getTracks();
   const tracksWithoutGenre = tracks.filter(
     (t) => !t.tags.genre || t.tags.genre.length === 0
@@ -65,6 +70,14 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
 
   if (tracksWithoutGenre.length === 0) {
     log.info("All tracks have genre metadata, nothing to enrich");
+    status = {
+      running: false,
+      total: 0,
+      processed: 0,
+      enriched: 0,
+      failed: 0,
+      startedAt: new Date().toISOString()
+    };
     return;
   }
 
