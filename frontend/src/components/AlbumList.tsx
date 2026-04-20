@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import type { AlbumEntry } from "../types";
 import { getAlbumKey } from "../utils/appUtils";
 import { defaultCoverImage, getAlbumCoverSrc } from "../utils/covers";
@@ -10,7 +12,7 @@ export type AlbumListProps = {
   onPlayAlbum?: (album: AlbumEntry) => void;
 };
 
-export function AlbumList({ albums, selectedAlbum, onAlbumSelect, onPlayAlbum }: AlbumListProps): JSX.Element {
+export const AlbumList = memo(function AlbumList({ albums, selectedAlbum, onAlbumSelect, onPlayAlbum }: AlbumListProps): JSX.Element {
   const selectedKey = selectedAlbum ? getAlbumKey(selectedAlbum) : null;
 
   return (
@@ -69,4 +71,4 @@ export function AlbumList({ albums, selectedAlbum, onAlbumSelect, onPlayAlbum }:
       })}
     </div>
   );
-}
+});

@@ -4,6 +4,8 @@ import type { AlbumEntry } from "../types";
 import { getAlbumKey } from "../utils/appUtils";
 import { defaultCoverImage, getAlbumCoverSrc } from "../utils/covers";
 
+import "./Coverflow.css";
+
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
@@ -146,227 +148,58 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect }: CoverflowPro
   }, []);
 
   return (
-    <>
-      <style>{`
-        .coverflow, .coverflow * {
-          box-sizing: border-box;
-          padding: 0;
-          margin: 0;
-        }
+    <section className="coverflow">
+      <div className="cards-wrapper" ref={wrapperRef}>
+        <ul className="cards">
+          {albums.map((album) => {
+            const albumKey = getAlbumKey(album);
+            const isSelected = selectedKey === albumKey;
+            const albumTitle = album.artist ? `${album.artist} - ${album.name}` : album.name;
+            const coverSrc = getAlbumCoverSrc(album);
 
-        .coverflow {
-          --cover-size: 11rem;
-          width: 100%;
-          font-family: "IBM Plex Sans", sans-serif;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 1em;
-          padding: 0.25rem 0;
-          overscroll-behavior: contain;
-        }
-
-        @media (min-width: 1280px) {
-          .coverflow {
-            --cover-size: 14rem;
-          }
-        }
-
-        @media (max-width: 1024px) {
-          .coverflow {
-            --cover-size: 9rem;
-          }
-        }
-
-        @media (max-width: 600px) {
-          .coverflow {
-            --cover-size: 6rem;
-          }
-        }
-
-        .cards-wrapper {
-          overflow-x: scroll;
-          min-height: calc(var(--cover-size) * 2.6);
-          width: 100%;
-          margin: 0 auto;
-          padding: calc(var(--cover-size) / 2.4) 0;
-          position: relative;
-          perspective: 40em;
-          scroll-snap-type: x mandatory;
-          scrollbar-width: thin;
-        }
-
-        .cards {
-          list-style: none;
-          white-space: nowrap;
-          transform-style: preserve-3d;
-        }
-
-        .cards-wrapper li {
-          scroll-snap-align: center;
-        }
-
-        .cards li {
-          display: inline-block;
-          width: var(--cover-size);
-          height: var(--cover-size);
-          transform-style: preserve-3d;
-        }
-
-        .cover-transform {
-          transform-style: preserve-3d;
-          will-change: transform;
-          transform: translateX(-100%) rotateY(-45deg);
-        }
-
-        .cover-transform img {
-          display: block;
-          width: var(--cover-size);
-          height: var(--cover-size);
-          object-fit: cover;
-          border: 1px solid rgb(var(--flaque-clay-rgb) / 0.65);
-          border-radius: 0.6rem;
-          position: relative;
-          user-select: none;
-          transition: border-color 160ms ease;
-          cursor: pointer;
-        }
-
-        .cover-reflection {
-          width: var(--cover-size);
-          height: calc(var(--cover-size) * 0.45);
-          margin-top: 0.5em;
-          background-size: var(--cover-size) var(--cover-size);
-          background-position: bottom;
-          transform: scaleY(-1);
-          -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,0.22), transparent);
-          mask-image: linear-gradient(to top, rgba(0,0,0,0.22), transparent);
-          border-radius: 0.6rem;
-          pointer-events: none;
-        }
-
-        .cards li button {
-          background: transparent;
-          border: none;
-          padding: 0;
-          cursor: pointer;
-        }
-
-        .cards li button:focus-visible {
-          outline: 2px solid rgb(var(--flaque-ink-rgb));
-          outline-offset: 2px;
-          border-radius: 0.7rem;
-        }
-
-        .cards li.selected img {
-          border-color: rgb(var(--flaque-ink-rgb) / 0.5);
-        }
-
-        .cards li:first-of-type {
-          margin-left: calc(50% - (var(--cover-size) / 2));
-        }
-
-        .cards li:last-of-type {
-          margin-right: calc(50% - (var(--cover-size) / 2));
-        }
-
-        .coverflow {
-          position: relative;
-        }
-
-        .coverflow-label {
-          position: absolute;
-          top: calc(0.25rem + var(--cover-size) * 1.667);
-          left: 0;
-          right: 0;
-          text-align: center;
-          line-height: 1.3;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          pointer-events: none;
-          z-index: 1;
-        }
-
-        .coverflow-title {
-          font-size: 0.95rem;
-          font-weight: 600;
-          color: rgb(var(--flaque-ink-rgb));
-          max-width: 20rem;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .coverflow-artist {
-          font-size: 0.8rem;
-          color: rgb(var(--flaque-steel-rgb));
-          max-width: 20rem;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .cover-transform {
-            transform: none !important;
-          }
-        }
-      `}</style>
-
-      <section className="coverflow">
-        <div className="cards-wrapper" ref={wrapperRef}>
-          <ul className="cards">
-            {albums.map((album) => {
-              const albumKey = getAlbumKey(album);
-              const isSelected = selectedKey === albumKey;
-              const albumTitle = album.artist ? `${album.artist} - ${album.name}` : album.name;
-              const coverSrc = getAlbumCoverSrc(album);
-
-              return (
-                <li key={albumKey} className={isSelected ? "selected" : undefined}>
-                  <div className="cover-transform">
-                    <img
-                      draggable={false}
-                      src={coverSrc}
-                      width={1200}
-                      height={1200}
-                      alt={`Cover for ${albumTitle}`}
-                      onError={(e) => {
-                        e.currentTarget.src = defaultCoverImage;
-                        const reflection = e.currentTarget.nextElementSibling as HTMLElement | null;
-                        if (reflection) {
-                          reflection.style.backgroundImage = `url("${defaultCoverImage}")`;
-                        }
-                      }}
-                      onClick={(e) => {
-                        const li = (e.currentTarget as HTMLElement).closest("li");
-                        const wrapper = wrapperRef.current;
-                        if (li && wrapper) {
-                          wrapper.scrollTo({
-                            left: li.offsetLeft - wrapper.clientWidth / 2 + li.offsetWidth / 2,
-                            behavior: "smooth",
-                          });
-                        }
-                        onAlbumSelect(album);
-                      }}
-                    />
-                    <div
-                      className="cover-reflection"
-                      style={{ backgroundImage: `url("${coverSrc}")` }}
-                      aria-hidden="true"
-                    />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-        <div className="coverflow-label" ref={labelRef}>
-          <span className="coverflow-title">{(selectedAlbum ?? albums[0])?.name ?? ""}</span>
-          <span className="coverflow-artist">{(selectedAlbum ?? albums[0])?.artist ?? ""}</span>
-        </div>
-      </section>
-    </>
+            return (
+              <li key={albumKey} className={isSelected ? "selected" : undefined}>
+                <div className="cover-transform">
+                  <img
+                    draggable={false}
+                    src={coverSrc}
+                    width={1200}
+                    height={1200}
+                    alt={`Cover for ${albumTitle}`}
+                    onError={(e) => {
+                      e.currentTarget.src = defaultCoverImage;
+                      const reflection = e.currentTarget.nextElementSibling as HTMLElement | null;
+                      if (reflection) {
+                        reflection.style.backgroundImage = `url("${defaultCoverImage}")`;
+                      }
+                    }}
+                    onClick={(e) => {
+                      const li = (e.currentTarget as HTMLElement).closest("li");
+                      const wrapper = wrapperRef.current;
+                      if (li && wrapper) {
+                        wrapper.scrollTo({
+                          left: li.offsetLeft - wrapper.clientWidth / 2 + li.offsetWidth / 2,
+                          behavior: "smooth",
+                        });
+                      }
+                      onAlbumSelect(album);
+                    }}
+                  />
+                  <div
+                    className="cover-reflection"
+                    style={{ backgroundImage: `url("${coverSrc}")` }}
+                    aria-hidden="true"
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+      <div className="coverflow-label" ref={labelRef}>
+        <span className="coverflow-title">{(selectedAlbum ?? albums[0])?.name ?? ""}</span>
+        <span className="coverflow-artist">{(selectedAlbum ?? albums[0])?.artist ?? ""}</span>
+      </div>
+    </section>
   );
 }

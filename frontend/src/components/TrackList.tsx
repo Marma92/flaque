@@ -1,4 +1,4 @@
-import { Fragment, KeyboardEvent, MouseEvent, useState } from "react";
+import { Fragment, KeyboardEvent, memo, MouseEvent, useState } from "react";
 
 import type { Playlist, Track } from "../types";
 import { formatDuration } from "../utils/format";
@@ -22,7 +22,7 @@ type TrackListProps = {
   showTrackNumber?: boolean;
 };
 
-export function TrackList({
+export const TrackList = memo(function TrackList({
   tracks,
   currentTrackId,
   ownerNameById,
@@ -283,4 +283,4 @@ export function TrackList({
       </div>
     </>
   );
-}
+});
