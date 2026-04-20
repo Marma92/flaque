@@ -226,6 +226,29 @@ describe("scanFilesystemLibrary incremental mode", () => {
     expect(result.totalTracks).toBe(1);
   });
 
+  it("traverses symlinked directories inside the music root", async () => {
+    // External directory (e.g. a bigger disk) the user has symlinked in.
+    const externalDir = await fs.mkdtemp(path.join(os.tmpdir(), "flaque-external-"));
+    try {
+      const externalAlbumDir = path.join(externalDir, "album_b");
+      await fs.mkdir(externalAlbumDir, { recursive: true });
+      await fs.writeFile(path.join(externalAlbumDir, "track-b.mp3"), "bbbb", "utf8");
+
+      await writeAudioFile("artist_a/album_a/track-a.mp3", "aaa");
+
+      const linkPath = path.join(getSharedMusicRoot(), "artist_b");
+      await fs.symlink(externalDir, linkPath, "dir");
+
+      const { scanFilesystemLibrary } = await import("./scannerService");
+      const result = await scanFilesystemLibrary({ mode: "full" });
+
+      expect(result.totalTracks).toBe(2);
+      expect(result.tracks.map((track) => track.tags.title).sort()).toEqual(["track-a", "track-b"]);
+    } finally {
+      await fs.rm(externalDir, { recursive: true, force: true });
+    }
+  });
+
   it("fetches album cover when album-cover.jpg is missing", async () => {
     await writeAudioFile("artist_a/album_a/track-a.mp3", "aaa");
 

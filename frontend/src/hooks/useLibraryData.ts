@@ -360,7 +360,6 @@ export function useLibraryData({
 
     getAlbums({
       owner: filters.owner,
-      artist: filters.artist,
       q: filters.q
     })
       .then((albums) => {
@@ -382,7 +381,7 @@ export function useLibraryData({
           setLoadingLibraryAlbums(false);
         }
       });
-  }, [activeLibrarySection, activeView, filters.artist, filters.owner, filters.q, user]);
+  }, [activeLibrarySection, activeView, filters.owner, filters.q, user]);
 
   useEffect(() => {
     if (activeLibrarySection !== "albums") {
