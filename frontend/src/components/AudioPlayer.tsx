@@ -145,7 +145,7 @@ export function AudioPlayer({
     : "flex justify-self-start items-center gap-1";
   const centerControlsClassName = expanded
     ? "flex shrink-0 items-center gap-2"
-    : "flex justify-self-center items-center gap-3 md:-translate-x-[46px]";
+    : "flex justify-self-center items-center gap-3 lg:-translate-x-[46px]";
   const trailingControlsClassName = expanded
     ? "flex items-center justify-end gap-2"
     : "flex justify-self-end items-center gap-1";
@@ -436,7 +436,7 @@ export function AudioPlayer({
               <div className="flex justify-center">
               {isRadioMode ? null : (
                 <button
-                  className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
+                  className={`hidden h-9 w-9 items-center justify-center rounded-xl transition lg:flex ${
                     repeatMode === "off"
                       ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-sand"
                       : "bg-flaque-ink text-flaque-cream hover:bg-flaque-steel"
@@ -480,7 +480,7 @@ export function AudioPlayer({
 
               {isRadioMode ? null : (
                 <button
-                  className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
+                  className={`hidden h-9 w-9 items-center justify-center rounded-xl transition lg:flex ${
                     shuffleEnabled
                       ? "bg-flaque-ink text-flaque-cream hover:bg-flaque-steel"
                       : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-sand"
@@ -540,7 +540,7 @@ export function AudioPlayer({
               </button>
 
               <button
-                className={`${ghostControlButtonClassName} md:hidden`}
+                className={`${ghostControlButtonClassName} lg:hidden`}
                 type="button"
                 aria-label={showMobileUtilityPanel ? "Close player options" : "Open player options"}
                 title={showMobileUtilityPanel ? "Close options" : "More options"}
@@ -552,7 +552,7 @@ export function AudioPlayer({
                 </svg>
               </button>
 
-              <div className="hidden h-9 items-center justify-end gap-2 md:flex">
+              <div className="hidden h-9 items-center justify-end gap-2 lg:flex">
                 <label className="sr-only" htmlFor="player-quality-select-desktop">
                   Quality
                 </label>
@@ -628,7 +628,7 @@ export function AudioPlayer({
           ) : null}
 
           {showMobileUtilityPanel ? (
-            <div className="space-y-3 rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 p-3 md:hidden">
+            <div className="space-y-3 rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 p-3 lg:hidden">
               <div className="flex items-center justify-end">
                 <button
                   className="flex h-8 w-8 items-center justify-center rounded-lg border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-cream"
