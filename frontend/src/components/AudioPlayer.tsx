@@ -438,8 +438,8 @@ export function AudioPlayer({
                 <button
                   className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
                     repeatMode === "off"
-                      ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
-                      : "bg-flaque-ink text-flaque-cream hover:bg-black"
+                      ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-sand"
+                      : "bg-flaque-ink text-flaque-cream hover:bg-flaque-steel"
                   }`}
                   type="button"
                   aria-label={
@@ -482,8 +482,8 @@ export function AudioPlayer({
                 <button
                   className={`hidden h-9 w-9 items-center justify-center rounded-xl transition md:flex ${
                     shuffleEnabled
-                      ? "bg-flaque-ink text-flaque-cream hover:bg-black"
-                      : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
+                      ? "bg-flaque-ink text-flaque-cream hover:bg-flaque-steel"
+                      : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-sand"
                   }`}
                   type="button"
                   aria-label={shuffleEnabled ? "Disable shuffle" : "Enable shuffle"}
@@ -648,8 +648,8 @@ export function AudioPlayer({
                 <button
                   className={`flex h-9 items-center justify-center rounded-xl transition ${
                     repeatMode === "off"
-                      ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
-                      : "bg-flaque-ink text-flaque-cream hover:bg-black"
+                      ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-sand"
+                      : "bg-flaque-ink text-flaque-cream hover:bg-flaque-steel"
                   }`}
                   type="button"
                   aria-label={
@@ -690,8 +690,8 @@ export function AudioPlayer({
                 <button
                   className={`flex h-9 items-center justify-center rounded-xl transition ${
                     shuffleEnabled
-                      ? "bg-flaque-ink text-flaque-cream hover:bg-black"
-                      : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-cream"
+                      ? "bg-flaque-ink text-flaque-cream hover:bg-flaque-steel"
+                      : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-sand"
                   }`}
                   type="button"
                   aria-label={shuffleEnabled ? "Disable shuffle" : "Enable shuffle"}
