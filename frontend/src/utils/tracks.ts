@@ -1,5 +1,12 @@
 import type { Track, TrackTagExtraValue } from "../types";
 
+const LEADING_THE_PATTERN = /^the\s+/i;
+
+export function getArtistSortKey(value?: string): string {
+  const trimmed = (value ?? "").trim();
+  return trimmed.replace(LEADING_THE_PATTERN, "");
+}
+
 export function fileNameFromPath(filePath: string): string {
   const normalized = filePath.replace(/\\/g, "/");
   const name = normalized.split("/").filter(Boolean).pop();

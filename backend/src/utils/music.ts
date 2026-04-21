@@ -33,3 +33,10 @@ export function getTrackTitle(track: Track): string {
 export function normalizeIndexKey(value?: string): string {
   return (value ?? "").trim().toLowerCase();
 }
+
+const LEADING_THE_PATTERN = /^the\s+/i;
+
+export function getArtistSortKey(value?: string): string {
+  const trimmed = (value ?? "").trim();
+  return trimmed.replace(LEADING_THE_PATTERN, "");
+}

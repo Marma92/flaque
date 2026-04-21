@@ -1,5 +1,5 @@
 import type { Track } from "../../types/library";
-import { normalizeIndexKey as normalize, getTrackArtistName as getTrackArtist } from "../../utils/music";
+import { normalizeIndexKey as normalize, getTrackArtistName as getTrackArtist, getArtistSortKey } from "../../utils/music";
 import path from "node:path";
 
 export type LibraryFilter = {
@@ -165,7 +165,7 @@ export function listArtists(tracks: Track[]): ArtistEntry[] {
 
   return Array.from(map.values())
     .map(({ albums: _albums, ...entry }) => entry)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => getArtistSortKey(a.name).localeCompare(getArtistSortKey(b.name)));
 }
 
 function getNormalizedArtistDirectoryName(track: Track): string | undefined {
@@ -207,7 +207,7 @@ export function listAlbums(tracks: Track[]): AlbumEntry[] {
   }
 
   return Array.from(map.values()).sort((a, b) => {
-    const byArtist = (a.artist ?? "").localeCompare(b.artist ?? "");
+    const byArtist = getArtistSortKey(a.artist).localeCompare(getArtistSortKey(b.artist));
     if (byArtist !== 0) {
       return byArtist;
     }
@@ -231,7 +231,7 @@ function getSortValue(track: Track, sortBy: TrackSortBy): string | number {
     case "title":
       return toComparableString(track.tags.title ?? track.path);
     case "artist":
-      return toComparableString(getTrackArtist(track));
+      return toComparableString(getArtistSortKey(getTrackArtist(track)));
     case "album":
       return toComparableString(track.tags.album);
     case "owner":

@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { AlbumEntry, ArtistEntry, Playlist, Track } from "../types";
 import { defaultCoverImage, getAlbumCoverSrc, getArtistPhotoSrc } from "../utils/covers";
 import { formatDurationHuman } from "../utils/format";
+import { getArtistSortKey } from "../utils/tracks";
 import { AlbumList } from "./AlbumList";
 import { ArtistCard } from "./ArtistCard";
 import { TrackList } from "./TrackList";
@@ -193,7 +194,7 @@ export function LibraryArtistsSection({
           {(() => {
             const grouped = new Map<string, ArtistEntry[]>();
             for (const artist of filteredArtists) {
-              const first = artist.name[0]?.toUpperCase() ?? "#";
+              const first = getArtistSortKey(artist.name)[0]?.toUpperCase() ?? "#";
               const letter = /[A-Z]/.test(first) ? first : "#";
               const list = grouped.get(letter);
               if (list) {

@@ -197,6 +197,36 @@ describe("libraryQuery", () => {
     expect(listAlbums(sparse)).toEqual([]);
   });
 
+  it('sorts artists ignoring a leading "The"', () => {
+    const theTracks: Track[] = [
+      { id: "1", owner: "u", path: "p/1.flac", duration: 0, mimeType: "audio/flac", codec: "flac", tags: { title: "t1", artist: "Zebra" } },
+      { id: "2", owner: "u", path: "p/2.flac", duration: 0, mimeType: "audio/flac", codec: "flac", tags: { title: "t2", artist: "The Beatles" } },
+      { id: "3", owner: "u", path: "p/3.flac", duration: 0, mimeType: "audio/flac", codec: "flac", tags: { title: "t3", artist: "Arcade Fire" } }
+    ];
+
+    expect(listArtists(theTracks).map((a) => a.name)).toEqual([
+      "Arcade Fire",
+      "The Beatles",
+      "Zebra"
+    ]);
+
+    expect(sortTracks(theTracks, "artist", "asc").map((t) => t.id)).toEqual(["3", "2", "1"]);
+  });
+
+  it('sorts albums by artist ignoring a leading "The"', () => {
+    const theTracks: Track[] = [
+      { id: "1", owner: "u", path: "p/1.flac", duration: 0, mimeType: "audio/flac", codec: "flac", tags: { title: "t1", artist: "Zebra", album: "Zoo" } },
+      { id: "2", owner: "u", path: "p/2.flac", duration: 0, mimeType: "audio/flac", codec: "flac", tags: { title: "t2", artist: "The Beatles", album: "Abbey Road" } },
+      { id: "3", owner: "u", path: "p/3.flac", duration: 0, mimeType: "audio/flac", codec: "flac", tags: { title: "t3", artist: "Arcade Fire", album: "Funeral" } }
+    ];
+
+    expect(listAlbums(theTracks).map((a) => `${a.artist}/${a.name}`)).toEqual([
+      "Arcade Fire/Funeral",
+      "The Beatles/Abbey Road",
+      "Zebra/Zoo"
+    ]);
+  });
+
   // ── Edge cases: sortTracks ──────────────────────────────────────────
 
   it("sorts by all supported fields without crashing", () => {
