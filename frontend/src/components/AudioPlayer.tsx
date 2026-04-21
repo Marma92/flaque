@@ -433,7 +433,7 @@ export function AudioPlayer({
             </div>
 
             <div className={centerControlsClassName}>
-              <div className="flex justify-center">
+              <div className="flex justify-center gap-1.5">
               {isRadioMode ? null : (
                 <button
                   className={`hidden h-9 w-9 items-center justify-center rounded-xl transition lg:flex ${
