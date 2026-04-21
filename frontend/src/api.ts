@@ -1074,11 +1074,11 @@ export type AutoPlaylistConfig = {
 };
 
 export async function getAutoPlaylistConfig(): Promise<AutoPlaylistConfig> {
-  return requestJson<AutoPlaylistConfig>("/api/config/auto-playlists");
+  return requestJson<AutoPlaylistConfig>("/api/playlists/automatic/config");
 }
 
 export async function patchAutoPlaylistConfig(patch: Partial<AutoPlaylistConfig>): Promise<AutoPlaylistConfig> {
-  return requestJson<AutoPlaylistConfig>("/api/config/auto-playlists", {
+  return requestJson<AutoPlaylistConfig>("/api/playlists/automatic/config", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch)
