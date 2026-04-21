@@ -151,12 +151,12 @@ export function AudioPlayer({
     : "flex justify-self-end items-center gap-1";
   const sectionClassName = expanded
     ? "flex min-h-0 flex-1 flex-col overflow-y-auto rounded-xl mx-4 my-4 xl:mx-2 xl:my-2 border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm md:p-8"
-    : "rounded-3xl border border-flaque-clay/60 bg-white/90 p-4 shadow-panel backdrop-blur-sm md:p-6";
+    : "rounded-t-3xl border border-flaque-clay/60 bg-white/90 p-4 pb-1 pt-1 shadow-panel backdrop-blur-sm md:p-6 md:pb-1.5 md:pt-1.5";
   const artworkClassName = expanded
     ? `${artworkSize} shrink-0 rounded-2xl object-cover shadow-md`
     : `${artworkSize} shrink-0 rounded-2xl border border-flaque-clay/50 object-cover`;
   const secondaryTextClassName = expanded ? "truncate text-sm text-flaque-steel/90" : "overflow-x-auto scrollbar-hide whitespace-nowrap text-sm text-flaque-steel";
-  const metaTextClassName = expanded ? "text-xs uppercase tracking-[0.2em] text-flaque-steel/70" : "text-xs uppercase tracking-[0.2em] text-flaque-steel/80";
+  const metaTextClassName = expanded ? "text-xs uppercase tracking-[0.2em] text-flaque-steel/70" : "font-body text-[10px] text-flaque-steel/80";
   const textBlockClassName = expanded ? "space-y-1" : "space-y-0.5";
   const ghostControlButtonClassName = expanded
     ? "flex h-9 w-9 items-center justify-center rounded-xl bg-flaque-cream/80 text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
@@ -258,47 +258,42 @@ export function AudioPlayer({
             ) : null}
           </div>
         ) : (
-          <div className="flex shrink-0 flex-col items-center gap-0.5">
-            <div className="relative">
-              {isRadioMode && !isRadioStopped ? (
-                <div className="absolute left-2 top-2 z-20 rounded-md border border-[rgba(255,255,255,0.5)] bg-[#ffffff] p-1 shadow-sm">
-                  <img className="h-3.5 w-3.5" src="/radio.png" alt="Radio mode" />
-                </div>
-              ) : null}
-              {isRadioStopped ? (
-                <div className={`${artworkClassName} flex items-center justify-center border border-[rgba(255,255,255,0.5)] bg-[#ffffff]`}>
-                  <img className="h-10 w-10" src="/radio.png" alt="Radio" />
-                </div>
-              ) : onArtworkClick ? (
-                <button
-                  className="shrink-0 rounded-2xl"
-                  type="button"
-                  aria-label="Open player view"
-                  onClick={onArtworkClick}
-                >
-                  <img
-                    className={`${artworkClassName} cursor-pointer`}
-                    src={coverUrl(track.id, track.cover)}
-                    alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
-                    onError={(event) => {
-                      event.currentTarget.src = defaultCoverImage;
-                    }}
-                  />
-                </button>
-              ) : (
+          <div className="relative shrink-0">
+            {isRadioMode && !isRadioStopped ? (
+              <div className="absolute left-2 top-2 z-20 rounded-md border border-[rgba(255,255,255,0.5)] bg-[#ffffff] p-1 shadow-sm">
+                <img className="h-3.5 w-3.5" src="/radio.png" alt="Radio mode" />
+              </div>
+            ) : null}
+            {isRadioStopped ? (
+              <div className={`${artworkClassName} flex items-center justify-center border border-[rgba(255,255,255,0.5)] bg-[#ffffff]`}>
+                <img className="h-10 w-10" src="/radio.png" alt="Radio" />
+              </div>
+            ) : onArtworkClick ? (
+              <button
+                className="shrink-0 rounded-2xl"
+                type="button"
+                aria-label="Open player view"
+                onClick={onArtworkClick}
+              >
                 <img
-                  className={artworkClassName}
+                  className={`${artworkClassName} cursor-pointer`}
                   src={coverUrl(track.id, track.cover)}
                   alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
                   onError={(event) => {
                     event.currentTarget.src = defaultCoverImage;
                   }}
                 />
-              )}
-            </div>
-            <span className="whitespace-nowrap text-[10px] text-flaque-steel md:hidden">
-              {formatDuration(currentTime)} / {formatDuration(duration || track.duration)}
-            </span>
+              </button>
+            ) : (
+              <img
+                className={artworkClassName}
+                src={coverUrl(track.id, track.cover)}
+                alt={displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover"}
+                onError={(event) => {
+                  event.currentTarget.src = defaultCoverImage;
+                }}
+              />
+            )}
           </div>
         )}
 
@@ -310,24 +305,52 @@ export function AudioPlayer({
               </p>
             ) : (
               <>
-                <p
-                  className={`font-display text-flaque-ink leading-tight ${expanded ? "text-2xl truncate" : "text-lg overflow-x-auto scrollbar-hide whitespace-nowrap"}`}
-                  title={displayTitle}
-                >
-                  {displayTitle}
-                </p>
-                <p className={secondaryTextClassName}>{displayArtist}</p>
-                {displayAlbumWithYear ? (
-                  <p className={expanded ? "truncate text-xs text-flaque-steel/80" : "overflow-x-auto scrollbar-hide whitespace-nowrap text-xs text-flaque-steel/80"}>{displayAlbumWithYear}</p>
-                ) : null}
-                <p className={metaTextClassName}>
-                  {codecLabel}
-                  {hasLyrics ? (
-                    <span className="ml-2 rounded bg-flaque-ink/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-flaque-ink/70 dark:bg-flaque-cream/10 dark:text-flaque-cream/70">
-                      Lyrics
-                    </span>
-                  ) : null}
-                </p>
+                {expanded ? (
+                  <p
+                    className="font-display text-flaque-ink leading-tight text-2xl truncate"
+                    title={displayTitle}
+                  >
+                    {displayTitle}
+                  </p>
+                ) : (
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p
+                      className="min-w-0 truncate font-display text-flaque-ink leading-tight text-lg"
+                      title={displayTitle}
+                    >
+                      {displayTitle}
+                    </p>
+                    {hasLyrics ? (
+                      <span className="shrink-0 rounded bg-flaque-ink/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-flaque-ink/70 dark:bg-flaque-cream/10 dark:text-flaque-cream/70">
+                        L<span className="hidden sm:inline">yrics</span>
+                      </span>
+                    ) : null}
+                  </div>
+                )}
+                {expanded ? (
+                  <>
+                    <p className={secondaryTextClassName}>{displayArtist}</p>
+                    {displayAlbumWithYear ? (
+                      <p className="truncate text-xs text-flaque-steel/80">{displayAlbumWithYear}</p>
+                    ) : null}
+                    <p className={metaTextClassName}>
+                      {codecLabel}
+                      {hasLyrics ? (
+                        <span className="ml-2 rounded bg-flaque-ink/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-flaque-ink/70 dark:bg-flaque-cream/10 dark:text-flaque-cream/70">
+                          Lyrics
+                        </span>
+                      ) : null}
+                    </p>
+                  </>
+                ) : (
+                  <div className="flex items-baseline gap-2">
+                    <p className="min-w-0 flex-1 overflow-x-auto scrollbar-hide whitespace-nowrap font-body text-xs text-flaque-steel">
+                      {displayArtist}
+                      {displayAlbumWithYear ? ` - ${displayAlbumWithYear}` : ""}
+                    </p>
+                    <p className={`${metaTextClassName} shrink-0 whitespace-nowrap`}>{codecLabel}</p>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -760,26 +783,38 @@ export function AudioPlayer({
             </p>
           ) : null}
 
-          <input
-            className={`h-2 w-full appearance-none rounded-full bg-flaque-clay/60 ${seekLocked ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
-            type="range"
-            min={0}
-            max={Math.max(duration || track.duration, 1)}
-            step={0.1}
-            value={Math.min(currentTime, duration || track.duration || 0)}
-            disabled={seekLocked}
-            onChange={(event) => onSeek(Number(event.target.value))}
-          />
-
           {expanded ? (
-            <div className="flex w-full justify-between text-xs text-flaque-steel">
-              <span>{formatDuration(currentTime)}</span>
-              <span>{formatDuration(duration || track.duration)}</span>
-            </div>
+            <>
+              <input
+                className={`h-2 w-full appearance-none rounded-full bg-flaque-clay/60 ${seekLocked ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+                type="range"
+                min={0}
+                max={Math.max(duration || track.duration, 1)}
+                step={0.1}
+                value={Math.min(currentTime, duration || track.duration || 0)}
+                disabled={seekLocked}
+                onChange={(event) => onSeek(Number(event.target.value))}
+              />
+              <div className="flex w-full justify-between text-xs text-flaque-steel">
+                <span>{formatDuration(currentTime)}</span>
+                <span>{formatDuration(duration || track.duration)}</span>
+              </div>
+            </>
           ) : (
-            <div className="hidden w-full justify-between text-xs text-flaque-steel md:flex">
-              <span>{formatDuration(currentTime)}</span>
-              <span>{formatDuration(duration || track.duration)}</span>
+            <div className="-ml-[calc(4rem+0.75rem)] flex items-center gap-3 md:-ml-[calc(5rem+0.75rem)]">
+              <span className="w-16 shrink-0 whitespace-nowrap text-center text-[10px] text-flaque-steel md:w-20">
+                {formatDuration(currentTime)} / {formatDuration(duration || track.duration)}
+              </span>
+              <input
+                className={`h-2 flex-1 appearance-none rounded-full bg-flaque-clay/60 ${seekLocked ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+                type="range"
+                min={0}
+                max={Math.max(duration || track.duration, 1)}
+                step={0.1}
+                value={Math.min(currentTime, duration || track.duration || 0)}
+                disabled={seekLocked}
+                onChange={(event) => onSeek(Number(event.target.value))}
+              />
             </div>
           )}
 
