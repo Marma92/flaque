@@ -124,7 +124,7 @@ export function AudioPlayer({
         </p>
         {onNavigateToLibrary ? (
           <button
-            className="mt-4 rounded-xl border border-flaque-clay/60 bg-flaque-cream/80 px-4 py-2 text-sm font-medium text-flaque-ink transition hover:bg-flaque-cream"
+            className="mt-4 rounded-xl border border-flaque-clay/60 bg-flaque-cream/80 px-4 py-2 text-sm font-medium text-flaque-ink transition hover:bg-flaque-sand"
             type="button"
             onClick={onNavigateToLibrary}
           >
@@ -159,8 +159,8 @@ export function AudioPlayer({
   const metaTextClassName = expanded ? "text-xs uppercase tracking-[0.2em] text-flaque-steel/70" : "font-body text-[10px] text-flaque-steel/80";
   const textBlockClassName = expanded ? "space-y-1" : "space-y-0.5";
   const ghostControlButtonClassName = expanded
-    ? "flex h-9 w-9 items-center justify-center rounded-xl bg-flaque-cream/80 text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
-    : "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60";
+    ? "flex h-9 w-9 items-center justify-center rounded-xl bg-flaque-cream/80 text-flaque-ink transition hover:bg-flaque-sand disabled:cursor-not-allowed disabled:opacity-60"
+    : "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-sand disabled:cursor-not-allowed disabled:opacity-60";
   const qualitySelectClassName = expanded
     ? "rounded-lg bg-flaque-cream/90 px-2 py-1 text-xs text-flaque-ink"
     : "rounded-lg border border-flaque-clay bg-white px-2 py-1 text-xs text-flaque-ink";
@@ -376,7 +376,7 @@ export function AudioPlayer({
               </button>
             )}
             <button
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-flaque-ink text-flaque-cream transition hover:bg-black"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-flaque-ink text-flaque-cream transition hover:bg-flaque-steel"
               type="button"
               aria-label={isRadioMode && isPlaying ? "Stop radio" : isPlaying ? "Pause playback" : "Play playback"}
               title={isRadioMode && isPlaying ? "Stop" : isPlaying ? "Pause" : "Play"}
@@ -631,7 +631,7 @@ export function AudioPlayer({
             <div className="space-y-3 rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 p-3 lg:hidden">
               <div className="flex items-center justify-end">
                 <button
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-cream"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-sand"
                   type="button"
                   aria-label="Close player options"
                   title="Close"
