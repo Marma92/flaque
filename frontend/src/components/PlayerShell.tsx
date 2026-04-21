@@ -45,15 +45,15 @@ export function PlayerShell({
           {children}
 
           {activeView !== "player" ? (
-            <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-end pr-2 md:justify-center md:pr-0">
+            <div className="pointer-events-none absolute inset-x-0 top-0.5 flex justify-end pr-2 md:justify-center md:pr-0">
               <button
-                className="pointer-events-auto flex h-8 w-10 items-center justify-center rounded-full border border-flaque-clay/60 bg-transparent text-flaque-steel transition hover:bg-flaque-cream"
+                className="pointer-events-auto flex h-6 w-8 items-center justify-center rounded-full border border-flaque-clay/60 bg-transparent text-flaque-steel transition"
                 type="button"
                 aria-label="Expand player"
                 title="Expand player"
                 onClick={onExpandPlayer}
               >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M6 14l6-6 6 6" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
