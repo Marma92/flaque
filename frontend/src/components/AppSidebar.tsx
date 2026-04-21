@@ -86,7 +86,7 @@ export function AppSidebar({
   }, [mobileMenuOpen]);
 
   const sidebarButtonClassName = (isActive: boolean): string =>
-    `flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 ${
+    `flex w-full items-center justify-between rounded-xl px-2 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 lg:px-3 ${
       isActive
         ? "bg-flaque-ink text-flaque-cream"
         : "text-flaque-ink hover:bg-flaque-cream/80"
@@ -278,10 +278,10 @@ export function AppSidebar({
         </div>
       ) : null}
 
-      <aside className="hidden border-r border-flaque-clay/60 bg-white/80 shadow-panel backdrop-blur-sm md:sticky md:top-0 md:block md:h-[100dvh] md:w-72 md:shrink-0">
+      <aside className="hidden border-r border-flaque-clay/60 bg-white/80 shadow-panel backdrop-blur-sm md:sticky md:top-0 md:block md:h-[100dvh] md:w-36 md:shrink-0 lg:w-72">
         <div className="flex h-full flex-col gap-3 p-4">
           <button
-            className="flex w-full items-center gap-3  p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
+            className="flex w-full flex-col items-center gap-2 p-2 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand lg:flex-row lg:gap-3 lg:text-left"
             type="button"
             aria-label="Go to home"
             title="Home"
