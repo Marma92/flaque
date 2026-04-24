@@ -228,6 +228,32 @@ export type TracksResponse = {
   tracks: Track[];
 };
 
+export type RecentUploadAlbum = {
+  albumName: string;
+  artist: string;
+  owner: string;
+  trackCount: number;
+  coverTrackId: string;
+  tracks: Track[];
+};
+
+export type RecentUploadItem =
+  | { kind: "track"; track: Track }
+  | { kind: "album"; album: RecentUploadAlbum };
+
+export async function getRecentUploads(params: {
+  addedAfter: string;
+  limit?: number;
+  owner?: string;
+}): Promise<RecentUploadItem[]> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("addedAfter", params.addedAfter);
+  if (params.limit !== undefined) searchParams.set("limit", String(params.limit));
+  if (params.owner) searchParams.set("owner", params.owner);
+  const payload = await requestJson<{ items?: RecentUploadItem[] }>(`/api/recent-uploads?${searchParams.toString()}`);
+  return payload.items ?? [];
+}
+
 export async function getTracks(params: {
   page?: number;
   limit?: number;

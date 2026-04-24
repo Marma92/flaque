@@ -81,16 +81,6 @@ describe("uploadRoutes", () => {
     });
   });
 
-  describe("GET /api/recent-uploads", () => {
-    it("returns an empty list when no tracks have been uploaded", async () => {
-      const res = await apiRequest("/api/recent-uploads", { headers: { Cookie: cookie } });
-      expect(res.status).toBe(200);
-      const body = res.payload as { tracks: unknown[] };
-      expect(Array.isArray(body.tracks)).toBe(true);
-      expect(body.tracks).toHaveLength(0);
-    });
-  });
-
   describe("POST /api/upload/chunked/init", () => {
     it("requires authentication", async () => {
       const res = await apiRequest("/api/upload/chunked/init", {

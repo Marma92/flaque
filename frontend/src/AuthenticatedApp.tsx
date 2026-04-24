@@ -72,7 +72,7 @@ export function AuthenticatedApp({
 
   // ── Recently uploaded ────────────────────────────────────────────────
   const {
-    tracks: recentlyUploadedTracks,
+    items: recentlyUploadedItems,
     loading: recentlyUploadedLoading,
     period: recentlyUploadedPeriod,
     setPeriod: setRecentlyUploadedPeriod,
@@ -335,7 +335,7 @@ export function AuthenticatedApp({
         homeProps: {
           recentTracks,
           onRecentTrackReplay: handleReplayRecentTrack,
-          recentlyUploadedTracks,
+          recentlyUploadedItems,
           recentlyUploadedLoading,
           recentlyUploadedPeriod,
           onRecentlyUploadedPeriodChange: setRecentlyUploadedPeriod,

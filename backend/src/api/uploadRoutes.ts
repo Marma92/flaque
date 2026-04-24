@@ -5,7 +5,7 @@ import multer from "multer";
 import { Router, type NextFunction, type Response } from "express";
 
 import { requireAuth } from "../auth/middleware";
-import { appendTrackActivityLogEntries, readTrackActivityLog } from "../services/activity/trackActivityStore";
+import { appendTrackActivityLogEntries } from "../services/activity/trackActivityStore";
 import { enrichTrackGenre } from "../services/genre/genreEnrichmentService";
 import { mergeTrackMetadataOverrides } from "../services/indexer/metadataOverrideStore";
 import { IndexStore } from "../services/indexer/indexStore";
@@ -543,15 +543,6 @@ export function createUploadRouter(indexStore: IndexStore): Router {
       if (directTempPath) {
         await cleanupTemporaryFiles([directTempPath]);
       }
-      next(error);
-    }
-  });
-
-  router.get("/recent-uploads", requireAuth, async (_req, res, next) => {
-    try {
-      const tracks = await readTrackActivityLog();
-      res.json({ tracks });
-    } catch (error) {
       next(error);
     }
   });

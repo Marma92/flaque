@@ -1,14 +1,20 @@
+import { coverUrl } from "../api";
+import defaultCoverImage from "../assets/default-cover.png";
+import type { RecentUploadAlbum, RecentUploadItem } from "../api";
 import type { Track } from "../types";
 import type { UploadPeriod } from "../hooks/useRecentlyUploaded";
-import { TrackCardGrid } from "./TrackCardGrid";
+import {
+  getTrackDisplayAlbumWithYear,
+  getTrackDisplayArtist,
+  getTrackDisplayTitle
+} from "../utils/tracks";
 
 type RecentlyUploadedPanelProps = {
-  tracks: Track[];
+  items: RecentUploadItem[];
   loading: boolean;
   period: UploadPeriod;
   onPeriodChange: (period: UploadPeriod) => void;
   onTrackSelect: (track: Track) => void;
-  gridClassName?: string;
   ownerNameById?: Record<string, string>;
 };
 
@@ -17,18 +23,133 @@ const periodOptions: { value: UploadPeriod; label: string; shortLabel: string }[
   { value: "30d", label: "30 days", shortLabel: "30d" }
 ];
 
+const GRID_CLASS =
+  "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-6";
+
+// ── Album card (vinyl) ────────────────────────────────────────────
+
+function VinylAlbumCard({
+  album,
+  onPlay,
+  ownerLabel
+}: {
+  album: RecentUploadAlbum;
+  onPlay: (track: Track) => void;
+  ownerLabel?: string;
+}): JSX.Element {
+  const firstTrack = album.tracks[0]!;
+  return (
+    <button
+      type="button"
+      className="group w-full overflow-hidden rounded-xl border border-flaque-clay/60 bg-white/85 text-left shadow-sm transition hover:shadow-md"
+      onClick={() => onPlay(firstTrack)}
+      title={`${album.albumName} · ${album.trackCount} tracks`}
+    >
+      <div className="relative aspect-square w-full overflow-hidden p-2">
+        {/* Vinyl disc */}
+        <div className="absolute inset-2 rounded-full bg-gradient-to-br from-neutral-800 via-neutral-900 to-black shadow-md transition-transform duration-700 ease-out group-hover:rotate-[20deg]">
+          {/* Grooves */}
+          <div className="absolute inset-[4%] rounded-full border border-white/[0.04]" />
+          <div className="absolute inset-[11%] rounded-full border border-white/[0.05]" />
+          <div className="absolute inset-[18%] rounded-full border border-white/[0.06]" />
+          {/* Label (album cover clipped to circle) */}
+          <div className="absolute inset-[22%] overflow-hidden rounded-full border border-black/60 shadow-inner">
+            <img
+              className="h-full w-full object-cover"
+              src={coverUrl(album.coverTrackId)}
+              alt={`Cover for ${album.albumName}`}
+              onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
+            />
+            {/* Center spindle hole */}
+            <div className="absolute left-1/2 top-1/2 h-[14%] w-[14%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-black ring-1 ring-white/10" />
+          </div>
+        </div>
+        {/* Play overlay */}
+        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/0 opacity-0 transition group-hover:bg-black/20 group-hover:opacity-100">
+          <svg className="h-7 w-7 text-white drop-shadow-md" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M8 6v12l10-6-10-6z" />
+          </svg>
+        </div>
+        {/* Track count badge */}
+        <span className="absolute bottom-1 right-1 rounded-md bg-indigo-700/85 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+          {album.trackCount}
+        </span>
+      </div>
+      <div className="bg-flaque-cream/60 px-2 py-1.5">
+        <p className="truncate text-[11px] font-semibold text-flaque-ink">{album.albumName}</p>
+        <p className="truncate text-[10px] text-flaque-steel">{album.artist}</p>
+        {ownerLabel ? (
+          <p className="truncate text-[10px] text-flaque-steel/50">{ownerLabel}</p>
+        ) : null}
+      </div>
+    </button>
+  );
+}
+
+// ── Track card ────────────────────────────────────────────────────
+
+function TrackCard({
+  track,
+  onSelect,
+  ownerLabel
+}: {
+  track: Track;
+  onSelect: (track: Track) => void;
+  ownerLabel?: string;
+}): JSX.Element {
+  const title = getTrackDisplayTitle(track);
+  const artist = getTrackDisplayArtist(track) ?? "Unknown artist";
+  const albumWithYear = getTrackDisplayAlbumWithYear(track);
+
+  return (
+    <button
+      type="button"
+      className="group w-full overflow-hidden rounded-xl border border-flaque-clay/60 bg-white/85 text-left shadow-sm transition hover:shadow-md"
+      onClick={() => onSelect(track)}
+      title={title}
+    >
+      <div className="relative aspect-square w-full overflow-hidden">
+        <img
+          className="h-full w-full object-cover"
+          src={coverUrl(track.id, track.cover)}
+          alt={albumWithYear ? `Cover for ${albumWithYear}` : `Cover for ${title}`}
+          onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
+        />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100">
+          <svg className="h-7 w-7 text-white drop-shadow-md" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M8 6v12l10-6-10-6z" />
+          </svg>
+        </div>
+      </div>
+      <div className="bg-flaque-cream/60 px-2 py-1.5">
+        <p className="truncate text-[11px] font-semibold text-flaque-ink">{title}</p>
+        <p className="truncate text-[10px] text-flaque-steel">{artist}</p>
+        {albumWithYear ? (
+          <p className="truncate text-[10px] text-flaque-steel/70">{albumWithYear}</p>
+        ) : null}
+        {ownerLabel ? (
+          <p className="truncate text-[10px] text-flaque-steel/50">{ownerLabel}</p>
+        ) : null}
+      </div>
+    </button>
+  );
+}
+
+// ── Panel ─────────────────────────────────────────────────────────
+
 export function RecentlyUploadedPanel({
-  tracks,
+  items,
   loading,
   period,
   onPeriodChange,
   onTrackSelect,
-  gridClassName,
   ownerNameById
 }: RecentlyUploadedPanelProps): JSX.Element | null {
-  if (!loading && tracks.length === 0) {
+  if (!loading && items.length === 0) {
     return null;
   }
+
+  const resolveOwner = (owner: string): string => ownerNameById?.[owner] ?? owner;
 
   return (
     <section className="border border-flaque-clay/60 rounded-xl bg-white/85 p-5 shadow-panel backdrop-blur-sm">
@@ -53,10 +174,28 @@ export function RecentlyUploadedPanel({
         </div>
       </div>
 
-      {loading && tracks.length === 0 ? (
+      {loading && items.length === 0 ? (
         <p className="mt-3 text-sm text-flaque-steel">Loading...</p>
       ) : (
-        <TrackCardGrid tracks={tracks} onTrackSelect={onTrackSelect} gridClassName={gridClassName} ownerNameById={ownerNameById} showOwner />
+        <div className={`mt-3 grid gap-2 ${GRID_CLASS}`}>
+          {items.map((item) =>
+            item.kind === "album" ? (
+              <VinylAlbumCard
+                key={`album:${item.album.albumName}:${item.album.owner}`}
+                album={item.album}
+                onPlay={onTrackSelect}
+                ownerLabel={ownerNameById ? resolveOwner(item.album.owner) : undefined}
+              />
+            ) : (
+              <TrackCard
+                key={item.track.id}
+                track={item.track}
+                onSelect={onTrackSelect}
+                ownerLabel={ownerNameById ? resolveOwner(item.track.owner) : undefined}
+              />
+            )
+          )}
+        </div>
       )}
     </section>
   );

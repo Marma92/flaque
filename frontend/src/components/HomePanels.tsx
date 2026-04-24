@@ -1,4 +1,5 @@
 import type { RadioTrack, Track } from "../types";
+import type { RecentUploadItem } from "../api";
 import type { UploadPeriod } from "../hooks/useRecentlyUploaded";
 import { RecentTracksPanel } from "./RecentTracksPanel";
 import { RecentlyUploadedPanel } from "./RecentlyUploadedPanel";
@@ -6,7 +7,7 @@ import { RecentlyUploadedPanel } from "./RecentlyUploadedPanel";
 export type HomePanelsProps = {
   recentTracks: Track[];
   onRecentTrackReplay: (track: Track) => void;
-  recentlyUploadedTracks: Track[];
+  recentlyUploadedItems: RecentUploadItem[];
   recentlyUploadedLoading: boolean;
   recentlyUploadedPeriod: UploadPeriod;
   onRecentlyUploadedPeriodChange: (period: UploadPeriod) => void;
@@ -27,7 +28,7 @@ export type HomePanelsProps = {
 export function HomePanels({
   recentTracks,
   onRecentTrackReplay,
-  recentlyUploadedTracks,
+  recentlyUploadedItems,
   recentlyUploadedLoading,
   recentlyUploadedPeriod,
   onRecentlyUploadedPeriodChange,
@@ -41,7 +42,7 @@ export function HomePanels({
   onStartRadioPlayback
 }: HomePanelsProps): JSX.Element | null {
   const hasRecent = recentTracks.length > 0;
-  const hasUploaded = recentlyUploadedTracks.length > 0 || recentlyUploadedLoading;
+  const hasUploaded = recentlyUploadedItems.length > 0 || recentlyUploadedLoading;
   const canStartRadio = Boolean(onStartRadioPlayback && !radioLoading);
 
   const cardGridClass = "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
@@ -101,12 +102,11 @@ export function HomePanels({
       ) : null}
       {hasUploaded ? (
         <RecentlyUploadedPanel
-          tracks={recentlyUploadedTracks}
+          items={recentlyUploadedItems}
           loading={recentlyUploadedLoading}
           period={recentlyUploadedPeriod}
           onPeriodChange={onRecentlyUploadedPeriodChange}
           onTrackSelect={onRecentlyUploadedTrackSelect}
-          gridClassName={cardGridClass}
           ownerNameById={ownerNameById}
         />
       ) : null}

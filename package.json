@@ -8,10 +8,10 @@
     "frontend"
   ],
   "scripts": {
-    "dev": "npm run dev:all",
-    "dev:all": "concurrently -n backend,frontend -c cyan,magenta \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "concurrently --kill-others-on-fail -n backend,frontend -c cyan,magenta \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "npm run dev --workspace backend",
     "dev:frontend": "npm run dev --workspace frontend",
+    "dev:clean": "rm -rf frontend/dist frontend/node_modules/.vite && npm run dev",
     "build": "npm run build --workspace backend && npm run build --workspace frontend",
     "test": "npm run test:backend && npm run test:frontend",
     "test:backend": "npm run test --workspace backend",
