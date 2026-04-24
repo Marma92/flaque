@@ -92,7 +92,7 @@ async function bootstrap(): Promise<void> {
   startVersionCheckSchedule();
   void startBackupScheduler();
   void checkAndRegenerateOnBoot(indexStore.getSnapshot().tracks);
-  void Promise.all(
+  await Promise.all(
     listUsers().map((user) => checkAndRegenerateForYouOnBoot(user.id, indexStore))
   );
 }
