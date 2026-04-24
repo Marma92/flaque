@@ -22,6 +22,7 @@ export type LibraryPlaylistSectionProps = {
   forYouPlaylists: ForYouPlaylistSummary[];
   loadingForYouPlaylists: boolean;
   onDismissForYouPlaylist: (playlistId: string) => Promise<void>;
+  onRefreshForYouPlaylists?: () => Promise<{ regenerated: number }>;
 };
 
 // ── Mosaic cover (compact) ─────────────────────────────────────────
@@ -229,7 +230,8 @@ export function LibraryPlaylistSection({
   loadingAutoPlaylists,
   forYouPlaylists,
   loadingForYouPlaylists,
-  onDismissForYouPlaylist
+  onDismissForYouPlaylist,
+  onRefreshForYouPlaylists
 }: LibraryPlaylistSectionProps): JSX.Element {
   const [playlistName, setPlaylistName] = useState("");
   const [playlistDescription, setPlaylistDescription] = useState("");
@@ -334,9 +336,25 @@ export function LibraryPlaylistSection({
       </section>
 
       {/* ── Made For You ────────────────────────────────────────── */}
-      {!loadingForYouPlaylists && forYouPlaylists.length > 0 ? (
-        <section className="rounded-xl border border-flaque-clay/60 bg-gradient-to-br from-indigo-50/60 to-purple-50/40 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl border border-flaque-clay/60 bg-gradient-to-br from-indigo-50/60 to-purple-50/40 p-5 shadow-panel backdrop-blur-sm">
+        <div className="flex items-center justify-between">
           <SectionHeader title="Made for you" />
+          {!loadingForYouPlaylists && forYouPlaylists.length > 0 && (
+            <button
+              type="button"
+              className="text-xs text-indigo-600 hover:text-indigo-800"
+              onClick={() => { void onRefreshForYouPlaylists?.(); }}
+              title="Refresh recommendations"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          )}
+        </div>
+        {loadingForYouPlaylists ? (
+          <p className="mt-2 text-sm text-flaque-steel">Loading recommendations...</p>
+        ) : forYouPlaylists.length > 0 ? (
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {forYouPlaylists.map((fy) => (
               <div
@@ -380,8 +398,10 @@ export function LibraryPlaylistSection({
               </div>
             ))}
           </div>
-        </section>
-      ) : null}
+        ) : (
+          <p className="mt-2 text-sm text-flaque-steel">No recommendations yet. Listen to more music!</p>
+        )}
+      </section>
 
       {/* ── Popular Playlists ─────────────────────────────────────── */}
       {popularPlaylists.length > 0 ? (

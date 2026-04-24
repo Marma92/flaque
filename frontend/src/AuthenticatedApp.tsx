@@ -91,7 +91,7 @@ export function AuthenticatedApp({
   } = useInfiniteLibrary({ user, filters, pageSize: 30 });
 
   const { autoPlaylists, loading: loadingAutoPlaylists, refresh: refreshAutoPlaylists } = useAutoPlaylists();
-  const { forYouPlaylists, loading: loadingForYouPlaylists, dismiss: dismissForYouPlaylist } = useForYouPlaylists();
+  const { forYouPlaylists, loading: loadingForYouPlaylists, dismiss: dismissForYouPlaylist, regenerate: regenerateForYouPlaylists } = useForYouPlaylists();
 
   const allTracksById = useMemo(
     () => new Map(allTracksLibrary.tracks.map((track) => [track.id, track])),
@@ -290,7 +290,8 @@ export function AuthenticatedApp({
           loadingAutoPlaylists,
           forYouPlaylists,
           loadingForYouPlaylists,
-          onDismissForYouPlaylist: dismissForYouPlaylist
+          onDismissForYouPlaylist: dismissForYouPlaylist,
+          onRefreshForYouPlaylists: regenerateForYouPlaylists
         },
         artistsProps: {
           libraryMetadataError,

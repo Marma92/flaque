@@ -23,6 +23,7 @@ export type PlaylistsSectionProps = {
   forYouPlaylists: ForYouPlaylistSummary[];
   loadingForYouPlaylists: boolean;
   onDismissForYouPlaylist: (playlistId: string) => Promise<void>;
+  onRefreshForYouPlaylists?: () => Promise<{ regenerated: number }>;
 };
 
 export function PlaylistsSection({
@@ -43,7 +44,8 @@ export function PlaylistsSection({
   loadingAutoPlaylists,
   forYouPlaylists,
   loadingForYouPlaylists,
-  onDismissForYouPlaylist
+  onDismissForYouPlaylist,
+  onRefreshForYouPlaylists
 }: PlaylistsSectionProps): JSX.Element {
   if (playlistDetailId && playlistDetailId.startsWith("for-you:")) {
     return (
@@ -107,6 +109,7 @@ export function PlaylistsSection({
       forYouPlaylists={forYouPlaylists}
       loadingForYouPlaylists={loadingForYouPlaylists}
       onDismissForYouPlaylist={onDismissForYouPlaylist}
+      onRefreshForYouPlaylists={onRefreshForYouPlaylists}
     />
   );
 }
