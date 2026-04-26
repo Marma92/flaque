@@ -42,13 +42,19 @@ function VinylAlbumCard({
   ownerLabel?: string;
 }): JSX.Element {
   return (
-    <div className="group w-full overflow-hidden rounded-xl border border-flaque-clay/60 bg-flaque-cream/60 text-left shadow-sm transition hover:shadow-md">
+    <div className="group w-full overflow-hidden rounded-xl text-left shadow-sm transition hover:shadow-md">
       <button
         type="button"
-        className="relative block aspect-square w-full overflow-hidden cursor-pointer"
+        className="relative block aspect-square w-full cursor-pointer overflow-hidden bg-flaque-cream"
         onClick={() => onPlay(album)}
         title={`Play ${album.albumName}`}
         aria-label={`Play ${album.albumName}`}
+        style={{
+          WebkitMaskImage:
+            "radial-gradient(circle at 50% 50%, transparent 4%, black 4.5%)",
+          maskImage:
+            "radial-gradient(circle at 50% 50%, transparent 4%, black 4.5%)"
+        }}
       >
         {/* Vinyl disc */}
         <div className="absolute inset-2 rounded-full bg-gradient-to-br from-neutral-800 via-neutral-900 to-black shadow-md transition-transform duration-700 ease-out group-hover:rotate-[20deg]">
@@ -57,15 +63,13 @@ function VinylAlbumCard({
           <div className="absolute inset-[11%] rounded-full border border-white/[0.05]" />
           <div className="absolute inset-[18%] rounded-full border border-white/[0.06]" />
           {/* Label (album cover clipped to circle) */}
-          <div className="absolute inset-[22%] overflow-hidden rounded-full border border-black/60 shadow-inner">
+          <div className="absolute inset-[22%] overflow-hidden rounded-full border border-flaque-cream shadow-inner">
             <img
               className="h-full w-full object-cover"
               src={coverUrl(album.coverTrackId)}
               alt={`Cover for ${album.albumName}`}
               onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
             />
-            {/* Center spindle hole */}
-            <div className="absolute left-1/2 top-1/2 h-[14%] w-[14%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-black ring-1 ring-white/10" />
           </div>
         </div>
         {/* Round play overlay (covers the disc only) */}
@@ -75,13 +79,13 @@ function VinylAlbumCard({
           </svg>
         </div>
         {/* Track count badge */}
-        <span className="absolute bottom-1 right-1 rounded-md bg-indigo-700/85 px-1.5 py-0.5 text-[9px] font-semibold text-white">
-          {album.trackCount}
+        <span className="absolute bottom-1 right-1 rounded-md bg-flaque-ink/85 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+          +{album.trackCount} tracks
         </span>
       </button>
       <button
         type="button"
-        className="block w-full cursor-pointer px-2 py-1.5 text-left transition hover:bg-flaque-cream"
+        className="block w-full cursor-pointer bg-flaque-cream px-2 py-1.5 text-left"
         onClick={() => onOpen(album)}
         title={`Open ${album.albumName}`}
       >
@@ -113,7 +117,7 @@ function TrackCard({
   return (
     <button
       type="button"
-      className="group w-full overflow-hidden rounded-xl border border-flaque-clay/60 bg-white/85 text-left shadow-sm transition hover:shadow-md"
+      className="group w-full overflow-hidden rounded-xl bg-white/85 text-left shadow-sm transition hover:shadow-md"
       onClick={() => onSelect(track)}
       title={title}
     >
@@ -130,7 +134,7 @@ function TrackCard({
           </svg>
         </div>
       </div>
-      <div className="bg-flaque-cream/60 px-2 py-1.5">
+      <div className="bg-flaque-cream px-2 py-1.5">
         <p className="truncate text-[11px] font-semibold text-flaque-ink">{title}</p>
         <p className="truncate text-[10px] text-flaque-steel">{artist}</p>
         {albumWithYear ? (
