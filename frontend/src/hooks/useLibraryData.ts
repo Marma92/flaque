@@ -234,7 +234,15 @@ export function useLibraryData({
         return null;
       }
 
-      return libraryArtists.some((artist) => normalizeText(artist.name) === normalizeText(current.name)) ? current : null;
+      // Skip validation while artists are still loading — would otherwise
+      // discard a selection made while navigating in (e.g. from the player).
+      if (libraryArtists.length === 0) {
+        return current;
+      }
+
+      const target = normalizeText(current.name);
+      const match = libraryArtists.find((artist) => normalizeText(artist.name) === target);
+      return match ?? null;
     });
   }, [activeLibrarySection, libraryArtists]);
 
@@ -390,7 +398,16 @@ export function useLibraryData({
       }
 
       const currentKey = getAlbumKey(current);
-      const match = libraryAlbums.find((album) => getAlbumKey(album) === currentKey);
+      const currentName = normalizeText(current.name);
+      const currentArtist = normalizeText(current.artist);
+      // Match by stable key first; fall back to name+artist so a synthetic
+      // entry created without an id (e.g. from the player) gets upgraded to
+      // the canonical indexed album once it loads.
+      const match = libraryAlbums.find(
+        (album) =>
+          getAlbumKey(album) === currentKey ||
+          (normalizeText(album.name) === currentName && normalizeText(album.artist) === currentArtist)
+      );
       return match ?? null;
     });
   }, [activeLibrarySection, libraryAlbums]);
