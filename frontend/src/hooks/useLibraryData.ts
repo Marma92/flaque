@@ -383,8 +383,15 @@ export function useLibraryData({
         return null;
       }
 
+      // Skip validation while albums are still loading — would otherwise
+      // discard a selection made while navigating in (e.g. from Home).
+      if (libraryAlbums.length === 0) {
+        return current;
+      }
+
       const currentKey = getAlbumKey(current);
-      return libraryAlbums.some((album) => getAlbumKey(album) === currentKey) ? current : null;
+      const match = libraryAlbums.find((album) => getAlbumKey(album) === currentKey);
+      return match ?? null;
     });
   }, [activeLibrarySection, libraryAlbums]);
 

@@ -1,5 +1,5 @@
 import type { RadioTrack, Track } from "../types";
-import type { RecentUploadItem } from "../api";
+import type { RecentUploadAlbum, RecentUploadItem } from "../api";
 import type { UploadPeriod } from "../hooks/useRecentlyUploaded";
 import { RecentTracksPanel } from "./RecentTracksPanel";
 import { RecentlyUploadedPanel } from "./RecentlyUploadedPanel";
@@ -12,6 +12,8 @@ export type HomePanelsProps = {
   recentlyUploadedPeriod: UploadPeriod;
   onRecentlyUploadedPeriodChange: (period: UploadPeriod) => void;
   onRecentlyUploadedTrackSelect: (track: Track) => void;
+  onRecentlyUploadedAlbumPlay: (album: RecentUploadAlbum) => void;
+  onRecentlyUploadedAlbumOpen: (album: RecentUploadAlbum) => void;
   ownerNameById?: Record<string, string>;
   onNavigateToLibrary?: () => void;
   radioLoading?: boolean;
@@ -33,6 +35,8 @@ export function HomePanels({
   recentlyUploadedPeriod,
   onRecentlyUploadedPeriodChange,
   onRecentlyUploadedTrackSelect,
+  onRecentlyUploadedAlbumPlay,
+  onRecentlyUploadedAlbumOpen,
   ownerNameById,
   onNavigateToLibrary,
   radioLoading = false,
@@ -108,6 +112,8 @@ export function HomePanels({
           period={recentlyUploadedPeriod}
           onPeriodChange={onRecentlyUploadedPeriodChange}
           onTrackSelect={onRecentlyUploadedTrackSelect}
+          onAlbumPlay={onRecentlyUploadedAlbumPlay}
+          onAlbumOpen={onRecentlyUploadedAlbumOpen}
           ownerNameById={ownerNameById}
         />
       ) : null}

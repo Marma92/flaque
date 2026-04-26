@@ -5,7 +5,7 @@ import { AppShell } from "./components/AppShell";
 import type { ConfigSection } from "./components/ConfigView";
 import type { Track, User } from "./types";
 import type { LibrarySection } from "./types/library";
-import { navigateTo, type ViewName } from "./utils/appUtils";
+import { navigateTo, normalizeText, sortAlbumTracksByNumber, type ViewName } from "./utils/appUtils";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import { useAppNotice } from "./hooks/useAppNotice";
 import { useDocumentTitle } from "./hooks/useDocumentTitle";
@@ -340,6 +340,36 @@ export function AuthenticatedApp({
           recentlyUploadedPeriod,
           onRecentlyUploadedPeriodChange: setRecentlyUploadedPeriod,
           onRecentlyUploadedTrackSelect: (track) => requestTrackPlaybackWithStatus(track, paginatedTracks),
+          onRecentlyUploadedAlbumPlay: (album) => {
+            const sortedTracks = sortAlbumTracksByNumber(album.tracks);
+            if (sortedTracks.length === 0) return;
+            requestTrackPlaybackWithStatus(sortedTracks[0], sortedTracks);
+          },
+          onRecentlyUploadedAlbumOpen: (album) => {
+            const targetName = normalizeText(album.albumName);
+            const targetArtist = normalizeText(album.artist);
+            const matched =
+              libraryAlbums.find((entry) =>
+                normalizeText(entry.name) === targetName &&
+                normalizeText(entry.artist) === targetArtist
+              ) ??
+              library.albums.find((entry) =>
+                normalizeText(entry.name) === targetName &&
+                normalizeText(entry.artist) === targetArtist
+              );
+            const albumEntry = matched ?? {
+              name: album.albumName,
+              artist: album.artist,
+              trackCount: album.trackCount,
+              cover: album.coverTrackId
+            };
+            navigateTo("library", "albums");
+            setActiveLibrarySection("albums");
+            setPlaylistDetailId(null);
+            clearSelectedArtist();
+            clearSelectedArtistAlbum();
+            selectAlbum(albumEntry);
+          },
           ownerNameById,
           radioLoading: loadingRadio,
           radioStationId,

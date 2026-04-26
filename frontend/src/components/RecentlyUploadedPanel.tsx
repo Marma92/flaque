@@ -15,6 +15,8 @@ type RecentlyUploadedPanelProps = {
   period: UploadPeriod;
   onPeriodChange: (period: UploadPeriod) => void;
   onTrackSelect: (track: Track) => void;
+  onAlbumPlay: (album: RecentUploadAlbum) => void;
+  onAlbumOpen: (album: RecentUploadAlbum) => void;
   ownerNameById?: Record<string, string>;
 };
 
@@ -31,21 +33,23 @@ const GRID_CLASS =
 function VinylAlbumCard({
   album,
   onPlay,
+  onOpen,
   ownerLabel
 }: {
   album: RecentUploadAlbum;
-  onPlay: (track: Track) => void;
+  onPlay: (album: RecentUploadAlbum) => void;
+  onOpen: (album: RecentUploadAlbum) => void;
   ownerLabel?: string;
 }): JSX.Element {
-  const firstTrack = album.tracks[0]!;
   return (
-    <button
-      type="button"
-      className="group w-full overflow-hidden rounded-xl border border-flaque-clay/60 bg-white/85 text-left shadow-sm transition hover:shadow-md"
-      onClick={() => onPlay(firstTrack)}
-      title={`${album.albumName} · ${album.trackCount} tracks`}
-    >
-      <div className="relative aspect-square w-full overflow-hidden p-2">
+    <div className="group w-full overflow-hidden rounded-xl border border-flaque-clay/60 bg-flaque-cream/60 text-left shadow-sm transition hover:shadow-md">
+      <button
+        type="button"
+        className="relative block aspect-square w-full overflow-hidden cursor-pointer"
+        onClick={() => onPlay(album)}
+        title={`Play ${album.albumName}`}
+        aria-label={`Play ${album.albumName}`}
+      >
         {/* Vinyl disc */}
         <div className="absolute inset-2 rounded-full bg-gradient-to-br from-neutral-800 via-neutral-900 to-black shadow-md transition-transform duration-700 ease-out group-hover:rotate-[20deg]">
           {/* Grooves */}
@@ -64,9 +68,9 @@ function VinylAlbumCard({
             <div className="absolute left-1/2 top-1/2 h-[14%] w-[14%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-black ring-1 ring-white/10" />
           </div>
         </div>
-        {/* Play overlay */}
-        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/0 opacity-0 transition group-hover:bg-black/20 group-hover:opacity-100">
-          <svg className="h-7 w-7 text-white drop-shadow-md" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        {/* Round play overlay (covers the disc only) */}
+        <div className="pointer-events-none absolute inset-2 flex items-center justify-center rounded-full bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100">
+          <svg className="h-7 w-7 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
             <path d="M8 6v12l10-6-10-6z" />
           </svg>
         </div>
@@ -74,15 +78,20 @@ function VinylAlbumCard({
         <span className="absolute bottom-1 right-1 rounded-md bg-indigo-700/85 px-1.5 py-0.5 text-[9px] font-semibold text-white">
           {album.trackCount}
         </span>
-      </div>
-      <div className="bg-flaque-cream/60 px-2 py-1.5">
+      </button>
+      <button
+        type="button"
+        className="block w-full cursor-pointer px-2 py-1.5 text-left transition hover:bg-flaque-cream"
+        onClick={() => onOpen(album)}
+        title={`Open ${album.albumName}`}
+      >
         <p className="truncate text-[11px] font-semibold text-flaque-ink">{album.albumName}</p>
         <p className="truncate text-[10px] text-flaque-steel">{album.artist}</p>
         {ownerLabel ? (
           <p className="truncate text-[10px] text-flaque-steel/50">{ownerLabel}</p>
         ) : null}
-      </div>
-    </button>
+      </button>
+    </div>
   );
 }
 
@@ -116,7 +125,7 @@ function TrackCard({
           onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
         />
         <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100">
-          <svg className="h-7 w-7 text-white drop-shadow-md" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <svg className="h-7 w-7 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
             <path d="M8 6v12l10-6-10-6z" />
           </svg>
         </div>
@@ -143,6 +152,8 @@ export function RecentlyUploadedPanel({
   period,
   onPeriodChange,
   onTrackSelect,
+  onAlbumPlay,
+  onAlbumOpen,
   ownerNameById
 }: RecentlyUploadedPanelProps): JSX.Element | null {
   if (!loading && items.length === 0) {
@@ -183,7 +194,8 @@ export function RecentlyUploadedPanel({
               <VinylAlbumCard
                 key={`album:${item.album.albumName}:${item.album.owner}`}
                 album={item.album}
-                onPlay={onTrackSelect}
+                onPlay={onAlbumPlay}
+                onOpen={onAlbumOpen}
                 ownerLabel={ownerNameById ? resolveOwner(item.album.owner) : undefined}
               />
             ) : (
