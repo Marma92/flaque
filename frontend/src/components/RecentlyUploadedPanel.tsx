@@ -6,7 +6,8 @@ import type { UploadPeriod } from "../hooks/useRecentlyUploaded";
 import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
-  getTrackDisplayTitle
+  getTrackDisplayTitle,
+  getTrackDisplayYear
 } from "../utils/tracks";
 
 type RecentlyUploadedPanelProps = {
@@ -41,8 +42,12 @@ function VinylAlbumCard({
   onOpen: (album: RecentUploadAlbum) => void;
   ownerLabel?: string;
 }): JSX.Element {
+  const year = album.tracks
+    .map((track) => getTrackDisplayYear(track))
+    .find((value): value is string => Boolean(value));
+  const albumLabel = year ? `${album.albumName} (${year})` : album.albumName;
   return (
-    <div className="group w-full overflow-hidden rounded-xl text-left shadow-sm transition hover:shadow-md">
+    <div className="group relative flex w-full flex-col overflow-hidden rounded-xl text-left shadow-sm transition hover:shadow-md">
       <button
         type="button"
         className="relative block aspect-square w-full cursor-pointer overflow-hidden bg-flaque-cream"
@@ -72,29 +77,38 @@ function VinylAlbumCard({
             />
           </div>
         </div>
-        {/* Round play overlay (covers the disc only) */}
-        <div className="pointer-events-none absolute inset-2 flex items-center justify-center rounded-full bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100">
-          <svg className="h-7 w-7 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
-            <path d="M8 6v12l10-6-10-6z" />
-          </svg>
-        </div>
         {/* Track count badge */}
         <span className="absolute bottom-1 right-1 rounded-md bg-flaque-ink/85 px-1.5 py-0.5 text-[9px] font-semibold text-white">
           +{album.trackCount} tracks
         </span>
       </button>
-      <button
-        type="button"
-        className="block w-full cursor-pointer bg-flaque-cream px-2 py-1.5 text-left"
+      <div
+        role="button"
+        tabIndex={0}
+        className="w-full flex-1 cursor-pointer bg-flaque-cream px-2 py-1.5 text-left"
         onClick={() => onOpen(album)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onOpen(album);
+          }
+        }}
         title={`Open ${album.albumName}`}
       >
-        <p className="truncate text-[11px] font-semibold text-flaque-ink">{album.albumName}</p>
+        <p className="truncate text-[11px] font-semibold text-flaque-ink">{albumLabel}</p>
         <p className="truncate text-[10px] text-flaque-steel">{album.artist}</p>
         {ownerLabel ? (
           <p className="truncate text-[10px] text-flaque-steel/50">{ownerLabel}</p>
         ) : null}
-      </button>
+      </div>
+      {/* Round play overlay (sibling, so the vinyl mask doesn't hide it) */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 aspect-square">
+        <div className="absolute inset-2 flex items-center justify-center rounded-full bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100">
+          <svg className="h-7 w-7 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
+            <path d="M8 6v12l10-6-10-6z" />
+          </svg>
+        </div>
+      </div>
     </div>
   );
 }
@@ -117,7 +131,7 @@ function TrackCard({
   return (
     <button
       type="button"
-      className="group w-full overflow-hidden rounded-xl bg-white/85 text-left shadow-sm transition hover:shadow-md"
+      className="group flex w-full flex-col overflow-hidden rounded-xl bg-white/85 text-left shadow-sm transition hover:shadow-md"
       onClick={() => onSelect(track)}
       title={title}
     >
@@ -134,7 +148,7 @@ function TrackCard({
           </svg>
         </div>
       </div>
-      <div className="bg-flaque-cream px-2 py-1.5">
+      <div className="flex-1 bg-flaque-cream px-2 py-1.5">
         <p className="truncate text-[11px] font-semibold text-flaque-ink">{title}</p>
         <p className="truncate text-[10px] text-flaque-steel">{artist}</p>
         {albumWithYear ? (
