@@ -6,12 +6,33 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { User, UserSession } from "../types";
 import { AccountView } from "./AccountView";
 
-const mockHandleUpdateProfilePhoto = vi.fn().mockResolvedValue(undefined);
-const mockHandleUpdateEmail = vi.fn().mockResolvedValue(undefined);
-const mockHandleUpdateOwnPassword = vi.fn().mockResolvedValue(undefined);
-const mockHandleListMySessions = vi.fn<() => Promise<UserSession[]>>();
-const mockHandleRevokeMySession = vi.fn<(sessionId: string) => Promise<void>>().mockResolvedValue(undefined);
-const mockHandleLogoutOtherSessions = vi.fn<() => Promise<number>>();
+const {
+  mockHandleUpdateProfilePhoto,
+  mockHandleUpdateEmail,
+  mockHandleUpdateOwnPassword,
+  mockHandleListMySessions,
+  mockHandleRevokeMySession,
+  mockHandleLogoutOtherSessions,
+  mockGetMyPlayStats
+} = vi.hoisted(() => ({
+  mockHandleUpdateProfilePhoto: vi.fn().mockResolvedValue(undefined),
+  mockHandleUpdateEmail: vi.fn().mockResolvedValue(undefined),
+  mockHandleUpdateOwnPassword: vi.fn().mockResolvedValue(undefined),
+  mockHandleListMySessions: vi.fn<() => Promise<UserSession[]>>(),
+  mockHandleRevokeMySession: vi.fn<(sessionId: string) => Promise<void>>().mockResolvedValue(undefined),
+  mockHandleLogoutOtherSessions: vi.fn<() => Promise<number>>(),
+  mockGetMyPlayStats: vi.fn().mockResolvedValue({
+    topTracks: [],
+    topArtists: [],
+    totalPlays: 0,
+    uniqueTracksPlayed: 0
+  })
+}));
+
+vi.mock("../api", () => ({
+  coverUrl: (trackId: string, coverPath?: string) => coverPath ?? `/mock-covers/${trackId}`,
+  getMyPlayStats: mockGetMyPlayStats
+}));
 
 vi.mock("../hooks/useAccountActions", () => ({
   useAccountActions: () => ({
