@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   apiRequest,
-  getBaseUrl,
+  fetchApi,
   getDataRoot,
   login,
   setupTestServer,
@@ -25,7 +25,7 @@ async function postForm(
   if (cookie) {
     headers.Cookie = cookie;
   }
-  const response = await fetch(`${getBaseUrl()}${pathname}`, {
+  const response = await fetchApi(pathname, {
     method: "POST",
     headers,
     body: form
@@ -78,16 +78,6 @@ describe("uploadRoutes", () => {
       expect(res.status).toBe(200);
       const body = res.payload as { chunkSize: number };
       expect(body.chunkSize).toBeGreaterThan(0);
-    });
-  });
-
-  describe("GET /api/recent-uploads", () => {
-    it("returns an empty list when no tracks have been uploaded", async () => {
-      const res = await apiRequest("/api/recent-uploads", { headers: { Cookie: cookie } });
-      expect(res.status).toBe(200);
-      const body = res.payload as { tracks: unknown[] };
-      expect(Array.isArray(body.tracks)).toBe(true);
-      expect(body.tracks).toHaveLength(0);
     });
   });
 

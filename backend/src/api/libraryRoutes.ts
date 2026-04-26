@@ -160,6 +160,90 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
     });
   });
 
+  // GET /recent-uploads
+  router.get("/recent-uploads", requireAuth, (req, res, next) => {
+    const addedAfterRaw = typeof req.query.addedAfter === "string" ? req.query.addedAfter : "";
+    if (!addedAfterRaw) {
+      return next(new AppError("addedAfter is required", 400));
+    }
+    const parsedDate = Date.parse(addedAfterRaw);
+    if (Number.isNaN(parsedDate)) {
+      return next(new AppError("addedAfter must be a valid ISO 8601 date string", 400));
+    }
+    const addedAfter = new Date(parsedDate).toISOString();
+
+    const limitRaw = Number(req.query.limit ?? 12);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0
+      ? Math.min(Math.floor(limitRaw), 100)
+      : 12;
+
+    const ownerNamesById = getOwnerNamesById();
+    const filter = readFilter(req.query as Record<string, unknown>);
+    const filteredTracks = resolveFilteredTracks(indexStore, filter, ownerNamesById)
+      .filter((t) => (t.addedAt ?? "") >= addedAfter)
+      .sort((a, b) => (b.addedAt ?? "").localeCompare(a.addedAt ?? ""));
+
+    const albumKeyOf = (t: Track): string | null => {
+      const album = t.tags.album?.trim();
+      if (!album) return null;
+      const albumArtist = t.tags.albumArtist?.trim() ?? t.tags.artist?.trim() ?? "";
+      return `${album}\u0000${albumArtist}\u0000${t.owner}`;
+    };
+
+    const buckets = new Map<string, Track[]>();
+    for (const t of filteredTracks) {
+      const k = albumKeyOf(t);
+      if (k) {
+        const existing = buckets.get(k);
+        if (existing) existing.push(t);
+        else buckets.set(k, [t]);
+      }
+    }
+
+    const seen = new Set<string>();
+    const items: Array<
+      | { kind: "track"; track: ReturnType<typeof mapTrackResponse> }
+      | {
+          kind: "album";
+          album: {
+            albumName: string;
+            artist: string;
+            owner: string;
+            ownerName?: string;
+            trackCount: number;
+            coverTrackId: string;
+            tracks: ReturnType<typeof mapTrackResponse>[];
+          };
+        }
+    > = [];
+
+    for (const t of filteredTracks) {
+      if (items.length >= limit) break;
+      const k = albumKeyOf(t);
+      if (k && (buckets.get(k)?.length ?? 0) >= 2) {
+        if (seen.has(k)) continue;
+        seen.add(k);
+        const groupTracks = [...buckets.get(k)!].sort(compareAlbumTrackOrder);
+        const firstTrack = groupTracks[0]!;
+        items.push({
+          kind: "album",
+          album: {
+            albumName: t.tags.album!.trim(),
+            artist: t.tags.albumArtist?.trim() ?? t.tags.artist?.trim() ?? "Unknown artist",
+            owner: t.owner,
+            trackCount: groupTracks.length,
+            coverTrackId: firstTrack.id,
+            tracks: groupTracks.map(mapTrackResponse)
+          }
+        });
+      } else {
+        items.push({ kind: "track", track: mapTrackResponse(t) });
+      }
+    }
+
+    res.json({ items });
+  });
+
   // GET /tracks/:id/adjacent
   router.get("/tracks/:id/adjacent", requireAuth, (req, res, next) => {
     const trackId = req.params.id;

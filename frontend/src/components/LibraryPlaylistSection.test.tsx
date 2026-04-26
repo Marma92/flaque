@@ -481,7 +481,7 @@ describe("LibraryPlaylistSection", () => {
     expect(screen.getByText(/20 tracks/)).toBeTruthy();
   });
 
-  it("hides Made for you section when empty", () => {
+  it("shows Made for you section with info message when empty", () => {
     render(
       <LibraryPlaylistSection
         {...defaultProps}
@@ -493,7 +493,8 @@ describe("LibraryPlaylistSection", () => {
       />
     );
 
-    expect(screen.queryByText("Made for you")).toBeNull();
+    expect(screen.getByText("Made for you")).toBeTruthy();
+    expect(screen.getByText(/Listen to more music/)).toBeTruthy();
   });
 
   it("calls dismiss on for-you playlist", () => {

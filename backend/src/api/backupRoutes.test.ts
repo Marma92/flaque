@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { apiRequest, getBaseUrl, login, setupTestServer, teardownTestServer } from "./testHelpers";
+import { apiRequest, fetchApi, login, setupTestServer, teardownTestServer } from "./testHelpers";
 
 describe("backupRoutes", () => {
   beforeEach(async () => {
@@ -200,7 +200,7 @@ describe("backupRoutes", () => {
     expect(createRes.status).toBe(201);
     const manifest = createRes.payload as { id: string };
 
-    const downloadRes = await fetch(`${getBaseUrl()}/api/backups/${encodeURIComponent(manifest.id)}/download`, {
+    const downloadRes = await fetchApi(`/api/backups/${encodeURIComponent(manifest.id)}/download`, {
       headers: { Cookie: cookie }
     });
 

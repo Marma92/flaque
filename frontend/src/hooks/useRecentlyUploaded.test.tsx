@@ -3,10 +3,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getTracksMock = vi.fn();
+const getRecentUploadsMock = vi.fn();
 
 vi.mock("../api", () => ({
-  getTracks: (...args: unknown[]) => getTracksMock(...args)
+  getRecentUploads: (...args: unknown[]) => getRecentUploadsMock(...args)
 }));
 
 import type { User } from "../types";
@@ -20,7 +20,7 @@ const USER: User = {
 };
 
 beforeEach(() => {
-  getTracksMock.mockReset();
+  getRecentUploadsMock.mockReset();
 });
 
 describe("useRecentlyUploaded", () => {
@@ -30,50 +30,47 @@ describe("useRecentlyUploaded", () => {
     );
 
     expect(result.current.loading).toBe(false);
-    expect(result.current.tracks).toEqual([]);
-    expect(getTracksMock).not.toHaveBeenCalled();
+    expect(result.current.items).toEqual([]);
+    expect(getRecentUploadsMock).not.toHaveBeenCalled();
   });
 
-  it("requests tracks sorted by addedAt desc with the 7d window by default", async () => {
-    getTracksMock.mockResolvedValueOnce({
-      tracks: [{ id: "t1" }, { id: "t2" }]
-    });
+  it("requests recent uploads with the 7d window by default", async () => {
+    getRecentUploadsMock.mockResolvedValueOnce([
+      { kind: "track", track: { id: "t1" } },
+      { kind: "track", track: { id: "t2" } }
+    ]);
 
     const { result } = renderHook(() => useRecentlyUploaded({ user: USER }));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    const call = getTracksMock.mock.calls[0]?.[0];
-    expect(call).toMatchObject({
-      sortBy: "addedAt",
-      sortDir: "desc",
-      limit: 12
-    });
+    const call = getRecentUploadsMock.mock.calls[0]?.[0];
+    expect(call).toMatchObject({ limit: 12 });
     expect(typeof call.addedAfter).toBe("string");
     expect(result.current.period).toBe("7d");
-    expect(result.current.tracks.map((t) => t.id)).toEqual(["t1", "t2"]);
+    expect(result.current.items).toHaveLength(2);
   });
 
   it("re-fetches with a wider addedAfter window when period flips to 30d", async () => {
-    getTracksMock.mockResolvedValue({ tracks: [] });
+    getRecentUploadsMock.mockResolvedValue([]);
     const { result } = renderHook(() => useRecentlyUploaded({ user: USER }));
-    await waitFor(() => expect(getTracksMock).toHaveBeenCalledTimes(1));
-    const first = getTracksMock.mock.calls[0]![0].addedAfter as string;
+    await waitFor(() => expect(getRecentUploadsMock).toHaveBeenCalledTimes(1));
+    const first = getRecentUploadsMock.mock.calls[0]![0].addedAfter as string;
 
     await act(async () => {
       result.current.setPeriod("30d");
     });
-    await waitFor(() => expect(getTracksMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getRecentUploadsMock).toHaveBeenCalledTimes(2));
 
-    const second = getTracksMock.mock.calls[1]![0].addedAfter as string;
+    const second = getRecentUploadsMock.mock.calls[1]![0].addedAfter as string;
     expect(new Date(second).getTime()).toBeLessThan(new Date(first).getTime());
   });
 
   it("forwards the ownerFilter argument to the API call", async () => {
-    getTracksMock.mockResolvedValueOnce({ tracks: [] });
+    getRecentUploadsMock.mockResolvedValueOnce([]);
     renderHook(() =>
       useRecentlyUploaded({ user: USER, ownerFilter: "user-2" })
     );
-    await waitFor(() => expect(getTracksMock).toHaveBeenCalled());
-    expect(getTracksMock.mock.calls[0]?.[0].owner).toBe("user-2");
+    await waitFor(() => expect(getRecentUploadsMock).toHaveBeenCalled());
+    expect(getRecentUploadsMock.mock.calls[0]?.[0].owner).toBe("user-2");
   });
 });

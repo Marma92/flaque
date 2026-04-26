@@ -47,6 +47,8 @@ type AudioPlayerProps = {
   onQueueTrackSelect?: (track: Track) => void;
   onArtworkClick?: () => void;
   onNavigateToLibrary?: () => void;
+  onOpenTrackArtist?: () => void;
+  onOpenTrackAlbum?: () => void;
 };
 
 export function AudioPlayer({
@@ -73,7 +75,9 @@ export function AudioPlayer({
   currentQueueTrackId = null,
   onQueueTrackSelect,
   onArtworkClick,
-  onNavigateToLibrary
+  onNavigateToLibrary,
+  onOpenTrackArtist,
+  onOpenTrackAlbum
 }: AudioPlayerProps): JSX.Element {
   const {
     audioRef, streamSource,
@@ -171,7 +175,8 @@ export function AudioPlayer({
     showQueuePanel ? "ring-2 ring-flaque-sand/55" : ""
   }`;
   const displayTitle = getTrackDisplayTitle(track);
-  const displayArtist = getTrackDisplayArtist(track) ?? "Unknown artist";
+  const trackArtist = getTrackDisplayArtist(track);
+  const displayArtist = trackArtist ?? "Unknown artist";
   const displayAlbumWithYear = getTrackDisplayAlbumWithYear(track);
   const displayLyrics = getTrackDisplayLyrics(track);
   const syncedLyrics = useMemo(() => getTrackSyncedLyrics(track), [track]);
@@ -179,6 +184,8 @@ export function AudioPlayer({
   const isRadioMode = track.owner === "radio";
   const isRadioStopped = isRadioMode && radioStopped;
   const codecLabel = `${track.codec}${track.sampleRate ? ` - ${Math.round(track.sampleRate / 1000)} kHz` : ""}`;
+  const canOpenTrackArtist = Boolean(onOpenTrackArtist && trackArtist);
+  const canOpenTrackAlbum = Boolean(onOpenTrackAlbum && displayAlbumWithYear);
 
   const hasPlayablePlaylists = playlists.length > 0;
   const effectiveQueue = queueTracks.length > 0 ? queueTracks : [track];
@@ -329,9 +336,35 @@ export function AudioPlayer({
                 )}
                 {expanded ? (
                   <>
-                    <p className={secondaryTextClassName}>{displayArtist}</p>
+                    <p className={secondaryTextClassName}>
+                      {canOpenTrackArtist ? (
+                        <button
+                          className="max-w-full truncate rounded-sm text-left underline-offset-2 transition hover:text-flaque-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70"
+                          type="button"
+                          title={`Open artist: ${displayArtist}`}
+                          onClick={onOpenTrackArtist}
+                        >
+                          {displayArtist}
+                        </button>
+                      ) : (
+                        displayArtist
+                      )}
+                    </p>
                     {displayAlbumWithYear ? (
-                      <p className="truncate text-xs text-flaque-steel/80">{displayAlbumWithYear}</p>
+                      <p className="truncate text-xs text-flaque-steel/80">
+                        {canOpenTrackAlbum ? (
+                          <button
+                            className="max-w-full truncate rounded-sm text-left underline-offset-2 transition hover:text-flaque-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70"
+                            type="button"
+                            title={`Open album: ${displayAlbumWithYear}`}
+                            onClick={onOpenTrackAlbum}
+                          >
+                            {displayAlbumWithYear}
+                          </button>
+                        ) : (
+                          displayAlbumWithYear
+                        )}
+                      </p>
                     ) : null}
                     <p className={metaTextClassName}>
                       {codecLabel}
@@ -345,8 +378,35 @@ export function AudioPlayer({
                 ) : (
                   <div className="flex items-baseline gap-2">
                     <p className="min-w-0 flex-1 overflow-x-auto scrollbar-hide whitespace-nowrap font-body text-xs text-flaque-steel">
-                      {displayArtist}
-                      {displayAlbumWithYear ? ` - ${displayAlbumWithYear}` : ""}
+                      {canOpenTrackArtist ? (
+                        <button
+                          className="rounded-sm text-left underline-offset-2 transition hover:text-flaque-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70"
+                          type="button"
+                          title={`Open artist: ${displayArtist}`}
+                          onClick={onOpenTrackArtist}
+                        >
+                          {displayArtist}
+                        </button>
+                      ) : (
+                        displayArtist
+                      )}
+                      {displayAlbumWithYear ? (
+                        <>
+                          {" - "}
+                          {canOpenTrackAlbum ? (
+                            <button
+                              className="rounded-sm text-left underline-offset-2 transition hover:text-flaque-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70"
+                              type="button"
+                              title={`Open album: ${displayAlbumWithYear}`}
+                              onClick={onOpenTrackAlbum}
+                            >
+                              {displayAlbumWithYear}
+                            </button>
+                          ) : (
+                            displayAlbumWithYear
+                          )}
+                        </>
+                      ) : null}
                     </p>
                     <p className={`${metaTextClassName} shrink-0 whitespace-nowrap`}>{codecLabel}</p>
                   </div>

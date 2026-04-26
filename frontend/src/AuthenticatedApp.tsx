@@ -5,7 +5,8 @@ import { AppShell } from "./components/AppShell";
 import type { ConfigSection } from "./components/ConfigView";
 import type { Track, User } from "./types";
 import type { LibrarySection } from "./types/library";
-import { navigateTo, type ViewName } from "./utils/appUtils";
+import { navigateTo, normalizeText, sortAlbumTracksByNumber, type ViewName } from "./utils/appUtils";
+import { getTrackDisplayAlbum, getTrackDisplayArtist } from "./utils/tracks";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import { useAppNotice } from "./hooks/useAppNotice";
 import { useDocumentTitle } from "./hooks/useDocumentTitle";
@@ -72,7 +73,7 @@ export function AuthenticatedApp({
 
   // ── Recently uploaded ────────────────────────────────────────────────
   const {
-    tracks: recentlyUploadedTracks,
+    items: recentlyUploadedItems,
     loading: recentlyUploadedLoading,
     period: recentlyUploadedPeriod,
     setPeriod: setRecentlyUploadedPeriod,
@@ -91,7 +92,7 @@ export function AuthenticatedApp({
   } = useInfiniteLibrary({ user, filters, pageSize: 30 });
 
   const { autoPlaylists, loading: loadingAutoPlaylists, refresh: refreshAutoPlaylists } = useAutoPlaylists();
-  const { forYouPlaylists, loading: loadingForYouPlaylists, dismiss: dismissForYouPlaylist } = useForYouPlaylists();
+  const { forYouPlaylists, loading: loadingForYouPlaylists, dismiss: dismissForYouPlaylist, regenerate: regenerateForYouPlaylists } = useForYouPlaylists();
 
   const allTracksById = useMemo(
     () => new Map(allTracksLibrary.tracks.map((track) => [track.id, track])),
@@ -239,6 +240,103 @@ export function AuthenticatedApp({
     setActiveView(nextView);
   }
 
+  const handleOpenCurrentTrackArtist = useCallback((): void => {
+    if (!selectedTrackRefreshed) {
+      return;
+    }
+
+    const artistName = getTrackDisplayArtist(selectedTrackRefreshed);
+    if (!artistName) {
+      return;
+    }
+
+    const targetArtist = normalizeText(artistName);
+    const matchedArtist =
+      libraryArtists.find((entry) => normalizeText(entry.name) === targetArtist) ??
+      library.artists.find((entry) => normalizeText(entry.name) === targetArtist);
+    const artistEntry = matchedArtist ?? {
+      name: artistName,
+      normalizedName: targetArtist,
+      albumCount: 0,
+      trackCount: 0,
+      totalDuration: 0,
+      previewTrackId: selectedTrackRefreshed.id
+    };
+
+    navigateTo("library", "artists");
+    setActiveView("library");
+    setActiveLibrarySection("artists");
+    setPlaylistDetailId(null);
+    clearSelectedAlbum();
+    clearSelectedArtistAlbum();
+    selectArtist(artistEntry);
+  }, [
+    clearSelectedAlbum,
+    clearSelectedArtistAlbum,
+    library.artists,
+    libraryArtists,
+    selectArtist,
+    selectedTrackRefreshed,
+    setActiveLibrarySection,
+    setActiveView,
+    setPlaylistDetailId
+  ]);
+
+  const handleOpenCurrentTrackAlbum = useCallback((): void => {
+    if (!selectedTrackRefreshed) {
+      return;
+    }
+
+    const albumName = getTrackDisplayAlbum(selectedTrackRefreshed);
+    if (!albumName) {
+      return;
+    }
+
+    const artistName = getTrackDisplayArtist(selectedTrackRefreshed);
+    const targetName = normalizeText(albumName);
+    const targetArtist = normalizeText(artistName);
+    const matchAlbum = (name: string, artist?: string): boolean => {
+      if (normalizeText(name) !== targetName) {
+        return false;
+      }
+
+      if (!targetArtist) {
+        return true;
+      }
+
+      return normalizeText(artist) === targetArtist;
+    };
+
+    const matchedAlbum =
+      libraryAlbums.find((entry) => matchAlbum(entry.name, entry.artist)) ??
+      library.albums.find((entry) => matchAlbum(entry.name, entry.artist));
+    const albumEntry = matchedAlbum ?? {
+      name: albumName,
+      artist: artistName,
+      trackCount: 0,
+      cover: selectedTrackRefreshed.cover,
+      previewTrackId: selectedTrackRefreshed.id
+    };
+
+    navigateTo("library", "albums");
+    setActiveView("library");
+    setActiveLibrarySection("albums");
+    setPlaylistDetailId(null);
+    clearSelectedArtist();
+    clearSelectedArtistAlbum();
+    selectAlbum(albumEntry);
+  }, [
+    clearSelectedArtist,
+    clearSelectedArtistAlbum,
+    library.albums,
+    libraryAlbums,
+    selectAlbum,
+    selectedTrackRefreshed,
+    setActiveLibrarySection,
+    setActiveView,
+    setPlaylistDetailId
+  ]);
+
   async function handleLogout(): Promise<void> {
     await logout();
     setUser(null);
@@ -290,7 +388,8 @@ export function AuthenticatedApp({
           loadingAutoPlaylists,
           forYouPlaylists,
           loadingForYouPlaylists,
-          onDismissForYouPlaylist: dismissForYouPlaylist
+          onDismissForYouPlaylist: dismissForYouPlaylist,
+          onRefreshForYouPlaylists: regenerateForYouPlaylists
         },
         artistsProps: {
           libraryMetadataError,
@@ -334,11 +433,41 @@ export function AuthenticatedApp({
         homeProps: {
           recentTracks,
           onRecentTrackReplay: handleReplayRecentTrack,
-          recentlyUploadedTracks,
+          recentlyUploadedItems,
           recentlyUploadedLoading,
           recentlyUploadedPeriod,
           onRecentlyUploadedPeriodChange: setRecentlyUploadedPeriod,
           onRecentlyUploadedTrackSelect: (track) => requestTrackPlaybackWithStatus(track, paginatedTracks),
+          onRecentlyUploadedAlbumPlay: (album) => {
+            const sortedTracks = sortAlbumTracksByNumber(album.tracks);
+            if (sortedTracks.length === 0) return;
+            requestTrackPlaybackWithStatus(sortedTracks[0], sortedTracks);
+          },
+          onRecentlyUploadedAlbumOpen: (album) => {
+            const targetName = normalizeText(album.albumName);
+            const targetArtist = normalizeText(album.artist);
+            const matched =
+              libraryAlbums.find((entry) =>
+                normalizeText(entry.name) === targetName &&
+                normalizeText(entry.artist) === targetArtist
+              ) ??
+              library.albums.find((entry) =>
+                normalizeText(entry.name) === targetName &&
+                normalizeText(entry.artist) === targetArtist
+              );
+            const albumEntry = matched ?? {
+              name: album.albumName,
+              artist: album.artist,
+              trackCount: album.trackCount,
+              cover: album.coverTrackId
+            };
+            navigateTo("library", "albums");
+            setActiveLibrarySection("albums");
+            setPlaylistDetailId(null);
+            clearSelectedArtist();
+            clearSelectedArtistAlbum();
+            selectAlbum(albumEntry);
+          },
           ownerNameById,
           radioLoading: loadingRadio,
           radioStationId,
@@ -436,7 +565,9 @@ export function AuthenticatedApp({
           ? undefined
           : (queueTrack) => {
             requestTrackPlaybackWithStatus(queueTrack, refreshedQueue.length > 0 ? refreshedQueue : undefined);
-          }
+          },
+        onOpenTrackArtist: handleOpenCurrentTrackArtist,
+        onOpenTrackAlbum: handleOpenCurrentTrackAlbum
       }}
     />
   );

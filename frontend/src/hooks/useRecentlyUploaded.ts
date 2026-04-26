@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
 
-import { getTracks } from "../api";
-import type { Track, User } from "../types";
+import { getRecentUploads } from "../api";
+import type { RecentUploadItem } from "../api";
+import type { User } from "../types";
 import { useQuery } from "./useQuery";
 
 export type UploadPeriod = "7d" | "30d";
@@ -17,14 +18,14 @@ type UseRecentlyUploadedArgs = {
 };
 
 type UseRecentlyUploadedResult = {
-  tracks: Track[];
+  items: RecentUploadItem[];
   loading: boolean;
   period: UploadPeriod;
   setPeriod: (period: UploadPeriod) => void;
   refresh: () => void;
 };
 
-const EMPTY: Track[] = [];
+const EMPTY: RecentUploadItem[] = [];
 
 export function useRecentlyUploaded({
   user,
@@ -34,17 +35,10 @@ export function useRecentlyUploaded({
 
   const fetcher = useCallback(async () => {
     const addedAfter = new Date(Date.now() - PERIOD_MS[period]).toISOString();
-    const response = await getTracks({
-      sortBy: "addedAt",
-      sortDir: "desc",
-      limit: 12,
-      addedAfter,
-      owner: ownerFilter
-    });
-    return response.tracks;
+    return getRecentUploads({ addedAfter, limit: 12, owner: ownerFilter });
   }, [period, ownerFilter]);
 
-  const { data, loading, refresh } = useQuery<Track[]>(fetcher, EMPTY, { enabled: Boolean(user) });
+  const { data, loading, refresh } = useQuery<RecentUploadItem[]>(fetcher, EMPTY, { enabled: Boolean(user) });
 
-  return { tracks: data, loading, period, setPeriod, refresh };
+  return { items: data, loading, period, setPeriod, refresh };
 }
