@@ -6,6 +6,7 @@ import type { ConfigSection } from "./components/ConfigView";
 import type { Track, User } from "./types";
 import type { LibrarySection } from "./types/library";
 import { navigateTo, normalizeText, sortAlbumTracksByNumber, type ViewName } from "./utils/appUtils";
+import { getTrackDisplayAlbum, getTrackDisplayArtist } from "./utils/tracks";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import { useAppNotice } from "./hooks/useAppNotice";
 import { useDocumentTitle } from "./hooks/useDocumentTitle";
@@ -239,6 +240,103 @@ export function AuthenticatedApp({
     setActiveView(nextView);
   }
 
+  const handleOpenCurrentTrackArtist = useCallback((): void => {
+    if (!selectedTrackRefreshed) {
+      return;
+    }
+
+    const artistName = getTrackDisplayArtist(selectedTrackRefreshed);
+    if (!artistName) {
+      return;
+    }
+
+    const targetArtist = normalizeText(artistName);
+    const matchedArtist =
+      libraryArtists.find((entry) => normalizeText(entry.name) === targetArtist) ??
+      library.artists.find((entry) => normalizeText(entry.name) === targetArtist);
+    const artistEntry = matchedArtist ?? {
+      name: artistName,
+      normalizedName: targetArtist,
+      albumCount: 0,
+      trackCount: 0,
+      totalDuration: 0,
+      previewTrackId: selectedTrackRefreshed.id
+    };
+
+    navigateTo("library", "artists");
+    setActiveView("library");
+    setActiveLibrarySection("artists");
+    setPlaylistDetailId(null);
+    clearSelectedAlbum();
+    clearSelectedArtistAlbum();
+    selectArtist(artistEntry);
+  }, [
+    clearSelectedAlbum,
+    clearSelectedArtistAlbum,
+    library.artists,
+    libraryArtists,
+    selectArtist,
+    selectedTrackRefreshed,
+    setActiveLibrarySection,
+    setActiveView,
+    setPlaylistDetailId
+  ]);
+
+  const handleOpenCurrentTrackAlbum = useCallback((): void => {
+    if (!selectedTrackRefreshed) {
+      return;
+    }
+
+    const albumName = getTrackDisplayAlbum(selectedTrackRefreshed);
+    if (!albumName) {
+      return;
+    }
+
+    const artistName = getTrackDisplayArtist(selectedTrackRefreshed);
+    const targetName = normalizeText(albumName);
+    const targetArtist = normalizeText(artistName);
+    const matchAlbum = (name: string, artist?: string): boolean => {
+      if (normalizeText(name) !== targetName) {
+        return false;
+      }
+
+      if (!targetArtist) {
+        return true;
+      }
+
+      return normalizeText(artist) === targetArtist;
+    };
+
+    const matchedAlbum =
+      libraryAlbums.find((entry) => matchAlbum(entry.name, entry.artist)) ??
+      library.albums.find((entry) => matchAlbum(entry.name, entry.artist));
+    const albumEntry = matchedAlbum ?? {
+      name: albumName,
+      artist: artistName,
+      trackCount: 0,
+      cover: selectedTrackRefreshed.cover,
+      previewTrackId: selectedTrackRefreshed.id
+    };
+
+    navigateTo("library", "albums");
+    setActiveView("library");
+    setActiveLibrarySection("albums");
+    setPlaylistDetailId(null);
+    clearSelectedArtist();
+    clearSelectedArtistAlbum();
+    selectAlbum(albumEntry);
+  }, [
+    clearSelectedArtist,
+    clearSelectedArtistAlbum,
+    library.albums,
+    libraryAlbums,
+    selectAlbum,
+    selectedTrackRefreshed,
+    setActiveLibrarySection,
+    setActiveView,
+    setPlaylistDetailId
+  ]);
+
   async function handleLogout(): Promise<void> {
     await logout();
     setUser(null);
@@ -467,7 +565,9 @@ export function AuthenticatedApp({
           ? undefined
           : (queueTrack) => {
             requestTrackPlaybackWithStatus(queueTrack, refreshedQueue.length > 0 ? refreshedQueue : undefined);
-          }
+          },
+        onOpenTrackArtist: handleOpenCurrentTrackArtist,
+        onOpenTrackAlbum: handleOpenCurrentTrackAlbum
       }}
     />
   );
