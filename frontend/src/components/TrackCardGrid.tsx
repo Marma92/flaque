@@ -35,14 +35,14 @@ export function TrackCardGrid({
         return (
           <button
             key={track.id}
-            className="w-full rounded-xl border border-flaque-clay/60 bg-flaque-cream/50 p-2.5 text-left transition hover:bg-flaque-cream"
+            className="w-full rounded-xl bg-flaque-cream/50 p-2.5 text-left transition hover:bg-flaque-cream"
             type="button"
             onClick={() => onTrackSelect(track)}
             title={title}
           >
             <div className="flex items-start gap-3">
               <img
-                className="h-14 w-14 shrink-0 rounded-lg border border-flaque-clay/50 object-cover"
+                className="h-14 w-14 shrink-0 rounded-lg object-cover"
                 src={coverUrl(track.id, track.cover)}
                 alt={albumWithYear ? `Cover for ${albumWithYear}` : `Cover for ${title}`}
                 onError={(event) => {
