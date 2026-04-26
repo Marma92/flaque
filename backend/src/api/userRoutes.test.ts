@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { apiRequest, getBaseUrl, getDataRoot, login, setupTestServer, teardownTestServer } from "./testHelpers";
+import { apiRequest, fetchApi, getDataRoot, login, setupTestServer, teardownTestServer } from "./testHelpers";
 
 async function apiMultipartRequest(input: {
   pathname: string;
@@ -17,7 +17,7 @@ async function apiMultipartRequest(input: {
   const binary = Uint8Array.from(input.bytes);
   formData.append(input.fileFieldName, new Blob([binary.buffer as ArrayBuffer], { type: input.mimeType }), input.fileName);
 
-  const response = await fetch(`${getBaseUrl()}${input.pathname}`, {
+  const response = await fetchApi(input.pathname, {
     method: "POST",
     headers: {
       Cookie: input.cookie
@@ -401,7 +401,7 @@ describe("userRoutes", () => {
     const avatarFiles = profileEntries.filter((entry: string) => entry.startsWith("avatar."));
     expect(avatarFiles).toEqual(["avatar.webp"]);
 
-    const photoResponse = await fetch(`${getBaseUrl()}/api/users/me/photo`, {
+    const photoResponse = await fetchApi("/api/users/me/photo", {
       method: "GET",
       headers: {
         Cookie: userCookie

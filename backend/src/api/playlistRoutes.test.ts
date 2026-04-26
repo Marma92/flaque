@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { LibraryIndex, Playlist, Track } from "../types/library";
-import { apiRequest, getBaseUrl, getDataRoot, login, setupTestServer, teardownTestServer } from "./testHelpers";
+import { apiRequest, fetchApi, getDataRoot, login, setupTestServer, teardownTestServer } from "./testHelpers";
 
 function createTrack(id: string, relativePath: string): Track {
   return {
@@ -80,7 +80,7 @@ async function apiMultipartRequest(input: {
   const binary = Uint8Array.from(input.bytes);
   formData.append(input.fileFieldName, new Blob([binary.buffer as ArrayBuffer], { type: input.mimeType }), input.fileName);
 
-  const response = await fetch(`${getBaseUrl()}${input.pathname}`, {
+  const response = await fetchApi(input.pathname, {
     method: "POST",
     headers: { Cookie: input.cookie },
     body: formData

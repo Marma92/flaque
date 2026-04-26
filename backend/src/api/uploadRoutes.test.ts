@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   apiRequest,
-  getBaseUrl,
+  fetchApi,
   getDataRoot,
   login,
   setupTestServer,
@@ -25,7 +25,7 @@ async function postForm(
   if (cookie) {
     headers.Cookie = cookie;
   }
-  const response = await fetch(`${getBaseUrl()}${pathname}`, {
+  const response = await fetchApi(pathname, {
     method: "POST",
     headers,
     body: form
