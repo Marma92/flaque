@@ -198,7 +198,7 @@ export function AuthenticatedApp({
     requestTrackPlaybackWithStatus, handleReplayRecentTrack,
     handlePlayPlaylist, handlePlayAlbum, handleNavigateTrack
   } = usePlaybackCommands({
-    selectedTrackRefreshed, refreshedQueue, shuffleEnabled,
+    selectedTrackRefreshed, refreshedQueue, shuffleEnabled, setShuffleEnabled,
     allTracks: allTracksLibrary.tracks, filters, allTracksById,
     requestTrackPlayback, replayRecentTrack, setSelectedTrack,
     setPlayerStatusMessage, setLibraryError, setAppNotice
@@ -377,6 +377,7 @@ export function AuthenticatedApp({
           manageablePlaylists,
           ownerNameById,
           allTracksById,
+          artists: library.artists,
           user,
           onCreatePlaylist: handleCreatePlaylist,
           onPlayPlaylist: handlePlayPlaylist,
