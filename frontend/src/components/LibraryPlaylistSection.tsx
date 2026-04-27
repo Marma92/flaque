@@ -5,6 +5,7 @@ import { coverUrl, playlistCoverUrl } from "../api";
 import type { ArtistEntry, AutoPlaylistSummary, ForYouPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
 import { normalizeText } from "../utils/appUtils";
 import { getArtistPhotoSrc } from "../utils/covers";
+import { extractPrimaryArtist } from "../utils/tracks";
 
 export type LibraryPlaylistSectionProps = {
   availablePlaylists: Playlist[];
@@ -252,6 +253,7 @@ export function LibraryPlaylistSection({
     const map = new Map<string, ArtistEntry>();
     for (const entry of artists) {
       map.set(normalizeText(entry.name), entry);
+      map.set(normalizeText(extractPrimaryArtist(entry.name)), entry);
     }
     return map;
   }, [artists]);
@@ -369,7 +371,9 @@ export function LibraryPlaylistSection({
         ) : forYouPlaylists.length > 0 ? (
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {forYouPlaylists.map((fy) => {
-              const artistEntry = artistByNormalizedName.get(normalizeText(fy.seedArtist));
+              const artistEntry =
+                artistByNormalizedName.get(normalizeText(fy.seedArtist)) ??
+                artistByNormalizedName.get(normalizeText(extractPrimaryArtist(fy.seedArtist)));
               const artistPhoto = artistEntry ? getArtistPhotoSrc(artistEntry) : null;
               return (
                 <div

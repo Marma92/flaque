@@ -6,6 +6,7 @@ import type { ArtistEntry, ForYouPlaylistDetail, Playlist, Track } from "../type
 import { normalizeText } from "../utils/appUtils";
 import { getArtistPhotoSrc } from "../utils/covers";
 import { formatDurationCompact } from "../utils/format";
+import { extractPrimaryArtist } from "../utils/tracks";
 import { PlaylistTrackList } from "./PlaylistTrackList";
 
 export type ForYouPlaylistDetailViewProps = {
@@ -118,9 +119,13 @@ export function ForYouPlaylistDetailView({
     );
   }
 
-  const seedArtistEntry = artists.find(
-    (entry) => normalizeText(entry.name) === normalizeText(detail.seedArtist)
-  );
+  const seedArtistTarget = normalizeText(detail.seedArtist);
+  const seedArtistPrimary = normalizeText(extractPrimaryArtist(detail.seedArtist));
+  const seedArtistEntry = artists.find((entry) => {
+    const candidate = normalizeText(entry.name);
+    if (candidate === seedArtistTarget) return true;
+    return normalizeText(extractPrimaryArtist(entry.name)) === seedArtistPrimary;
+  });
   const seedArtistPhoto = seedArtistEntry ? getArtistPhotoSrc(seedArtistEntry) : null;
 
   return (
