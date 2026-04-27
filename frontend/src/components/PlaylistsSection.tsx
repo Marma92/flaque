@@ -1,4 +1,4 @@
-import type { AutoPlaylistSummary, ForYouPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
+import type { ArtistEntry, AutoPlaylistSummary, ForYouPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
 import { AutoPlaylistDetailView } from "./AutoPlaylistDetailView";
 import { ForYouPlaylistDetailView } from "./ForYouPlaylistDetailView";
 import { LibraryPlaylistSection } from "./LibraryPlaylistSection";
@@ -11,6 +11,7 @@ export type PlaylistsSectionProps = {
   manageablePlaylists: Playlist[];
   ownerNameById: Record<string, string>;
   allTracksById: Map<string, Track>;
+  artists: ArtistEntry[];
   user: User;
   onCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility; description?: string }) => Promise<void>;
   onPlayPlaylist: (playlist: Playlist) => void;
@@ -33,6 +34,7 @@ export function PlaylistsSection({
   manageablePlaylists,
   ownerNameById,
   allTracksById,
+  artists,
   user,
   onCreatePlaylist,
   onPlayPlaylist,
@@ -52,6 +54,7 @@ export function PlaylistsSection({
       <ForYouPlaylistDetailView
         playlistId={playlistDetailId}
         allTracksById={allTracksById}
+        artists={artists}
         onBack={() => onPlaylistDetailNavigate(null)}
         onPlayTrack={onPlayPlaylist}
         onDismiss={onDismissForYouPlaylist}
@@ -96,6 +99,7 @@ export function PlaylistsSection({
       manageablePlaylists={manageablePlaylists}
       ownerNameById={ownerNameById}
       allTracksById={allTracksById}
+      artists={artists}
       user={user}
       onCreatePlaylist={onCreatePlaylist}
       onPlayPlaylist={onPlayPlaylist}

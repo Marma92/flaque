@@ -769,8 +769,12 @@ export function PlaylistDetailView({
                     className="flex items-center gap-1.5 rounded-xl border border-flaque-clay px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream"
                     onClick={handleShufflePlay}
                   >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h4l3 9 3-9h4M4 20h4l3-9 3 9h4" />
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path d="M16 3h5v5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M4 20l8-8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M21 3l-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M4 4l6 6" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M15 16l2 2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                     Shuffle
                   </button>

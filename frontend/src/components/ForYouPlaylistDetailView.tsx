@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { coverUrl, getForYouPlaylistDetail } from "../api";
-import type { ForYouPlaylistDetail, Playlist, Track } from "../types";
+import type { ArtistEntry, ForYouPlaylistDetail, Playlist, Track } from "../types";
+import { normalizeText } from "../utils/appUtils";
+import { getArtistPhotoSrc } from "../utils/covers";
 import { getTrackDisplayArtist, getTrackDisplayTitle } from "../utils/tracks";
 
 export type ForYouPlaylistDetailViewProps = {
   playlistId: string;
   allTracksById: Map<string, Track>;
+  artists: ArtistEntry[];
   onBack: () => void;
   onPlayTrack: (playlist: Playlist) => void;
   onDismiss: (playlistId: string) => Promise<void>;
@@ -24,6 +27,7 @@ function formatDuration(seconds: number): string {
 export function ForYouPlaylistDetailView({
   playlistId,
   allTracksById,
+  artists,
   onBack,
   onPlayTrack,
   onDismiss
@@ -93,6 +97,27 @@ export function ForYouPlaylistDetailView({
     onPlayTrack(fakePlaylist);
   }
 
+  function handlePlayFromTrack(track: Track): void {
+    if (!detail || tracks.length === 0) return;
+    const idx = tracks.indexOf(track);
+    if (idx < 0) return;
+    const reordered = [...tracks.slice(idx), ...tracks.slice(0, idx)];
+    const fakePlaylist: Playlist = {
+      id: detail.id,
+      name: detail.name,
+      authorId: "system",
+      visibility: "public",
+      trackIds: reordered.map((t) => t.id),
+      description: "",
+      cover: null,
+      hearts: [],
+      heartCount: 0,
+      listenCount: 0,
+      collaborators: []
+    };
+    onPlayTrack(fakePlaylist);
+  }
+
   async function handleDismiss(): Promise<void> {
     if (!detail || dismissing) return;
     setDismissing(true);
@@ -135,23 +160,36 @@ export function ForYouPlaylistDetailView({
     );
   }
 
+  const seedArtistEntry = artists.find(
+    (entry) => normalizeText(entry.name) === normalizeText(detail.seedArtist)
+  );
+  const seedArtistPhoto = seedArtistEntry ? getArtistPhotoSrc(seedArtistEntry) : null;
+
   return (
     <section className="m-4 space-y-4">
       {backButton}
 
       {/* Header card */}
-      <div className="rounded-2xl border border-flaque-clay/60 bg-gradient-to-br from-indigo-50/80 to-purple-50/60 p-5 shadow-panel backdrop-blur-sm">
+      <div className="rounded-2xl p-5">
         <div className="flex flex-col gap-5 sm:flex-row">
            {/* Seed artist visual */}
-           <div className="relative h-48 w-48 shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-100/80 to-purple-100/60 sm:self-start">
-             <div className="text-center px-3">
-               <svg className="mx-auto h-8 w-8 text-indigo-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+           <div className="group relative h-48 w-48 shrink-0 self-center overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-100/80 to-purple-100/60 sm:self-start">
+             {seedArtistPhoto ? (
+               <img
+                 src={seedArtistPhoto}
+                 alt={detail.seedArtist}
+                 className="absolute inset-0 h-full w-full object-cover"
+                 loading="lazy"
+               />
+             ) : null}
+             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 px-3 text-center">
+               <svg className="h-8 w-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                   d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                   d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                </svg>
-               <p className="mt-2 font-display text-lg font-bold text-flaque-ink/70 leading-tight">{detail.seedArtist}</p>
+               <p className="mt-2 font-display text-lg font-bold leading-tight text-white drop-shadow">{detail.seedArtist}</p>
              </div>
-             
+
              {/* Play button overlay */}
              <button
                type="button"
@@ -159,7 +197,7 @@ export function ForYouPlaylistDetailView({
                onClick={handlePlayAll}
                aria-label={`Play ${detail.name}`}
              >
-               <svg className="h-10 w-10 text-[#ffffff] drop-shadow-md" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+               <svg className="h-12 w-12 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
                  <path d="M8 6v12l10-6-10-6z" />
                </svg>
              </button>
@@ -196,8 +234,12 @@ export function ForYouPlaylistDetailView({
                 className="flex items-center gap-1.5 rounded-xl border border-flaque-clay px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream"
                 onClick={handleShufflePlay}
               >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h4l3 9 3-9h4M4 20h4l3-9 3 9h4" />
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M16 3h5v5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M4 20l8-8" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M21 3l-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M4 4l6 6" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M15 16l2 2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 Shuffle
               </button>
@@ -227,7 +269,11 @@ export function ForYouPlaylistDetailView({
             {tracks.map((track, index) => (
               <li
                 key={track.id}
-                className="flex items-center gap-3 border-b border-flaque-clay/20 px-4 py-2.5 last:border-b-0 transition hover:bg-flaque-cream/30"
+                className="flex cursor-pointer items-center gap-3 border-b border-flaque-clay/20 px-4 py-2.5 last:border-b-0 transition hover:bg-flaque-cream/30"
+                role="button"
+                tabIndex={0}
+                onClick={() => handlePlayFromTrack(track)}
+                onKeyDown={(e) => { if (e.key === "Enter") handlePlayFromTrack(track); }}
               >
                 <span className="w-6 shrink-0 text-right text-xs text-flaque-steel/50">{index + 1}</span>
                 <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg">
