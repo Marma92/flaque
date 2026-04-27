@@ -377,7 +377,7 @@ export function AuthenticatedApp({
           manageablePlaylists,
           ownerNameById,
           allTracksById,
-          artists: libraryArtists,
+          artists: library.artists,
           user,
           onCreatePlaylist: handleCreatePlaylist,
           onPlayPlaylist: handlePlayPlaylist,
