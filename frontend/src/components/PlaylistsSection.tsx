@@ -14,7 +14,7 @@ export type PlaylistsSectionProps = {
   artists: ArtistEntry[];
   user: User;
   onCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility; description?: string }) => Promise<void>;
-  onPlayPlaylist: (playlist: Playlist) => void;
+  onPlayPlaylist: (playlist: Playlist, options?: { shuffle?: boolean }) => void;
   onPatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<Playlist>;
   onDeletePlaylist: (playlistId: string) => Promise<void>;
   onHeartPlaylist: (playlistId: string) => Promise<{ hearted: boolean; heartCount: number }>;

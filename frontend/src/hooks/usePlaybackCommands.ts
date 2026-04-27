@@ -10,6 +10,7 @@ type UsePlaybackCommandsArgs = {
   selectedTrackRefreshed: Track | null;
   refreshedQueue: Track[];
   shuffleEnabled: boolean;
+  setShuffleEnabled: Dispatch<SetStateAction<boolean>>;
   allTracks: Track[];
   filters: LibraryFilters;
   allTracksById: Map<string, Track>;
@@ -21,10 +22,14 @@ type UsePlaybackCommandsArgs = {
   setAppNotice: Dispatch<SetStateAction<AppNotice | null>>;
 };
 
+export type PlayPlaylistOptions = {
+  shuffle?: boolean;
+};
+
 type UsePlaybackCommandsResult = {
   requestTrackPlaybackWithStatus: (track: Track, queueSource?: Track[]) => void;
   handleReplayRecentTrack: (track: Track) => void;
-  handlePlayPlaylist: (playlist: Playlist) => void;
+  handlePlayPlaylist: (playlist: Playlist, options?: PlayPlaylistOptions) => void;
   handlePlayAlbum: (album: AlbumEntry) => void;
   handleNavigateTrack: (direction: "next" | "previous", wrap?: boolean) => Promise<void>;
 };
@@ -36,6 +41,7 @@ export function usePlaybackCommands({
   selectedTrackRefreshed,
   refreshedQueue,
   shuffleEnabled,
+  setShuffleEnabled,
   allTracks,
   filters,
   allTracksById,
@@ -56,7 +62,7 @@ export function usePlaybackCommands({
     replayRecentTrack(track);
   }, [replayRecentTrack, setPlayerStatusMessage]);
 
-  const handlePlayPlaylist = useCallback((playlist: Playlist): void => {
+  const handlePlayPlaylist = useCallback((playlist: Playlist, options?: PlayPlaylistOptions): void => {
     const playlistTracks = playlist.trackIds
       .map((trackId) => allTracksById.get(trackId))
       .filter((track): track is Track => Boolean(track));
@@ -67,8 +73,16 @@ export function usePlaybackCommands({
     }
 
     setLibraryError(null);
+
+    if (options?.shuffle) {
+      setShuffleEnabled(true);
+      const startIndex = Math.floor(Math.random() * playlistTracks.length);
+      requestTrackPlaybackWithStatus(playlistTracks[startIndex], playlistTracks);
+      return;
+    }
+
     requestTrackPlaybackWithStatus(playlistTracks[0], playlistTracks);
-  }, [allTracksById, requestTrackPlaybackWithStatus, setLibraryError]);
+  }, [allTracksById, requestTrackPlaybackWithStatus, setLibraryError, setShuffleEnabled]);
 
   const handlePlayAlbum = useCallback(async (album: AlbumEntry): Promise<void> => {
     try {

@@ -19,8 +19,11 @@ import { CSS } from "@dnd-kit/utilities";
 
 import defaultCoverImage from "../assets/default-cover.png";
 import { coverUrl, deletePlaylistCover, getUsers, playlistCoverUrl, uploadPlaylistCover } from "../api";
+import { usePlaylistDetailPlayback } from "../hooks/usePlaylistDetailPlayback";
 import type { Playlist, PlaylistVisibility, Track, User } from "../types";
+import { formatDurationCompact } from "../utils/format";
 import { getTrackDisplayArtist, getTrackDisplayTitle } from "../utils/tracks";
+import { PlaylistTrackList } from "./PlaylistTrackList";
 
 export type PlaylistDetailViewProps = {
   playlistId: string;
@@ -30,7 +33,7 @@ export type PlaylistDetailViewProps = {
   ownerNameById: Record<string, string>;
   user: User;
   onBack: () => void;
-  onPlay: (playlist: Playlist) => void;
+  onPlay: (playlist: Playlist, options?: { shuffle?: boolean }) => void;
   onPlayTrack?: (track: Track, queueSource: Track[]) => void;
   onPatch: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<Playlist>;
   onNavigate: (playlistId: string) => void;
@@ -40,15 +43,6 @@ export type PlaylistDetailViewProps = {
 };
 
 // ── Helpers ────────────────────────────────────────────────────────
-
-function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
-}
 
 function getPlaylistMosaicTracks(trackIds: string[], allTracksById: Map<string, Track>): Track[] {
   const seen = new Set<string>();
@@ -382,40 +376,32 @@ export function PlaylistDetailView({
     );
   }
 
+  const playback = usePlaylistDetailPlayback({
+    playlist: playlist ?? null,
+    tracks,
+    onPlay,
+    onPlayTrack
+  });
+
+  function reportListenOnce(): void {
+    if (!playlist || listenReportedRef.current) return;
+    listenReportedRef.current = true;
+    void onReportListen(playlist.id);
+  }
+
   function handlePlayAll(): void {
-    if (!playlist) return;
-    if (!listenReportedRef.current) {
-      listenReportedRef.current = true;
-      void onReportListen(playlist.id);
-    }
-    onPlay(playlist);
+    reportListenOnce();
+    playback.handlePlayAll();
   }
 
   function handlePlayTrack(track: Track): void {
-    if (!playlist) return;
-    if (!listenReportedRef.current) {
-      listenReportedRef.current = true;
-      void onReportListen(playlist.id);
-    }
-    if (onPlayTrack) {
-      onPlayTrack(track, tracks);
-    } else {
-      const idx = tracks.indexOf(track);
-      const reordered = [...tracks.slice(idx), ...tracks.slice(0, idx)];
-      const syntheticPlaylist: Playlist = { ...playlist, trackIds: reordered.map((t) => t.id) };
-      onPlay(syntheticPlaylist);
-    }
+    reportListenOnce();
+    playback.handlePlayFromTrack(track);
   }
 
   function handleShufflePlay(): void {
-    if (!playlist || tracks.length === 0) return;
-    if (!listenReportedRef.current) {
-      listenReportedRef.current = true;
-      void onReportListen(playlist.id);
-    }
-    const shuffled = [...tracks].sort(() => Math.random() - 0.5);
-    const shuffledPlaylist: Playlist = { ...playlist, trackIds: shuffled.map((t) => t.id) };
-    onPlay(shuffledPlaylist);
+    reportListenOnce();
+    playback.handleShufflePlay();
   }
 
   async function handleHeart(): Promise<void> {
@@ -608,7 +594,7 @@ export function PlaylistDetailView({
             {/* Stats line */}
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-flaque-steel">
               <span>{(editing ? editTrackIds : playlist.trackIds).length} track{(editing ? editTrackIds : playlist.trackIds).length !== 1 ? "s" : ""}</span>
-              {totalDuration > 0 && !editing ? <span>{formatDuration(totalDuration)}</span> : null}
+              {totalDuration > 0 && !editing ? <span>{formatDurationCompact(totalDuration)}</span> : null}
               {!editing && playlist.listenCount > 0 ? (
                 <span className="flex items-center gap-0.5">
                   <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -844,52 +830,7 @@ export function PlaylistDetailView({
           )}
         </div>
       ) : (
-        <div className="rounded-2xl border border-flaque-clay/60 bg-white/85 shadow-panel backdrop-blur-sm">
-          {tracks.length === 0 ? (
-            <p className="px-5 py-4 text-sm text-flaque-steel">No playable tracks.</p>
-          ) : (
-            <ul>
-              {tracks.map((track, index) => (
-                <li
-                  key={track.id}
-                  className="flex cursor-pointer items-center gap-3 border-b border-flaque-clay/20 px-4 py-2.5 last:border-b-0 transition hover:bg-flaque-cream/30"
-                  onClick={() => handlePlayTrack(track)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === "Enter") handlePlayTrack(track); }}
-                >
-                  <span className="w-6 shrink-0 text-right text-xs text-flaque-steel/50">{index + 1}</span>
-                  <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg">
-                    <img
-                      src={coverUrl(track.id)}
-                      alt=""
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                      onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-1 truncate text-sm font-medium text-flaque-ink">
-                      {track.tags.extra?.lyrics ? (
-                        <span className="shrink-0 rounded px-1 py-px font-mono text-[9px] font-bold leading-none text-flaque-steel/70 ring-1 ring-flaque-clay/60">
-                          L
-                        </span>
-                      ) : null}
-                      <span className="truncate">{getTrackDisplayTitle(track)}</span>
-                    </p>
-                    <p className="truncate text-xs text-flaque-steel">
-                      {getTrackDisplayArtist(track) ?? "Unknown artist"}
-                      {track.tags.album ? ` \u00b7 ${track.tags.album}` : ""}
-                    </p>
-                  </div>
-                  <span className="shrink-0 font-mono text-[11px] text-flaque-steel/60">
-                    {formatDuration(track.duration)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <PlaylistTrackList tracks={tracks} onTrackPlay={handlePlayTrack} />
       )}
     </section>
   );

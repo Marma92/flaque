@@ -198,7 +198,7 @@ export function AuthenticatedApp({
     requestTrackPlaybackWithStatus, handleReplayRecentTrack,
     handlePlayPlaylist, handlePlayAlbum, handleNavigateTrack
   } = usePlaybackCommands({
-    selectedTrackRefreshed, refreshedQueue, shuffleEnabled,
+    selectedTrackRefreshed, refreshedQueue, shuffleEnabled, setShuffleEnabled,
     allTracks: allTracksLibrary.tracks, filters, allTracksById,
     requestTrackPlayback, replayRecentTrack, setSelectedTrack,
     setPlayerStatusMessage, setLibraryError, setAppNotice
