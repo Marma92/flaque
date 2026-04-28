@@ -149,6 +149,18 @@ function extractLyricsFromExtra(extra: Record<string, TrackTagExtraValue> | unde
   return undefined;
 }
 
+const ARTIST_SEPARATOR_PATTERN = /\s*;\s*|\s+feat\.\s+|\s+ft\.\s+/i;
+
+/**
+ * Strip collaboration markers ("; ", " feat. ", " ft. ") and return the
+ * primary artist name. Mirrors the backend's extractPrimaryArtist so we can
+ * cross-match playlist seed artists against the library artist index.
+ */
+export function extractPrimaryArtist(name: string): string {
+  const primary = name.split(ARTIST_SEPARATOR_PATTERN)[0]?.trim();
+  return primary || name;
+}
+
 export function getTrackDisplayArtist(track: Pick<Track, "tags">): string | undefined {
   const directArtist = normalizeTagText(track.tags.artist);
   if (directArtist) {
