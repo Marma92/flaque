@@ -36,8 +36,10 @@ import {
   updatePlaylistCover
 } from "../services/playlists/playlistStore";
 import { listUsers } from "../auth/db";
+import { resolveArtistPhotoPath } from "../services/library/libraryMediaResolver";
 import type { Playlist, PlaylistVisibility, Track } from "../types/library";
 import { AppError } from "../utils/AppError";
+import { extractPrimaryArtist } from "../utils/music";
 import { loadPlaylist, resolveTrackIds } from "../middleware/playlist";
 
 const log = createLogger("playlist");
@@ -147,6 +149,32 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
   });
 
   // ===== FOR-YOU PLAYLISTS =====
+
+  /**
+   * Find any track from the playlist that is by the seed artist (raw or
+   * primary form match), then resolve the artist photo via the same
+   * artist.json lookup used by the artists view. Returns a path relative
+   * to the data dir, suitable for /api/covers/from-path.
+   */
+  async function resolveSeedArtistPhoto(
+    seedArtist: string,
+    trackIds: string[],
+    cache: Map<string, string | undefined>
+  ): Promise<string | undefined> {
+    const seedPrimary = extractPrimaryArtist(seedArtist).toLowerCase();
+    for (const trackId of trackIds) {
+      const track = indexStore.getTrackById(trackId);
+      if (!track) continue;
+      const raw = track.tags.artist?.trim() ?? "";
+      if (!raw) continue;
+      if (raw !== seedArtist && extractPrimaryArtist(raw).toLowerCase() !== seedPrimary) {
+        continue;
+      }
+      return await resolveArtistPhotoPath(track, cache);
+    }
+    return undefined;
+  }
+
   // GET /playlists/for-you
   router.get("/for-you", requireAuth, async (req, res, next) => {
     try {
@@ -159,16 +187,19 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
       const dismissals = await getUserDismissals(userId);
 
       const visible = playlists.filter((p) => !dismissals.has(p.id));
-
-      res.json({
-        playlists: visible.map((p) => ({
+      const photoCache = new Map<string, string | undefined>();
+      const summaries = await Promise.all(
+        visible.map(async (p) => ({
           id: p.id,
           name: p.name,
           seedArtist: p.seedArtist,
+          seedArtistPhoto: await resolveSeedArtistPhoto(p.seedArtist, p.trackIds, photoCache),
           trackCount: p.trackCount,
           generatedAt: p.generatedAt
         }))
-      });
+      );
+
+      res.json({ playlists: summaries });
     } catch (error) {
       next(error);
     }
@@ -196,7 +227,10 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
         .map((trackId) => indexStore.getTrackById(trackId))
         .filter((t) => t !== undefined);
 
-      res.json({ playlist, tracks });
+      const photoCache = new Map<string, string | undefined>();
+      const seedArtistPhoto = await resolveSeedArtistPhoto(playlist.seedArtist, playlist.trackIds, photoCache);
+
+      res.json({ playlist: { ...playlist, seedArtistPhoto }, tracks });
     } catch (error) {
       next(error);
     }

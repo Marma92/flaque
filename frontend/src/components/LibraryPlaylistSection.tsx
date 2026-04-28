@@ -1,7 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 
 import defaultCoverImage from "../assets/default-cover.png";
-import { coverUrl, playlistCoverUrl } from "../api";
+import { coverPathUrl, coverUrl, playlistCoverUrl } from "../api";
 import type { ArtistEntry, AutoPlaylistSummary, ForYouPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
 import { normalizeText } from "../utils/appUtils";
 import { getArtistPhotoSrc } from "../utils/covers";
@@ -394,11 +394,16 @@ export function LibraryPlaylistSection({
               const fallbackTrackId =
                 previewTrackIdBySeedArtist.get(normalizeText(fy.seedArtist)) ??
                 previewTrackIdBySeedArtist.get(normalizeText(extractPrimaryArtist(fy.seedArtist)));
-              const artistPhotoCandidate = artistEntry?.photo
-                ? getArtistPhotoSrc(artistEntry)
-                : null;
+              // Prefer the backend-resolved artist photo (same lookup the
+              // artists view uses), fall back to a matched artist entry's
+              // photo, and finally to an album cover from a seed-artist track.
+              const artistPhotoUrl = fy.seedArtistPhoto
+                ? coverPathUrl(fy.seedArtistPhoto)
+                : artistEntry?.photo
+                  ? getArtistPhotoSrc(artistEntry)
+                  : null;
               const fallbackCoverUrl = fallbackTrackId ? coverUrl(fallbackTrackId) : null;
-              const coverImageUrl = artistPhotoCandidate ?? fallbackCoverUrl;
+              const coverImageUrl = artistPhotoUrl ?? fallbackCoverUrl;
               return (
                 <div
                   key={fy.id}

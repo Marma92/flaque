@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { coverUrl, getForYouPlaylistDetail } from "../api";
+import { coverPathUrl, coverUrl, getForYouPlaylistDetail } from "../api";
 import { usePlaylistDetailPlayback } from "../hooks/usePlaylistDetailPlayback";
 import type { ArtistEntry, ForYouPlaylistDetail, Playlist, Track } from "../types";
 import { normalizeText } from "../utils/appUtils";
@@ -126,10 +126,15 @@ export function ForYouPlaylistDetailView({
     if (candidate === seedArtistTarget) return true;
     return normalizeText(extractPrimaryArtist(entry.name)) === seedArtistPrimary;
   });
-  // Prefer the dedicated artist photo. Fall back to any track from the
-  // playlist (or by the seed artist) so the header isn't a blank gradient
-  // when artist metadata is missing.
-  const seedArtistPhoto = seedArtistEntry?.photo ? getArtistPhotoSrc(seedArtistEntry) : null;
+  // Prefer the backend-resolved artist photo (same lookup the artists view
+  // uses). Fall back to a matched libraryArtists entry's photo, then to an
+  // album cover from a seed-artist track so the header isn't a blank
+  // gradient when artist metadata is missing.
+  const seedArtistPhoto = detail.seedArtistPhoto
+    ? coverPathUrl(detail.seedArtistPhoto)
+    : seedArtistEntry?.photo
+      ? getArtistPhotoSrc(seedArtistEntry)
+      : null;
   const fallbackCoverTrackId =
     tracks.find((t) => {
       const raw = t.tags.artist;

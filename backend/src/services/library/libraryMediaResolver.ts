@@ -32,7 +32,7 @@ export type ResolvedAlbumMetadata = {
 import { getTrackArtistName } from "../../utils/music";
 export { getTrackArtistName };
 
-async function resolveArtistPhotoPath(
+export async function resolveArtistPhotoPath(
   track: Track,
   cache: Map<string, string | undefined>
 ): Promise<string | undefined> {

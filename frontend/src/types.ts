@@ -127,6 +127,8 @@ export type ForYouPlaylistSummary = {
   id: string;
   name: string;
   seedArtist: string;
+  /** Relative path under the data dir; serve via /api/covers/from-path. */
+  seedArtistPhoto?: string;
   trackCount: number;
   generatedAt: string;
 };
