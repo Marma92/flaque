@@ -258,6 +258,23 @@ export function LibraryPlaylistSection({
     return map;
   }, [artists]);
 
+  // Fallback when artist photo metadata is missing or the seed-artist name
+  // doesn't match an entry: pick any track tagged with that artist and use
+  // its album cover. Keyed by both the raw and the primary-artist forms so
+  // we cover collab-marker tags ("A; B", "A feat. B").
+  const previewTrackIdBySeedArtist = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const track of allTracksById.values()) {
+      const raw = track.tags.artist;
+      if (!raw) continue;
+      const rawKey = normalizeText(raw);
+      if (!map.has(rawKey)) map.set(rawKey, track.id);
+      const primaryKey = normalizeText(extractPrimaryArtist(raw));
+      if (primaryKey && !map.has(primaryKey)) map.set(primaryKey, track.id);
+    }
+    return map;
+  }, [allTracksById]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (submitting) return;
@@ -374,7 +391,14 @@ export function LibraryPlaylistSection({
               const artistEntry =
                 artistByNormalizedName.get(normalizeText(fy.seedArtist)) ??
                 artistByNormalizedName.get(normalizeText(extractPrimaryArtist(fy.seedArtist)));
-              const artistPhoto = artistEntry ? getArtistPhotoSrc(artistEntry) : null;
+              const fallbackTrackId =
+                previewTrackIdBySeedArtist.get(normalizeText(fy.seedArtist)) ??
+                previewTrackIdBySeedArtist.get(normalizeText(extractPrimaryArtist(fy.seedArtist)));
+              const artistPhotoCandidate = artistEntry?.photo
+                ? getArtistPhotoSrc(artistEntry)
+                : null;
+              const fallbackCoverUrl = fallbackTrackId ? coverUrl(fallbackTrackId) : null;
+              const coverImageUrl = artistPhotoCandidate ?? fallbackCoverUrl;
               return (
                 <div
                   key={fy.id}
@@ -385,12 +409,19 @@ export function LibraryPlaylistSection({
                   onKeyDown={(e) => { if (e.key === "Enter") onNavigateToPlaylist(fy.id); }}
                 >
                   <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-indigo-100/60 to-purple-100/40">
-                    {artistPhoto ? (
+                    {coverImageUrl ? (
                       <img
-                        src={artistPhoto}
+                        src={coverImageUrl}
                         alt={fy.seedArtist}
                         className="absolute inset-0 h-full w-full object-cover"
                         loading="lazy"
+                        onError={(e) => {
+                          if (fallbackCoverUrl && e.currentTarget.src !== fallbackCoverUrl) {
+                            e.currentTarget.src = fallbackCoverUrl;
+                          } else {
+                            e.currentTarget.style.display = "none";
+                          }
+                        }}
                       />
                     ) : null}
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 px-3 text-center">

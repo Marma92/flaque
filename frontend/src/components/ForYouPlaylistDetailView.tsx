@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { getForYouPlaylistDetail } from "../api";
+import { coverUrl, getForYouPlaylistDetail } from "../api";
 import { usePlaylistDetailPlayback } from "../hooks/usePlaylistDetailPlayback";
 import type { ArtistEntry, ForYouPlaylistDetail, Playlist, Track } from "../types";
 import { normalizeText } from "../utils/appUtils";
@@ -126,7 +126,20 @@ export function ForYouPlaylistDetailView({
     if (candidate === seedArtistTarget) return true;
     return normalizeText(extractPrimaryArtist(entry.name)) === seedArtistPrimary;
   });
-  const seedArtistPhoto = seedArtistEntry ? getArtistPhotoSrc(seedArtistEntry) : null;
+  // Prefer the dedicated artist photo. Fall back to any track from the
+  // playlist (or by the seed artist) so the header isn't a blank gradient
+  // when artist metadata is missing.
+  const seedArtistPhoto = seedArtistEntry?.photo ? getArtistPhotoSrc(seedArtistEntry) : null;
+  const fallbackCoverTrackId =
+    tracks.find((t) => {
+      const raw = t.tags.artist;
+      if (!raw) return false;
+      const rawNorm = normalizeText(raw);
+      if (rawNorm === seedArtistTarget) return true;
+      return normalizeText(extractPrimaryArtist(raw)) === seedArtistPrimary;
+    })?.id ?? tracks[0]?.id;
+  const fallbackCoverUrl = fallbackCoverTrackId ? coverUrl(fallbackCoverTrackId) : null;
+  const headerCoverUrl = seedArtistPhoto ?? fallbackCoverUrl;
 
   return (
     <section className="m-4 space-y-4">
@@ -137,12 +150,19 @@ export function ForYouPlaylistDetailView({
         <div className="flex flex-col gap-5 sm:flex-row">
            {/* Seed artist visual */}
            <div className="group relative h-48 w-48 shrink-0 self-center overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-100/80 to-purple-100/60 sm:self-start">
-             {seedArtistPhoto ? (
+             {headerCoverUrl ? (
                <img
-                 src={seedArtistPhoto}
+                 src={headerCoverUrl}
                  alt={detail.seedArtist}
                  className="absolute inset-0 h-full w-full object-cover"
                  loading="lazy"
+                 onError={(e) => {
+                   if (fallbackCoverUrl && e.currentTarget.src !== fallbackCoverUrl) {
+                     e.currentTarget.src = fallbackCoverUrl;
+                   } else {
+                     e.currentTarget.style.display = "none";
+                   }
+                 }}
                />
              ) : null}
              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 px-3 text-center">
