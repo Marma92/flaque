@@ -185,7 +185,7 @@ export function useLibraryData({
   }, [filters, user]);
 
   useEffect(() => {
-    if (!user || activeView !== "library") {
+    if (!user || activeView !== "library" || activeLibrarySection !== "artists") {
       return;
     }
 
@@ -215,7 +215,7 @@ export function useLibraryData({
           setLoadingLibraryArtists(false);
         }
       });
-  }, [activeView, user]);
+  }, [activeLibrarySection, activeView, user]);
 
   useEffect(() => {
     if (activeLibrarySection !== "artists") {

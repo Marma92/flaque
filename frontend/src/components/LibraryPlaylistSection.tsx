@@ -1,18 +1,14 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 
 import defaultCoverImage from "../assets/default-cover.png";
 import { coverPathUrl, coverUrl, playlistCoverUrl } from "../api";
-import type { ArtistEntry, AutoPlaylistSummary, ForYouPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
-import { normalizeText } from "../utils/appUtils";
-import { getArtistPhotoSrc } from "../utils/covers";
-import { extractPrimaryArtist } from "../utils/tracks";
+import type { AutoPlaylistSummary, ForYouPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
 
 export type LibraryPlaylistSectionProps = {
   availablePlaylists: Playlist[];
   manageablePlaylists: Playlist[];
   ownerNameById: Record<string, string>;
   allTracksById: Map<string, Track>;
-  artists: ArtistEntry[];
   user: User;
   onCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility; description?: string }) => Promise<void>;
   onPlayPlaylist: (playlist: Playlist, options?: { shuffle?: boolean }) => void;
@@ -222,7 +218,6 @@ export function LibraryPlaylistSection({
   manageablePlaylists,
   ownerNameById,
   allTracksById,
-  artists,
   user,
   onCreatePlaylist,
   onPlayPlaylist,
@@ -248,32 +243,6 @@ export function LibraryPlaylistSection({
   const popularPlaylists = availablePlaylists
     .filter((p) => p.visibility === "public" && p.authorId !== user.id)
     .sort((a, b) => b.heartCount - a.heartCount || b.listenCount - a.listenCount);
-
-  const artistByNormalizedName = useMemo(() => {
-    const map = new Map<string, ArtistEntry>();
-    for (const entry of artists) {
-      map.set(normalizeText(entry.name), entry);
-      map.set(normalizeText(extractPrimaryArtist(entry.name)), entry);
-    }
-    return map;
-  }, [artists]);
-
-  // Fallback when artist photo metadata is missing or the seed-artist name
-  // doesn't match an entry: pick any track tagged with that artist and use
-  // its album cover. Keyed by both the raw and the primary-artist forms so
-  // we cover collab-marker tags ("A; B", "A feat. B").
-  const previewTrackIdBySeedArtist = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const track of allTracksById.values()) {
-      const raw = track.tags.artist;
-      if (!raw) continue;
-      const rawKey = normalizeText(raw);
-      if (!map.has(rawKey)) map.set(rawKey, track.id);
-      const primaryKey = normalizeText(extractPrimaryArtist(raw));
-      if (primaryKey && !map.has(primaryKey)) map.set(primaryKey, track.id);
-    }
-    return map;
-  }, [allTracksById]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -388,22 +357,7 @@ export function LibraryPlaylistSection({
         ) : forYouPlaylists.length > 0 ? (
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {forYouPlaylists.map((fy) => {
-              const artistEntry =
-                artistByNormalizedName.get(normalizeText(fy.seedArtist)) ??
-                artistByNormalizedName.get(normalizeText(extractPrimaryArtist(fy.seedArtist)));
-              const fallbackTrackId =
-                previewTrackIdBySeedArtist.get(normalizeText(fy.seedArtist)) ??
-                previewTrackIdBySeedArtist.get(normalizeText(extractPrimaryArtist(fy.seedArtist)));
-              // Prefer the backend-resolved artist photo (same lookup the
-              // artists view uses), fall back to a matched artist entry's
-              // photo, and finally to an album cover from a seed-artist track.
-              const artistPhotoUrl = fy.seedArtistPhoto
-                ? coverPathUrl(fy.seedArtistPhoto)
-                : artistEntry?.photo
-                  ? getArtistPhotoSrc(artistEntry)
-                  : null;
-              const fallbackCoverUrl = fallbackTrackId ? coverUrl(fallbackTrackId) : null;
-              const coverImageUrl = artistPhotoUrl ?? fallbackCoverUrl;
+              const artistPhotoUrl = fy.seedArtistPhoto ? coverPathUrl(fy.seedArtistPhoto) : null;
               return (
                 <div
                   key={fy.id}
@@ -414,19 +368,12 @@ export function LibraryPlaylistSection({
                   onKeyDown={(e) => { if (e.key === "Enter") onNavigateToPlaylist(fy.id); }}
                 >
                   <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-indigo-100/60 to-purple-100/40">
-                    {coverImageUrl ? (
+                    {artistPhotoUrl ? (
                       <img
-                        src={coverImageUrl}
+                        src={artistPhotoUrl}
                         alt={fy.seedArtist}
                         className="absolute inset-0 h-full w-full object-cover"
                         loading="lazy"
-                        onError={(e) => {
-                          if (fallbackCoverUrl && e.currentTarget.src !== fallbackCoverUrl) {
-                            e.currentTarget.src = fallbackCoverUrl;
-                          } else {
-                            e.currentTarget.style.display = "none";
-                          }
-                        }}
                       />
                     ) : null}
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 px-3 text-center">

@@ -1,18 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { coverPathUrl, coverUrl, getForYouPlaylistDetail } from "../api";
+import { coverPathUrl, getForYouPlaylistDetail } from "../api";
 import { usePlaylistDetailPlayback } from "../hooks/usePlaylistDetailPlayback";
-import type { ArtistEntry, ForYouPlaylistDetail, Playlist, Track } from "../types";
-import { normalizeText } from "../utils/appUtils";
-import { getArtistPhotoSrc } from "../utils/covers";
+import type { ForYouPlaylistDetail, Playlist, Track } from "../types";
 import { formatDurationCompact } from "../utils/format";
-import { extractPrimaryArtist } from "../utils/tracks";
 import { PlaylistTrackList } from "./PlaylistTrackList";
 
 export type ForYouPlaylistDetailViewProps = {
   playlistId: string;
   allTracksById: Map<string, Track>;
-  artists: ArtistEntry[];
   onBack: () => void;
   onPlayTrack: (playlist: Playlist, options?: { shuffle?: boolean }) => void;
   onDismiss: (playlistId: string) => Promise<void>;
@@ -21,7 +17,6 @@ export type ForYouPlaylistDetailViewProps = {
 export function ForYouPlaylistDetailView({
   playlistId,
   allTracksById,
-  artists,
   onBack,
   onPlayTrack,
   onDismiss
@@ -119,32 +114,7 @@ export function ForYouPlaylistDetailView({
     );
   }
 
-  const seedArtistTarget = normalizeText(detail.seedArtist);
-  const seedArtistPrimary = normalizeText(extractPrimaryArtist(detail.seedArtist));
-  const seedArtistEntry = artists.find((entry) => {
-    const candidate = normalizeText(entry.name);
-    if (candidate === seedArtistTarget) return true;
-    return normalizeText(extractPrimaryArtist(entry.name)) === seedArtistPrimary;
-  });
-  // Prefer the backend-resolved artist photo (same lookup the artists view
-  // uses). Fall back to a matched libraryArtists entry's photo, then to an
-  // album cover from a seed-artist track so the header isn't a blank
-  // gradient when artist metadata is missing.
-  const seedArtistPhoto = detail.seedArtistPhoto
-    ? coverPathUrl(detail.seedArtistPhoto)
-    : seedArtistEntry?.photo
-      ? getArtistPhotoSrc(seedArtistEntry)
-      : null;
-  const fallbackCoverTrackId =
-    tracks.find((t) => {
-      const raw = t.tags.artist;
-      if (!raw) return false;
-      const rawNorm = normalizeText(raw);
-      if (rawNorm === seedArtistTarget) return true;
-      return normalizeText(extractPrimaryArtist(raw)) === seedArtistPrimary;
-    })?.id ?? tracks[0]?.id;
-  const fallbackCoverUrl = fallbackCoverTrackId ? coverUrl(fallbackCoverTrackId) : null;
-  const headerCoverUrl = seedArtistPhoto ?? fallbackCoverUrl;
+  const headerCoverUrl = detail.seedArtistPhoto ? coverPathUrl(detail.seedArtistPhoto) : null;
 
   return (
     <section className="m-4 space-y-4">
@@ -161,13 +131,6 @@ export function ForYouPlaylistDetailView({
                  alt={detail.seedArtist}
                  className="absolute inset-0 h-full w-full object-cover"
                  loading="lazy"
-                 onError={(e) => {
-                   if (fallbackCoverUrl && e.currentTarget.src !== fallbackCoverUrl) {
-                     e.currentTarget.src = fallbackCoverUrl;
-                   } else {
-                     e.currentTarget.style.display = "none";
-                   }
-                 }}
                />
              ) : null}
              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 px-3 text-center">

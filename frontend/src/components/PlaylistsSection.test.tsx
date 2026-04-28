@@ -43,7 +43,6 @@ function baseProps(overrides: Partial<PlaylistsSectionProps> = {}): PlaylistsSec
     manageablePlaylists: [],
     ownerNameById: {},
     allTracksById: new Map<string, Track>(),
-    artists: [],
     user: USER,
     onCreatePlaylist: vi.fn(),
     onPlayPlaylist: vi.fn(),
