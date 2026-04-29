@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 
 import defaultCoverImage from "../assets/default-cover.png";
-import { coverPathUrl, coverUrl, playlistCoverUrl } from "../api";
+import { coverPathUrl, coverUrl, getForYouPlaylistDetail, playlistCoverUrl } from "../api";
 import type { AutoPlaylistSummary, ForYouPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
 
 export type LibraryPlaylistSectionProps = {
@@ -103,14 +103,14 @@ function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPl
 
   return (
     <div
-      className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/85 shadow-sm transition hover:shadow-md"
+      className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-white/85 shadow-sm transition hover:shadow-lg"
       onClick={onNavigate}
       role="link"
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === "Enter") onNavigate(); }}
     >
       {/* Cover */}
-      <div className="relative aspect-square w-full overflow-hidden">
+      <div className="group/cover relative aspect-square w-full overflow-hidden">
         {playlist.cover ? (
           <img src={playlistCoverUrl(playlist.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
         ) : (
@@ -121,7 +121,7 @@ function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPl
         {onPlay ? (
           <button
             type="button"
-            className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
+            className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/cover:bg-black/35 group-hover/cover:opacity-100"
             onClick={(e) => { e.stopPropagation(); onPlay(); }}
             aria-label={`Play ${playlist.name}`}
           >
@@ -270,6 +270,28 @@ export function LibraryPlaylistSection({
     onPlayPlaylist(playlist);
   }
 
+  async function handlePlayForYou(fy: ForYouPlaylistSummary): Promise<void> {
+    try {
+      const result = await getForYouPlaylistDetail(fy.id);
+      const synthetic: Playlist = {
+        id: result.playlist.id,
+        name: result.playlist.name,
+        authorId: "system",
+        visibility: "public",
+        trackIds: result.playlist.trackIds,
+        description: "",
+        cover: null,
+        hearts: [],
+        heartCount: 0,
+        listenCount: 0,
+        collaborators: []
+      };
+      onPlayPlaylist(synthetic);
+    } catch {
+      // ignore
+    }
+  }
+
   return (
     <div className="m-4 space-y-6">
       {/* ── My Playlists ──────────────────────────────────────────── */}
@@ -361,13 +383,13 @@ export function LibraryPlaylistSection({
               return (
                 <div
                   key={fy.id}
-                  className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/85 shadow-sm transition hover:shadow-md"
+                  className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-white/85 shadow-sm transition hover:shadow-lg"
                   onClick={() => onNavigateToPlaylist(fy.id)}
                   role="link"
                   tabIndex={0}
                   onKeyDown={(e) => { if (e.key === "Enter") onNavigateToPlaylist(fy.id); }}
                 >
-                  <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-indigo-100/60 to-purple-100/40">
+                  <div className="group/cover relative aspect-square w-full overflow-hidden bg-gradient-to-br from-indigo-100/60 to-purple-100/40">
                     {artistPhotoUrl ? (
                       <img
                         src={artistPhotoUrl}
@@ -383,12 +405,21 @@ export function LibraryPlaylistSection({
                       </svg>
                       <p className="mt-1 font-display text-sm font-bold leading-tight text-white drop-shadow">{fy.seedArtist}</p>
                     </div>
+
+                    {/* Play button overlay */}
+                    <button
+                      type="button"
+                      className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/cover:bg-black/35 group-hover/cover:opacity-100"
+                      onClick={(e) => { e.stopPropagation(); void handlePlayForYou(fy); }}
+                      aria-label={`Play ${fy.name}`}
+                    >
+                      <svg className="h-10 w-10 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
+                        <path d="M8 6v12l10-6-10-6z" />
+                      </svg>
+                    </button>
                   </div>
                   <div className="p-2">
-                    <p className="truncate text-xs font-semibold text-flaque-ink">{fy.name}</p>
-                    <p className="mt-0.5 text-xs text-flaque-steel">
-                      {fy.trackCount} track{fy.trackCount !== 1 ? "s" : ""}
-                    </p>
+                    <p className="line-clamp-2 min-h-[2rem] text-center text-xs font-semibold text-flaque-ink">{fy.name}</p>
                   </div>
 
                   {/* Dismiss button */}
@@ -454,13 +485,13 @@ export function LibraryPlaylistSection({
               return (
                 <div
                   key={ap.id}
-                  className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/85 shadow-sm transition hover:shadow-md"
+                  className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-white/85 shadow-sm transition hover:shadow-lg"
                   onClick={() => onNavigateToPlaylist(ap.id)}
                   role="link"
                   tabIndex={0}
                   onKeyDown={(e) => { if (e.key === "Enter") onNavigateToPlaylist(ap.id); }}
                 >
-                  <div className="relative aspect-square w-full overflow-hidden" style={gradientStyle}>
+                  <div className="group/cover relative aspect-square w-full overflow-hidden" style={gradientStyle}>
                     <div className="flex h-full w-full flex-col items-center justify-center">
                       <p className="font-display text-5xl font-extrabold text-white drop-shadow-md">{ap.decade % 100 === 0 ? ap.decade : `${ap.decade % 100}s`}</p>
                       <p className="mt-1 text-xs font-medium text-white/80">{ap.genre}</p>
@@ -469,7 +500,7 @@ export function LibraryPlaylistSection({
                     {/* Play button overlay */}
                     <button
                       type="button"
-                      className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
+                      className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/cover:bg-black/35 group-hover/cover:opacity-100"
                       onClick={(e) => { e.stopPropagation(); onNavigateToPlaylist(ap.id); }}
                       aria-label={`Play ${ap.name}`}
                     >
