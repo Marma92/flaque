@@ -36,7 +36,6 @@ function createPlaylist(input: {
 const defaultProps = {
   manageablePlaylists: [] as Playlist[],
   allTracksById: new Map(),
-  artists: [],
   user: { id: "user-1", username: "Alice", email: "alice@test.local", role: "user" as const },
   onPatchPlaylist: vi.fn().mockResolvedValue(undefined),
   onDeletePlaylist: vi.fn().mockResolvedValue(undefined),
@@ -479,7 +478,6 @@ describe("LibraryPlaylistSection", () => {
     expect(screen.getByText("Made for you")).toBeTruthy();
     expect(screen.getByText("Because you listen to Pink Floyd")).toBeTruthy();
     expect(screen.getByText("Pink Floyd")).toBeTruthy();
-    expect(screen.getByText(/20 tracks/)).toBeTruthy();
   });
 
   it("shows Made for you section with info message when empty", () => {

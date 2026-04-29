@@ -1,18 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { getForYouPlaylistDetail } from "../api";
+import { coverPathUrl, getForYouPlaylistDetail } from "../api";
 import { usePlaylistDetailPlayback } from "../hooks/usePlaylistDetailPlayback";
-import type { ArtistEntry, ForYouPlaylistDetail, Playlist, Track } from "../types";
-import { normalizeText } from "../utils/appUtils";
-import { getArtistPhotoSrc } from "../utils/covers";
+import type { ForYouPlaylistDetail, Playlist, Track } from "../types";
 import { formatDurationCompact } from "../utils/format";
-import { extractPrimaryArtist } from "../utils/tracks";
 import { PlaylistTrackList } from "./PlaylistTrackList";
 
 export type ForYouPlaylistDetailViewProps = {
   playlistId: string;
   allTracksById: Map<string, Track>;
-  artists: ArtistEntry[];
   onBack: () => void;
   onPlayTrack: (playlist: Playlist, options?: { shuffle?: boolean }) => void;
   onDismiss: (playlistId: string) => Promise<void>;
@@ -21,7 +17,6 @@ export type ForYouPlaylistDetailViewProps = {
 export function ForYouPlaylistDetailView({
   playlistId,
   allTracksById,
-  artists,
   onBack,
   onPlayTrack,
   onDismiss
@@ -119,14 +114,7 @@ export function ForYouPlaylistDetailView({
     );
   }
 
-  const seedArtistTarget = normalizeText(detail.seedArtist);
-  const seedArtistPrimary = normalizeText(extractPrimaryArtist(detail.seedArtist));
-  const seedArtistEntry = artists.find((entry) => {
-    const candidate = normalizeText(entry.name);
-    if (candidate === seedArtistTarget) return true;
-    return normalizeText(extractPrimaryArtist(entry.name)) === seedArtistPrimary;
-  });
-  const seedArtistPhoto = seedArtistEntry ? getArtistPhotoSrc(seedArtistEntry) : null;
+  const headerCoverUrl = detail.seedArtistPhoto ? coverPathUrl(detail.seedArtistPhoto) : null;
 
   return (
     <section className="m-4 space-y-4">
@@ -137,9 +125,9 @@ export function ForYouPlaylistDetailView({
         <div className="flex flex-col gap-5 sm:flex-row">
            {/* Seed artist visual */}
            <div className="group relative h-48 w-48 shrink-0 self-center overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-100/80 to-purple-100/60 sm:self-start">
-             {seedArtistPhoto ? (
+             {headerCoverUrl ? (
                <img
-                 src={seedArtistPhoto}
+                 src={headerCoverUrl}
                  alt={detail.seedArtist}
                  className="absolute inset-0 h-full w-full object-cover"
                  loading="lazy"
