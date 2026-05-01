@@ -135,6 +135,67 @@ describe("forYouPlaylistService", () => {
     expect(dismissals.has("for-you:led-zeppelin")).toBe(false);
   });
 
+  it("writes a trace file with the expected shape on regenerate", async () => {
+    const { regenerateForYouPlaylists, loadForYouTrace } = await import("./forYouPlaylistService");
+    const { ensureDir, writeJsonAtomic } = await import("../../utils/fs");
+
+    const artists = ["Pink Floyd", "Led Zeppelin", "Deep Purple", "Black Sabbath", "Jethro Tull"];
+    const tracks: Track[] = [];
+    for (let i = 0; i < 60; i++) {
+      const artist = artists[i % 5]!;
+      tracks.push(
+        makeTrack({
+          id: `track-${i}`,
+          tags: { artist, genre: ["Rock"], year: 1970 + (i % 10) }
+        })
+      );
+    }
+    const indexStore = makeMockIndexStore(tracks);
+
+    const playCountsDir = path.join(tmpDir, "data", "storage", "users", "user-1");
+    await ensureDir(playCountsDir);
+    const playCounts: Record<string, { count: number; lastPlayedAt: string }> = {};
+    for (let i = 0; i < 30; i++) {
+      playCounts[`track-${i}`] = { count: 2, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    }
+    await writeJsonAtomic(path.join(playCountsDir, "play-counts.json"), { tracks: playCounts });
+
+    await regenerateForYouPlaylists("user-1", indexStore);
+
+    const trace = await loadForYouTrace("user-1");
+    expect(trace).not.toBeNull();
+    expect(trace!.userId).toBe("user-1");
+    expect(trace!.totalPlays).toBe(60);
+    expect(trace!.distinctArtists).toBeGreaterThanOrEqual(3);
+    expect(trace!.seedSelection.candidates.length).toBeGreaterThan(0);
+    expect(trace!.seedSelection.candidates[0]!.sources).toContain("top-artist");
+    expect(trace!.seedSelection.chosen.length).toBeGreaterThan(0);
+    expect(trace!.playlists.length).toBeGreaterThan(0);
+    for (const entry of trace!.playlists) {
+      expect(entry.profile.genres).toBeDefined();
+      expect(entry.candidatePoolSize).toBeGreaterThanOrEqual(0);
+      if (entry.playlistId) {
+        expect(entry.finalTrackIds.length).toBeGreaterThan(0);
+      }
+    }
+    expect(trace!.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("trace records skip reason when user is below thresholds", async () => {
+    const { regenerateForYouPlaylists, loadForYouTrace } = await import("./forYouPlaylistService");
+
+    const tracks = Array.from({ length: 5 }, (_, i) =>
+      makeTrack({ id: `t-${i}`, tags: { artist: `A${i}`, genre: ["Rock"], year: 2000 } })
+    );
+    const indexStore = makeMockIndexStore(tracks);
+
+    await regenerateForYouPlaylists("user-1", indexStore);
+    const trace = await loadForYouTrace("user-1");
+    expect(trace).not.toBeNull();
+    expect(trace!.skipReason).toBe("below-min-plays");
+    expect(trace!.playlists).toEqual([]);
+  });
+
   it("saves and loads for-you playlists", async () => {
     const { saveForYouPlaylists, loadForYouPlaylists } = await import("./forYouPlaylistService");
 

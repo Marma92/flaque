@@ -6,11 +6,13 @@ import { dataRoot } from "../../utils/paths";
 import { ensureDir, readJsonFile, writeJsonAtomic } from "../../utils/fs";
 import { normalizeGenreLabel } from "../genre/genreSynonymService";
 import type { Track } from "../../types/library";
+import { AutoTraceBuilder, type AutoTrace } from "./playlistTrace";
 
 const log = createLogger("auto-playlists");
 
 const AUTO_PLAYLISTS_DIR = path.join(dataRoot, "auto-playlists");
 const META_FILE = path.join(AUTO_PLAYLISTS_DIR, "_meta.json");
+const TRACE_FILE = path.join(AUTO_PLAYLISTS_DIR, "_trace.json");
 const CONFIG_FILE = path.join(dataRoot, "config", "auto-playlist-config.json");
 
 const REGENERATION_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;
@@ -141,15 +143,28 @@ function randomGradientColors(): [string, string, string] {
   }) as [string, string, string];
 }
 
+export type AutoGenerationResult = {
+  playlists: AutoPlaylist[];
+  trace: AutoTrace;
+};
+
 export async function generateAutoPlaylists(tracks: Track[]): Promise<AutoPlaylist[]> {
+  const result = await generateAutoPlaylistsWithTrace(tracks);
+  return result.playlists;
+}
+
+export async function generateAutoPlaylistsWithTrace(tracks: Track[]): Promise<AutoGenerationResult> {
   const config = await getAutoPlaylistConfig();
+  const builder = new AutoTraceBuilder();
 
   const groups = new Map<string, { genre: string; decade: number; tracks: ScoredTrack[] }>();
+  let candidateCount = 0;
 
   for (const track of tracks) {
     const genres = track.tags.genre;
     const year = track.tags.year;
     if (!genres || genres.length === 0 || !year) continue;
+    candidateCount++;
 
     const primaryGenre = normalizeGenreLabel(genres[0]!);
     const decade = Math.floor(year / 10) * 10;
@@ -168,18 +183,38 @@ export async function generateAutoPlaylists(tracks: Track[]): Promise<AutoPlayli
     });
   }
 
-  let qualifyingGroups = Array.from(groups.values())
+  builder.setTotalCandidateTracks(candidateCount);
+  builder.setTotalGroups(groups.size);
+
+  const allGroups = Array.from(groups.entries()).map(([key, g]) => ({ key, ...g }));
+  const qualifying = allGroups
     .filter((g) => g.tracks.length >= config.minTracksPerPlaylist)
     .sort((a, b) => b.tracks.length - a.tracks.length);
 
-  if (config.maxPlaylists > 0) {
-    qualifyingGroups = qualifyingGroups.slice(0, config.maxPlaylists);
+  const cutoff = config.maxPlaylists > 0 ? config.maxPlaylists : qualifying.length;
+  const selected = qualifying.slice(0, cutoff);
+  const selectedKeys = new Set(selected.map((g) => g.key));
+  builder.setQualifyingGroups(qualifying.length);
+
+  for (const g of allGroups) {
+    let rejection: string | undefined;
+    if (g.tracks.length < config.minTracksPerPlaylist) rejection = "below-min-tracks";
+    else if (!selectedKeys.has(g.key)) rejection = "above-max-playlists";
+
+    builder.recordGroup({
+      key: g.key,
+      genre: g.genre,
+      decade: g.decade,
+      trackCount: g.tracks.length,
+      selected: selectedKeys.has(g.key),
+      ...(rejection ? { rejection } : {})
+    });
   }
 
   const generatedAt = new Date().toISOString();
   const playlists: AutoPlaylist[] = [];
 
-  for (const group of qualifyingGroups) {
+  for (const group of selected) {
     const decadeLabel = toDecadeLabel(group.decade);
     const name = `${decadeLabel} ${group.genre}`;
     const id = `auto:${slugify(name)}`;
@@ -198,7 +233,8 @@ export async function generateAutoPlaylists(tracks: Track[]): Promise<AutoPlayli
     });
   }
 
-  return playlists;
+  builder.setGeneratedPlaylists(playlists.length);
+  return { playlists, trace: builder.build() };
 }
 
 // ── Storage ────────────────────────────────────────────────────────
@@ -208,7 +244,7 @@ export async function saveAutoPlaylists(playlists: AutoPlaylist[]): Promise<void
 
   const existing = await fs.readdir(AUTO_PLAYLISTS_DIR).catch(() => []);
   for (const file of existing) {
-    if (file.endsWith(".json") && file !== "_meta.json") {
+    if (file.endsWith(".json") && file !== "_meta.json" && file !== "_trace.json") {
       await fs.unlink(path.join(AUTO_PLAYLISTS_DIR, file)).catch(() => {});
     }
   }
@@ -224,6 +260,17 @@ export async function saveAutoPlaylists(playlists: AutoPlaylist[]): Promise<void
   log.info(`Saved ${playlists.length} auto playlist(s)`);
 }
 
+export async function saveAutoTrace(trace: AutoTrace): Promise<void> {
+  await ensureDir(AUTO_PLAYLISTS_DIR);
+  await writeJsonAtomic(TRACE_FILE, trace);
+}
+
+export async function loadAutoTrace(): Promise<AutoTrace | null> {
+  const data = await readJsonFile<AutoTrace>(TRACE_FILE, null as unknown as AutoTrace);
+  if (!data || typeof data !== "object" || typeof data.durationMs !== "number") return null;
+  return data;
+}
+
 export async function loadAutoPlaylists(): Promise<AutoPlaylist[]> {
   await ensureDir(AUTO_PLAYLISTS_DIR);
 
@@ -231,7 +278,7 @@ export async function loadAutoPlaylists(): Promise<AutoPlaylist[]> {
   const playlists: AutoPlaylist[] = [];
 
   for (const file of files) {
-    if (!file.endsWith(".json") || file === "_meta.json") continue;
+    if (!file.endsWith(".json") || file === "_meta.json" || file === "_trace.json") continue;
     const data = await readJsonFile<AutoPlaylist>(
       path.join(AUTO_PLAYLISTS_DIR, file),
       null as unknown as AutoPlaylist
@@ -265,9 +312,13 @@ export async function needsRegeneration(): Promise<boolean> {
 
 export async function regenerateAutoPlaylists(tracks: Track[]): Promise<AutoPlaylist[]> {
   log.info("Regenerating auto playlists...");
-  const playlists = await generateAutoPlaylists(tracks);
+  const { playlists, trace } = await generateAutoPlaylistsWithTrace(tracks);
   await saveAutoPlaylists(playlists);
-  log.info(`Generated ${playlists.length} auto playlist(s)`);
+  await saveAutoTrace(trace);
+  log.info(
+    `auto: candidates=${trace.totalCandidateTracks} groups=${trace.totalGroups} ` +
+      `qualifying=${trace.qualifyingGroups} playlists=${playlists.length} durationMs=${trace.durationMs}`
+  );
   return playlists;
 }
 

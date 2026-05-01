@@ -34,10 +34,13 @@ vi.mock("../genre/genreSynonymService", () => ({
 import type { Track } from "../../types/library";
 import {
   generateAutoPlaylists,
+  generateAutoPlaylistsWithTrace,
   getAutoPlaylistById,
   getAutoPlaylistConfig,
   loadAutoPlaylists,
+  loadAutoTrace,
   needsRegeneration,
+  regenerateAutoPlaylists,
   saveAutoPlaylists,
   updateAutoPlaylistConfig
 } from "./autoPlaylistService";
@@ -174,6 +177,36 @@ describe("autoPlaylistService", () => {
       const loaded = await loadAutoPlaylists();
       expect(loaded).toHaveLength(1);
       expect(loaded[0]?.genre).toBe("Jazz");
+    });
+  });
+
+  describe("trace", () => {
+    it("returns trace data alongside playlists, including rejected groups", async () => {
+      await updateAutoPlaylistConfig({ minTracksPerPlaylist: 8, tracksPerPlaylist: 20 });
+      const tracks = [
+        ...tracksForGroup("Rock", 1975, 10, "rock70s"),
+        ...tracksForGroup("Jazz", 1965, 3, "jazz60s")
+      ];
+      const { playlists, trace } = await generateAutoPlaylistsWithTrace(tracks);
+      expect(playlists).toHaveLength(1);
+      expect(trace.totalCandidateTracks).toBe(13);
+      expect(trace.totalGroups).toBe(2);
+      expect(trace.qualifyingGroups).toBe(1);
+      expect(trace.generatedPlaylists).toBe(1);
+      const jazz = trace.groups.find((g) => g.genre === "Jazz");
+      expect(jazz).toBeDefined();
+      expect(jazz!.selected).toBe(false);
+      expect(jazz!.rejection).toBe("below-min-tracks");
+    });
+
+    it("regenerateAutoPlaylists persists a loadable trace", async () => {
+      await updateAutoPlaylistConfig({ minTracksPerPlaylist: 4, tracksPerPlaylist: 10 });
+      const tracks = tracksForGroup("Rock", 1975, 6, "r");
+      await regenerateAutoPlaylists(tracks);
+      const trace = await loadAutoTrace();
+      expect(trace).not.toBeNull();
+      expect(trace!.generatedPlaylists).toBe(1);
+      expect(trace!.durationMs).toBeGreaterThanOrEqual(0);
     });
   });
 

@@ -622,6 +622,70 @@ describe("playlistRoutes", () => {
 
   // ── PUT (full update) ────────────────────────────────────────────
 
+  // ── Admin trace endpoints ────────────────────────────────────────
+
+  it("returns 404 when no auto trace exists yet", async () => {
+    indexStore = makeFakeIndexStore(defaultTracks);
+    await setupTestServer({ tempDirPrefix: "flaque-playlist-trace-auto-empty-", indexStore });
+    const adminCookie = await login("admin", "admin-secret-123");
+
+    const res = await apiRequest("/api/playlists/automatic/trace", {
+      method: "GET",
+      headers: { Cookie: adminCookie }
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("blocks non-admins from auto trace endpoint", async () => {
+    indexStore = makeFakeIndexStore(defaultTracks);
+    await setupTestServer({
+      tempDirPrefix: "flaque-playlist-trace-auto-authz-",
+      indexStore,
+      beforeInit: async () => {
+        const { createUser } = await import("../auth/db");
+        createUser("alice", "alice-password", "user", "alice@test.local");
+      }
+    });
+
+    const aliceCookie = await login("alice", "alice-password");
+    const res = await apiRequest("/api/playlists/automatic/trace", {
+      method: "GET",
+      headers: { Cookie: aliceCookie }
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 404 when no for-you trace exists for a user", async () => {
+    indexStore = makeFakeIndexStore(defaultTracks);
+    await setupTestServer({ tempDirPrefix: "flaque-playlist-trace-fy-empty-", indexStore });
+    const adminCookie = await login("admin", "admin-secret-123");
+
+    const res = await apiRequest("/api/playlists/for-you/admin/trace", {
+      method: "GET",
+      headers: { Cookie: adminCookie }
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("blocks non-admins from for-you trace endpoint", async () => {
+    indexStore = makeFakeIndexStore(defaultTracks);
+    await setupTestServer({
+      tempDirPrefix: "flaque-playlist-trace-fy-authz-",
+      indexStore,
+      beforeInit: async () => {
+        const { createUser } = await import("../auth/db");
+        createUser("alice", "alice-password", "user", "alice@test.local");
+      }
+    });
+
+    const aliceCookie = await login("alice", "alice-password");
+    const res = await apiRequest("/api/playlists/for-you/alice/trace", {
+      method: "GET",
+      headers: { Cookie: aliceCookie }
+    });
+    expect(res.status).toBe(403);
+  });
+
   it("rejects PUT from non-owner", async () => {
     indexStore = makeFakeIndexStore(defaultTracks);
     await setupTestServer({

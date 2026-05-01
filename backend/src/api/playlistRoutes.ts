@@ -13,14 +13,16 @@ import {
   updateAutoPlaylistConfig,
   loadAutoPlaylists,
   getAutoPlaylistById,
-  regenerateAutoPlaylists
+  regenerateAutoPlaylists,
+  loadAutoTrace
 } from "../services/playlists/autoPlaylistService";
 import {
   loadForYouPlaylists,
   getForYouPlaylistById,
   regenerateForYouPlaylists,
   dismissForYouPlaylist,
-  getUserDismissals
+  getUserDismissals,
+  loadForYouTrace
 } from "../services/playlists/forYouPlaylistService";
 import {
   canEditPlaylist,
@@ -110,6 +112,19 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
     }
   });
 
+  // GET /playlists/automatic/trace — admin diagnostic (must come before /:id)
+  router.get("/automatic/trace", requireAuth, requireAdmin, async (_req, res, next) => {
+    try {
+      const trace = await loadAutoTrace();
+      if (!trace) {
+        return next(new AppError("No auto-playlist trace available", 404));
+      }
+      res.json(trace);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // GET /playlists/automatic/:id
   router.get("/automatic/:id", requireAuth, async (req, res, next) => {
     try {
@@ -139,9 +154,9 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
       const allTracks = indexStore.getSnapshot().tracks;
       const playlists = await regenerateAutoPlaylists(allTracks);
       log.info(`Admin triggered auto playlist regeneration: ${playlists.length} playlist(s)`);
-      res.json({ 
-        regenerated: playlists.length, 
-        playlists: playlists.map((p) => ({ id: p.id, name: p.name, trackCount: p.trackCount })) 
+      res.json({
+        regenerated: playlists.length,
+        playlists: playlists.map((p) => ({ id: p.id, name: p.name, trackCount: p.trackCount }))
       });
     } catch (error) {
       next(error);
@@ -255,6 +270,23 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
           trackCount: p.trackCount
         }))
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // GET /playlists/for-you/:userId/trace — admin diagnostic
+  router.get("/for-you/:userId/trace", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const userId = req.params.userId;
+      if (!userId) {
+        return next(new AppError("userId is required", 400));
+      }
+      const trace = await loadForYouTrace(userId);
+      if (!trace) {
+        return next(new AppError("No for-you trace available for this user", 404));
+      }
+      res.json(trace);
     } catch (error) {
       next(error);
     }
