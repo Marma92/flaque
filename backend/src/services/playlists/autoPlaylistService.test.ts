@@ -33,6 +33,7 @@ vi.mock("../genre/genreSynonymService", () => ({
 
 import type { Track } from "../../types/library";
 import {
+  bpmBucket,
   generateAutoPlaylists,
   generateAutoPlaylistsWithTrace,
   getAutoPlaylistById,
@@ -40,6 +41,7 @@ import {
   loadAutoPlaylists,
   loadAutoTrace,
   needsRegeneration,
+  pickMosaicCovers,
   regenerateAutoPlaylists,
   saveAutoPlaylists,
   updateAutoPlaylistConfig
@@ -177,6 +179,88 @@ describe("autoPlaylistService", () => {
       const loaded = await loadAutoPlaylists();
       expect(loaded).toHaveLength(1);
       expect(loaded[0]?.genre).toBe("Jazz");
+    });
+  });
+
+  describe("bpmBucket", () => {
+    it("returns null for missing or non-positive BPM", () => {
+      expect(bpmBucket(undefined)).toBeNull();
+      expect(bpmBucket(0)).toBeNull();
+      expect(bpmBucket(-30)).toBeNull();
+      expect(bpmBucket(NaN)).toBeNull();
+    });
+
+    it("buckets boundaries at 90/120/140", () => {
+      expect(bpmBucket(60)).toBe("slow");
+      expect(bpmBucket(89)).toBe("slow");
+      expect(bpmBucket(90)).toBe("mid");
+      expect(bpmBucket(119)).toBe("mid");
+      expect(bpmBucket(120)).toBe("driving");
+      expect(bpmBucket(139)).toBe("driving");
+      expect(bpmBucket(140)).toBe("fast");
+      expect(bpmBucket(180)).toBe("fast");
+    });
+  });
+
+  describe("pickMosaicCovers", () => {
+    it("returns empty array when no track has a cover", () => {
+      const tracks = tracksForGroup("Rock", 1975, 5, "r");
+      expect(pickMosaicCovers(tracks)).toEqual([]);
+    });
+
+    it("picks up to N distinct covers, preferring distinct albums", () => {
+      const tracks: Track[] = [
+        makeTrack({ id: "t1", cover: "/cov/a.jpg", tags: { album: "Album A" } }),
+        makeTrack({ id: "t2", cover: "/cov/a.jpg", tags: { album: "Album A" } }), // dup cover, dup album
+        makeTrack({ id: "t3", cover: "/cov/b.jpg", tags: { album: "Album B" } }),
+        makeTrack({ id: "t4", cover: "/cov/c.jpg", tags: { album: "Album C" } }),
+        makeTrack({ id: "t5", cover: "/cov/d.jpg", tags: { album: "Album D" } }),
+        makeTrack({ id: "t6", cover: "/cov/e.jpg", tags: { album: "Album E" } })
+      ];
+      const result = pickMosaicCovers(tracks, 4);
+      expect(result).toEqual(["/cov/a.jpg", "/cov/b.jpg", "/cov/c.jpg", "/cov/d.jpg"]);
+    });
+  });
+
+  describe("multi-axis generation", () => {
+    it("creates tempo-axis playlists when BPM is present", async () => {
+      await updateAutoPlaylistConfig({ minTracksPerPlaylist: 4, tracksPerPlaylist: 20 });
+      const tracks = Array.from({ length: 6 }, (_, i) =>
+        makeTrack({
+          id: `r-${i}`,
+          tags: { artist: `a-${i}`, album: `a-${i}`, genre: ["Rock"], year: 1975, bpm: 130 }
+        })
+      );
+      const { playlists, trace } = await generateAutoPlaylistsWithTrace(tracks);
+
+      const tempo = playlists.find((p) => p.axis === "genre-tempo");
+      const decade = playlists.find((p) => p.axis === "decade-genre");
+      expect(tempo).toBeDefined();
+      expect(tempo!.tempo).toBe("driving");
+      expect(tempo!.name).toBe("Driving Rock");
+      expect(decade).toBeDefined();
+      expect(decade!.name).toBe("70s Rock");
+
+      const axes = new Set(trace.groups.map((g) => g.axis));
+      expect(axes.has("decade-genre")).toBe(true);
+      expect(axes.has("genre-tempo")).toBe(true);
+    });
+
+    it("places a track tagged with multiple genres in each group", async () => {
+      await updateAutoPlaylistConfig({ minTracksPerPlaylist: 4, tracksPerPlaylist: 20 });
+      const tracks: Track[] = [];
+      for (let i = 0; i < 5; i++) {
+        tracks.push(makeTrack({
+          id: `t-${i}`,
+          tags: { artist: `a-${i}`, album: `al-${i}`, genre: ["Rock", "Blues"], year: 1975 }
+        }));
+      }
+      const playlists = await generateAutoPlaylists(tracks);
+      const rock = playlists.find((p) => p.name === "70s Rock");
+      const blues = playlists.find((p) => p.name === "70s Blues");
+      expect(rock).toBeDefined();
+      expect(blues).toBeDefined();
+      expect(rock!.trackIds.sort()).toEqual(blues!.trackIds.sort());
     });
   });
 

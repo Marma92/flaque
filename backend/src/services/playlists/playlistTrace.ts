@@ -68,10 +68,14 @@ export type ForYouTrace = {
 
 export type AutoPlaylistGroupTrace = {
   key: string;
+  axis: "decade-genre" | "genre-tempo";
   genre: string;
+  /** 0 for genre-tempo axis groups. */
   decade: number;
+  tempo?: "slow" | "mid" | "driving" | "fast";
   trackCount: number;
   selected: boolean;
+  mosaicCoverCount?: number;
   rejection?: string;
 };
 

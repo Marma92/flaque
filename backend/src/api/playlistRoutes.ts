@@ -101,10 +101,13 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
           name: p.name,
           genre: p.genre,
           decade: p.decade,
+          axis: p.axis,
+          tempo: p.tempo,
           trackCount: p.trackCount,
           generatedAt: p.generatedAt,
           colors: p.colors,
-          gradientAngle: p.gradientAngle
+          gradientAngle: p.gradientAngle,
+          mosaicCovers: p.mosaicCovers
         }))
       });
     } catch (error) {

@@ -108,15 +108,23 @@ export type RadioQueueResponse = {
   } | null;
 };
 
+export type AutoAxis = "decade-genre" | "genre-tempo";
+
+export type TempoBucket = "slow" | "mid" | "driving" | "fast";
+
 export type AutoPlaylistSummary = {
   id: string;
   name: string;
   genre: string;
   decade: number;
+  axis?: AutoAxis;
+  tempo?: TempoBucket;
   trackCount: number;
   generatedAt: string;
   colors?: [string, string, string];
   gradientAngle?: number;
+  /** Up to 4 cover paths (relative under the data dir). Empty/missing → render gradient. */
+  mosaicCovers?: string[];
 };
 
 export type AutoPlaylistDetail = AutoPlaylistSummary & {
