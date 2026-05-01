@@ -18,9 +18,25 @@ export type SeedSkippedTrace = {
   reason: string;
 };
 
+export type ScoredTrackTrace = {
+  trackId: string;
+  artist: string;
+  score: number;
+  features: {
+    genreOverlap: number;
+    yearProximity: number;
+    libraryPopularity: number;
+    novelty: number;
+    albumOverlapWithSeed: number;
+  };
+  source?: string;
+  rejection?: string;
+};
+
 export type ForYouPlaylistTrace = {
   seed: string;
   playlistId: string | null;
+  playlistName?: string;
   profile: {
     genres: string[];
     minYear: number;
@@ -30,6 +46,8 @@ export type ForYouPlaylistTrace = {
   seedTrackCount: number;
   peerTrackCount: number;
   finalTrackIds: string[];
+  finalOrder?: ScoredTrackTrace[];
+  topRejections?: ScoredTrackTrace[];
   rejection?: string;
 };
 
