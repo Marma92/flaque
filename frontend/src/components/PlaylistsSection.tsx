@@ -1,7 +1,8 @@
-import type { AutoPlaylistSummary, ForYouPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
+import type { AutoPlaylistSummary, ForYouPlaylistSummary, PersonalPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
 import { AutoPlaylistDetailView } from "./AutoPlaylistDetailView";
 import { ForYouPlaylistDetailView } from "./ForYouPlaylistDetailView";
 import { LibraryPlaylistSection } from "./LibraryPlaylistSection";
+import { PersonalPlaylistDetailView } from "./PersonalPlaylistDetailView";
 import { PlaylistDetailView } from "./PlaylistDetailView";
 
 export type PlaylistsSectionProps = {
@@ -24,6 +25,9 @@ export type PlaylistsSectionProps = {
   loadingForYouPlaylists: boolean;
   onDismissForYouPlaylist: (playlistId: string) => Promise<void>;
   onRefreshForYouPlaylists?: () => Promise<{ regenerated: number }>;
+  personalPlaylists: PersonalPlaylistSummary[];
+  loadingPersonalPlaylists: boolean;
+  onRefreshPersonalPlaylists?: () => Promise<{ regenerated: number }>;
 };
 
 export function PlaylistsSection({
@@ -45,7 +49,10 @@ export function PlaylistsSection({
   forYouPlaylists,
   loadingForYouPlaylists,
   onDismissForYouPlaylist,
-  onRefreshForYouPlaylists
+  onRefreshForYouPlaylists,
+  personalPlaylists,
+  loadingPersonalPlaylists,
+  onRefreshPersonalPlaylists
 }: PlaylistsSectionProps): JSX.Element {
   if (playlistDetailId && playlistDetailId.startsWith("for-you:")) {
     return (
@@ -62,6 +69,17 @@ export function PlaylistsSection({
   if (playlistDetailId && playlistDetailId.startsWith("auto:")) {
     return (
       <AutoPlaylistDetailView
+        playlistId={playlistDetailId}
+        allTracksById={allTracksById}
+        onBack={() => onPlaylistDetailNavigate(null)}
+        onPlayTrack={onPlayPlaylist}
+      />
+    );
+  }
+
+  if (playlistDetailId && playlistDetailId.startsWith("personal:")) {
+    return (
+      <PersonalPlaylistDetailView
         playlistId={playlistDetailId}
         allTracksById={allTracksById}
         onBack={() => onPlaylistDetailNavigate(null)}
@@ -110,6 +128,9 @@ export function PlaylistsSection({
       loadingForYouPlaylists={loadingForYouPlaylists}
       onDismissForYouPlaylist={onDismissForYouPlaylist}
       onRefreshForYouPlaylists={onRefreshForYouPlaylists}
+      personalPlaylists={personalPlaylists}
+      loadingPersonalPlaylists={loadingPersonalPlaylists}
+      onRefreshPersonalPlaylists={onRefreshPersonalPlaylists}
     />
   );
 }

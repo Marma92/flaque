@@ -5,6 +5,8 @@ import type {
   AutoPlaylistSummary,
   ForYouPlaylistDetail,
   ForYouPlaylistSummary,
+  PersonalPlaylistDetail,
+  PersonalPlaylistSummary,
   LibraryResponse,
   Playlist,
   RadioCreateResponse,
@@ -347,8 +349,14 @@ export async function getAlbumTracks(albumId: string): Promise<Track[]> {
   return payload.tracks;
 }
 
-export function coverPathUrl(relativePath: string): string {
-  const searchParams = new URLSearchParams({ path: relativePath });
+export function coverPathUrl(coverRef: string): string {
+  // Track.cover comes in two flavors: a relative file path (e.g. data/covers/foo.jpg)
+  // resolved through libraryMediaResolver, or a fully-formed /api/covers/<id> URL
+  // produced by coverService. Don't double-wrap the URL form.
+  if (coverRef.startsWith("/api/") || /^https?:\/\//.test(coverRef)) {
+    return withApiBase(coverRef);
+  }
+  const searchParams = new URLSearchParams({ path: coverRef });
   return withApiBase(`/api/covers/from-path?${searchParams.toString()}`);
 }
 
@@ -818,6 +826,25 @@ export async function regenerateForYouPlaylists(): Promise<{ regenerated: number
   });
 }
 
+export async function getPersonalPlaylists(): Promise<PersonalPlaylistSummary[]> {
+  const payload = await requestJson<{ playlists: PersonalPlaylistSummary[] }>("/api/playlists/personal");
+  return payload.playlists;
+}
+
+export async function getPersonalPlaylistDetail(
+  id: string
+): Promise<{ playlist: PersonalPlaylistDetail; tracks: Track[] }> {
+  return requestJson<{ playlist: PersonalPlaylistDetail; tracks: Track[] }>(
+    `/api/playlists/personal/${encodeURIComponent(id)}`
+  );
+}
+
+export async function regeneratePersonalPlaylists(): Promise<{ regenerated: number }> {
+  return requestJson<{ regenerated: number }>("/api/playlists/personal/regenerate", {
+    method: "POST"
+  });
+}
+
 export async function getUsers(): Promise<User[]> {
   const payload = await requestJson<{ users: User[] }>("/api/users");
   return payload.users;
@@ -1015,6 +1042,13 @@ export function coverUrl(trackId: string, coverPath?: string): string {
 
 export async function reportTrackPlay(trackId: string): Promise<void> {
   await fetch(withApiBase(`/api/tracks/${encodeURIComponent(trackId)}/play`), {
+    method: "POST",
+    credentials: "include"
+  });
+}
+
+export async function reportTrackSkip(trackId: string): Promise<void> {
+  await fetch(withApiBase(`/api/tracks/${encodeURIComponent(trackId)}/skip`), {
     method: "POST",
     credentials: "include"
   });

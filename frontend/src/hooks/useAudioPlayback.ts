@@ -16,6 +16,8 @@ type NavigateOptions = {
 };
 
 const PLAYER_VOLUME_STORAGE_KEY = "flaque_player_volume_v1";
+const SKIP_TIME_THRESHOLD_SECONDS = 30;
+const SKIP_RATIO_THRESHOLD = 0.5;
 
 function isFlacTrack(track: Track): boolean {
   return (
@@ -55,6 +57,7 @@ type UseAudioPlaybackInput = {
   onNext?: (options?: NavigateOptions) => Promise<void> | void;
   onPrevious?: (options?: NavigateOptions) => Promise<void> | void;
   onTrackPlayed?: (track: Track) => void;
+  onTrackSkipped?: (track: Track) => void;
 };
 
 export type AudioPlaybackState = {
@@ -95,7 +98,8 @@ export function useAudioPlayback({
   playRequestOffsetSec = 0,
   onNext,
   onPrevious,
-  onTrackPlayed
+  onTrackPlayed,
+  onTrackSkipped
 }: UseAudioPlaybackInput): AudioPlaybackState {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoplayOnTrackChangeRef = useRef(true);
@@ -107,6 +111,8 @@ export function useAudioPlayback({
   const qualitySwapSnapshotTimeRef = useRef<number | null>(null);
   const qualitySwapShouldPlayRef = useRef<boolean | null>(null);
   const currentTimeRef = useRef(0);
+  const previousTrackRef = useRef<Track | null>(null);
+  const endedNaturallyRef = useRef(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -128,9 +134,29 @@ export function useAudioPlayback({
   // ── Track change: reset and autoplay ──────────────────────────────────
   useEffect(() => {
     const audioElement = audioRef.current;
-    if (!audioElement || !track) {
+    if (!audioElement) {
       return;
     }
+    if (!track) {
+      // Queue cleared. Drop the previous-track reference so we don't fire a
+      // bogus skip when the user later starts a new track.
+      previousTrackRef.current = null;
+      endedNaturallyRef.current = false;
+      currentTimeRef.current = 0;
+      return;
+    }
+
+    const previousTrack = previousTrackRef.current;
+    if (previousTrack && previousTrack.id !== track.id && !endedNaturallyRef.current) {
+      const elapsed = currentTimeRef.current;
+      const total = previousTrack.duration || 0;
+      const ratio = total > 0 ? elapsed / total : 0;
+      if (elapsed > 0 && elapsed < SKIP_TIME_THRESHOLD_SECONDS && ratio < SKIP_RATIO_THRESHOLD) {
+        onTrackSkipped?.(previousTrack);
+      }
+    }
+    endedNaturallyRef.current = false;
+    previousTrackRef.current = track;
 
     pendingRestoreTimeRef.current = null;
     pendingRestoreShouldPlayRef.current = false;
@@ -362,6 +388,8 @@ export function useAudioPlayback({
     if (!audioElement) {
       return;
     }
+
+    endedNaturallyRef.current = true;
 
     if (repeatMode === "one") {
       audioElement.currentTime = 0;

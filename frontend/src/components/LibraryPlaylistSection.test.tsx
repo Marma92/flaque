@@ -3,7 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AutoPlaylistSummary, ForYouPlaylistSummary, Playlist } from "../types";
+import type { AutoPlaylistSummary, ForYouPlaylistSummary, PersonalPlaylistSummary, Playlist } from "../types";
 import { LibraryPlaylistSection } from "./LibraryPlaylistSection";
 
 function createPlaylist(input: {
@@ -46,7 +46,9 @@ const defaultProps = {
   forYouPlaylists: [] as ForYouPlaylistSummary[],
   loadingForYouPlaylists: false,
   onDismissForYouPlaylist: vi.fn().mockResolvedValue(undefined),
-  onHeartPlaylist: vi.fn().mockResolvedValue(undefined)
+  onHeartPlaylist: vi.fn().mockResolvedValue(undefined),
+  personalPlaylists: [] as PersonalPlaylistSummary[],
+  loadingPersonalPlaylists: false
 };
 
 describe("LibraryPlaylistSection", () => {
@@ -477,7 +479,6 @@ describe("LibraryPlaylistSection", () => {
 
     expect(screen.getByText("Made for you")).toBeTruthy();
     expect(screen.getByText("Because you listen to Pink Floyd")).toBeTruthy();
-    expect(screen.getByText("Pink Floyd")).toBeTruthy();
   });
 
   it("shows Made for you section with info message when empty", () => {

@@ -6,27 +6,38 @@ import { dataRoot } from "../../utils/paths";
 import { ensureDir, readJsonFile, writeJsonAtomic } from "../../utils/fs";
 import { normalizeGenreLabel } from "../genre/genreSynonymService";
 import type { Track } from "../../types/library";
+import { AutoTraceBuilder, type AutoTrace } from "./playlistTrace";
 
 const log = createLogger("auto-playlists");
 
 const AUTO_PLAYLISTS_DIR = path.join(dataRoot, "auto-playlists");
 const META_FILE = path.join(AUTO_PLAYLISTS_DIR, "_meta.json");
+const TRACE_FILE = path.join(AUTO_PLAYLISTS_DIR, "_trace.json");
 const CONFIG_FILE = path.join(dataRoot, "config", "auto-playlist-config.json");
 
 const REGENERATION_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;
 
 // ── Types ──────────────────────────────────────────────────────────
 
+export type AutoAxis = "decade-genre" | "genre-tempo";
+
+export type TempoBucket = "slow" | "mid" | "driving" | "fast";
+
 export type AutoPlaylist = {
   id: string;
   name: string;
   genre: string;
+  /** Present for decade-genre axis playlists. 0 for genre-tempo axis. */
   decade: number;
+  axis?: AutoAxis;
+  tempo?: TempoBucket;
   trackIds: string[];
   trackCount: number;
   generatedAt: string;
   colors: [string, string, string];
   gradientAngle: number;
+  /** Up to 4 cover paths picked from representative tracks; empty if none. */
+  mosaicCovers?: string[];
 };
 
 export type AutoPlaylistConfig = {
@@ -73,6 +84,32 @@ export async function updateAutoPlaylistConfig(patch: Partial<AutoPlaylistConfig
   return next;
 }
 
+// ── Deterministic PRNG ─────────────────────────────────────────────
+
+/**
+ * Small FNV-1a + mulberry32 combo so a string seed yields a reproducible
+ * stream of pseudo-random numbers. Used everywhere we want jitter without
+ * the regen-to-regen drift of Math.random().
+ */
+function fnv1a(seed: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+function seededRng(seed: string): () => number {
+  let t = fnv1a(seed);
+  return () => {
+    t = (t + 0x6d2b79f5) >>> 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // ── Diversity selection ────────────────────────────────────────────
 
 type ScoredTrack = {
@@ -81,8 +118,18 @@ type ScoredTrack = {
   album: string;
 };
 
-function selectDiverseTracks(candidates: ScoredTrack[], maxTracks: number): Track[] {
-  const pool = [...candidates].sort(() => Math.random() - 0.5);
+function selectDiverseTracks(
+  candidates: ScoredTrack[],
+  maxTracks: number,
+  seed: string
+): Track[] {
+  const rng = seededRng(seed);
+  // Stable shuffle: seed-driven, plus a tie-breaker on track id so the input
+  // order doesn't leak into the result.
+  const pool = [...candidates]
+    .map((c) => ({ c, k: rng() }))
+    .sort((a, b) => a.k - b.k || a.c.track.id.localeCompare(b.c.track.id))
+    .map((x) => x.c);
   const selected: ScoredTrack[] = [];
 
   while (selected.length < maxTracks && pool.length > 0) {
@@ -102,7 +149,7 @@ function selectDiverseTracks(candidates: ScoredTrack[], maxTracks: number): Trac
       const recentArtists = selected.slice(-3).map((s) => s.artist);
       if (recentArtists.includes(candidate.artist)) score -= 250;
 
-      score += Math.random() * 40;
+      score += rng() * 40;
 
       if (score > bestScore) {
         bestScore = score;
@@ -130,75 +177,220 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
-function randomGradientColors(): [string, string, string] {
-  const hue = Math.floor(Math.random() * 360);
-  const offsets = [0, 40 + Math.floor(Math.random() * 40), 160 + Math.floor(Math.random() * 80)];
+function gradientColorsFromSeed(seed: string): [string, string, string] {
+  const rng = seededRng(`${seed}|colors`);
+  const hue = Math.floor(rng() * 360);
+  const offsets = [0, 40 + Math.floor(rng() * 40), 160 + Math.floor(rng() * 80)];
   return offsets.map((offset) => {
     const h = (hue + offset) % 360;
-    const s = 55 + Math.floor(Math.random() * 25);
-    const l = 45 + Math.floor(Math.random() * 20);
+    const s = 55 + Math.floor(rng() * 25);
+    const l = 45 + Math.floor(rng() * 20);
     return `hsl(${h}, ${s}%, ${l}%)`;
   }) as [string, string, string];
 }
 
-export async function generateAutoPlaylists(tracks: Track[]): Promise<AutoPlaylist[]> {
-  const config = await getAutoPlaylistConfig();
+function gradientAngleFromSeed(seed: string): number {
+  return Math.floor(seededRng(`${seed}|angle`)() * 360);
+}
 
-  const groups = new Map<string, { genre: string; decade: number; tracks: ScoredTrack[] }>();
+/**
+ * Bucket a BPM into one of four tempo bands. Boundaries follow the common
+ * guideline: slow up to 89 BPM (ballads), mid 90-119 (pop/midtempo), driving
+ * 120-139 (dance/rock), fast 140+ (drum & bass / punk / fast house).
+ */
+export function bpmBucket(bpm: number | undefined): TempoBucket | null {
+  if (typeof bpm !== "number" || !Number.isFinite(bpm) || bpm <= 0) return null;
+  if (bpm < 90) return "slow";
+  if (bpm < 120) return "mid";
+  if (bpm < 140) return "driving";
+  return "fast";
+}
+
+const TEMPO_LABELS: Record<TempoBucket, string> = {
+  slow: "Slow",
+  mid: "Midtempo",
+  driving: "Driving",
+  fast: "Fast"
+};
+
+/**
+ * Pick up to N distinct album covers from the playlist's tracks for a mosaic.
+ * Prefers covers from different albums and returns them in deterministic order
+ * (by appearance in the input). Returns an empty array if no track has a cover.
+ */
+export function pickMosaicCovers(tracks: Track[], max = 4): string[] {
+  const seen = new Set<string>();
+  const seenAlbums = new Set<string>();
+  const covers: string[] = [];
+
+  for (const track of tracks) {
+    if (covers.length >= max) break;
+    const cover = track.cover;
+    if (!cover || seen.has(cover)) continue;
+    const albumKey = (track.tags.album ?? "").toLowerCase();
+    if (albumKey && seenAlbums.has(albumKey)) continue;
+    covers.push(cover);
+    seen.add(cover);
+    if (albumKey) seenAlbums.add(albumKey);
+  }
+
+  // Second pass: if we still need more, accept duplicate albums but distinct covers.
+  if (covers.length < max) {
+    for (const track of tracks) {
+      if (covers.length >= max) break;
+      const cover = track.cover;
+      if (!cover || seen.has(cover)) continue;
+      covers.push(cover);
+      seen.add(cover);
+    }
+  }
+
+  return covers;
+}
+
+export type AutoGenerationResult = {
+  playlists: AutoPlaylist[];
+  trace: AutoTrace;
+};
+
+export async function generateAutoPlaylists(tracks: Track[]): Promise<AutoPlaylist[]> {
+  const result = await generateAutoPlaylistsWithTrace(tracks);
+  return result.playlists;
+}
+
+type GroupBucket = {
+  key: string;
+  axis: AutoAxis;
+  genre: string;
+  decade: number;
+  tempo?: TempoBucket;
+  tracks: ScoredTrack[];
+};
+
+function makeScored(track: Track): ScoredTrack {
+  return {
+    track,
+    artist: (track.tags.artist ?? "").toLowerCase(),
+    album: (track.tags.album ?? "").toLowerCase()
+  };
+}
+
+export async function generateAutoPlaylistsWithTrace(tracks: Track[]): Promise<AutoGenerationResult> {
+  const config = await getAutoPlaylistConfig();
+  const builder = new AutoTraceBuilder();
+
+  const groups = new Map<string, GroupBucket>();
+  // A track contributes to the candidate count if it can land in *any* group
+  // (i.e. has at least one genre and at least one of year or BPM).
+  const candidateTrackIds = new Set<string>();
 
   for (const track of tracks) {
     const genres = track.tags.genre;
+    if (!genres || genres.length === 0) continue;
+
     const year = track.tags.year;
-    if (!genres || genres.length === 0 || !year) continue;
+    const tempo = bpmBucket(track.tags.bpm);
+    if (!year && !tempo) continue;
 
-    const primaryGenre = normalizeGenreLabel(genres[0]!);
-    const decade = Math.floor(year / 10) * 10;
-    const key = `${decade}:${primaryGenre.toLowerCase()}`;
+    candidateTrackIds.add(track.id);
+    const scored = makeScored(track);
 
-    let group = groups.get(key);
-    if (!group) {
-      group = { genre: primaryGenre, decade, tracks: [] };
-      groups.set(key, group);
+    // Iterate every genre on the track (multi-presence). Tracks tagged with
+    // multiple genres show up in each corresponding group instead of being
+    // bound to genres[0].
+    const seenGenreKeys = new Set<string>();
+    for (const rawGenre of genres) {
+      const genre = normalizeGenreLabel(rawGenre);
+      const genreKey = genre.toLowerCase();
+      if (seenGenreKeys.has(genreKey)) continue;
+      seenGenreKeys.add(genreKey);
+
+      if (year) {
+        const decade = Math.floor(year / 10) * 10;
+        const key = `decade-genre|${decade}|${genreKey}`;
+        let group = groups.get(key);
+        if (!group) {
+          group = { key, axis: "decade-genre", genre, decade, tracks: [] };
+          groups.set(key, group);
+        }
+        group.tracks.push(scored);
+      }
+
+      if (tempo) {
+        const key = `genre-tempo|${genreKey}|${tempo}`;
+        let group = groups.get(key);
+        if (!group) {
+          group = { key, axis: "genre-tempo", genre, decade: 0, tempo, tracks: [] };
+          groups.set(key, group);
+        }
+        group.tracks.push(scored);
+      }
     }
-
-    group.tracks.push({
-      track,
-      artist: (track.tags.artist ?? "").toLowerCase(),
-      album: (track.tags.album ?? "").toLowerCase()
-    });
   }
 
-  let qualifyingGroups = Array.from(groups.values())
+  builder.setTotalCandidateTracks(candidateTrackIds.size);
+  builder.setTotalGroups(groups.size);
+
+  const allGroups = [...groups.values()];
+  const qualifying = allGroups
     .filter((g) => g.tracks.length >= config.minTracksPerPlaylist)
     .sort((a, b) => b.tracks.length - a.tracks.length);
 
-  if (config.maxPlaylists > 0) {
-    qualifyingGroups = qualifyingGroups.slice(0, config.maxPlaylists);
-  }
+  const cutoff = config.maxPlaylists > 0 ? config.maxPlaylists : qualifying.length;
+  const selected = qualifying.slice(0, cutoff);
+  const selectedKeys = new Set(selected.map((g) => g.key));
+  builder.setQualifyingGroups(qualifying.length);
 
   const generatedAt = new Date().toISOString();
   const playlists: AutoPlaylist[] = [];
+  const mosaicCountByKey = new Map<string, number>();
 
-  for (const group of qualifyingGroups) {
-    const decadeLabel = toDecadeLabel(group.decade);
-    const name = `${decadeLabel} ${group.genre}`;
+  for (const group of selected) {
+    const name =
+      group.axis === "decade-genre"
+        ? `${toDecadeLabel(group.decade)} ${group.genre}`
+        : `${TEMPO_LABELS[group.tempo!]} ${group.genre}`;
     const id = `auto:${slugify(name)}`;
-    const selectedTracks = selectDiverseTracks(group.tracks, config.tracksPerPlaylist);
+    const selectedTracks = selectDiverseTracks(group.tracks, config.tracksPerPlaylist, group.key);
+    const mosaic = pickMosaicCovers(selectedTracks);
+    mosaicCountByKey.set(group.key, mosaic.length);
 
     playlists.push({
       id,
       name,
       genre: group.genre,
       decade: group.decade,
+      axis: group.axis,
+      ...(group.tempo ? { tempo: group.tempo } : {}),
       trackIds: selectedTracks.map((t) => t.id),
       trackCount: selectedTracks.length,
       generatedAt,
-      colors: randomGradientColors(),
-      gradientAngle: Math.floor(Math.random() * 360)
+      colors: gradientColorsFromSeed(id),
+      gradientAngle: gradientAngleFromSeed(id),
+      ...(mosaic.length > 0 ? { mosaicCovers: mosaic } : {})
     });
   }
 
-  return playlists;
+  for (const g of allGroups) {
+    let rejection: string | undefined;
+    if (g.tracks.length < config.minTracksPerPlaylist) rejection = "below-min-tracks";
+    else if (!selectedKeys.has(g.key)) rejection = "above-max-playlists";
+
+    builder.recordGroup({
+      key: g.key,
+      axis: g.axis,
+      genre: g.genre,
+      decade: g.decade,
+      ...(g.tempo ? { tempo: g.tempo } : {}),
+      trackCount: g.tracks.length,
+      selected: selectedKeys.has(g.key),
+      ...(mosaicCountByKey.has(g.key) ? { mosaicCoverCount: mosaicCountByKey.get(g.key) } : {}),
+      ...(rejection ? { rejection } : {})
+    });
+  }
+
+  builder.setGeneratedPlaylists(playlists.length);
+  return { playlists, trace: builder.build() };
 }
 
 // ── Storage ────────────────────────────────────────────────────────
@@ -208,7 +400,7 @@ export async function saveAutoPlaylists(playlists: AutoPlaylist[]): Promise<void
 
   const existing = await fs.readdir(AUTO_PLAYLISTS_DIR).catch(() => []);
   for (const file of existing) {
-    if (file.endsWith(".json") && file !== "_meta.json") {
+    if (file.endsWith(".json") && file !== "_meta.json" && file !== "_trace.json") {
       await fs.unlink(path.join(AUTO_PLAYLISTS_DIR, file)).catch(() => {});
     }
   }
@@ -224,6 +416,17 @@ export async function saveAutoPlaylists(playlists: AutoPlaylist[]): Promise<void
   log.info(`Saved ${playlists.length} auto playlist(s)`);
 }
 
+export async function saveAutoTrace(trace: AutoTrace): Promise<void> {
+  await ensureDir(AUTO_PLAYLISTS_DIR);
+  await writeJsonAtomic(TRACE_FILE, trace);
+}
+
+export async function loadAutoTrace(): Promise<AutoTrace | null> {
+  const data = await readJsonFile<AutoTrace>(TRACE_FILE, null as unknown as AutoTrace);
+  if (!data || typeof data !== "object" || typeof data.durationMs !== "number") return null;
+  return data;
+}
+
 export async function loadAutoPlaylists(): Promise<AutoPlaylist[]> {
   await ensureDir(AUTO_PLAYLISTS_DIR);
 
@@ -231,14 +434,14 @@ export async function loadAutoPlaylists(): Promise<AutoPlaylist[]> {
   const playlists: AutoPlaylist[] = [];
 
   for (const file of files) {
-    if (!file.endsWith(".json") || file === "_meta.json") continue;
+    if (!file.endsWith(".json") || file === "_meta.json" || file === "_trace.json") continue;
     const data = await readJsonFile<AutoPlaylist>(
       path.join(AUTO_PLAYLISTS_DIR, file),
       null as unknown as AutoPlaylist
     );
     if (data && data.id && data.trackIds) {
-      if (!data.colors) data.colors = randomGradientColors();
-      if (data.gradientAngle === undefined) data.gradientAngle = Math.floor(Math.random() * 360);
+      if (!data.colors) data.colors = gradientColorsFromSeed(data.id);
+      if (data.gradientAngle === undefined) data.gradientAngle = gradientAngleFromSeed(data.id);
       playlists.push(data);
     }
   }
@@ -265,9 +468,13 @@ export async function needsRegeneration(): Promise<boolean> {
 
 export async function regenerateAutoPlaylists(tracks: Track[]): Promise<AutoPlaylist[]> {
   log.info("Regenerating auto playlists...");
-  const playlists = await generateAutoPlaylists(tracks);
+  const { playlists, trace } = await generateAutoPlaylistsWithTrace(tracks);
   await saveAutoPlaylists(playlists);
-  log.info(`Generated ${playlists.length} auto playlist(s)`);
+  await saveAutoTrace(trace);
+  log.info(
+    `auto: candidates=${trace.totalCandidateTracks} groups=${trace.totalGroups} ` +
+      `qualifying=${trace.qualifyingGroups} playlists=${playlists.length} durationMs=${trace.durationMs}`
+  );
   return playlists;
 }
 

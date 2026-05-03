@@ -55,6 +55,8 @@ function baseProps(overrides: Partial<PlaylistsSectionProps> = {}): PlaylistsSec
     forYouPlaylists: [],
     loadingForYouPlaylists: false,
     onDismissForYouPlaylist: vi.fn(),
+    personalPlaylists: [],
+    loadingPersonalPlaylists: false,
     ...overrides
   };
 }

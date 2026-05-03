@@ -13,15 +13,23 @@ import {
   updateAutoPlaylistConfig,
   loadAutoPlaylists,
   getAutoPlaylistById,
-  regenerateAutoPlaylists
+  regenerateAutoPlaylists,
+  loadAutoTrace
 } from "../services/playlists/autoPlaylistService";
 import {
   loadForYouPlaylists,
   getForYouPlaylistById,
   regenerateForYouPlaylists,
   dismissForYouPlaylist,
-  getUserDismissals
+  getUserDismissals,
+  loadForYouTrace
 } from "../services/playlists/forYouPlaylistService";
+import {
+  loadPersonalPlaylists,
+  getPersonalPlaylistById,
+  regeneratePersonalPlaylists,
+  loadPersonalTrace
+} from "../services/playlists/personalPlaylistService";
 import {
   canEditPlaylist,
   canManagePlaylist,
@@ -99,12 +107,28 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
           name: p.name,
           genre: p.genre,
           decade: p.decade,
+          axis: p.axis,
+          tempo: p.tempo,
           trackCount: p.trackCount,
           generatedAt: p.generatedAt,
           colors: p.colors,
-          gradientAngle: p.gradientAngle
+          gradientAngle: p.gradientAngle,
+          mosaicCovers: p.mosaicCovers
         }))
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // GET /playlists/automatic/trace — admin diagnostic (must come before /:id)
+  router.get("/automatic/trace", requireAuth, requireAdmin, async (_req, res, next) => {
+    try {
+      const trace = await loadAutoTrace();
+      if (!trace) {
+        return next(new AppError("No auto-playlist trace available", 404));
+      }
+      res.json(trace);
     } catch (error) {
       next(error);
     }
@@ -139,9 +163,9 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
       const allTracks = indexStore.getSnapshot().tracks;
       const playlists = await regenerateAutoPlaylists(allTracks);
       log.info(`Admin triggered auto playlist regeneration: ${playlists.length} playlist(s)`);
-      res.json({ 
-        regenerated: playlists.length, 
-        playlists: playlists.map((p) => ({ id: p.id, name: p.name, trackCount: p.trackCount })) 
+      res.json({
+        regenerated: playlists.length,
+        playlists: playlists.map((p) => ({ id: p.id, name: p.name, trackCount: p.trackCount }))
       });
     } catch (error) {
       next(error);
@@ -255,6 +279,103 @@ export function createPlaylistRouter(indexStore: IndexStore): Router {
           trackCount: p.trackCount
         }))
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // GET /playlists/for-you/:userId/trace — admin diagnostic
+  router.get("/for-you/:userId/trace", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const userId = req.params.userId;
+      if (!userId) {
+        return next(new AppError("userId is required", 400));
+      }
+      const trace = await loadForYouTrace(userId);
+      if (!trace) {
+        return next(new AppError("No for-you trace available for this user", 404));
+      }
+      res.json(trace);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // ===== PERSONAL MIXES =====
+
+  // GET /playlists/personal
+  router.get("/personal", requireAuth, async (req, res, next) => {
+    try {
+      const userId = req.authUser?.id;
+      if (!userId) return next(new AppError("Authentication required", 401));
+      const playlists = await loadPersonalPlaylists(userId);
+      res.json({
+        playlists: playlists.map((p) => ({
+          id: p.id,
+          variant: p.variant,
+          name: p.name,
+          description: p.description,
+          trackCount: p.trackCount,
+          generatedAt: p.generatedAt,
+          colors: p.colors,
+          gradientAngle: p.gradientAngle,
+          mosaicCovers: p.mosaicCovers
+        }))
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // GET /playlists/personal/trace/:userId — admin diagnostic (must come before /:id)
+  router.get("/personal/trace/:userId", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const userId = req.params.userId;
+      if (!userId) return next(new AppError("userId is required", 400));
+      const trace = await loadPersonalTrace(userId);
+      if (!trace) return next(new AppError("No personal trace available for this user", 404));
+      res.json(trace);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // POST /playlists/personal/regenerate
+  router.post("/personal/regenerate", requireAuth, async (req, res, next) => {
+    try {
+      const userId = req.authUser?.id;
+      if (!userId) return next(new AppError("Authentication required", 401));
+      const playlists = await regeneratePersonalPlaylists(userId, indexStore);
+      log.info(`User ${userId} triggered personal regeneration: ${playlists.length} playlist(s)`);
+      res.json({
+        regenerated: playlists.length,
+        playlists: playlists.map((p) => ({
+          id: p.id,
+          variant: p.variant,
+          name: p.name,
+          trackCount: p.trackCount
+        }))
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // GET /playlists/personal/:id
+  router.get("/personal/:id", requireAuth, async (req, res, next) => {
+    try {
+      const userId = req.authUser?.id;
+      if (!userId) return next(new AppError("Authentication required", 401));
+      const id = req.params.id;
+      if (!id) return next(new AppError("Playlist id is required", 400));
+
+      const playlist = await getPersonalPlaylistById(userId, id);
+      if (!playlist) return next(new AppError("Personal playlist not found", 404));
+
+      const tracks = playlist.trackIds
+        .map((trackId) => indexStore.getTrackById(trackId))
+        .filter((t) => t !== undefined);
+      res.json({ playlist, tracks });
     } catch (error) {
       next(error);
     }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
-import { reportTrackPlay } from "../api";
+import { reportTrackPlay, reportTrackSkip } from "../api";
 import type { RepeatMode, TranscodeMode } from "../components/AudioPlayer";
 import type { Track, User } from "../types";
 import { isTrackLike, parseStoredQueueSnapshot, readShuffleMode, readTranscodeMode, type StoredQueueSnapshot } from "../utils/appUtils";
@@ -33,6 +33,7 @@ type UsePlaybackStateResult = {
   requestTrackPlayback: (track: Track, queueSource?: Track[], options?: { startOffsetSec?: number }) => void;
   replayRecentTrack: (track: Track) => void;
   recordTrackPlayed: (track: Track) => void;
+  recordTrackSkipped: (track: Track) => void;
   removeTrackFromPlayback: (trackId: string) => void;
   setSelectedTrack: Dispatch<SetStateAction<Track | null>>;
   resetAfterLogout: () => void;
@@ -259,6 +260,11 @@ export function usePlaybackState({
     void reportTrackPlay(track.id).catch(() => {});
   }, []);
 
+  const recordTrackSkipped = useCallback((track: Track): void => {
+    if (track.owner === "radio") return;
+    void reportTrackSkip(track.id).catch(() => {});
+  }, []);
+
   const removeTrackFromPlayback = useCallback((trackId: string): void => {
     if (selectedTrackRefreshed?.id === trackId) {
       setSelectedTrack(null);
@@ -290,6 +296,7 @@ export function usePlaybackState({
     requestTrackPlayback,
     replayRecentTrack,
     recordTrackPlayed,
+    recordTrackSkipped,
     removeTrackFromPlayback,
     setSelectedTrack,
     resetAfterLogout
