@@ -131,6 +131,24 @@ export type AutoPlaylistDetail = AutoPlaylistSummary & {
   trackIds: string[];
 };
 
+export type PersonalVariantId = "discovered-this-year" | "forgotten-favorites" | "album-deep-cuts";
+
+export type PersonalPlaylistSummary = {
+  id: string;
+  variant: PersonalVariantId;
+  name: string;
+  description: string;
+  trackCount: number;
+  generatedAt: string;
+  colors?: [string, string, string];
+  gradientAngle?: number;
+  mosaicCovers?: string[];
+};
+
+export type PersonalPlaylistDetail = PersonalPlaylistSummary & {
+  trackIds: string[];
+};
+
 export type ForYouPlaylistSummary = {
   id: string;
   name: string;

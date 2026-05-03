@@ -5,6 +5,8 @@ import type {
   AutoPlaylistSummary,
   ForYouPlaylistDetail,
   ForYouPlaylistSummary,
+  PersonalPlaylistDetail,
+  PersonalPlaylistSummary,
   LibraryResponse,
   Playlist,
   RadioCreateResponse,
@@ -814,6 +816,25 @@ export async function dismissForYouPlaylist(playlistId: string): Promise<void> {
 
 export async function regenerateForYouPlaylists(): Promise<{ regenerated: number }> {
   return requestJson<{ regenerated: number }>("/api/playlists/for-you/regenerate", {
+    method: "POST"
+  });
+}
+
+export async function getPersonalPlaylists(): Promise<PersonalPlaylistSummary[]> {
+  const payload = await requestJson<{ playlists: PersonalPlaylistSummary[] }>("/api/playlists/personal");
+  return payload.playlists;
+}
+
+export async function getPersonalPlaylistDetail(
+  id: string
+): Promise<{ playlist: PersonalPlaylistDetail; tracks: Track[] }> {
+  return requestJson<{ playlist: PersonalPlaylistDetail; tracks: Track[] }>(
+    `/api/playlists/personal/${encodeURIComponent(id)}`
+  );
+}
+
+export async function regeneratePersonalPlaylists(): Promise<{ regenerated: number }> {
+  return requestJson<{ regenerated: number }>("/api/playlists/personal/regenerate", {
     method: "POST"
   });
 }

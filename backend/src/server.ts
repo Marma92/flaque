@@ -17,6 +17,7 @@ import { startVersionCheckSchedule } from "./services/versionCheck";
 import { ensureBaseDirectories } from "./utils/fs";
 import { checkAndRegenerateOnBoot } from "./services/playlists/autoPlaylistService";
 import { checkAndRegenerateForYouOnBoot } from "./services/playlists/forYouPlaylistService";
+import { checkAndRegeneratePersonalOnBoot } from "./services/playlists/personalPlaylistService";
 import { listUsers } from "./auth/db";
 
 const SESSION_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -94,6 +95,9 @@ async function bootstrap(): Promise<void> {
   void checkAndRegenerateOnBoot(indexStore.getSnapshot().tracks);
   await Promise.all(
     listUsers().map((user) => checkAndRegenerateForYouOnBoot(user.id, indexStore))
+  );
+  await Promise.all(
+    listUsers().map((user) => checkAndRegeneratePersonalOnBoot(user.id, indexStore))
   );
 }
 

@@ -152,6 +152,60 @@ export class ForYouTraceBuilder {
   }
 }
 
+// ── Personal mix traces ────────────────────────────────────────────
+
+export type PersonalVariantId = "discovered-this-year" | "forgotten-favorites" | "album-deep-cuts";
+
+export type PersonalVariantTrace = {
+  variant: PersonalVariantId;
+  playlistId: string | null;
+  candidatePoolSize: number;
+  finalTrackCount: number;
+  rejection?: string;
+  notes?: string[];
+};
+
+export type PersonalTrace = {
+  generatedAt: string;
+  userId: string;
+  durationMs: number;
+  totalPlays: number;
+  distinctArtists: number;
+  variants: PersonalVariantTrace[];
+};
+
+export class PersonalTraceBuilder {
+  private readonly startedAt = Date.now();
+  private readonly userId: string;
+  private totalPlays = 0;
+  private distinctArtists = 0;
+  private readonly variants: PersonalVariantTrace[] = [];
+
+  constructor(userId: string) {
+    this.userId = userId;
+  }
+
+  setStats(totalPlays: number, distinctArtists: number): void {
+    this.totalPlays = totalPlays;
+    this.distinctArtists = distinctArtists;
+  }
+
+  recordVariant(entry: PersonalVariantTrace): void {
+    this.variants.push(entry);
+  }
+
+  build(): PersonalTrace {
+    return {
+      generatedAt: new Date().toISOString(),
+      userId: this.userId,
+      durationMs: Date.now() - this.startedAt,
+      totalPlays: this.totalPlays,
+      distinctArtists: this.distinctArtists,
+      variants: this.variants
+    };
+  }
+}
+
 export class AutoTraceBuilder {
   private readonly startedAt = Date.now();
   private totalCandidateTracks = 0;

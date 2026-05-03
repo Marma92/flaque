@@ -18,6 +18,7 @@ import { usePlaybackState } from "./hooks/usePlaybackState";
 import { useRecentlyUploaded } from "./hooks/useRecentlyUploaded";
 import { useAutoPlaylists } from "./hooks/useAutoPlaylists";
 import { useForYouPlaylists } from "./hooks/useForYouPlaylists";
+import { usePersonalPlaylists } from "./hooks/usePersonalPlaylists";
 import { useRadioStation } from "./hooks/useRadioStation";
 
 type AuthenticatedAppProps = {
@@ -93,6 +94,7 @@ export function AuthenticatedApp({
 
   const { autoPlaylists, loading: loadingAutoPlaylists, refresh: refreshAutoPlaylists } = useAutoPlaylists();
   const { forYouPlaylists, loading: loadingForYouPlaylists, dismiss: dismissForYouPlaylist, regenerate: regenerateForYouPlaylists } = useForYouPlaylists();
+  const { personalPlaylists, loading: loadingPersonalPlaylists, regenerate: regeneratePersonalPlaylists } = usePersonalPlaylists();
 
   const allTracksById = useMemo(
     () => new Map(allTracksLibrary.tracks.map((track) => [track.id, track])),
@@ -389,7 +391,10 @@ export function AuthenticatedApp({
           forYouPlaylists,
           loadingForYouPlaylists,
           onDismissForYouPlaylist: dismissForYouPlaylist,
-          onRefreshForYouPlaylists: regenerateForYouPlaylists
+          onRefreshForYouPlaylists: regenerateForYouPlaylists,
+          personalPlaylists,
+          loadingPersonalPlaylists,
+          onRefreshPersonalPlaylists: regeneratePersonalPlaylists
         },
         artistsProps: {
           libraryMetadataError,

@@ -622,6 +622,51 @@ describe("playlistRoutes", () => {
 
   // ── PUT (full update) ────────────────────────────────────────────
 
+  // ── Personal mixes ──────────────────────────────────────────────
+
+  it("returns an empty personal list before regen", async () => {
+    indexStore = makeFakeIndexStore(defaultTracks);
+    await setupTestServer({ tempDirPrefix: "flaque-personal-empty-", indexStore });
+    const cookie = await login("admin", "admin-secret-123");
+
+    const res = await apiRequest("/api/playlists/personal", {
+      method: "GET",
+      headers: { Cookie: cookie }
+    });
+    expect(res.status).toBe(200);
+    expect(res.payload).toEqual({ playlists: [] });
+  });
+
+  it("returns 404 when personal trace is missing", async () => {
+    indexStore = makeFakeIndexStore(defaultTracks);
+    await setupTestServer({ tempDirPrefix: "flaque-personal-trace-empty-", indexStore });
+    const cookie = await login("admin", "admin-secret-123");
+
+    const res = await apiRequest("/api/playlists/personal/trace/admin", {
+      method: "GET",
+      headers: { Cookie: cookie }
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("blocks non-admins from the personal trace endpoint", async () => {
+    indexStore = makeFakeIndexStore(defaultTracks);
+    await setupTestServer({
+      tempDirPrefix: "flaque-personal-trace-authz-",
+      indexStore,
+      beforeInit: async () => {
+        const { createUser } = await import("../auth/db");
+        createUser("alice", "alice-password", "user", "alice@test.local");
+      }
+    });
+    const aliceCookie = await login("alice", "alice-password");
+    const res = await apiRequest("/api/playlists/personal/trace/alice", {
+      method: "GET",
+      headers: { Cookie: aliceCookie }
+    });
+    expect(res.status).toBe(403);
+  });
+
   // ── Admin trace endpoints ────────────────────────────────────────
 
   it("returns 404 when no auto trace exists yet", async () => {

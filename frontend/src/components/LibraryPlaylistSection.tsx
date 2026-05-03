@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 
 import defaultCoverImage from "../assets/default-cover.png";
 import { coverPathUrl, coverUrl, getForYouPlaylistDetail, playlistCoverUrl } from "../api";
-import type { AutoPlaylistSummary, ForYouPlaylistSummary, Playlist, PlaylistVisibility, TempoBucket, Track, User } from "../types";
+import type { AutoPlaylistSummary, ForYouPlaylistSummary, PersonalPlaylistSummary, Playlist, PlaylistVisibility, TempoBucket, Track, User } from "../types";
 
 const TEMPO_HERO_LABEL: Record<TempoBucket, string> = {
   slow: "Slow",
@@ -30,6 +30,9 @@ export type LibraryPlaylistSectionProps = {
   loadingForYouPlaylists: boolean;
   onDismissForYouPlaylist: (playlistId: string) => Promise<void>;
   onRefreshForYouPlaylists?: () => Promise<{ regenerated: number }>;
+  personalPlaylists: PersonalPlaylistSummary[];
+  loadingPersonalPlaylists: boolean;
+  onRefreshPersonalPlaylists?: () => Promise<{ regenerated: number }>;
 };
 
 // ── Mosaic cover (compact) ─────────────────────────────────────────
@@ -238,7 +241,10 @@ export function LibraryPlaylistSection({
   forYouPlaylists,
   loadingForYouPlaylists,
   onDismissForYouPlaylist,
-  onRefreshForYouPlaylists
+  onRefreshForYouPlaylists,
+  personalPlaylists,
+  loadingPersonalPlaylists,
+  onRefreshPersonalPlaylists
 }: LibraryPlaylistSectionProps): JSX.Element {
   const [playlistName, setPlaylistName] = useState("");
   const [playlistDescription, setPlaylistDescription] = useState("");
@@ -471,6 +477,72 @@ export function LibraryPlaylistSection({
               />
             ))}
           </div>
+        </section>
+      ) : null}
+
+      {/* ── Personal Mixes ─────────────────────────────────────────── */}
+      {(loadingPersonalPlaylists || personalPlaylists.length > 0) ? (
+        <section className="rounded-xl border border-flaque-clay/60 bg-gradient-to-br from-white/85 to-flaque-cream/40 p-5 shadow-panel backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <SectionHeader title="Personal Mixes" />
+            {!loadingPersonalPlaylists && personalPlaylists.length > 0 && onRefreshPersonalPlaylists ? (
+              <button
+                type="button"
+                className="rounded-md border border-flaque-clay/60 bg-white px-2.5 py-1 text-xs font-medium text-flaque-ink transition hover:bg-flaque-cream"
+                onClick={() => { void onRefreshPersonalPlaylists(); }}
+              >
+                Refresh
+              </button>
+            ) : null}
+          </div>
+          {loadingPersonalPlaylists ? (
+            <p className="mt-2 text-sm text-flaque-steel">Loading...</p>
+          ) : (
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {personalPlaylists.map((pp) => {
+                const [c1, c2, c3] = pp.colors ?? ["hsl(220, 60%, 50%)", "hsl(260, 60%, 50%)", "hsl(340, 60%, 50%)"];
+                const angle = pp.gradientAngle ?? 135;
+                const gradientStyle = { background: `linear-gradient(${angle}deg, ${c1}, ${c2}, ${c3})` };
+                const mosaic = pp.mosaicCovers ?? [];
+                return (
+                  <div
+                    key={pp.id}
+                    className="group relative flex cursor-pointer overflow-hidden rounded-2xl bg-white/85 shadow-sm transition hover:shadow-lg"
+                    onClick={() => onNavigateToPlaylist(pp.id)}
+                    role="link"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter") onNavigateToPlaylist(pp.id); }}
+                  >
+                    <div className="relative h-24 w-24 shrink-0 overflow-hidden" style={gradientStyle}>
+                      {mosaic.length > 0 ? (
+                        <div
+                          className={`absolute inset-0 grid ${mosaic.length === 1 ? "grid-cols-1" : "grid-cols-2"} ${mosaic.length <= 2 ? "grid-rows-1" : "grid-rows-2"}`}
+                        >
+                          {mosaic.slice(0, 4).map((cover, i) => (
+                            <img
+                              key={`${pp.id}-cover-${i}`}
+                              src={coverPathUrl(cover)}
+                              alt=""
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="absolute inset-0 bg-black/30" />
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col justify-center p-3">
+                      <p className="truncate text-sm font-semibold text-flaque-ink">{pp.name}</p>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-flaque-steel">{pp.description}</p>
+                      <p className="mt-1 text-xs text-flaque-steel/80">
+                        {pp.trackCount} track{pp.trackCount !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       ) : null}
 
