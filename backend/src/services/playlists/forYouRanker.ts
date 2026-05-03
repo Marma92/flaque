@@ -13,6 +13,7 @@ export type CandidateFeatures = {
   libraryPopularity: number;
   novelty: number;
   albumOverlapWithSeed: number;
+  recentSkipCount: number;
 };
 
 export type RankerWeights = {
@@ -21,6 +22,7 @@ export type RankerWeights = {
   libraryPopularity: number;
   novelty: number;
   albumOverlapWithSeed: number;
+  skipPenalty: number;
 };
 
 export const DEFAULT_WEIGHTS: RankerWeights = {
@@ -28,8 +30,12 @@ export const DEFAULT_WEIGHTS: RankerWeights = {
   yearProximity: 0.20,
   libraryPopularity: 0.15,
   novelty: 0.15,
-  albumOverlapWithSeed: -0.30
+  albumOverlapWithSeed: -0.30,
+  skipPenalty: -0.20
 };
+
+export const SKIP_SOFT_CAP = 3;
+export const SKIP_HARD_FILTER_THRESHOLD = 3;
 
 export const YEAR_SIGMA = 8;
 export const JITTER_RANGE = 0.1;
@@ -89,11 +95,13 @@ export function fnvJitter(seed: string, range: number = JITTER_RANGE): number {
 }
 
 export function scoreFeatures(features: CandidateFeatures, weights: RankerWeights = DEFAULT_WEIGHTS): number {
+  const cappedSkips = Math.min(features.recentSkipCount, SKIP_SOFT_CAP);
   return (
     weights.genreOverlap * features.genreOverlap +
     weights.yearProximity * features.yearProximity +
     weights.libraryPopularity * features.libraryPopularity +
     weights.novelty * features.novelty +
-    weights.albumOverlapWithSeed * features.albumOverlapWithSeed
+    weights.albumOverlapWithSeed * features.albumOverlapWithSeed +
+    weights.skipPenalty * cappedSkips
   );
 }

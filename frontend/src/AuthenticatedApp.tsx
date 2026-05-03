@@ -109,7 +109,7 @@ export function AuthenticatedApp({
     repeatMode, setRepeatMode,
     shuffleEnabled, setShuffleEnabled,
     recentTracks, requestTrackPlayback, replayRecentTrack,
-    recordTrackPlayed, removeTrackFromPlayback,
+    recordTrackPlayed, recordTrackSkipped, removeTrackFromPlayback,
     setSelectedTrack, resetAfterLogout
   } = usePlaybackState({ user, allTracksById, allTracks: allTracksLibrary.tracks, loadingAllTracks });
 
@@ -548,6 +548,7 @@ export function AuthenticatedApp({
           ? undefined
           : (options) => handleNavigateTrack("previous", options?.wrap ?? true),
         onTrackPlayed: recordTrackPlayed,
+        onTrackSkipped: recordTrackSkipped,
         transcodeMode,
         onTranscodeModeChange: setTranscodeMode,
         repeatMode,

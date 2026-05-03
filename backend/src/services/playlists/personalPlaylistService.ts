@@ -24,7 +24,9 @@ import { createLogger } from "../../utils/logger";
 import { dataRoot } from "../../utils/paths";
 import { ensureDir, readJsonFile, writeJsonAtomic } from "../../utils/fs";
 import { getUserPlayCounts } from "../activity/playCountStore";
+import { getRecentSkipCounts } from "../activity/skipStore";
 import { pickMosaicCovers } from "./autoPlaylistService";
+import { SKIP_HARD_FILTER_THRESHOLD } from "./forYouRanker";
 import type { IndexStore } from "../indexer/indexStore";
 import type { Track } from "../../types/library";
 import {
@@ -48,6 +50,7 @@ const FORGOTTEN_RECENT_DAYS = 90;
 const FORGOTTEN_MIN_PLAYS = 3;
 const DEEP_CUTS_MIN_ALBUM_ENGAGEMENT = 2;
 const DEEP_CUTS_MIN_ALBUM_TRACKS = 4;
+const RECENT_SKIPS_WINDOW_DAYS = 60;
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -293,6 +296,12 @@ export async function generatePersonalPlaylistsWithTrace(
 ): Promise<PersonalGenerationResult> {
   const builder = new PersonalTraceBuilder(userId);
   const playCounts = await getUserPlayCounts(userId);
+  const recentSkips = await getRecentSkipCounts(userId, RECENT_SKIPS_WINDOW_DAYS);
+  const heavySkippedTrackIds = new Set(
+    Object.entries(recentSkips)
+      .filter(([, e]) => e.count >= SKIP_HARD_FILTER_THRESHOLD)
+      .map(([id]) => id)
+  );
   const entries = Object.entries(playCounts);
   const totalPlays = entries.reduce((sum, [, e]) => sum + e.count, 0);
 
@@ -326,7 +335,10 @@ export async function generatePersonalPlaylistsWithTrace(
   ];
 
   for (const { variant, fn } of variantBuilders) {
-    const { scored, notes } = fn();
+    const { scored: rawScored, notes } = fn();
+    const scored = heavySkippedTrackIds.size > 0
+      ? rawScored.filter((s) => !heavySkippedTrackIds.has(s.track.id))
+      : rawScored;
     const playlist = buildPlaylist(variant, scored, generatedAt);
 
     const traceEntry: PersonalVariantTrace = {

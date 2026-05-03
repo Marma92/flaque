@@ -28,6 +28,7 @@ export type ScoredTrackTrace = {
     libraryPopularity: number;
     novelty: number;
     albumOverlapWithSeed: number;
+    recentSkipCount: number;
   };
   source?: string;
   rejection?: string;

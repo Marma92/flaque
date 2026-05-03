@@ -221,6 +221,40 @@ describe("personalPlaylistService", () => {
     }
   });
 
+  it("hard-filters tracks with 3+ recent skips out of personal mixes", async () => {
+    const { generatePersonalPlaylistsWithTrace } = await import("./personalPlaylistService");
+    const { ensureDir, writeJsonAtomic } = await import("../../utils/fs");
+    const thisYear = new Date().getFullYear();
+    const tracks: Track[] = [];
+    for (let i = 0; i < 12; i++) {
+      tracks.push(makeTrack({
+        id: `new-${i}`,
+        addedAt: `${thisYear}-02-01T00:00:00Z`,
+        tags: { artist: `Artist ${i % 4}`, album: `Album ${i % 4}`, year: thisYear }
+      }));
+    }
+    const indexStore = makeMockIndexStore(tracks);
+    const counts: Record<string, { count: number; lastPlayedAt: string }> = {};
+    for (let i = 0; i < 12; i++) counts[`new-${i}`] = { count: 2, lastPlayedAt: `${thisYear}-04-01T00:00:00Z` };
+    await writePlayCounts("user-1", counts);
+
+    const recent = new Date().toISOString();
+    const dir = path.join(tmpDir, "data", "storage", "users", "user-1");
+    await ensureDir(dir);
+    await writeJsonAtomic(path.join(dir, "skips.json"), {
+      tracks: {
+        "new-0": { count: 4, lastSkippedAt: recent },
+        "new-1": { count: 3, lastSkippedAt: recent }
+      }
+    });
+
+    const { playlists } = await generatePersonalPlaylistsWithTrace("user-1", indexStore);
+    const discovered = playlists.find((p) => p.variant === "discovered-this-year");
+    expect(discovered).toBeDefined();
+    expect(discovered!.trackIds).not.toContain("new-0");
+    expect(discovered!.trackIds).not.toContain("new-1");
+  });
+
   it("regeneratePersonalPlaylists persists playlists, meta, and trace", async () => {
     const { regeneratePersonalPlaylists, loadPersonalPlaylists, loadPersonalTrace } =
       await import("./personalPlaylistService");

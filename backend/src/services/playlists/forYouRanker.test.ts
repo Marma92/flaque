@@ -98,7 +98,8 @@ describe("forYouRanker", () => {
         yearProximity: 0.5,
         libraryPopularity: 0.5,
         novelty: 0.5,
-        albumOverlapWithSeed: 0
+        albumOverlapWithSeed: 0,
+        recentSkipCount: 0
       };
     }
 
@@ -132,9 +133,20 @@ describe("forYouRanker", () => {
       expect(scoreFeatures(on)).toBeLessThan(scoreFeatures(off));
     });
 
+    it("decreases monotonically with recentSkipCount up to the soft cap", () => {
+      const zero = { ...baseFeatures(), recentSkipCount: 0 };
+      const one = { ...baseFeatures(), recentSkipCount: 1 };
+      const three = { ...baseFeatures(), recentSkipCount: 3 };
+      const ten = { ...baseFeatures(), recentSkipCount: 10 };
+      expect(scoreFeatures(one)).toBeLessThan(scoreFeatures(zero));
+      expect(scoreFeatures(three)).toBeLessThan(scoreFeatures(one));
+      expect(scoreFeatures(ten)).toBe(scoreFeatures(three));
+    });
+
     it("uses the documented default weights", () => {
       expect(DEFAULT_WEIGHTS.genreOverlap).toBe(0.4);
       expect(DEFAULT_WEIGHTS.albumOverlapWithSeed).toBeLessThan(0);
+      expect(DEFAULT_WEIGHTS.skipPenalty).toBeLessThan(0);
     });
   });
 });

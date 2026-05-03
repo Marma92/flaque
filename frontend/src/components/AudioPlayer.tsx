@@ -28,6 +28,7 @@ type AudioPlayerProps = {
   onPrevious?: (options?: NavigateOptions) => Promise<void> | void;
   onNext?: (options?: NavigateOptions) => Promise<void> | void;
   onTrackPlayed?: (track: Track) => void;
+  onTrackSkipped?: (track: Track) => void;
   transcodeMode?: TranscodeMode;
   onTranscodeModeChange?: (mode: TranscodeMode) => void;
   repeatMode?: RepeatMode;
@@ -57,6 +58,7 @@ export function AudioPlayer({
   onPrevious,
   onNext,
   onTrackPlayed,
+  onTrackSkipped,
   transcodeMode = "original",
   onTranscodeModeChange,
   repeatMode = "off",
@@ -91,7 +93,7 @@ export function AudioPlayer({
     track, transcodeMode, onTranscodeModeChange,
     repeatMode, onRepeatModeChange,
     shuffleEnabled, onShuffleEnabledChange,
-    playRequestNonce, playRequestOffsetSec, onNext, onPrevious, onTrackPlayed
+    playRequestNonce, playRequestOffsetSec, onNext, onPrevious, onTrackPlayed, onTrackSkipped
   });
 
   const [showPlaylistPicker, setShowPlaylistPicker] = useState(false);

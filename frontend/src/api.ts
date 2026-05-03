@@ -1041,6 +1041,13 @@ export async function reportTrackPlay(trackId: string): Promise<void> {
   });
 }
 
+export async function reportTrackSkip(trackId: string): Promise<void> {
+  await fetch(withApiBase(`/api/tracks/${encodeURIComponent(trackId)}/skip`), {
+    method: "POST",
+    credentials: "include"
+  });
+}
+
 export type PlayStatsResponse = {
   topTracks: Array<{ trackId: string; count: number; lastPlayedAt: string }>;
   topArtists: Array<{ artist: string; playCount: number }>;

@@ -341,6 +341,49 @@ describe("forYouPlaylistService", () => {
     expect(sample.features.yearProximity).toBeLessThanOrEqual(1);
   });
 
+  it("excludes tracks with 3+ recent skips from the candidate pool", async () => {
+    const { regenerateForYouPlaylists, loadForYouTrace } = await import("./forYouPlaylistService");
+    const { ensureDir, writeJsonAtomic } = await import("../../utils/fs");
+
+    const artists = ["Pink Floyd", "Led Zeppelin", "Deep Purple", "Black Sabbath"];
+    const tracks: Track[] = [];
+    for (let i = 0; i < 60; i++) {
+      const artist = artists[i % 4]!;
+      tracks.push(
+        makeTrack({
+          id: `track-${i}`,
+          tags: { artist, album: `${artist}-${i % 3}`, genre: ["Rock"], year: 1972 + (i % 6) }
+        })
+      );
+    }
+    const indexStore = makeMockIndexStore(tracks);
+
+    const dir = path.join(tmpDir, "data", "storage", "users", "user-1");
+    await ensureDir(dir);
+    const playCounts: Record<string, { count: number; lastPlayedAt: string }> = {};
+    for (let i = 0; i < 30; i++) playCounts[`track-${i}`] = { count: 2, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    await writeJsonAtomic(path.join(dir, "play-counts.json"), { tracks: playCounts });
+
+    // Mark a handful of peer-pool tracks as heavily skipped.
+    const recent = new Date().toISOString();
+    const skips: Record<string, { count: number; lastSkippedAt: string }> = {
+      "track-30": { count: 5, lastSkippedAt: recent },
+      "track-31": { count: 3, lastSkippedAt: recent },
+      "track-32": { count: 4, lastSkippedAt: recent }
+    };
+    await writeJsonAtomic(path.join(dir, "skips.json"), { tracks: skips });
+
+    await regenerateForYouPlaylists("user-1", indexStore);
+
+    const trace = await loadForYouTrace("user-1");
+    expect(trace).not.toBeNull();
+    for (const playlist of trace!.playlists) {
+      expect(playlist.finalTrackIds).not.toContain("track-30");
+      expect(playlist.finalTrackIds).not.toContain("track-31");
+      expect(playlist.finalTrackIds).not.toContain("track-32");
+    }
+  });
+
   it("dismissed seed is skipped at the seed-selection stage", async () => {
     const { regenerateForYouPlaylists, dismissForYouPlaylist, loadForYouTrace } =
       await import("./forYouPlaylistService");

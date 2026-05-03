@@ -6,6 +6,7 @@ import { dataRoot, usersStorageRoot } from "../../utils/paths";
 import { ensureDir, readJsonFile, updateJsonFile, writeJsonAtomic } from "../../utils/fs";
 import { normalizeGenreLabel } from "../genre/genreSynonymService";
 import { getUserPlayCounts } from "../activity/playCountStore";
+import { getRecentSkipCounts } from "../activity/skipStore";
 import type { IndexStore } from "../indexer/indexStore";
 import type { Track } from "../../types/library";
 import { ForYouTraceBuilder, type ForYouTrace, type ScoredTrackTrace } from "./playlistTrace";
@@ -16,6 +17,7 @@ import {
   noveltyScore,
   scoreFeatures,
   yearProximity,
+  SKIP_HARD_FILTER_THRESHOLD,
   type CandidateFeatures
 } from "./forYouRanker";
 
@@ -35,6 +37,7 @@ const TOP_REJECTIONS_RECORDED = 5;
 const RECENT_PLAYS_WINDOW_DAYS = 30;
 const ALBUM_DEPTH_WINDOW_DAYS = 60;
 const ALBUM_DEPTH_THRESHOLD = 0.7;
+const RECENT_SKIPS_WINDOW_DAYS = 60;
 
 // Candidate-pool fallbacks (broaden the pool beyond strict genre+year match)
 const GENRE_JACCARD_FLOOR = 0.2;
@@ -97,12 +100,14 @@ type SignalMaps = {
   artistLifetimePlays: Map<string, number>;
   artistRecentPlays: Map<string, number>;
   trackRecentPlays: Map<string, number>;
+  trackRecentSkips: Map<string, number>;
   maxArtistLifetimePlays: number;
   albumDepthArtists: Map<string, number>; // artist (lowercase) → score contribution from album-deep
 };
 
 function computeSignals(
   playCounts: Record<string, PlayCountEntry>,
+  recentSkipCounts: Record<string, { count: number }>,
   indexStore: IndexStore
 ): SignalMaps {
   const now = Date.now();
@@ -163,10 +168,16 @@ function computeSignals(
     albumDepthArtists.set(artistKey, (albumDepthArtists.get(artistKey) ?? 0) + contribution);
   }
 
+  const trackRecentSkips = new Map<string, number>();
+  for (const [trackId, entry] of Object.entries(recentSkipCounts)) {
+    trackRecentSkips.set(trackId, entry.count);
+  }
+
   return {
     artistLifetimePlays,
     artistRecentPlays,
     trackRecentPlays,
+    trackRecentSkips,
     maxArtistLifetimePlays,
     albumDepthArtists
   };
@@ -285,7 +296,8 @@ function gatherCandidates(
   seedArtist: string,
   profile: { genres: string[]; minYear: number; maxYear: number },
   seedTracks: Track[],
-  allTracks: Track[]
+  allTracks: Track[],
+  trackRecentSkips: ReadonlyMap<string, number>
 ): Candidate[] {
   const seedArtistLower = seedArtist.toLowerCase();
   const seedGenres = new Set(profile.genres);
@@ -301,6 +313,8 @@ function gatherCandidates(
   for (const track of allTracks) {
     const trackArtist = (track.tags.artist ?? "").toLowerCase();
     if (!trackArtist || trackArtist === seedArtistLower) continue;
+
+    if ((trackRecentSkips.get(track.id) ?? 0) >= SKIP_HARD_FILTER_THRESHOLD) continue;
 
     let source: Candidate["source"] | null = null;
 
@@ -370,7 +384,8 @@ function computeFeatures(
     yearProximity: yearProximity(candidate.track.tags.year, midYear),
     libraryPopularity: logPopularity(lifetimePlays, signals.maxArtistLifetimePlays),
     novelty: noveltyScore(recentPlays),
-    albumOverlapWithSeed: candidate.album && seedAlbumKeys.has(candidate.album) ? 1 : 0
+    albumOverlapWithSeed: candidate.album && seedAlbumKeys.has(candidate.album) ? 1 : 0,
+    recentSkipCount: signals.trackRecentSkips.get(candidate.track.id) ?? 0
   };
 }
 
@@ -616,7 +631,7 @@ function buildForYouPlaylist(
   const seedGenres = new Set(profile.genres);
   const midYear = (profile.minYear + profile.maxYear) / 2;
 
-  const candidates = gatherCandidates(seedArtist, profile, seedTracks, allTracks);
+  const candidates = gatherCandidates(seedArtist, profile, seedTracks, allTracks, signals.trackRecentSkips);
   baseTrace.candidatePoolSize = candidates.length;
   baseTrace.peerTrackCount = candidates.length;
 
@@ -645,6 +660,7 @@ function buildForYouPlaylist(
 
   // Seed tracks: pick by lifetime play count first (favorites), fall back to insertion order.
   const seedRanked: RankedCandidate[] = seedTracks
+    .filter((t) => (signals.trackRecentSkips.get(t.id) ?? 0) < SKIP_HARD_FILTER_THRESHOLD)
     .map((t) => {
       const albumLower = (t.tags.album ?? "").toLowerCase();
       const trackPlays = signals.trackRecentPlays.get(t.id) ?? 0;
@@ -653,7 +669,8 @@ function buildForYouPlaylist(
         yearProximity: 1,
         libraryPopularity: logPopularity(lifetimePlays, signals.maxArtistLifetimePlays),
         novelty: noveltyScore(trackPlays),
-        albumOverlapWithSeed: 1
+        albumOverlapWithSeed: 1,
+        recentSkipCount: signals.trackRecentSkips.get(t.id) ?? 0
       };
       const rawScore = scoreFeatures(features);
       return {
@@ -735,10 +752,11 @@ export async function generateForYouPlaylistsWithTrace(
   const builder = new ForYouTraceBuilder(userId);
 
   const playCounts = await getUserPlayCounts(userId);
+  const recentSkips = await getRecentSkipCounts(userId, RECENT_SKIPS_WINDOW_DAYS);
   const entries = Object.entries(playCounts);
   const totalPlays = entries.reduce((sum, [, e]) => sum + e.count, 0);
 
-  const signals = computeSignals(playCounts, indexStore);
+  const signals = computeSignals(playCounts, recentSkips, indexStore);
   const distinctArtists = signals.artistLifetimePlays.size;
   builder.setStats(totalPlays, distinctArtists);
 
