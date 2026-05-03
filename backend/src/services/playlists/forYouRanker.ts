@@ -14,6 +14,12 @@ export type CandidateFeatures = {
   novelty: number;
   albumOverlapWithSeed: number;
   recentSkipCount: number;
+  /**
+   * Cosine similarity between the candidate's audio embedding and the mean
+   * embedding of the seed tracks. Range -1..1; 0.5 is the neutral value used
+   * when either side is missing an embedding.
+   */
+  embeddingSimilarity: number;
 };
 
 export type RankerWeights = {
@@ -23,6 +29,7 @@ export type RankerWeights = {
   novelty: number;
   albumOverlapWithSeed: number;
   skipPenalty: number;
+  embeddingSimilarity: number;
 };
 
 export const DEFAULT_WEIGHTS: RankerWeights = {
@@ -31,8 +38,12 @@ export const DEFAULT_WEIGHTS: RankerWeights = {
   libraryPopularity: 0.15,
   novelty: 0.15,
   albumOverlapWithSeed: -0.30,
-  skipPenalty: -0.20
+  skipPenalty: -0.20,
+  embeddingSimilarity: 0.10
 };
+
+/** Neutral similarity score when an embedding is unavailable. */
+export const NEUTRAL_EMBEDDING_SIMILARITY = 0.5;
 
 export const SKIP_SOFT_CAP = 3;
 export const SKIP_HARD_FILTER_THRESHOLD = 3;
@@ -102,6 +113,7 @@ export function scoreFeatures(features: CandidateFeatures, weights: RankerWeight
     weights.libraryPopularity * features.libraryPopularity +
     weights.novelty * features.novelty +
     weights.albumOverlapWithSeed * features.albumOverlapWithSeed +
-    weights.skipPenalty * cappedSkips
+    weights.skipPenalty * cappedSkips +
+    weights.embeddingSimilarity * features.embeddingSimilarity
   );
 }

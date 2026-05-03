@@ -29,6 +29,7 @@ export type ScoredTrackTrace = {
     novelty: number;
     albumOverlapWithSeed: number;
     recentSkipCount: number;
+    embeddingSimilarity: number;
   };
   source?: string;
   rejection?: string;

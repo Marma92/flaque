@@ -5,8 +5,10 @@ import os from "node:os";
 
 let tmpDir: string;
 
-vi.mock("../../utils/paths", async () => {
+vi.mock("../../utils/paths", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../../utils/paths")>();
   return {
+    ...original,
     get dataRoot() { return path.join(tmpDir, "data"); },
     get usersStorageRoot() { return path.join(tmpDir, "data", "storage", "users"); },
     get configRoot() { return path.join(tmpDir, "data", "config"); }
@@ -339,6 +341,41 @@ describe("forYouPlaylistService", () => {
     expect(sample.features.genreOverlap).toBeLessThanOrEqual(1);
     expect(sample.features.yearProximity).toBeGreaterThanOrEqual(0);
     expect(sample.features.yearProximity).toBeLessThanOrEqual(1);
+  });
+
+  it("uses embedding similarity in the trace, with a neutral score when no embeddings exist", async () => {
+    const { regenerateForYouPlaylists, loadForYouTrace } = await import("./forYouPlaylistService");
+    const { ensureDir, writeJsonAtomic } = await import("../../utils/fs");
+
+    const artists = ["Pink Floyd", "Led Zeppelin", "Deep Purple", "Black Sabbath"];
+    const tracks: Track[] = [];
+    for (let i = 0; i < 60; i++) {
+      const artist = artists[i % 4]!;
+      tracks.push(
+        makeTrack({
+          id: `track-${i}`,
+          tags: { artist, album: `${artist}-${i % 3}`, genre: ["Rock"], year: 1972 + (i % 6) }
+        })
+      );
+    }
+    const indexStore = makeMockIndexStore(tracks);
+
+    const dir = path.join(tmpDir, "data", "storage", "users", "user-1");
+    await ensureDir(dir);
+    const playCounts: Record<string, { count: number; lastPlayedAt: string }> = {};
+    for (let i = 0; i < 30; i++) playCounts[`track-${i}`] = { count: 2, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    await writeJsonAtomic(path.join(dir, "play-counts.json"), { tracks: playCounts });
+
+    await regenerateForYouPlaylists("user-1", indexStore);
+    const trace = await loadForYouTrace("user-1");
+    expect(trace).not.toBeNull();
+    const playlist = trace!.playlists.find((p) => p.finalOrder && p.finalOrder.length > 0);
+    expect(playlist).toBeDefined();
+    for (const entry of playlist!.finalOrder!) {
+      // No embeddings exist on disk, so non-seed candidates must get the
+      // neutral 0.5 score; seeds get 1.0 since they're the seed set.
+      expect([0.5, 1]).toContain(entry.features.embeddingSimilarity);
+    }
   });
 
   it("excludes tracks with 3+ recent skips from the candidate pool", async () => {

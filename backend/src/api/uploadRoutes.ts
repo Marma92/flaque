@@ -6,6 +6,7 @@ import { Router, type NextFunction, type Response } from "express";
 
 import { requireAuth } from "../auth/middleware";
 import { appendTrackActivityLogEntries } from "../services/activity/trackActivityStore";
+import { computeAndSaveEmbedding } from "../services/embeddings/audioEmbeddingService";
 import { enrichTrackGenre } from "../services/genre/genreEnrichmentService";
 import { mergeTrackMetadataOverrides } from "../services/indexer/metadataOverrideStore";
 import { IndexStore } from "../services/indexer/indexStore";
@@ -262,6 +263,7 @@ async function ingestUploadedFiles(
         void enrichTrackGenre(track.id, artist, title).catch(() => {});
       }
     }
+    void computeAndSaveEmbedding(track.id, track.path).catch(() => {});
   }
 
   const deduplicated = results.filter((r) => !r.isNew).length;

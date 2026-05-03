@@ -15,6 +15,7 @@ import { migratePerUserUploadsToSharedMusic } from "./services/storage/storageSe
 import { startBackupScheduler } from "./services/backup/backupService";
 import { startVersionCheckSchedule } from "./services/versionCheck";
 import { ensureBaseDirectories } from "./utils/fs";
+import { backfillMissingEmbeddings } from "./services/embeddings/audioEmbeddingService";
 import { checkAndRegenerateOnBoot } from "./services/playlists/autoPlaylistService";
 import { checkAndRegenerateForYouOnBoot } from "./services/playlists/forYouPlaylistService";
 import { checkAndRegeneratePersonalOnBoot } from "./services/playlists/personalPlaylistService";
@@ -99,6 +100,14 @@ async function bootstrap(): Promise<void> {
   await Promise.all(
     listUsers().map((user) => checkAndRegeneratePersonalOnBoot(user.id, indexStore))
   );
+
+  // Audio embedding backfill: trickles through any tracks missing an
+  // embedding sidecar. Fire-and-forget — never blocks startup.
+  void backfillMissingEmbeddings(
+    indexStore.getSnapshot().tracks.map((t) => ({ id: t.id, path: t.path }))
+  ).catch((error: unknown) => {
+    log.warn("Embedding backfill failed", { error: String(error) });
+  });
 }
 
 bootstrap().catch((error: unknown) => {

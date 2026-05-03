@@ -7,6 +7,8 @@ import { ensureDir, readJsonFile, updateJsonFile, writeJsonAtomic } from "../../
 import { normalizeGenreLabel } from "../genre/genreSynonymService";
 import { getUserPlayCounts } from "../activity/playCountStore";
 import { getRecentSkipCounts } from "../activity/skipStore";
+import { loadEmbedding } from "../embeddings/audioEmbeddingService";
+import { cosineSimilarity, meanVector } from "../embeddings/audioFeatures";
 import type { IndexStore } from "../indexer/indexStore";
 import type { Track } from "../../types/library";
 import { ForYouTraceBuilder, type ForYouTrace, type ScoredTrackTrace } from "./playlistTrace";
@@ -17,6 +19,7 @@ import {
   noveltyScore,
   scoreFeatures,
   yearProximity,
+  NEUTRAL_EMBEDDING_SIMILARITY,
   SKIP_HARD_FILTER_THRESHOLD,
   type CandidateFeatures
 } from "./forYouRanker";
@@ -374,7 +377,8 @@ function computeFeatures(
   seedGenres: ReadonlySet<string>,
   midYear: number,
   seedAlbumKeys: ReadonlySet<string>,
-  signals: SignalMaps
+  signals: SignalMaps,
+  similarityByTrackId: ReadonlyMap<string, number>
 ): CandidateFeatures {
   const lifetimePlays = signals.artistLifetimePlays.get(candidate.artist) ?? 0;
   const recentPlays = signals.trackRecentPlays.get(candidate.track.id) ?? 0;
@@ -385,7 +389,9 @@ function computeFeatures(
     libraryPopularity: logPopularity(lifetimePlays, signals.maxArtistLifetimePlays),
     novelty: noveltyScore(recentPlays),
     albumOverlapWithSeed: candidate.album && seedAlbumKeys.has(candidate.album) ? 1 : 0,
-    recentSkipCount: signals.trackRecentSkips.get(candidate.track.id) ?? 0
+    recentSkipCount: signals.trackRecentSkips.get(candidate.track.id) ?? 0,
+    embeddingSimilarity:
+      similarityByTrackId.get(candidate.track.id) ?? NEUTRAL_EMBEDDING_SIMILARITY
   };
 }
 
@@ -396,16 +402,28 @@ function rankCandidates(
   seedGenres: ReadonlySet<string>,
   midYear: number,
   seedAlbumKeys: ReadonlySet<string>,
-  signals: SignalMaps
+  signals: SignalMaps,
+  similarityByTrackId: ReadonlyMap<string, number>
 ): RankedCandidate[] {
   return candidates
     .map((c) => {
-      const features = computeFeatures(c, seedGenres, midYear, seedAlbumKeys, signals);
+      const features = computeFeatures(c, seedGenres, midYear, seedAlbumKeys, signals, similarityByTrackId);
       const rawScore = scoreFeatures(features);
       const jitter = fnvJitter(`${userId}|${seedKey}|${c.track.id}`);
       return { ...c, features, rawScore, score: rawScore + jitter };
     })
     .sort((a, b) => b.score - a.score);
+}
+
+async function loadEmbeddingVectors(trackIds: string[]): Promise<Map<string, number[]>> {
+  const out = new Map<string, number[]>();
+  await Promise.all(
+    trackIds.map(async (id) => {
+      const e = await loadEmbedding(id);
+      if (e) out.set(id, e.vec);
+    })
+  );
+  return out;
 }
 
 /**
@@ -603,13 +621,13 @@ type BuildResult =
   | { playlist: ForYouPlaylist; trace: BuildTrace }
   | { playlist: null; trace: BuildTrace };
 
-function buildForYouPlaylist(
+async function buildForYouPlaylist(
   seedArtist: string,
   indexStore: IndexStore,
   allTracks: Track[],
   signals: SignalMaps,
   userId: string
-): BuildResult {
+): Promise<BuildResult> {
   const profile = getArtistProfile(seedArtist, indexStore);
   const baseTrace: BuildTrace = {
     profile,
@@ -640,6 +658,21 @@ function buildForYouPlaylist(
   }
 
   const seedKey = seedArtist.toLowerCase();
+
+  // Embedding similarity: load seed-track embeddings once, then candidate
+  // embeddings in parallel; precompute a trackId → cosine map so the rest
+  // of the ranker stays sync.
+  const seedEmbeddings = await loadEmbeddingVectors(seedTracks.map((t) => t.id));
+  const seedMean =
+    seedEmbeddings.size > 0 ? meanVector([...seedEmbeddings.values()]) : null;
+  const candidateEmbeddings = await loadEmbeddingVectors(candidates.map((c) => c.track.id));
+  const similarityByTrackId = new Map<string, number>();
+  if (seedMean) {
+    for (const [trackId, vec] of candidateEmbeddings) {
+      similarityByTrackId.set(trackId, cosineSimilarity(seedMean, vec));
+    }
+  }
+
   const ranked = rankCandidates(
     candidates,
     userId,
@@ -647,7 +680,8 @@ function buildForYouPlaylist(
     seedGenres,
     midYear,
     seedAlbumKeys,
-    signals
+    signals,
+    similarityByTrackId
   );
 
   const lifetimePlays = signals.artistLifetimePlays.get(seedKey) ?? 0;
@@ -670,7 +704,8 @@ function buildForYouPlaylist(
         libraryPopularity: logPopularity(lifetimePlays, signals.maxArtistLifetimePlays),
         novelty: noveltyScore(trackPlays),
         albumOverlapWithSeed: 1,
-        recentSkipCount: signals.trackRecentSkips.get(t.id) ?? 0
+        recentSkipCount: signals.trackRecentSkips.get(t.id) ?? 0,
+        embeddingSimilarity: 1
       };
       const rawScore = scoreFeatures(features);
       return {
@@ -795,7 +830,7 @@ export async function generateForYouPlaylistsWithTrace(
     }
     attemptedSeeds++;
 
-    const result = buildForYouPlaylist(candidate.artist, indexStore, allTracks, signals, userId);
+    const result = await buildForYouPlaylist(candidate.artist, indexStore, allTracks, signals, userId);
 
     if (result.playlist) {
       playlists.push(result.playlist);

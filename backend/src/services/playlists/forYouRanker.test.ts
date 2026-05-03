@@ -99,7 +99,8 @@ describe("forYouRanker", () => {
         libraryPopularity: 0.5,
         novelty: 0.5,
         albumOverlapWithSeed: 0,
-        recentSkipCount: 0
+        recentSkipCount: 0,
+        embeddingSimilarity: 0.5
       };
     }
 
@@ -143,10 +144,17 @@ describe("forYouRanker", () => {
       expect(scoreFeatures(ten)).toBe(scoreFeatures(three));
     });
 
+    it("increases with embeddingSimilarity", () => {
+      const lo = { ...baseFeatures(), embeddingSimilarity: 0.1 };
+      const hi = { ...baseFeatures(), embeddingSimilarity: 0.9 };
+      expect(scoreFeatures(hi)).toBeGreaterThan(scoreFeatures(lo));
+    });
+
     it("uses the documented default weights", () => {
       expect(DEFAULT_WEIGHTS.genreOverlap).toBe(0.4);
       expect(DEFAULT_WEIGHTS.albumOverlapWithSeed).toBeLessThan(0);
       expect(DEFAULT_WEIGHTS.skipPenalty).toBeLessThan(0);
+      expect(DEFAULT_WEIGHTS.embeddingSimilarity).toBeGreaterThan(0);
     });
   });
 });
