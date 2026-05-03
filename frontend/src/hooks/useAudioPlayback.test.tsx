@@ -8,7 +8,6 @@ import type { Track } from "../types";
 
 function makeTrack(overrides: Partial<Track> & { id: string }): Track {
   return {
-    id: overrides.id,
     owner: "u",
     path: `${overrides.id}.mp3`,
     duration: 180,
