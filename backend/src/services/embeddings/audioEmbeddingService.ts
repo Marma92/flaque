@@ -12,6 +12,7 @@
  */
 
 import { spawn } from "node:child_process";
+import fs from "node:fs/promises";
 import path from "node:path";
 
 import { resolveTrackAbsolutePath } from "../storage/storageService";
@@ -106,11 +107,21 @@ function decodeToPcm(absolutePath: string): Promise<Float32Array> {
         reject(new Error(`ffmpeg exited with code ${code}: ${stderr.trim()}`));
         return;
       }
-      // Concatenate into one contiguous buffer aligned to 4-byte boundary.
-      const combined = Buffer.concat(chunks, totalBytes);
-      const usable = combined.length - (combined.length % 4);
-      const samples = new Float32Array(combined.buffer, combined.byteOffset, usable / 4);
-      resolve(new Float32Array(samples));
+      // Buffer.concat's underlying ArrayBuffer offset isn't guaranteed to be
+      // 4-byte aligned, which is required to construct a Float32Array view.
+      // Copy bytes into a fresh, naturally aligned ArrayBuffer instead.
+      const usable = totalBytes - (totalBytes % 4);
+      const aligned = new ArrayBuffer(usable);
+      const dst = new Uint8Array(aligned);
+      let offset = 0;
+      for (const chunk of chunks) {
+        const remaining = usable - offset;
+        if (remaining <= 0) break;
+        const len = Math.min(chunk.length, remaining);
+        dst.set(chunk.subarray(0, len), offset);
+        offset += len;
+      }
+      resolve(new Float32Array(aligned));
     });
   });
 }
@@ -192,9 +203,30 @@ export async function backfillMissingEmbeddings(
   let skipped = 0;
   let failed = 0;
 
+  // Build a Set of trackIds that already have a current-version sidecar.
+  // We readdir once (avoiding stat-per-track for tracks that lack a file)
+  // and then read only the existing sidecars to drop stale-version ones.
+  await ensureDir(EMBEDDINGS_DIR);
+  const validIds = new Set<string>();
+  const entries = await fs.readdir(EMBEDDINGS_DIR).catch(() => [] as string[]);
+  const existingFilenames = entries.filter((f) => f.endsWith(".json"));
+  let cursor = 0;
+  const workers: Promise<void>[] = [];
+  for (let w = 0; w < 8; w++) {
+    workers.push((async () => {
+      while (true) {
+        const i = cursor++;
+        if (i >= existingFilenames.length) return;
+        const id = existingFilenames[i]!.slice(0, -".json".length);
+        if (await loadEmbedding(id)) validIds.add(id);
+      }
+    })());
+  }
+  await Promise.all(workers);
+
   for (let i = 0; i < tracks.length; i++) {
     const track = tracks[i]!;
-    if (await hasEmbedding(track.id)) {
+    if (validIds.has(track.id)) {
       skipped++;
       continue;
     }

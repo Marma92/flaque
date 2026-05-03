@@ -134,7 +134,15 @@ export function useAudioPlayback({
   // ── Track change: reset and autoplay ──────────────────────────────────
   useEffect(() => {
     const audioElement = audioRef.current;
-    if (!audioElement || !track) {
+    if (!audioElement) {
+      return;
+    }
+    if (!track) {
+      // Queue cleared. Drop the previous-track reference so we don't fire a
+      // bogus skip when the user later starts a new track.
+      previousTrackRef.current = null;
+      endedNaturallyRef.current = false;
+      currentTimeRef.current = 0;
       return;
     }
 

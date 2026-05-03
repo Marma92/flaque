@@ -45,8 +45,14 @@ export const DEFAULT_WEIGHTS: RankerWeights = {
 /** Neutral similarity score when an embedding is unavailable. */
 export const NEUTRAL_EMBEDDING_SIMILARITY = 0.5;
 
+/**
+ * Hard filter excludes tracks at >= SKIP_HARD_FILTER_THRESHOLD skips. The
+ * soft cap shapes the penalty curve for tracks that survive the filter:
+ * each additional skip below the cap deepens the penalty, then plateaus.
+ * Keep hard > soft so the cap actually does work.
+ */
 export const SKIP_SOFT_CAP = 3;
-export const SKIP_HARD_FILTER_THRESHOLD = 3;
+export const SKIP_HARD_FILTER_THRESHOLD = 5;
 
 export const YEAR_SIGMA = 8;
 export const JITTER_RANGE = 0.1;

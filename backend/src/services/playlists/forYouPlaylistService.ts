@@ -265,11 +265,23 @@ type Candidate = {
   source: "genre" | "album-artist" | "label" | "year-fallback";
 };
 
+/**
+ * Composite "<artist>::<album>" key used everywhere we deduplicate or cap on
+ * album. Keying on album name alone collides across artists ("Greatest Hits",
+ * self-titled debuts, etc.).
+ */
+function albumKey(artist: string | undefined, album: string | undefined): string {
+  const b = (album ?? "").toLowerCase().trim();
+  if (!b) return "";
+  const a = (artist ?? "").toLowerCase().trim();
+  return `${a}::${b}`;
+}
+
 function buildSeedAlbumKeys(seedTracks: Track[]): Set<string> {
   const set = new Set<string>();
   for (const t of seedTracks) {
-    const album = (t.tags.album ?? "").toLowerCase();
-    if (album) set.add(album);
+    const key = albumKey(t.tags.artist, t.tags.album);
+    if (key) set.add(key);
   }
   return set;
 }
@@ -355,7 +367,7 @@ function gatherCandidates(
       candidates.set(track.id, {
         track,
         artist: trackArtist,
-        album: (track.tags.album ?? "").toLowerCase(),
+        album: albumKey(track.tags.artist, track.tags.album),
         source
       });
     }
@@ -415,14 +427,26 @@ function rankCandidates(
     .sort((a, b) => b.score - a.score);
 }
 
+const EMBEDDING_LOAD_CONCURRENCY = 16;
+
 async function loadEmbeddingVectors(trackIds: string[]): Promise<Map<string, number[]>> {
   const out = new Map<string, number[]>();
-  await Promise.all(
-    trackIds.map(async (id) => {
-      const e = await loadEmbedding(id);
-      if (e) out.set(id, e.vec);
-    })
-  );
+  // Cap concurrent reads. With unbounded Promise.all over 1000+ candidates we
+  // were briefly opening that many file descriptors at once.
+  let cursor = 0;
+  const workers: Promise<void>[] = [];
+  for (let w = 0; w < EMBEDDING_LOAD_CONCURRENCY; w++) {
+    workers.push((async () => {
+      while (true) {
+        const i = cursor++;
+        if (i >= trackIds.length) return;
+        const id = trackIds[i]!;
+        const e = await loadEmbedding(id);
+        if (e) out.set(id, e.vec);
+      }
+    })());
+  }
+  await Promise.all(workers);
   return out;
 }
 
@@ -696,7 +720,6 @@ async function buildForYouPlaylist(
   const seedRanked: RankedCandidate[] = seedTracks
     .filter((t) => (signals.trackRecentSkips.get(t.id) ?? 0) < SKIP_HARD_FILTER_THRESHOLD)
     .map((t) => {
-      const albumLower = (t.tags.album ?? "").toLowerCase();
       const trackPlays = signals.trackRecentPlays.get(t.id) ?? 0;
       const features: CandidateFeatures = {
         genreOverlap: 1,
@@ -711,7 +734,7 @@ async function buildForYouPlaylist(
       return {
         track: t,
         artist: seedKey,
-        album: albumLower,
+        album: albumKey(t.tags.artist, t.tags.album),
         source: "genre" as const,
         features,
         rawScore,

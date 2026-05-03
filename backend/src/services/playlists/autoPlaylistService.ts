@@ -84,6 +84,32 @@ export async function updateAutoPlaylistConfig(patch: Partial<AutoPlaylistConfig
   return next;
 }
 
+// ── Deterministic PRNG ─────────────────────────────────────────────
+
+/**
+ * Small FNV-1a + mulberry32 combo so a string seed yields a reproducible
+ * stream of pseudo-random numbers. Used everywhere we want jitter without
+ * the regen-to-regen drift of Math.random().
+ */
+function fnv1a(seed: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+function seededRng(seed: string): () => number {
+  let t = fnv1a(seed);
+  return () => {
+    t = (t + 0x6d2b79f5) >>> 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // ── Diversity selection ────────────────────────────────────────────
 
 type ScoredTrack = {
@@ -92,8 +118,18 @@ type ScoredTrack = {
   album: string;
 };
 
-function selectDiverseTracks(candidates: ScoredTrack[], maxTracks: number): Track[] {
-  const pool = [...candidates].sort(() => Math.random() - 0.5);
+function selectDiverseTracks(
+  candidates: ScoredTrack[],
+  maxTracks: number,
+  seed: string
+): Track[] {
+  const rng = seededRng(seed);
+  // Stable shuffle: seed-driven, plus a tie-breaker on track id so the input
+  // order doesn't leak into the result.
+  const pool = [...candidates]
+    .map((c) => ({ c, k: rng() }))
+    .sort((a, b) => a.k - b.k || a.c.track.id.localeCompare(b.c.track.id))
+    .map((x) => x.c);
   const selected: ScoredTrack[] = [];
 
   while (selected.length < maxTracks && pool.length > 0) {
@@ -113,7 +149,7 @@ function selectDiverseTracks(candidates: ScoredTrack[], maxTracks: number): Trac
       const recentArtists = selected.slice(-3).map((s) => s.artist);
       if (recentArtists.includes(candidate.artist)) score -= 250;
 
-      score += Math.random() * 40;
+      score += rng() * 40;
 
       if (score > bestScore) {
         bestScore = score;
@@ -141,15 +177,20 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
-function randomGradientColors(): [string, string, string] {
-  const hue = Math.floor(Math.random() * 360);
-  const offsets = [0, 40 + Math.floor(Math.random() * 40), 160 + Math.floor(Math.random() * 80)];
+function gradientColorsFromSeed(seed: string): [string, string, string] {
+  const rng = seededRng(`${seed}|colors`);
+  const hue = Math.floor(rng() * 360);
+  const offsets = [0, 40 + Math.floor(rng() * 40), 160 + Math.floor(rng() * 80)];
   return offsets.map((offset) => {
     const h = (hue + offset) % 360;
-    const s = 55 + Math.floor(Math.random() * 25);
-    const l = 45 + Math.floor(Math.random() * 20);
+    const s = 55 + Math.floor(rng() * 25);
+    const l = 45 + Math.floor(rng() * 20);
     return `hsl(${h}, ${s}%, ${l}%)`;
   }) as [string, string, string];
+}
+
+function gradientAngleFromSeed(seed: string): number {
+  return Math.floor(seededRng(`${seed}|angle`)() * 360);
 }
 
 /**
@@ -310,7 +351,7 @@ export async function generateAutoPlaylistsWithTrace(tracks: Track[]): Promise<A
         ? `${toDecadeLabel(group.decade)} ${group.genre}`
         : `${TEMPO_LABELS[group.tempo!]} ${group.genre}`;
     const id = `auto:${slugify(name)}`;
-    const selectedTracks = selectDiverseTracks(group.tracks, config.tracksPerPlaylist);
+    const selectedTracks = selectDiverseTracks(group.tracks, config.tracksPerPlaylist, group.key);
     const mosaic = pickMosaicCovers(selectedTracks);
     mosaicCountByKey.set(group.key, mosaic.length);
 
@@ -324,8 +365,8 @@ export async function generateAutoPlaylistsWithTrace(tracks: Track[]): Promise<A
       trackIds: selectedTracks.map((t) => t.id),
       trackCount: selectedTracks.length,
       generatedAt,
-      colors: randomGradientColors(),
-      gradientAngle: Math.floor(Math.random() * 360),
+      colors: gradientColorsFromSeed(id),
+      gradientAngle: gradientAngleFromSeed(id),
       ...(mosaic.length > 0 ? { mosaicCovers: mosaic } : {})
     });
   }
@@ -399,8 +440,8 @@ export async function loadAutoPlaylists(): Promise<AutoPlaylist[]> {
       null as unknown as AutoPlaylist
     );
     if (data && data.id && data.trackIds) {
-      if (!data.colors) data.colors = randomGradientColors();
-      if (data.gradientAngle === undefined) data.gradientAngle = Math.floor(Math.random() * 360);
+      if (!data.colors) data.colors = gradientColorsFromSeed(data.id);
+      if (data.gradientAngle === undefined) data.gradientAngle = gradientAngleFromSeed(data.id);
       playlists.push(data);
     }
   }

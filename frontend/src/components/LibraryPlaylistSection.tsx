@@ -374,18 +374,19 @@ export function LibraryPlaylistSection({
       <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex items-center justify-between">
           <SectionHeader title="Made for you" />
-          {!loadingForYouPlaylists && forYouPlaylists.length > 0 && (
+          {!loadingForYouPlaylists && onRefreshForYouPlaylists ? (
             <button
               type="button"
               className="text-xs text-flaque-steel hover:text-flaque-ink"
               onClick={() => { void onRefreshForYouPlaylists?.(); }}
               title="Refresh recommendations"
+              aria-label="Refresh recommendations"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
-          )}
+          ) : null}
         </div>
         {loadingForYouPlaylists ? (
           <p className="mt-2 text-sm text-flaque-steel">Loading recommendations...</p>
@@ -410,14 +411,11 @@ export function LibraryPlaylistSection({
                         className="absolute inset-0 h-full w-full object-cover"
                         loading="lazy"
                       />
-                    ) : null}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 px-3 text-center">
-                      <svg className="h-8 w-8 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                      </svg>
-                      <p className="mt-1 font-display text-sm font-bold leading-tight text-white drop-shadow">{fy.seedArtist}</p>
-                    </div>
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-flaque-cream to-flaque-clay/60 text-flaque-steel">
+                        <span className="font-display text-3xl">{fy.seedArtist.charAt(0).toUpperCase()}</span>
+                      </div>
+                    )}
 
                     {/* Play button overlay */}
                     <button
@@ -485,20 +483,24 @@ export function LibraryPlaylistSection({
         <section className="rounded-xl border border-flaque-clay/60 bg-gradient-to-br from-white/85 to-flaque-cream/40 p-5 shadow-panel backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <SectionHeader title="Personal Mixes" />
-            {!loadingPersonalPlaylists && personalPlaylists.length > 0 && onRefreshPersonalPlaylists ? (
+            {!loadingPersonalPlaylists && onRefreshPersonalPlaylists ? (
               <button
                 type="button"
-                className="rounded-md border border-flaque-clay/60 bg-white px-2.5 py-1 text-xs font-medium text-flaque-ink transition hover:bg-flaque-cream"
+                className="text-xs text-flaque-steel hover:text-flaque-ink"
                 onClick={() => { void onRefreshPersonalPlaylists(); }}
+                title="Refresh personal mixes"
+                aria-label="Refresh personal mixes"
               >
-                Refresh
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
               </button>
             ) : null}
           </div>
           {loadingPersonalPlaylists ? (
             <p className="mt-2 text-sm text-flaque-steel">Loading...</p>
           ) : (
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
               {personalPlaylists.map((pp) => {
                 const [c1, c2, c3] = pp.colors ?? ["hsl(220, 60%, 50%)", "hsl(260, 60%, 50%)", "hsl(340, 60%, 50%)"];
                 const angle = pp.gradientAngle ?? 135;
@@ -507,13 +509,13 @@ export function LibraryPlaylistSection({
                 return (
                   <div
                     key={pp.id}
-                    className="group relative flex cursor-pointer overflow-hidden rounded-2xl bg-white/85 shadow-sm transition hover:shadow-lg"
+                    className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-white/85 shadow-sm transition hover:shadow-lg"
                     onClick={() => onNavigateToPlaylist(pp.id)}
                     role="link"
                     tabIndex={0}
                     onKeyDown={(e) => { if (e.key === "Enter") onNavigateToPlaylist(pp.id); }}
                   >
-                    <div className="relative h-24 w-24 shrink-0 overflow-hidden" style={gradientStyle}>
+                    <div className="group/cover relative aspect-square w-full overflow-hidden" style={gradientStyle}>
                       {mosaic.length > 0 ? (
                         <div
                           className={`absolute inset-0 grid ${mosaic.length === 1 ? "grid-cols-1" : "grid-cols-2"} ${mosaic.length <= 2 ? "grid-rows-1" : "grid-rows-2"}`}
@@ -529,12 +531,30 @@ export function LibraryPlaylistSection({
                           ))}
                         </div>
                       ) : null}
-                      <div className="absolute inset-0 bg-black/30" />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/40 to-transparent px-3 pb-2 pt-6 text-center">
+                        <p
+                          className="line-clamp-2 font-display text-sm font-bold leading-tight drop-shadow"
+                          style={{ color: "#ffffff" }}
+                        >
+                          {pp.name}
+                        </p>
+                      </div>
+
+                      {/* Play button overlay */}
+                      <button
+                        type="button"
+                        className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/cover:bg-black/35 group-hover/cover:opacity-100"
+                        onClick={(e) => { e.stopPropagation(); onNavigateToPlaylist(pp.id); }}
+                        aria-label={`Open ${pp.name}`}
+                      >
+                        <svg className="h-10 w-10 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
+                          <path d="M8 6v12l10-6-10-6z" />
+                        </svg>
+                      </button>
                     </div>
-                    <div className="flex min-w-0 flex-1 flex-col justify-center p-3">
-                      <p className="truncate text-sm font-semibold text-flaque-ink">{pp.name}</p>
-                      <p className="mt-0.5 line-clamp-2 text-xs text-flaque-steel">{pp.description}</p>
-                      <p className="mt-1 text-xs text-flaque-steel/80">
+                    <div className="p-2">
+                      <p className="line-clamp-2 text-xs text-flaque-steel">{pp.description}</p>
+                      <p className="mt-0.5 text-xs text-flaque-steel/80">
                         {pp.trackCount} track{pp.trackCount !== 1 ? "s" : ""}
                       </p>
                     </div>
@@ -593,8 +613,18 @@ export function LibraryPlaylistSection({
                       </div>
                     ) : null}
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/20">
-                      <p className="font-display text-5xl font-extrabold text-white drop-shadow-md">{heroLabel}</p>
-                      <p className="mt-1 text-xs font-medium text-white/80">{ap.genre}</p>
+                      <p
+                        className="font-display text-5xl font-extrabold drop-shadow-md"
+                        style={{ color: "#ffffff" }}
+                      >
+                        {heroLabel}
+                      </p>
+                      <p
+                        className="mt-1 text-xs font-medium"
+                        style={{ color: "rgba(255, 255, 255, 0.8)" }}
+                      >
+                        {ap.genre}
+                      </p>
                     </div>
 
                     {/* Play button overlay */}

@@ -292,6 +292,21 @@ describe("autoPlaylistService", () => {
       expect(trace!.generatedPlaylists).toBe(1);
       expect(trace!.durationMs).toBeGreaterThanOrEqual(0);
     });
+
+    it("produces identical playlists on repeat runs with the same input", async () => {
+      await updateAutoPlaylistConfig({ minTracksPerPlaylist: 6, tracksPerPlaylist: 20 });
+      const tracks = tracksForGroup("Rock", 1975, 12, "r");
+      const a = await generateAutoPlaylists(tracks);
+      const b = await generateAutoPlaylists(tracks);
+      expect(a.length).toBe(b.length);
+      expect(a.length).toBeGreaterThan(0);
+      for (let i = 0; i < a.length; i++) {
+        expect(a[i]!.id).toBe(b[i]!.id);
+        expect(a[i]!.trackIds).toEqual(b[i]!.trackIds);
+        expect(a[i]!.colors).toEqual(b[i]!.colors);
+        expect(a[i]!.gradientAngle).toBe(b[i]!.gradientAngle);
+      }
+    });
   });
 
   describe("needsRegeneration", () => {

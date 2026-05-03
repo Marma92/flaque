@@ -25,7 +25,18 @@ export const HOP_SIZE = 512;
 export const NUM_MEL_FILTERS = 40;
 export const NUM_MFCC_COEFFS = 13;
 export const EMBEDDING_DIM = 32;
-export const EMBEDDING_VERSION = 1;
+export const EMBEDDING_VERSION = 2;
+
+/**
+ * Per-feature scaling so no single dimension dominates cosine similarity.
+ * Without this, raw centroid/rolloff (Hz, ~10²-10³) drown out MFCCs (~10¹)
+ * and 0..1 features (flatness/zcr/rms) under the final L2 normalization.
+ *
+ * Bump EMBEDDING_VERSION whenever these scales change — old embeddings on
+ * disk are no longer comparable.
+ */
+const NYQUIST = SAMPLE_RATE / 2;
+const MFCC_SCALE = 50;
 
 // ── Window ─────────────────────────────────────────────────────────
 
@@ -153,15 +164,20 @@ type FrameFeatures = {
   zcr: number;
 };
 
-function frameFeatures(frame: Float32Array): FrameFeatures {
+function frameFeatures(
+  frame: Float32Array,
+  real: Float32Array,
+  imag: Float32Array,
+  mag: Float32Array
+): FrameFeatures {
   const N = frame.length;
-  const real = new Float32Array(N);
-  const imag = new Float32Array(N);
-  for (let i = 0; i < N; i++) real[i] = frame[i]! * HANN[i]!;
+  for (let i = 0; i < N; i++) {
+    real[i] = frame[i]! * HANN[i]!;
+    imag[i] = 0;
+  }
   fft(real, imag);
 
   const half = N / 2 + 1;
-  const mag = new Float32Array(half);
   let totalEnergy = 0;
   for (let k = 0; k < half; k++) {
     const re = real[k]!;
@@ -271,11 +287,14 @@ export function computeFeatureVector(samples: Float32Array): Float32Array | null
   const rmsValues: number[] = [];
   const zcrs: number[] = [];
 
-  // Pre-allocate the frame buffer once.
+  // Pre-allocate working buffers once for the whole track.
   const frame = new Float32Array(FRAME_SIZE);
+  const real = new Float32Array(FRAME_SIZE);
+  const imag = new Float32Array(FRAME_SIZE);
+  const mag = new Float32Array(FRAME_SIZE / 2 + 1);
   for (let start = 0; start + FRAME_SIZE <= samples.length; start += HOP_SIZE) {
     for (let i = 0; i < FRAME_SIZE; i++) frame[i] = samples[start + i]!;
-    const f = frameFeatures(frame);
+    const f = frameFeatures(frame, real, imag, mag);
     for (let c = 0; c < NUM_MFCC_COEFFS; c++) mfccByCoeff[c]!.push(f.mfcc[c]!);
     centroids.push(f.centroid);
     rolloffs.push(f.rolloff);
@@ -286,18 +305,15 @@ export function computeFeatureVector(samples: Float32Array): Float32Array | null
 
   if (centroids.length === 0) return null;
 
+  const mfccStats = mfccByCoeff.map(meanStd);
   const out = new Float32Array(EMBEDDING_DIM);
   let idx = 0;
-  for (let c = 0; c < NUM_MFCC_COEFFS; c++) {
-    out[idx++] = meanStd(mfccByCoeff[c]!).mean;
-  }
-  for (let c = 0; c < NUM_MFCC_COEFFS; c++) {
-    out[idx++] = meanStd(mfccByCoeff[c]!).std;
-  }
+  for (let c = 0; c < NUM_MFCC_COEFFS; c++) out[idx++] = mfccStats[c]!.mean / MFCC_SCALE;
+  for (let c = 0; c < NUM_MFCC_COEFFS; c++) out[idx++] = mfccStats[c]!.std / MFCC_SCALE;
   const cm = meanStd(centroids);
-  out[idx++] = cm.mean;
-  out[idx++] = cm.std;
-  out[idx++] = meanStd(rolloffs).mean;
+  out[idx++] = cm.mean / NYQUIST;
+  out[idx++] = cm.std / NYQUIST;
+  out[idx++] = meanStd(rolloffs).mean / NYQUIST;
   out[idx++] = meanStd(flatnesses).mean;
   out[idx++] = meanStd(zcrs).mean;
   out[idx++] = meanStd(rmsValues).mean;

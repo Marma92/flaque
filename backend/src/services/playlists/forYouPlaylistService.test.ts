@@ -274,6 +274,48 @@ describe("forYouPlaylistService", () => {
     expect(dominantCount).toBeLessThanOrEqual(4);
   });
 
+  it("does not penalize a peer artist's album just because the name matches the seed's album", async () => {
+    const { regenerateForYouPlaylists, loadForYouTrace } = await import("./forYouPlaylistService");
+    const { ensureDir, writeJsonAtomic } = await import("../../utils/fs");
+
+    // Seed: Pink Floyd's "Greatest Hits". Peer: another band whose album is also
+    // titled "Greatest Hits". Without the artist-qualified album key these
+    // collide and the peer would get the album-overlap penalty (-0.30).
+    const tracks: Track[] = [];
+    for (let i = 0; i < 10; i++) {
+      tracks.push(makeTrack({ id: `seed-${i}`, tags: { artist: "Pink Floyd", album: "Greatest Hits", genre: ["Rock"], year: 1973 } }));
+    }
+    for (let i = 0; i < 8; i++) {
+      tracks.push(makeTrack({ id: `peer-${i}`, tags: { artist: "Other Band", album: "Greatest Hits", genre: ["Rock"], year: 1973 } }));
+    }
+    for (let i = 0; i < 4; i++) {
+      tracks.push(makeTrack({ id: `third-${i}`, tags: { artist: "Third Band", album: `tb-${i}`, genre: ["Rock"], year: 1973 } }));
+    }
+
+    const indexStore = makeMockIndexStore(tracks);
+    const dir = path.join(tmpDir, "data", "storage", "users", "user-1");
+    await ensureDir(dir);
+    const playCounts: Record<string, { count: number; lastPlayedAt: string }> = {};
+    for (let i = 0; i < 10; i++) playCounts[`seed-${i}`] = { count: 5, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    // MIN_DISTINCT_ARTISTS = 3, so make sure plays span 3+ distinct artists.
+    playCounts["peer-0"] = { count: 1, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    playCounts["third-0"] = { count: 1, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    await writeJsonAtomic(path.join(dir, "play-counts.json"), { tracks: playCounts });
+
+    await regenerateForYouPlaylists("user-1", indexStore);
+    const trace = await loadForYouTrace("user-1");
+    expect(trace).not.toBeNull();
+    const pinkFloyd = trace!.playlists.find((p) => p.seed === "Pink Floyd");
+    expect(pinkFloyd).toBeDefined();
+
+    const allEntries = [...(pinkFloyd!.finalOrder ?? []), ...(pinkFloyd!.topRejections ?? [])];
+    const peerEntries = allEntries.filter((e) => e.trackId.startsWith("peer-"));
+    expect(peerEntries.length).toBeGreaterThan(0);
+    for (const entry of peerEntries) {
+      expect(entry.features.albumOverlapWithSeed).toBe(0);
+    }
+  });
+
   it("includes genreless tracks via year fallback", async () => {
     const { generateForYouPlaylists } = await import("./forYouPlaylistService");
     const { ensureDir, writeJsonAtomic } = await import("../../utils/fs");

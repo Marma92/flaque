@@ -221,7 +221,7 @@ describe("personalPlaylistService", () => {
     }
   });
 
-  it("hard-filters tracks with 3+ recent skips out of personal mixes", async () => {
+  it("hard-filters heavily-skipped tracks out of personal mixes", async () => {
     const { generatePersonalPlaylistsWithTrace } = await import("./personalPlaylistService");
     const { ensureDir, writeJsonAtomic } = await import("../../utils/fs");
     const thisYear = new Date().getFullYear();
@@ -243,8 +243,8 @@ describe("personalPlaylistService", () => {
     await ensureDir(dir);
     await writeJsonAtomic(path.join(dir, "skips.json"), {
       tracks: {
-        "new-0": { count: 4, lastSkippedAt: recent },
-        "new-1": { count: 3, lastSkippedAt: recent }
+        "new-0": { count: 6, lastSkippedAt: recent },
+        "new-1": { count: 5, lastSkippedAt: recent }
       }
     });
 
