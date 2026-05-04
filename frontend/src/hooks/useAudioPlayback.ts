@@ -296,16 +296,22 @@ export function useAudioPlayback({
     const artist = getTrackDisplayArtist(track) ?? "Unknown artist";
     const album = getTrackDisplayAlbumWithYear(track) ?? "";
     if (typeof MediaMetadata !== "undefined") {
+      const rawCoverUrl = coverUrl(track.id, track.cover);
+      const absoluteCoverUrl =
+        typeof window !== "undefined" && rawCoverUrl.startsWith("/")
+          ? `${window.location.origin}${rawCoverUrl}`
+          : rawCoverUrl;
       mediaSession.metadata = new MediaMetadata({
         title: getTrackDisplayTitle(track),
         artist,
         album,
         artwork: [
-          {
-            src: coverUrl(track.id, track.cover),
-            sizes: "512x512",
-            type: "image/png"
-          }
+          { src: absoluteCoverUrl, sizes: "96x96", type: "image/jpeg" },
+          { src: absoluteCoverUrl, sizes: "128x128", type: "image/jpeg" },
+          { src: absoluteCoverUrl, sizes: "192x192", type: "image/jpeg" },
+          { src: absoluteCoverUrl, sizes: "256x256", type: "image/jpeg" },
+          { src: absoluteCoverUrl, sizes: "384x384", type: "image/jpeg" },
+          { src: absoluteCoverUrl, sizes: "512x512", type: "image/jpeg" }
         ]
       });
     }
@@ -313,6 +319,7 @@ export function useAudioPlayback({
 
     bindAction("play", () => startPlayback());
     bindAction("pause", () => pausePlayback());
+    bindAction("stop", () => pausePlayback());
     bindAction("previoustrack", () => {
       if (onPrevious) {
         void onPrevious({ wrap: false });
@@ -323,14 +330,82 @@ export function useAudioPlayback({
         void onNext({ wrap: false });
       }
     });
+    bindAction("seekbackward", (details) => {
+      const audioElement = audioRef.current;
+      if (!audioElement) return;
+      const offset = details.seekOffset ?? 10;
+      const next = Math.max(0, audioElement.currentTime - offset);
+      audioElement.currentTime = next;
+      currentTimeRef.current = next;
+      setCurrentTime(next);
+    });
+    bindAction("seekforward", (details) => {
+      const audioElement = audioRef.current;
+      if (!audioElement) return;
+      const offset = details.seekOffset ?? 10;
+      const max = Number.isFinite(audioElement.duration) && audioElement.duration > 0
+        ? audioElement.duration
+        : Number.POSITIVE_INFINITY;
+      const next = Math.min(max, audioElement.currentTime + offset);
+      audioElement.currentTime = next;
+      currentTimeRef.current = next;
+      setCurrentTime(next);
+    });
+    bindAction("seekto", (details) => {
+      const audioElement = audioRef.current;
+      if (!audioElement || typeof details.seekTime !== "number") return;
+      if (details.fastSeek && typeof audioElement.fastSeek === "function") {
+        audioElement.fastSeek(details.seekTime);
+      } else {
+        audioElement.currentTime = details.seekTime;
+      }
+      currentTimeRef.current = details.seekTime;
+      setCurrentTime(details.seekTime);
+    });
 
     return () => {
       bindAction("play", null);
       bindAction("pause", null);
+      bindAction("stop", null);
       bindAction("previoustrack", null);
       bindAction("nexttrack", null);
+      bindAction("seekbackward", null);
+      bindAction("seekforward", null);
+      bindAction("seekto", null);
     };
   }, [isPlaying, onNext, onPrevious, track]);
+
+  // ── Media Session position state ──────────────────────────────────────
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) {
+      return;
+    }
+
+    const mediaSession = navigator.mediaSession;
+    if (typeof mediaSession.setPositionState !== "function") {
+      return;
+    }
+
+    if (!track || !duration || !Number.isFinite(duration)) {
+      try {
+        mediaSession.setPositionState();
+      } catch {
+        // ignored
+      }
+      return;
+    }
+
+    const safePosition = Math.min(Math.max(0, currentTime), duration);
+    try {
+      mediaSession.setPositionState({
+        duration,
+        position: safePosition,
+        playbackRate: audioRef.current?.playbackRate ?? 1
+      });
+    } catch {
+      // ignored — can throw if values are invalid (e.g., during a seek)
+    }
+  }, [currentTime, duration, track?.id]);
 
   // ── Playback controls ─────────────────────────────────────────────────
 

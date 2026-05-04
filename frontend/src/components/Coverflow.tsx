@@ -54,7 +54,7 @@ function coverTransform(progress: number): string {
     s = 1;
   }
 
-  return `translateX(${tx.toFixed(1)}%) rotateY(${ry.toFixed(1)}deg) translateZ(${tz.toFixed(2)}em) scale(${s.toFixed(3)})`;
+  return `perspective(40em) translateX(${tx.toFixed(1)}%) rotateY(${ry.toFixed(1)}deg) translateZ(${tz.toFixed(2)}em) scale(${s.toFixed(3)})`;
 }
 
 type CoverflowProps = {

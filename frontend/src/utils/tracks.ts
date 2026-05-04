@@ -149,28 +149,80 @@ function extractLyricsFromExtra(extra: Record<string, TrackTagExtraValue> | unde
   return undefined;
 }
 
-export function getTrackDisplayArtist(track: Pick<Track, "tags">): string | undefined {
+const ARTIST_SPLIT_PATTERN = /\s*;\s*/;
+
+function splitArtistString(value: string): string[] {
+  return value
+    .split(ARTIST_SPLIT_PATTERN)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+export function formatArtistList(artists: readonly string[]): string | undefined {
+  if (artists.length === 0) {
+    return undefined;
+  }
+
+  if (artists.length === 1) {
+    return artists[0];
+  }
+
+  if (artists.length === 2) {
+    return `${artists[0]} and ${artists[1]}`;
+  }
+
+  const head = artists.slice(0, -1).join(", ");
+  const tail = artists[artists.length - 1];
+  return `${head} and ${tail}`;
+}
+
+export function getTrackArtistList(track: Pick<Track, "tags">): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  const push = (value: string | undefined): void => {
+    if (!value) return;
+    const key = value.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push(value);
+  };
+
   const directArtist = normalizeTagText(track.tags.artist);
   if (directArtist) {
-    return directArtist;
-  }
-
-  const albumArtist = normalizeTagText(track.tags.albumArtist);
-  if (albumArtist) {
-    return albumArtist;
-  }
-
-  if (Array.isArray(track.tags.artists)) {
-    const firstArtist = track.tags.artists
-      .map((artist) => normalizeTagText(artist))
-      .find((artist): artist is string => Boolean(artist));
-
-    if (firstArtist) {
-      return firstArtist;
+    for (const entry of splitArtistString(directArtist)) {
+      push(entry);
     }
   }
 
-  return undefined;
+  if (Array.isArray(track.tags.artists)) {
+    for (const raw of track.tags.artists) {
+      const normalized = normalizeTagText(raw);
+      if (!normalized) continue;
+      for (const entry of splitArtistString(normalized)) {
+        push(entry);
+      }
+    }
+  }
+
+  if (result.length === 0) {
+    const albumArtist = normalizeTagText(track.tags.albumArtist);
+    if (albumArtist) {
+      for (const entry of splitArtistString(albumArtist)) {
+        push(entry);
+      }
+    }
+  }
+
+  return result;
+}
+
+export function getTrackPrimaryArtist(track: Pick<Track, "tags">): string | undefined {
+  return getTrackArtistList(track)[0];
+}
+
+export function getTrackDisplayArtist(track: Pick<Track, "tags">): string | undefined {
+  return formatArtistList(getTrackArtistList(track));
 }
 
 export function getTrackDisplayAlbum(track: Pick<Track, "tags">): string | undefined {

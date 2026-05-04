@@ -1,7 +1,9 @@
 import { Fragment, KeyboardEvent, memo, MouseEvent, useState } from "react";
 
+import { coverUrl } from "../api";
 import type { Playlist, Track } from "../types";
 import { formatDuration } from "../utils/format";
+import { defaultCoverImage } from "../utils/covers";
 import {
   getTrackDisplayAlbumWithYear,
   getTrackDisplayArtist,
@@ -20,6 +22,7 @@ type TrackListProps = {
   emptyMessage?: string;
   constrainHeight?: boolean;
   showTrackNumber?: boolean;
+  showCover?: boolean;
 };
 
 export const TrackList = memo(function TrackList({
@@ -31,7 +34,8 @@ export const TrackList = memo(function TrackList({
   onAddTrackToPlaylist,
   emptyMessage = "No tracks match this filter yet.",
   constrainHeight = true,
-  showTrackNumber = false
+  showTrackNumber = false,
+  showCover = false
 }: TrackListProps): JSX.Element {
   const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
   const [playlistPickerTrackId, setPlaylistPickerTrackId] = useState<string | null>(null);
@@ -110,6 +114,21 @@ export const TrackList = memo(function TrackList({
                   </button>
                 ) : null}
 
+                {showCover ? (
+                  <div className="mt-0.5 h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-flaque-cream">
+                    <img
+                      src={coverUrl(track.id)}
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                      onError={(event) => {
+                        event.currentTarget.src = defaultCoverImage;
+                      }}
+                    />
+                  </div>
+                ) : null}
+
                 <button className="min-w-0 flex-1 text-left" type="button" onClick={() => handleTrackSelect(track)}>
                   <p className="text-sm font-medium">
                     <span className="flex min-w-0 items-center gap-1.5">
@@ -177,6 +196,7 @@ export const TrackList = memo(function TrackList({
               <th className="w-10 px-1 py-3 font-medium text-center" aria-label="Playlist actions">
               </th>
               {showTrackNumber ? <th className="w-8 px-0 py-3 text-center font-medium">#</th> : null}
+              {showCover ? <th className="w-12 px-2 py-3" aria-label="Cover" /> : null}
               <th className="pl-1 pr-4 py-3 font-medium">Title</th>
               <th className="px-4 py-3 font-medium">Artist</th>
               <th className="px-4 py-3 font-medium">Album</th>
@@ -228,6 +248,22 @@ export const TrackList = memo(function TrackList({
                     {showTrackNumber ? (
                       <td className="px-0 py-3 text-center text-xs text-flaque-steel">{track.tags.trackNumber ?? ""}</td>
                     ) : null}
+                    {showCover ? (
+                      <td className="w-12 px-2 py-2">
+                        <div className="h-10 w-10 overflow-hidden rounded-md bg-flaque-cream">
+                          <img
+                            src={coverUrl(track.id)}
+                            alt=""
+                            aria-hidden="true"
+                            loading="lazy"
+                            className="h-full w-full object-cover"
+                            onError={(event) => {
+                              event.currentTarget.src = defaultCoverImage;
+                            }}
+                          />
+                        </div>
+                      </td>
+                    ) : null}
                     <td className="pl-1 pr-4 py-3 text-flaque-ink">
                       <span className="flex max-w-[24rem] min-w-0 items-center gap-1.5">
                         {hasLyrics ? <span className={getLyricsBadgeClassName(false)}>L</span> : null}
@@ -254,7 +290,7 @@ export const TrackList = memo(function TrackList({
 
                   {showPlaylistPicker && onAddTrackToPlaylist ? (
                     <tr className="border-t border-flaque-clay/30 bg-flaque-cream/30">
-                      <td className="px-4 pb-3 pt-1" colSpan={showTrackNumber ? 8 : 7}>
+                      <td className="px-4 pb-3 pt-1" colSpan={7 + (showTrackNumber ? 1 : 0) + (showCover ? 1 : 0)}>
                         {hasPlayablePlaylists ? (
                           <PlaylistPicker
                             trackId={track.id}
@@ -273,7 +309,7 @@ export const TrackList = memo(function TrackList({
             })}
             {tracks.length === 0 ? (
               <tr>
-                <td className="px-4 py-4 text-flaque-steel" colSpan={showTrackNumber ? 8 : 7}>
+                <td className="px-4 py-4 text-flaque-steel" colSpan={7 + (showTrackNumber ? 1 : 0) + (showCover ? 1 : 0)}>
                   {emptyMessage}
                 </td>
               </tr>

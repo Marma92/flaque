@@ -550,9 +550,13 @@ export function createLibraryRouter(indexStore: IndexStore): Router {
       const filter = readFilter(req.query as Record<string, unknown>);
       const indexedTracks = selectIndexedTracks(indexStore, { owner: filter.owner }, ownerNamesById);
       const tracksWithOwnerNames = mapTrackOwners(indexedTracks, ownerNamesById);
-      const tracksForArtist = tracksWithOwnerNames.filter(
-        (track) => getTrackArtistDirectorySegment(track) === normalizedArtist
-      );
+      const tracksForArtist = tracksWithOwnerNames.filter((track) => {
+        if (getTrackArtistDirectorySegment(track) === normalizedArtist) {
+          return true;
+        }
+        const primaryArtist = getTrackArtistName(track)?.trim().toLowerCase();
+        return Boolean(primaryArtist) && primaryArtist === normalizedArtist;
+      });
       const tracks = filterTracks(tracksForArtist, { owner: filter.owner, q: filter.q });
       const albums = await attachCollaborativeAlbumCovers(tracks, "year-desc");
       res.json({ total: tracks.length, artist: normalizedArtist, albums });

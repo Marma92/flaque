@@ -6,7 +6,7 @@ import type { ConfigSection } from "./components/ConfigView";
 import type { Track, User } from "./types";
 import type { LibrarySection } from "./types/library";
 import { navigateTo, normalizeText, sortAlbumTracksByNumber, type ViewName } from "./utils/appUtils";
-import { getTrackDisplayAlbum, getTrackDisplayArtist } from "./utils/tracks";
+import { getTrackDisplayAlbum, getTrackPrimaryArtist } from "./utils/tracks";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import { useAppNotice } from "./hooks/useAppNotice";
 import { useDocumentTitle } from "./hooks/useDocumentTitle";
@@ -247,7 +247,7 @@ export function AuthenticatedApp({
       return;
     }
 
-    const artistName = getTrackDisplayArtist(selectedTrackRefreshed);
+    const artistName = getTrackPrimaryArtist(selectedTrackRefreshed);
     if (!artistName) {
       return;
     }
@@ -294,7 +294,7 @@ export function AuthenticatedApp({
       return;
     }
 
-    const artistName = getTrackDisplayArtist(selectedTrackRefreshed);
+    const artistName = getTrackPrimaryArtist(selectedTrackRefreshed);
     const targetName = normalizeText(albumName);
     const targetArtist = normalizeText(artistName);
     const matchAlbum = (name: string, artist?: string): boolean => {
@@ -505,7 +505,21 @@ export function AuthenticatedApp({
           hasMore: paginatedHasMore,
           sentinelRef: paginatedSentinelRef,
           currentTrackId: selectedTrackRefreshed?.id,
-          onTrackSelect: (track) => requestTrackPlaybackWithStatus(track, paginatedTracks),
+          // Queue is the full filtered library; pagination only affects rendering.
+          onTrackSelect: (track) => requestTrackPlaybackWithStatus(track, library.tracks),
+          onPlayLibrary: library.tracks.length > 0
+            ? () => {
+              setShuffleEnabled(false);
+              requestTrackPlaybackWithStatus(library.tracks[0]!, library.tracks);
+            }
+            : undefined,
+          onShuffleLibrary: library.tracks.length > 0
+            ? () => {
+              setShuffleEnabled(true);
+              const startIndex = Math.floor(Math.random() * library.tracks.length);
+              requestTrackPlaybackWithStatus(library.tracks[startIndex]!, library.tracks);
+            }
+            : undefined,
           playlists: manageablePlaylists,
           onAddTrackToPlaylist: handleAddTrackToPlaylist
         }
