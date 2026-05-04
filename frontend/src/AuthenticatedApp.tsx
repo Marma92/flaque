@@ -6,7 +6,7 @@ import type { ConfigSection } from "./components/ConfigView";
 import type { Track, User } from "./types";
 import type { LibrarySection } from "./types/library";
 import { navigateTo, normalizeText, sortAlbumTracksByNumber, type ViewName } from "./utils/appUtils";
-import { getTrackDisplayAlbum, getTrackDisplayArtist } from "./utils/tracks";
+import { getTrackDisplayAlbum, getTrackPrimaryArtist } from "./utils/tracks";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import { useAppNotice } from "./hooks/useAppNotice";
 import { useDocumentTitle } from "./hooks/useDocumentTitle";
@@ -247,7 +247,7 @@ export function AuthenticatedApp({
       return;
     }
 
-    const artistName = getTrackDisplayArtist(selectedTrackRefreshed);
+    const artistName = getTrackPrimaryArtist(selectedTrackRefreshed);
     if (!artistName) {
       return;
     }
@@ -294,7 +294,7 @@ export function AuthenticatedApp({
       return;
     }
 
-    const artistName = getTrackDisplayArtist(selectedTrackRefreshed);
+    const artistName = getTrackPrimaryArtist(selectedTrackRefreshed);
     const targetName = normalizeText(albumName);
     const targetArtist = normalizeText(artistName);
     const matchAlbum = (name: string, artist?: string): boolean => {

@@ -4,7 +4,7 @@ import { getAlbumTracks, getAlbums, getArtistAlbums, getArtists, getLibrary } fr
 import type { AlbumEntry, ArtistEntry, LibraryResponse, Playlist, Track, User } from "../types";
 import type { LibraryFilters, LibrarySection } from "../types/library";
 import { getAlbumKey, normalizeText, sortAlbumTracksByNumber, type ViewName } from "../utils/appUtils";
-import { getTrackDisplayAlbum, getTrackDisplayArtist } from "../utils/tracks";
+import { getTrackDisplayAlbum, getTrackPrimaryArtist } from "../utils/tracks";
 
 const EMPTY_LIBRARY: LibraryResponse = {
   generatedAt: "",
@@ -129,7 +129,7 @@ export function useLibraryData({
         return true;
       }
 
-      return normalizeText(getTrackDisplayArtist(track)) === selectedAlbumArtist;
+      return normalizeText(getTrackPrimaryArtist(track)) === selectedAlbumArtist;
     });
   }
 
