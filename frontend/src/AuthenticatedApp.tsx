@@ -505,7 +505,21 @@ export function AuthenticatedApp({
           hasMore: paginatedHasMore,
           sentinelRef: paginatedSentinelRef,
           currentTrackId: selectedTrackRefreshed?.id,
-          onTrackSelect: (track) => requestTrackPlaybackWithStatus(track, paginatedTracks),
+          // Queue is the full filtered library; pagination only affects rendering.
+          onTrackSelect: (track) => requestTrackPlaybackWithStatus(track, library.tracks),
+          onPlayLibrary: library.tracks.length > 0
+            ? () => {
+              setShuffleEnabled(false);
+              requestTrackPlaybackWithStatus(library.tracks[0]!, library.tracks);
+            }
+            : undefined,
+          onShuffleLibrary: library.tracks.length > 0
+            ? () => {
+              setShuffleEnabled(true);
+              const startIndex = Math.floor(Math.random() * library.tracks.length);
+              requestTrackPlaybackWithStatus(library.tracks[startIndex]!, library.tracks);
+            }
+            : undefined,
           playlists: manageablePlaylists,
           onAddTrackToPlaylist: handleAddTrackToPlaylist
         }
