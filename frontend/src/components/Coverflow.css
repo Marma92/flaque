@@ -43,7 +43,6 @@
   margin: 0 auto;
   padding: calc(var(--cover-size) / 2.4) 0;
   position: relative;
-  perspective: 40em;
   scroll-snap-type: x mandatory;
   scrollbar-width: thin;
 }
@@ -68,7 +67,7 @@
 .cover-transform {
   transform-style: preserve-3d;
   will-change: transform;
-  transform: translateX(-100%) rotateY(-45deg);
+  transform: perspective(40em) translateX(-100%) rotateY(-45deg);
 }
 
 .cover-transform img {
