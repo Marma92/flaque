@@ -1,70 +1,74 @@
 # Flaque Refactoring Roadmap
 
 > Generated 2026-05-06 — branch `refactor/code-cleanup-2026-05`
-> Codebase snapshot: ~23.6k LOC backend, ~21.3k LOC frontend
+> Last updated 2026-05-07 after Phases A–D landed.
 
 The previous roadmap (2026-04-19) has been retired — most of its Phase 1 items
 landed (`scannerService` split, `AuthenticatedApp` 1453 → 594 LOC, `AppShell`
 600+ → 196, unified playlist router, shared types package, `useQuery`,
-`queryParsers`, expanded test coverage). This roadmap targets the hot spots
-that emerged from the playlist-algorithm overhaul and library-polish work,
-plus two cross-cutting items still pending from the previous round (error
-handling, data-fetching layer).
+`queryParsers`, expanded test coverage). This round targets the hot spots that
+emerged from the playlist-algorithm overhaul and library-polish work, plus two
+cross-cutting items that were thought to still be pending (error handling, 401
+single-point) — both of which turned out to be already in place.
 
-## Top targets
+## Phase A — Quick wins ✅
 
-| # | File | LOC | Issue |
-|---|------|-----|-------|
-| 1 | `frontend/src/api.ts` | 1294 | One module, 60+ exports across auth/library/playlists/users/radio/admin |
-| 2 | `backend/src/services/playlists/forYouPlaylistService.ts` | 998 | Generation + trace + dismissals + persistence + boot regen mixed |
-| 3 | `backend/src/api/playlistRoutes.ts` | 971 | Unified but handlers are long; auth / track-resolution duplication |
-| 4 | `frontend/src/components/AudioPlayer.tsx` | 895 | Element wiring, transcode, queue, media-session, repeat inline |
-| 5 | `frontend/src/components/PlaylistDetailView.tsx` | 837 | Detail UI + edit + drag-reorder + cover upload mixed |
-| 6 | `frontend/src/components/ConfigView.tsx` | 745 | 6 admin sections + bulk-edit logic in one file |
-| 7 | `backend/src/api/libraryRoutes.ts` | 667 | Tracks + albums + artists + metadata + bulk delete in one router |
-| 8 | `backend/src/services/playlists/playlistStore.ts` | 580 | I/O + hearts + listens + reordering + cover paths |
+| Item | Status | Notes |
+|---|---|---|
+| **A1.** Split `frontend/src/api.ts` | ✅ shipped | 1294 → 14 modules under `frontend/src/api/` plus a barrel preserving the public surface. |
+| **A2.** Coverflow CSS | ✅ already done | `Coverflow.tsx` already imports `Coverflow.css`; no inline `<style>` injection. |
+| **A3.** Memo leaf components | ✅ already done | `AlbumList`, `TrackList`, `ArtistCard` all wrapped in `React.memo` with stable callbacks. |
 
----
+## Phase B — Backend service decomposition ✅
 
-## Phase A — Quick wins
+| Item | Before | After | Modules |
+|---|---|---|---|
+| **B1.** `forYouPlaylistService.ts` | 998 | 15 | `forYou/{paths,dismissals,store,trace,generate,regenerate}.ts` |
+| **B2.** `playlistStore.ts` | 580 | 19 | `playlistStore/{paths,permissions,metadata,migration,scan,mutations,engagement}.ts` |
+| **B3.** `libraryRoutes.ts` | 667 | 20 | `library/{overview,tracks,trackAdmin,artists,albums,helpers}.ts` |
+| **B4.** `uploadRoutes.ts` | 597 | 128 | `upload/{multer,parsers,ingest,chunked}.ts` |
+| **B4.** `playlistRoutes.ts` | 971 | 31 | `playlist/{automatic,forYou,personal,userPlaylists,engagement,helpers}.ts` |
 
-Pure mechanical moves; no behavioural change. Each item should ship as its own
-commit so review is trivial.
+Sub-router mount order is documented in `playlistRoutes.ts` because
+prefix-specific groups (`/automatic`, `/for-you`, `/personal`) must precede
+the user-CRUD catch-all `/:id`.
 
-- **A1. Split `frontend/src/api.ts`** into `frontend/src/api/{auth,library,uploads,playlists,radio,users,admin,tracks,covers}.ts`.
-  Re-export the public surface from `frontend/src/api/index.ts` so existing
-  imports of `from "../api"` keep working. Move the shared `request()`
-  helper, `ApiError`, and `setUnauthorizedHandler` into `api/client.ts`.
-- **A2. Coverflow CSS.** `Coverflow.css` already exists as a sibling file —
-  audit `Coverflow.tsx` for any remaining inline `<style>` injection and
-  remove it; keep CSS custom properties as inline `style` props.
-- **A3. Memo leaf components** — `React.memo` on `AlbumList`, `TrackList`,
-  `ArtistCard`. Stabilize the callback props they receive (`useCallback` in
-  parents) only where a profiler shows churn.
+## Phase C — Frontend component decomposition ✅
 
-## Phase B — Backend service decomposition
+| Item | Before | After | Modules |
+|---|---|---|---|
+| **C1.** `AudioPlayer.tsx` | 895 | 511 | `audioPlayer/{icons,PlayerArtwork,PlayerTrackInfo,PlayerMobileOptionsPanel,PlayerEmpty}.tsx`. The hook-level pieces the prior plan mentioned (`useMediaSession`, `useTranscodeFallback`) already live in `useAudioPlayback`. |
+| **C2.** `PlaylistDetailView.tsx` | 837 | 457 | `playlistDetail/{PlaylistCover,SortableTrackItem,PlaylistEditableTrackList,PlaylistActions,CollaboratorsField}.tsx`. The "edit dialog" is inline rather than a modal so the extraction is per-region. |
+| **C3.** `ConfigView.tsx` | 745 | 71 | `config/{IndexOpsSection,FilesSection,BulkDeleteConfirmModal,BulkEditModal}.tsx`. ConfigView is now a thin switcher; the other admin sections (users/server/backup/library) already live in their own files. |
 
-- **B1. Split `forYouPlaylistService.ts`** → `services/playlists/forYou/{generate.ts, trace.ts, dismissals.ts, store.ts, boot.ts}` with a thin barrel.
-- **B2. Split `playlistStore.ts`** → store + `hearts.ts` + `listens.ts` + `coverPaths.ts`.
-- **B3. Split `libraryRoutes.ts`** per resource (`tracks`, `albums`, `artists`, `metadata`).
-- **B4. Tighten `uploadRoutes.ts` and `playlistRoutes.ts` handlers** — extract probe / persist phases (uploads) and per-resource sub-routers (playlists).
+## Phase D — Cross-cutting ✅ (already in place)
 
-## Phase C — Frontend component decomposition
+The audit found that both pieces of Phase D had already shipped between the
+2026-04-19 snapshot and the start of this round:
 
-- **C1. `AudioPlayer.tsx`** — extract `useMediaSession`, `useTranscodeFallback`, queue helpers. UI shell stays in the component.
-- **C2. `PlaylistDetailView.tsx`** — extract `PlaylistHeader`, `PlaylistTrackList`, `PlaylistEditDialog`.
-- **C3. `ConfigView.tsx`** — one file per admin section under `components/config/`; the switcher stays.
+- **D1. Backend error handling.** `backend/src/utils/AppError.ts` defines
+  `AppError(message, statusCode, details?)`. `backend/src/middleware/errorHandler.ts`
+  is mounted in both `app.ts:37` and `api/router.ts:39`, emits
+  `{ error, details? }`, and special-cases `multer.MulterError`. Routes
+  consistently use `next(err)`. The two remaining ad-hoc 4xx responses are
+  intentional: `radioRoutes.ts` returns a domain-specific envelope and
+  `authRoutes.ts:120` needs a `Retry-After` header alongside the JSON.
+  The speculative `code` field is omitted — no consumer discriminates on it.
+- **D2. Frontend 401 entry point.** `useSessionRoutingState.ts:95-103`
+  registers exactly one `setUnauthorizedHandler` callback that clears the user
+  and broadcasts a logout event. The bypass list for normal-login-flow paths
+  lives in `frontend/src/api/client.ts`.
+- **D3. `useResource` cache (optional).** Skipped — no concrete demand,
+  and avoiding speculative caching infrastructure keeps the data layer simple.
 
-## Phase D — Cross-cutting
+## Phase E — Tests for new boundaries (optional follow-up)
 
-- **D1. Centralized backend error handling** — `AppError` class with `statusCode` + `code`; Express error middleware emits `{ error, code?, details? }`; convert routes to `next(err)`.
-- **D2. Frontend API error normalization** — `ApiError` already exists; ensure 401 short-circuits via `setUnauthorizedHandler` from a single place.
-- **D3. (Optional) `useResource` cache** — a thin in-flight-dedupe + invalidate cache shared by domain hooks, instead of pulling in `react-query`.
-
-## Phase E — Tests for new boundaries
-
-Add focused unit tests at the seams introduced in B and C. No coverage chase —
-just the pure functions and small hooks that are now standalone.
+The Phase B/C splits were intentionally behaviour-preserving moves of existing
+code, so the existing 406 backend + 168 frontend tests still pass and
+exercise the same code through the same entry points (the barrels). New
+seam-level unit tests are not required for correctness, only for reviewability
+of future changes inside a sub-module — file an issue if/when a sub-module
+starts evolving independently.
 
 ---
 
@@ -75,21 +79,16 @@ just the pure functions and small hooks that are now standalone.
 - OpenAPI → frontend type codegen
 - Docker image / multi-stage build optimisation
 
-## Suggested execution order
+## Final entry-point sizes (all hot spots)
 
-| Order | Item | Effort | Risk |
-|-------|------|--------|------|
-| 1 | A1 split api.ts | S | Low |
-| 2 | A2 Coverflow CSS | XS | Low |
-| 3 | A3 memo leaves | S | Low |
-| 4 | B1 split forYouPlaylistService | M | Medium |
-| 5 | B2 split playlistStore | M | Medium |
-| 6 | B3 split libraryRoutes | M | Low |
-| 7 | B4 tighten upload/playlist handlers | M | Medium |
-| 8 | C1 AudioPlayer extraction | M | Medium |
-| 9 | C2 PlaylistDetailView extraction | M | Low |
-| 10 | C3 ConfigView per-section files | S | Low |
-| 11 | D1 backend error middleware | M | Medium |
-| 12 | D2 frontend 401 single point | XS | Low |
-| 13 | D3 useResource cache (optional) | M | Medium |
-| 14 | E tests at new seams | M | Low |
+| File | Round start | After this branch |
+|------|-------------|--------------------|
+| `frontend/src/api.ts` | 1294 | barrel @ `api/index.ts` (15 files) |
+| `backend/src/services/playlists/forYouPlaylistService.ts` | 998 | 15 |
+| `backend/src/api/playlistRoutes.ts` | 971 | 31 |
+| `frontend/src/components/AudioPlayer.tsx` | 895 | 511 |
+| `frontend/src/components/PlaylistDetailView.tsx` | 837 | 457 |
+| `frontend/src/components/ConfigView.tsx` | 745 | 71 |
+| `backend/src/api/libraryRoutes.ts` | 667 | 20 |
+| `backend/src/api/uploadRoutes.ts` | 597 | 128 |
+| `backend/src/services/playlists/playlistStore.ts` | 580 | 19 |
