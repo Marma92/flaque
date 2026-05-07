@@ -1,28 +1,13 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-  arrayMove
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 
-import defaultCoverImage from "../assets/default-cover.png";
-import { coverUrl, deletePlaylistCover, getUsers, playlistCoverUrl, uploadPlaylistCover } from "../api";
+import { deletePlaylistCover, getUsers, playlistCoverUrl, uploadPlaylistCover } from "../api";
 import { usePlaylistDetailPlayback } from "../hooks/usePlaylistDetailPlayback";
 import type { Playlist, PlaylistVisibility, Track, User } from "../types";
 import { formatDurationCompact } from "../utils/format";
-import { getTrackDisplayArtist, getTrackDisplayTitle } from "../utils/tracks";
+import { CollaboratorsField } from "./playlistDetail/CollaboratorsField";
+import { PlaylistActions } from "./playlistDetail/PlaylistActions";
+import { PlaylistCover, getPlaylistMosaicTracks } from "./playlistDetail/PlaylistCover";
+import { PlaylistEditableTrackList } from "./playlistDetail/PlaylistEditableTrackList";
 import { PlaylistTrackList } from "./PlaylistTrackList";
 
 export type PlaylistDetailViewProps = {
@@ -41,168 +26,6 @@ export type PlaylistDetailViewProps = {
   onHeart: (playlistId: string) => Promise<{ hearted: boolean; heartCount: number }>;
   onReportListen: (playlistId: string) => Promise<void>;
 };
-
-// ── Helpers ────────────────────────────────────────────────────────
-
-function getPlaylistMosaicTracks(trackIds: string[], allTracksById: Map<string, Track>): Track[] {
-  const seen = new Set<string>();
-  const result: Track[] = [];
-  for (const id of trackIds) {
-    if (result.length >= 4) break;
-    const track = allTracksById.get(id);
-    if (!track) continue;
-    const albumKey = track.tags.album ?? track.id;
-    if (!seen.has(albumKey)) {
-      seen.add(albumKey);
-      result.push(track);
-    }
-  }
-  return result;
-}
-
-// ── Large cover display ────────────────────────────────────────────
-
-function PlaylistCover({ playlist, mosaicTracks }: { playlist: Playlist; mosaicTracks: Track[] }): JSX.Element {
-  if (playlist.cover) {
-    return (
-      <img
-        src={playlistCoverUrl(playlist.id)}
-        alt={playlist.name}
-        className="h-full w-full rounded-2xl object-cover"
-      />
-    );
-  }
-
-  const slots = Array.from({ length: 4 }, (_, i) => mosaicTracks[i] ?? null);
-
-  if (mosaicTracks.length === 0) {
-    return (
-      <img src={defaultCoverImage} alt="" className="h-full w-full rounded-2xl object-cover" />
-    );
-  }
-
-  if (mosaicTracks.length === 1) {
-    return (
-      <img
-        src={coverUrl(mosaicTracks[0]!.id)}
-        alt=""
-        className="h-full w-full rounded-2xl object-cover"
-        onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
-      />
-    );
-  }
-
-  return (
-    <div className="grid h-full w-full grid-cols-2 grid-rows-2 overflow-hidden rounded-2xl">
-      {slots.map((track, i) =>
-        track ? (
-          <img
-            key={i}
-            src={coverUrl(track.id)}
-            alt=""
-            className="h-full w-full object-cover"
-            loading="lazy"
-            onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
-          />
-        ) : (
-          <img key={i} src={defaultCoverImage} alt="" className="h-full w-full object-cover" />
-        )
-      )}
-    </div>
-  );
-}
-
-// ── Sortable track item (reused for inline edit) ──────────────────
-
-function SortableTrackItem({
-  id,
-  track,
-  saving,
-  onRemove
-}: {
-  id: string;
-  track: Track | undefined;
-  saving: boolean;
-  onRemove: (id: string) => void;
-}): JSX.Element {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : undefined,
-    position: isDragging ? "relative" as const : undefined
-  };
-
-  return (
-    <li
-      ref={setNodeRef}
-      style={style}
-      className={`flex items-center gap-2 rounded-lg bg-flaque-cream/40 px-2 py-1.5 ${
-        isDragging ? "shadow-lg ring-2 ring-flaque-sand/60" : ""
-      }`}
-    >
-      {/* Drag handle */}
-      <button
-        type="button"
-        className="shrink-0 cursor-grab touch-none rounded p-0.5 text-flaque-steel/50 transition hover:text-flaque-ink active:cursor-grabbing"
-        aria-label="Drag to reorder"
-        {...attributes}
-        {...listeners}
-      >
-        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-          <circle cx="9" cy="6" r="1.5" /><circle cx="15" cy="6" r="1.5" />
-          <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
-          <circle cx="9" cy="18" r="1.5" /><circle cx="15" cy="18" r="1.5" />
-        </svg>
-      </button>
-
-      <div className="h-8 w-8 shrink-0 overflow-hidden rounded-md">
-        {track ? (
-          <img
-            src={coverUrl(track.id)}
-            alt=""
-            className="h-full w-full object-cover"
-            loading="lazy"
-            onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
-          />
-        ) : (
-          <img src={defaultCoverImage} alt="" className="h-full w-full object-cover" />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium text-flaque-ink">
-          {track ? getTrackDisplayTitle(track) : id}
-        </p>
-        {track ? (
-          <p className="truncate text-[10px] text-flaque-steel">
-            {getTrackDisplayArtist(track) ?? "Unknown artist"}
-          </p>
-        ) : null}
-      </div>
-      <button
-        type="button"
-        className="shrink-0 rounded p-0.5 text-red-400 transition hover:text-red-600 disabled:opacity-30"
-        onClick={() => onRemove(id)}
-        disabled={saving}
-        aria-label="Remove track"
-      >
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-    </li>
-  );
-}
-
-// ── Main component ─────────────────────────────────────────────────
 
 export function PlaylistDetailView({
   playlistId,
@@ -226,7 +49,6 @@ export function PlaylistDetailView({
   const [hearting, setHearting] = useState(false);
   const listenReportedRef = useRef(false);
 
-  // ── Edit state ──────────────────────────────────────────────────
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editVisibility, setEditVisibility] = useState<PlaylistVisibility>("private");
@@ -239,19 +61,8 @@ export function PlaylistDetailView({
   const [coverUploading, setCoverUploading] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
   const isOwner = playlist ? playlist.authorId === user.id : false;
 
-  const availableCollaborators = useMemo(() =>
-    allUsers.filter((u) => u.id !== playlist?.authorId && !editCollaboratorIds.includes(u.id)),
-    [allUsers, playlist?.authorId, editCollaboratorIds]
-  );
-
-  // ── Derived data ────────────────────────────────────────────────
   const canManage = useMemo(() => {
     if (!playlist) return false;
     return manageablePlaylists.some((p) => p.id === playlist.id);
@@ -291,14 +102,11 @@ export function PlaylistDetailView({
     listenReportedRef.current = false;
   }, [playlistId]);
 
-  // Clean up cover preview URL on unmount
   useEffect(() => {
     return () => {
       if (coverPreview) URL.revokeObjectURL(coverPreview);
     };
   }, [coverPreview]);
-
-  // ── Edit mode handlers ──────────────────────────────────────────
 
   function startEditing(): void {
     if (!playlist) return;
@@ -340,23 +148,6 @@ export function PlaylistDetailView({
     setCoverRemoved(true);
     if (coverInputRef.current) coverInputRef.current.value = "";
   }
-
-  function removeTrack(id: string): void {
-    setEditTrackIds((prev) => prev.filter((t) => t !== id));
-  }
-
-  function handleDragEnd(event: DragEndEvent): void {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      setEditTrackIds((prev) => {
-        const oldIndex = prev.indexOf(active.id as string);
-        const newIndex = prev.indexOf(over.id as string);
-        return arrayMove(prev, oldIndex, newIndex);
-      });
-    }
-  }
-
-  // ── Playback handlers ──────────────────────────────────────────
 
   if (!playlist) {
     return (
@@ -453,13 +244,11 @@ export function PlaylistDetailView({
     onBack();
   }
 
-  // ── Cover display logic for edit mode ───────────────────────────
   const coverSrc = coverPreview
     ?? (coverRemoved ? null : (playlist.cover ? playlistCoverUrl(playlist.id) : null));
 
   return (
     <section className="m-4 space-y-4">
-      {/* Back button */}
       <button
         type="button"
         className="flex items-center gap-1 text-sm text-flaque-steel transition hover:text-flaque-ink"
@@ -471,7 +260,6 @@ export function PlaylistDetailView({
         Back to playlists
       </button>
 
-      {/* Hidden cover file input */}
       <input
         ref={coverInputRef}
         type="file"
@@ -481,10 +269,8 @@ export function PlaylistDetailView({
         disabled={saving || coverUploading}
       />
 
-      {/* Header */}
       <div className="rounded-2xl p-5">
         <div className="flex flex-col gap-5 sm:flex-row">
-          {/* Cover */}
           <div className="relative h-48 w-48 shrink-0 self-center overflow-hidden sm:self-start">
             {editing ? (
               <>
@@ -535,9 +321,7 @@ export function PlaylistDetailView({
             )}
           </div>
 
-          {/* Info */}
           <div className="flex min-w-0 flex-1 flex-col">
-            {/* Title + visibility */}
             <div className="flex items-center gap-2">
               {editing ? (
                 <input
@@ -575,7 +359,6 @@ export function PlaylistDetailView({
               )}
             </div>
 
-            {/* Description */}
             {editing ? (
               <textarea
                 className="mt-1 w-full resize-none rounded-lg border border-flaque-clay/40 bg-transparent px-2 py-1 text-sm text-flaque-steel outline-none transition focus:border-flaque-ink/40"
@@ -591,7 +374,6 @@ export function PlaylistDetailView({
 
             <p className="mt-2 text-sm text-flaque-steel">by {owner}</p>
 
-            {/* Stats line */}
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-flaque-steel">
               <span>{(editing ? editTrackIds : playlist.trackIds).length} track{(editing ? editTrackIds : playlist.trackIds).length !== 1 ? "s" : ""}</span>
               {totalDuration > 0 && !editing ? <span>{formatDurationCompact(totalDuration)}</span> : null}
@@ -631,204 +413,42 @@ export function PlaylistDetailView({
               ) : null}
             </div>
 
-            {/* Collaborators */}
-            {editing && isOwner ? (
-              <div className="mt-2">
-                <div className="flex flex-wrap items-center gap-1">
-                  <span className="text-xs text-flaque-steel">Collaborators:</span>
-                  {editCollaboratorIds.includes("everyone") ? (
-                    <span className="inline-flex items-center gap-0.5 text-[10px] text-yellow-600">
-                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 2a10 10 0 100 20 10 10 10 0 000-20zm0 2a8 8 0 110 16 8 8 0 010-16zM12 11a2 2 0 1000 4 2 2 0 000-4z"/>
-                      </svg>
-                      Everyone
-                      <button
-                        type="button"
-                        className="ml-0.5 text-flaque-steel hover:text-red-500"
-                        onClick={() => setEditCollaboratorIds((prev) => prev.filter((c) => c !== "everyone"))}
-                        aria-label="Remove everyone"
-                      >
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </span>
-                  ) : (
-                    editCollaboratorIds.map((collab) => {
-                      const u = allUsers.find((usr) => usr.id === collab);
-                      return (
-                        <span key={collab} className="inline-flex items-center gap-1 rounded-full bg-flaque-cream px-2 py-0.5 text-[10px] font-medium text-flaque-ink">
-                          {u?.username ?? ownerNameById[collab] ?? collab}
-                          <button
-                            type="button"
-                            className="text-flaque-steel hover:text-red-500"
-                            onClick={() => setEditCollaboratorIds((prev) => prev.filter((c) => c !== collab))}
-                            aria-label={`Remove ${u?.username ?? collab}`}
-                          >
-                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </span>
-                      );
-                    })
-                  )}
-                </div>
-                {availableCollaborators.length > 0 || !editCollaboratorIds.includes("everyone") ? (
-                  <select
-                    className="mt-1 rounded-lg border border-flaque-clay/40 bg-transparent px-2 py-1 text-xs text-flaque-ink outline-none transition focus:border-flaque-ink/40"
-                    value=""
-                    onChange={(e) => {
-                      if (e.target.value) setEditCollaboratorIds((prev) => [...prev, e.target.value]);
-                    }}
-                    disabled={saving}
-                  >
-                    <option value="">Add collaborator...</option>
-                    {!editCollaboratorIds.includes("everyone") ? (
-                      <option value="everyone">Everyone</option>
-                    ) : null}
-                    {availableCollaborators.map((u) => (
-                      <option key={u.id} value={u.id}>{u.username}</option>
-                    ))}
-                  </select>
-                ) : null}
-              </div>
-            ) : (playlist.collaborators ?? []).length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-1">
-                <span className="text-xs text-flaque-steel">Collaborators:</span>
-                {(playlist.collaborators ?? []).includes("everyone") ? (
-                  <span className="flex items-center gap-0.5 text-[10px] text-yellow-600">
-                    <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2a10 10 0 100 20 10 10 10 0 000-20zm0 2a8 8 0 110 16 8 8 0 010-16zM12 11a2 2 0 1000 4 2 2 0 000-4z"/>
-                    </svg>
-                    Everyone
-                  </span>
-                ) : (
-                  (playlist.collaborators ?? []).map((collab) => (
-                    <span key={collab} className="rounded-full bg-flaque-cream px-2 py-0.5 text-[10px] font-medium text-flaque-ink">
-                      {ownerNameById[collab] ?? collab}
-                    </span>
-                  ))
-                )}
-              </div>
-            ) : null}
+            <CollaboratorsField
+              editing={editing}
+              isOwner={isOwner}
+              saving={saving}
+              collaborators={playlist.collaborators ?? []}
+              editCollaboratorIds={editCollaboratorIds}
+              onEditCollaboratorIdsChange={setEditCollaboratorIds}
+              allUsers={allUsers}
+              ownerNameById={ownerNameById}
+              ownerId={playlist.authorId}
+            />
 
-            {/* Action buttons */}
-            <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
-              {editing ? (
-                <>
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-black disabled:opacity-60"
-                    onClick={() => { void handleSave(); }}
-                    disabled={saving || coverUploading}
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    {coverUploading ? "Uploading cover..." : saving ? "Saving..." : "Save"}
-                  </button>
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 rounded-xl border border-flaque-clay px-4 py-2 text-sm text-flaque-steel transition hover:bg-flaque-cream"
-                    onClick={cancelEditing}
-                    disabled={saving}
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-black"
-                    onClick={handlePlayAll}
-                  >
-                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                    Play all
-                  </button>
-
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 rounded-xl border border-flaque-clay px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream"
-                    onClick={handleShufflePlay}
-                  >
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                      <path d="M16 3h5v5" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M4 20l8-8" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M21 3l-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M4 4l6 6" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M15 16l2 2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Shuffle
-                  </button>
-
-                  {canEdit ? (
-                    <button
-                      type="button"
-                      className="flex items-center gap-1.5 rounded-xl border border-flaque-clay px-3 py-2 text-sm text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
-                      onClick={startEditing}
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      Edit
-                    </button>
-                  ) : null}
-
-                  {canManage ? (
-                    <button
-                      type="button"
-                      className="flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-sm text-red-500 transition hover:bg-red-50 hover:text-red-600"
-                      onClick={() => { void handleDelete(); }}
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Delete
-                    </button>
-                  ) : null}
-                </>
-              )}
-            </div>
+            <PlaylistActions
+              editing={editing}
+              saving={saving}
+              coverUploading={coverUploading}
+              canEdit={canEdit}
+              canManage={canManage}
+              onPlayAll={handlePlayAll}
+              onShufflePlay={handleShufflePlay}
+              onStartEditing={startEditing}
+              onSave={() => { void handleSave(); }}
+              onCancel={cancelEditing}
+              onDelete={() => { void handleDelete(); }}
+            />
           </div>
         </div>
       </div>
 
-      {/* Track list */}
       {editing ? (
-        <div className="rounded-2xl border border-flaque-clay/60 bg-white/85 shadow-panel backdrop-blur-sm">
-          <div className="px-4 pt-3 pb-1">
-            <p className="text-sm font-medium text-flaque-ink">
-              Tracks <span className="text-flaque-steel">({editTrackIds.length})</span>
-            </p>
-          </div>
-          {editTrackIds.length === 0 ? (
-            <p className="px-5 py-4 text-sm text-flaque-steel">No tracks in this playlist.</p>
-          ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext items={editTrackIds} strategy={verticalListSortingStrategy}>
-                <ul className="space-y-1 p-3">
-                  {editTrackIds.map((id) => (
-                    <SortableTrackItem
-                      key={id}
-                      id={id}
-                      track={allTracksById.get(id)}
-                      saving={saving}
-                      onRemove={removeTrack}
-                    />
-                  ))}
-                </ul>
-              </SortableContext>
-            </DndContext>
-          )}
-        </div>
+        <PlaylistEditableTrackList
+          trackIds={editTrackIds}
+          allTracksById={allTracksById}
+          saving={saving}
+          onTrackIdsChange={setEditTrackIds}
+        />
       ) : (
         <PlaylistTrackList tracks={tracks} onTrackPlay={handlePlayTrack} />
       )}

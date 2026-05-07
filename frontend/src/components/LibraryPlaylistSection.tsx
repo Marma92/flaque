@@ -581,7 +581,6 @@ export function LibraryPlaylistSection({
               const [c1, c2, c3] = ap.colors ?? ["hsl(220, 60%, 50%)", "hsl(260, 60%, 50%)", "hsl(340, 60%, 50%)"];
               const angle = ap.gradientAngle ?? 135;
               const gradientStyle = { background: `linear-gradient(${angle}deg, ${c1}, ${c2}, ${c3})` };
-              const mosaic = ap.mosaicCovers ?? [];
               const heroLabel = ap.axis === "genre-tempo" && ap.tempo
                 ? TEMPO_HERO_LABEL[ap.tempo]
                 : ap.decade % 100 === 0
@@ -597,21 +596,6 @@ export function LibraryPlaylistSection({
                   onKeyDown={(e) => { if (e.key === "Enter") onNavigateToPlaylist(ap.id); }}
                 >
                   <div className="group/cover relative aspect-square w-full overflow-hidden" style={gradientStyle}>
-                    {mosaic.length > 0 ? (
-                      <div
-                        className={`absolute inset-0 grid ${mosaic.length === 1 ? "grid-cols-1" : "grid-cols-2"} ${mosaic.length <= 2 ? "grid-rows-1" : "grid-rows-2"}`}
-                      >
-                        {mosaic.slice(0, 4).map((cover, i) => (
-                          <img
-                            key={`${ap.id}-cover-${i}`}
-                            src={coverPathUrl(cover)}
-                            alt=""
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                          />
-                        ))}
-                      </div>
-                    ) : null}
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/20">
                       <p
                         className="font-display text-5xl font-extrabold drop-shadow-md"
