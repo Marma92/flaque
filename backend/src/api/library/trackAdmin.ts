@@ -122,6 +122,7 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
       }
 
       const deleted: string[] = [];
+      const deletedTitles: string[] = [];
       const notFound: string[] = [];
       const overridePatch: Record<string, Record<string, never>> = {};
 
@@ -144,6 +145,7 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
         await deleteTrackCover(trackId);
         overridePatch[trackId] = {};
         deleted.push(trackId);
+        deletedTitles.push(track.tags.title ?? track.path);
       }
 
       if (Object.keys(overridePatch).length > 0) {
@@ -153,7 +155,8 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
       log.info("Tracks deleted in bulk", {
         userId: req.authUser?.id ?? "unknown",
         deletedCount: deleted.length,
-        notFoundCount: notFound.length
+        notFoundCount: notFound.length,
+        titles: deletedTitles.slice(0, 10)
       });
 
       const rebuiltIndex = await indexStore.rebuild();
@@ -200,6 +203,7 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
       const currentOverrides = await readTrackMetadataOverrides();
       const overridePatch: Record<string, { title?: string; artist?: string; album?: string; year?: number; genre?: string[] }> = {};
       const updated: string[] = [];
+      const updatedTitles: string[] = [];
       const notFound: string[] = [];
 
       for (const trackId of validIds) {
@@ -218,6 +222,7 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
           genre: hasGenre ? parsedGenre : current.genre
         };
         updated.push(trackId);
+        updatedTitles.push(track.tags.title ?? track.path);
       }
 
       if (Object.keys(overridePatch).length > 0) {
@@ -228,7 +233,8 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
         userId: req.authUser?.id ?? "unknown",
         updatedCount: updated.length,
         notFoundCount: notFound.length,
-        fields: [hasTitle && "title", hasArtist && "artist", hasAlbum && "album", hasYear && "year", hasGenre && "genre"].filter(Boolean).join(", ")
+        fields: [hasTitle && "title", hasArtist && "artist", hasAlbum && "album", hasYear && "year", hasGenre && "genre"].filter(Boolean).join(", "),
+        titles: updatedTitles.slice(0, 10)
       });
 
       await indexStore.rebuild();

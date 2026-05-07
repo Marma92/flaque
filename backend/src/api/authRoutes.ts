@@ -59,6 +59,10 @@ function emitAuthAuditLog(level: "info" | "warn", event: string, details: Record
   log[level](event, details);
 }
 
+function truncateLoginAttempt(value: string): string {
+  return value.length > 64 ? `${value.slice(0, 64)}…` : value;
+}
+
 function fingerprintValue(value: string): string {
   return createHash("sha256").update(value).digest("hex").slice(0, 12);
 }
@@ -222,7 +226,8 @@ export function createAuthRouter(): Router {
     if (!login || !password) {
       emitAuthAuditLog("warn", "login-bad-request", {
         ip,
-        loginFingerprint
+        loginFingerprint,
+        loginAttempt: login ? truncateLoginAttempt(login) : "(missing)"
       });
       return next(new AppError("login and password are required", 400));
     }
@@ -231,7 +236,9 @@ export function createAuthRouter(): Router {
     if (!user || !verifyPassword(password, user.password_hash)) {
       emitAuthAuditLog("warn", "login-failed", {
         ip,
-        loginFingerprint
+        loginFingerprint,
+        loginAttempt: truncateLoginAttempt(login),
+        ...(user ? { username: user.username } : {})
       });
       return next(new AppError("Invalid credentials", 401));
     }
@@ -247,7 +254,8 @@ export function createAuthRouter(): Router {
 
     emitAuthAuditLog("info", "login-succeeded", {
       ip,
-      userId: user.id
+      userId: user.id,
+      username: user.username
     });
 
     res.json({

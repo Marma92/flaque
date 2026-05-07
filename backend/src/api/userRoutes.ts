@@ -38,8 +38,13 @@ import { getClientIp, hasOwnProperty, isSqliteUniqueError } from "./requestHelpe
 
 const log = createLogger("auth");
 
-function emitSecurityAuditLog(level: "info" | "warn", event: string, details: Record<string, string | number | boolean>): void {
-  log[level](event, details);
+function emitSecurityAuditLog(
+  level: "info" | "warn",
+  event: string,
+  message: string,
+  details: Record<string, string | number | boolean>
+): void {
+  log[level](message, { event, ...details });
 }
 
 const PROFILE_DIR_NAME = "profile";
@@ -176,8 +181,9 @@ export function createUserRouter(): Router {
       await removeExistingProfilePhotos(authUser.id);
       await fs.rename(tmpPath, targetPath);
 
-      emitSecurityAuditLog("info", "user-profile-photo-updated", {
+      emitSecurityAuditLog("info", "user-profile-photo-updated", "User updated profile photo", {
         userId: authUser.id,
+        username: authUser.username,
         originalName: file.originalname ?? "unknown",
         sizeBytes: file.size
       });
@@ -212,8 +218,9 @@ export function createUserRouter(): Router {
 
     const existingUser = findUserByUsername(authUser.username);
     if (!existingUser || !verifyPassword(currentPassword, existingUser.password_hash)) {
-      emitSecurityAuditLog("warn", "user-password-change-failed", {
+      emitSecurityAuditLog("warn", "user-password-change-failed", "User password change failed", {
         userId: authUser.id,
+        username: authUser.username,
         reason: "invalid-current-password",
         ip: getClientIp(req) ?? "unknown"
       });
@@ -225,8 +232,9 @@ export function createUserRouter(): Router {
       return next(new AppError("User not found", 404));
     }
 
-    emitSecurityAuditLog("info", "user-password-changed", {
+    emitSecurityAuditLog("info", "user-password-changed", "User changed password", {
       userId: authUser.id,
+      username: authUser.username,
       ip: getClientIp(req) ?? "unknown"
     });
 
@@ -259,8 +267,9 @@ export function createUserRouter(): Router {
         return next(new AppError("User not found", 404));
       }
 
-      emitSecurityAuditLog("info", "user-email-changed", {
+      emitSecurityAuditLog("info", "user-email-changed", "User changed email", {
         userId: authUser.id,
+        username: authUser.username,
         ip: getClientIp(req) ?? "unknown"
       });
 
@@ -311,8 +320,9 @@ export function createUserRouter(): Router {
 
       const user = createUser(username, password, role, email);
 
-      emitSecurityAuditLog("info", "admin-user-created", {
+      emitSecurityAuditLog("info", "admin-user-created", `Admin created user "${user.username}"`, {
         adminUserId: req.authUser!.id,
+        adminUsername: req.authUser!.username,
         createdUserId: user.id,
         createdUsername: user.username,
         createdRole: user.role,
@@ -434,9 +444,18 @@ export function createUserRouter(): Router {
         }
       }
 
-      emitSecurityAuditLog("info", "admin-user-updated", {
+      const changedFields = [
+        shouldChangeUsername && "username",
+        shouldChangeRole && "role",
+        shouldChangeEmail && "email"
+      ].filter(Boolean).join(", ");
+      const targetLabel = nextUsername ?? existingUser.username;
+
+      emitSecurityAuditLog("info", "admin-user-updated", `Admin updated user "${targetLabel}" (${changedFields})`, {
         adminUserId: req.authUser!.id,
+        adminUsername: req.authUser!.username,
         targetUserId: userId,
+        targetUsername: existingUser.username,
         usernameChanged: shouldChangeUsername,
         ...(shouldChangeUsername ? { oldUsername: existingUser.username, newUsername: nextUsername! } : {}),
         roleChanged: shouldChangeRole,
@@ -488,8 +507,9 @@ export function createUserRouter(): Router {
       return next(new AppError("User not found", 404));
     }
 
-    emitSecurityAuditLog("info", "admin-user-password-reset", {
+    emitSecurityAuditLog("info", "admin-user-password-reset", `Admin reset password for user "${existingUser.username}"`, {
       adminUserId: req.authUser!.id,
+      adminUsername: req.authUser!.username,
       targetUserId: userId,
       targetUsername: existingUser.username,
       ip: getClientIp(req) ?? "unknown"
@@ -530,8 +550,9 @@ export function createUserRouter(): Router {
       return next(new AppError("User not found", 404));
     }
 
-    emitSecurityAuditLog("info", "admin-user-deleted", {
+    emitSecurityAuditLog("info", "admin-user-deleted", `Admin deleted user "${existingUser.username}"`, {
       adminUserId: req.authUser!.id,
+      adminUsername: req.authUser!.username,
       deletedUserId: userId,
       deletedUsername: existingUser.username,
       ip: getClientIp(req) ?? "unknown"
