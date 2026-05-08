@@ -1,6 +1,6 @@
 import type { IndexStore } from "../indexer/indexStore";
 import { mergeTrackMetadataOverrides } from "../indexer/metadataOverrideStore";
-import { lookupGenre } from "./musicBrainzService";
+import { flushGenreCache, lookupGenre } from "./musicBrainzService";
 import { normalizeGenreLabels } from "./genreSynonymService";
 import { createLogger } from "../../utils/logger";
 
@@ -95,6 +95,8 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
 
   log.info(`Starting genre enrichment for ${tracksWithoutGenre.length} tracks`);
 
+  let anyEnriched = false;
+
   for (const track of tracksWithoutGenre) {
     if (signal.aborted) {
       log.info("Genre enrichment aborted");
@@ -114,6 +116,7 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
       status.processed++;
       if (genres) {
         status.enriched++;
+        anyEnriched = true;
         log.debug(`Enriched genre for "${title}" by "${artist}": ${genres.join(", ")}`);
       }
     } catch (error) {
@@ -127,6 +130,10 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
 
   status.running = false;
   abortController = null;
+  flushGenreCache();
+  if (anyEnriched) {
+    await indexStore.rebuild();
+  }
   log.info(
     `Genre enrichment complete: ${status.enriched} enriched, ${status.failed} failed, ${status.processed} processed out of ${status.total}`
   );
