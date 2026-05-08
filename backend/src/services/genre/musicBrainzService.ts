@@ -575,3 +575,14 @@ export function clearGenreCache(): void {
 export function flushGenreCache(): void {
   flushCacheNow();
 }
+
+export function invalidateCacheEntry(artist: string, title: string): boolean {
+  if (!artist.trim() || !title.trim()) return false;
+  const c = loadCache();
+  const key = cacheKey(artist, title);
+  if (!(key in c)) return false;
+  delete c[key];
+  cacheDirty = true;
+  scheduleCacheSave();
+  return true;
+}

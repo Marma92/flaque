@@ -9,13 +9,21 @@ import type { Track } from "../../types/library";
 import { fetchAndSaveCoverArt, flushCoverArtNegativeCache } from "./coverArtArchiveService";
 import {
   flushGenreCache,
+  invalidateCacheEntry,
   lookupRecordingMetadata,
   type RecordingMetadata
 } from "./musicBrainzService";
 import { normalizeGenreLabels } from "./genreSynonymService";
+import { appendEnrichmentLog, type EnrichmentLogEntry } from "./enrichmentLogStore";
 import { createLogger } from "../../utils/logger";
 
 const log = createLogger("genre-enrichment");
+
+export type EnrichmentCurrentTrack = {
+  trackId: string;
+  artist: string;
+  title: string;
+};
 
 export type EnrichmentStatus = {
   running: boolean;
@@ -24,6 +32,7 @@ export type EnrichmentStatus = {
   enriched: number;
   failed: number;
   startedAt: string | null;
+  currentTrack: EnrichmentCurrentTrack | null;
 };
 
 let status: EnrichmentStatus = {
@@ -32,7 +41,8 @@ let status: EnrichmentStatus = {
   processed: 0,
   enriched: 0,
   failed: 0,
-  startedAt: null
+  startedAt: null,
+  currentTrack: null
 };
 
 let abortController: AbortController | null = null;
@@ -48,6 +58,8 @@ export function stopEnrichment(): void {
   }
 }
 
+export type EnrichmentSource = "bulk" | "single" | "upload";
+
 export type TrackEnrichmentInput = {
   id: string;
   artist: string;
@@ -55,6 +67,7 @@ export type TrackEnrichmentInput = {
   hasGenre: boolean;
   hasYear: boolean;
   hasCover: boolean;
+  source?: EnrichmentSource;
 };
 
 export type TrackEnrichmentResult = {
@@ -106,6 +119,42 @@ function metadataDiffersFromOverride(
   return changed;
 }
 
+function buildLogEntry(
+  input: TrackEnrichmentInput,
+  result: TrackEnrichmentResult,
+  metadataReturned: boolean,
+  source: EnrichmentSource
+): EnrichmentLogEntry {
+  const wroteAnything =
+    result.genres !== null ||
+    result.year !== null ||
+    result.mbidRecording !== null ||
+    result.mbidReleaseGroup !== null ||
+    result.mbidArtist !== null ||
+    result.coverFetched;
+
+  const status: EnrichmentLogEntry["status"] = !metadataReturned
+    ? "miss"
+    : wroteAnything
+      ? "hit"
+      : "skipped";
+
+  return {
+    timestamp: new Date().toISOString(),
+    trackId: input.id,
+    artist: input.artist,
+    title: input.title,
+    source,
+    status,
+    ...(result.genres ? { filledGenre: result.genres } : {}),
+    ...(result.year !== null ? { filledYear: result.year } : {}),
+    ...(result.mbidRecording ? { filledRecordingMbid: result.mbidRecording } : {}),
+    ...(result.mbidReleaseGroup ? { filledReleaseGroupMbid: result.mbidReleaseGroup } : {}),
+    ...(result.mbidArtist ? { filledArtistMbid: result.mbidArtist } : {}),
+    ...(result.coverFetched ? { coverFetched: true } : {})
+  };
+}
+
 /**
  * Enrich a single track. Looks up the recording on MusicBrainz, fills missing
  * genre/year/MBID overrides without clobbering existing ones, and downloads
@@ -123,7 +172,10 @@ export async function enrichTrackMetadata(input: TrackEnrichmentInput): Promise<
   };
 
   const metadata = await lookupRecordingMetadata(input.artist, input.title);
-  if (!metadata) return result;
+  if (!metadata) {
+    appendEnrichmentLog(buildLogEntry(input, result, false, input.source ?? "bulk"));
+    return result;
+  }
 
   const normalizedGenres = normalizeGenreLabels(metadata.genres);
   const fillGenre = !input.hasGenre;
@@ -162,6 +214,7 @@ export async function enrichTrackMetadata(input: TrackEnrichmentInput): Promise<
     }
   }
 
+  appendEnrichmentLog(buildLogEntry(input, result, true, input.source ?? "bulk"));
   return result;
 }
 
@@ -184,9 +237,56 @@ export async function enrichTrackGenre(
     title,
     hasGenre: false,
     hasYear: options.hasYear ?? true,
-    hasCover: options.hasCover ?? true
+    hasCover: options.hasCover ?? true,
+    source: "upload"
   });
   return result.genres;
+}
+
+/**
+ * Trigger a fresh MB lookup for one specific track. Drops the cached entry
+ * for (artist, title) so the next call hits MusicBrainz, then fills any
+ * currently-missing fields. Used by the admin "re-enrich" button.
+ */
+export async function reEnrichTrack(track: Track, indexStore?: IndexStore): Promise<TrackEnrichmentResult> {
+  const artist = track.tags.artist;
+  const title = track.tags.title;
+  if (!artist || !title) {
+    return {
+      genres: null,
+      year: null,
+      mbidRecording: null,
+      mbidReleaseGroup: null,
+      mbidArtist: null,
+      coverFetched: false
+    };
+  }
+
+  invalidateCacheEntry(artist, title);
+
+  const cover = await findCoverFileByTrackId(track.id);
+  const result = await enrichTrackMetadata({
+    id: track.id,
+    artist,
+    title,
+    hasGenre: Array.isArray(track.tags.genre) && track.tags.genre.length > 0,
+    hasYear: typeof track.tags.year === "number",
+    hasCover: cover !== null,
+    source: "single"
+  });
+
+  const wroteMetadata =
+    result.genres !== null ||
+    result.year !== null ||
+    result.mbidRecording !== null ||
+    result.mbidReleaseGroup !== null ||
+    result.mbidArtist !== null;
+
+  if (wroteMetadata && indexStore) {
+    await indexStore.rebuild();
+  }
+
+  return result;
 }
 
 function describeTrackEnrichmentNeeds(track: Track, hasCover: boolean): TrackEnrichmentInput | null {
@@ -205,7 +305,8 @@ function describeTrackEnrichmentNeeds(track: Track, hasCover: boolean): TrackEnr
     title,
     hasGenre,
     hasYear,
-    hasCover
+    hasCover,
+    source: "bulk"
   };
 }
 
@@ -233,7 +334,8 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
       processed: 0,
       enriched: 0,
       failed: 0,
-      startedAt: new Date().toISOString()
+      startedAt: new Date().toISOString(),
+      currentTrack: null
     };
     return;
   }
@@ -247,7 +349,8 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
     processed: 0,
     enriched: 0,
     failed: 0,
-    startedAt: new Date().toISOString()
+    startedAt: new Date().toISOString(),
+    currentTrack: null
   };
 
   log.info(`Starting metadata enrichment for ${candidates.length} tracks`);
@@ -259,6 +362,12 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
       log.info("Metadata enrichment aborted");
       break;
     }
+
+    status.currentTrack = {
+      trackId: candidate.id,
+      artist: candidate.artist,
+      title: candidate.title
+    };
 
     try {
       const result = await enrichTrackMetadata(candidate);
@@ -287,10 +396,20 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
       log.warn(`Failed to enrich "${candidate.title}" by "${candidate.artist}"`, {
         error: error instanceof Error ? error.message : String(error)
       });
+      appendEnrichmentLog({
+        timestamp: new Date().toISOString(),
+        trackId: candidate.id,
+        artist: candidate.artist,
+        title: candidate.title,
+        source: "bulk",
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 
   status.running = false;
+  status.currentTrack = null;
   abortController = null;
   flushGenreCache();
   flushCoverArtNegativeCache();
@@ -300,4 +419,33 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
   log.info(
     `Metadata enrichment complete: ${status.enriched} enriched, ${status.failed} failed, ${status.processed} processed out of ${status.total}`
   );
+}
+
+/**
+ * Re-apply the current synonym table to all existing genre overrides.
+ * Used when the admin updates synonyms and wants to fix up the library
+ * without re-running an MB enrichment. Returns counts of changed/scanned
+ * tracks. Triggers an index rebuild if anything changed.
+ */
+export async function reapplySynonymsToOverrides(indexStore: IndexStore): Promise<{ scanned: number; updated: number }> {
+  const overrides = await readTrackMetadataOverrides();
+  let scanned = 0;
+  let updated = 0;
+  const patch: Record<string, TrackMetadataOverride> = {};
+
+  for (const [trackId, override] of Object.entries(overrides)) {
+    if (!override.genre || override.genre.length === 0) continue;
+    scanned++;
+    const renormalized = normalizeGenreLabels(override.genre);
+    if (JSON.stringify(renormalized) === JSON.stringify(override.genre)) continue;
+    patch[trackId] = { ...override, genre: renormalized };
+    updated++;
+  }
+
+  if (updated > 0) {
+    await mergeTrackMetadataOverrides(patch);
+    await indexStore.rebuild();
+  }
+
+  return { scanned, updated };
 }

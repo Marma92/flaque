@@ -9,6 +9,7 @@ import {
   heartPlaylist,
   patchPlaylist,
   rebuildIndex,
+  reEnrichTrack,
   reportPlaylistListen,
   updateTrackMetadata,
   uploadTracks,
@@ -50,6 +51,7 @@ type UseLibraryCommandsResult = {
   handleRebuildIndex: () => Promise<void>;
   handleDeleteTrack: (trackId: string) => Promise<void>;
   handleUpdateTrackMetadata: (trackId: string, patch: TrackMetadataPatch) => Promise<void>;
+  handleReEnrichTrack: (trackId: string) => Promise<void>;
   handleCreatePlaylist: (input: { name: string; visibility: PlaylistVisibility; description?: string }) => Promise<void>;
   handleAddTrackToPlaylist: (input: { trackId: string; playlistId: string }) => Promise<void>;
   handlePatchPlaylist: (playlistId: string, patch: { name?: string; visibility?: PlaylistVisibility; trackIds?: string[]; description?: string; collaborators?: string[] }) => Promise<Playlist>;
@@ -157,6 +159,28 @@ export function useLibraryCommands({
     refreshPaginatedLibrary();
   }
 
+  async function handleReEnrichTrack(trackId: string): Promise<void> {
+    const { result } = await reEnrichTrack(trackId);
+    const filled: string[] = [];
+    if (result.genres) filled.push(`genre: ${result.genres.join(", ")}`);
+    if (result.year !== null) filled.push(`year: ${result.year}`);
+    if (result.coverFetched) filled.push("cover art");
+    if (filled.length === 0 && result.mbidRecording) filled.push("MBIDs");
+
+    setAppNotice({
+      tone: filled.length > 0 ? "success" : "info",
+      message: filled.length > 0
+        ? `Re-enriched: ${filled.join(", ")}.`
+        : "Re-enrichment ran but no new data was found on MusicBrainz."
+    });
+
+    if (filled.length > 0) {
+      await Promise.all([refreshCurrentLibrary(), refreshAllTracks()]);
+      refreshRecentlyUploaded();
+      refreshPaginatedLibrary();
+    }
+  }
+
   async function handleCreatePlaylist(input: {
     name: string;
     visibility: PlaylistVisibility;
@@ -254,6 +278,7 @@ export function useLibraryCommands({
     handleRebuildIndex,
     handleDeleteTrack,
     handleUpdateTrackMetadata,
+    handleReEnrichTrack,
     handleBulkDeleteTracks,
     handleBulkUpdateTrackMetadata,
     handleCreatePlaylist,
