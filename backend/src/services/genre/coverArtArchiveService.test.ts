@@ -57,7 +57,7 @@ beforeEach(async () => {
     const result = fetchHandler(url);
     if (result.throw) throw result.throw;
     const body = result.body ?? Buffer.alloc(0);
-    return new Response(body, {
+    return new Response(body as unknown as BodyInit, {
       status: result.status ?? 200
     });
   }));

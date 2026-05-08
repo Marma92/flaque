@@ -17,6 +17,7 @@ type FilesSectionProps = {
   ownerNameById?: Record<string, string>;
   onDeleteTrack: (trackId: string) => Promise<void>;
   onUpdateTrackMetadata: (trackId: string, patch: TrackMetadataPatch) => Promise<void>;
+  onReEnrichTrack: (trackId: string) => Promise<void>;
   onBulkDeleteTracks: (trackIds: string[]) => Promise<void>;
   onBulkUpdateTrackMetadata: (trackIds: string[], patch: TrackMetadataPatch) => Promise<void>;
 };
@@ -38,6 +39,7 @@ export function FilesSection({
   ownerNameById,
   onDeleteTrack,
   onUpdateTrackMetadata,
+  onReEnrichTrack,
   onBulkDeleteTracks,
   onBulkUpdateTrackMetadata
 }: FilesSectionProps): JSX.Element {
@@ -119,6 +121,17 @@ export function FilesSection({
     } finally {
       setActiveTrackActionId(null);
       setDeletingTrack(false);
+    }
+  }
+
+  async function handleReEnrichClicked(track: Track): Promise<void> {
+    setActiveTrackActionId(track.id);
+    try {
+      await onReEnrichTrack(track.id);
+    } catch (error) {
+      void error;
+    } finally {
+      setActiveTrackActionId(null);
     }
   }
 
@@ -461,6 +474,15 @@ export function FilesSection({
                           onClick={() => openEditModal(track)}
                         >
                           Edit
+                        </button>
+                        <button
+                          className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                          type="button"
+                          disabled={runningAction}
+                          onClick={() => { void handleReEnrichClicked(track); }}
+                          title="Force a fresh MusicBrainz lookup for this track"
+                        >
+                          Re-enrich
                         </button>
                         <button
                           className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"

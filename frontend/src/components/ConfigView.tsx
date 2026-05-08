@@ -15,6 +15,7 @@ export type ConfigViewProps = {
   onRefreshTracks: () => Promise<void>;
   onDeleteTrack: (trackId: string) => Promise<void>;
   onUpdateTrackMetadata: (trackId: string, patch: TrackMetadataPatch) => Promise<void>;
+  onReEnrichTrack: (trackId: string) => Promise<void>;
   onBulkDeleteTracks: (trackIds: string[]) => Promise<void>;
   onBulkUpdateTrackMetadata: (trackIds: string[], patch: TrackMetadataPatch) => Promise<void>;
   activeSection: ConfigSection;
@@ -31,6 +32,7 @@ export function ConfigView({
   onRefreshTracks,
   onDeleteTrack,
   onUpdateTrackMetadata,
+  onReEnrichTrack,
   onBulkDeleteTracks,
   onBulkUpdateTrackMetadata,
   activeSection
@@ -62,6 +64,7 @@ export function ConfigView({
           ownerNameById={ownerNameById}
           onDeleteTrack={onDeleteTrack}
           onUpdateTrackMetadata={onUpdateTrackMetadata}
+          onReEnrichTrack={onReEnrichTrack}
           onBulkDeleteTracks={onBulkDeleteTracks}
           onBulkUpdateTrackMetadata={onBulkUpdateTrackMetadata}
         />

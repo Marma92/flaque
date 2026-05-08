@@ -1,19 +1,23 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  clearEnrichmentLog,
   clearGenreCache,
   deleteGenreSynonym,
   getAutoPlaylistConfig,
+  getEnrichmentLog,
   getEnrichmentStatus,
   getGenreCacheStats,
   getGenreSynonyms,
   patchAutoPlaylistConfig,
   putGenreSynonym,
+  reapplyGenreSynonyms,
   regenerateAutoPlaylists,
   resetGenreSynonyms,
   startEnrichment,
   stopEnrichment,
   type AutoPlaylistConfig,
+  type EnrichmentLogEntry,
   type EnrichmentStatus,
   type GenreCacheStats,
   type GenreSynonyms
@@ -39,6 +43,10 @@ export function AdminLibraryView({ onAutoPlaylistsRegenerated }: AdminLibraryVie
   // ── Cache ──────────────────────────────────────────────────────
   const [cacheStats, setCacheStats] = useState<GenreCacheStats | null>(null);
 
+  // ── Enrichment activity log ────────────────────────────────────
+  const [logEntries, setLogEntries] = useState<EnrichmentLogEntry[]>([]);
+  const [reapplying, setReapplying] = useState(false);
+
   // ── Auto-playlist config ───────────────────────────────────────
   const [config, setConfig] = useState<AutoPlaylistConfig | null>(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
@@ -56,10 +64,14 @@ export function AdminLibraryView({ onAutoPlaylistsRegenerated }: AdminLibraryVie
     try {
       const status = await getEnrichmentStatus();
       setEnrichStatus(status);
-      // Also refresh cache stats while enrichment runs
+      // Also refresh cache stats and log while enrichment runs
       if (status.running) {
-        const stats = await getGenreCacheStats();
-        setCacheStats(stats);
+        const [stats, log] = await Promise.all([
+          getGenreCacheStats().catch(() => null),
+          getEnrichmentLog(50).catch(() => null)
+        ]);
+        if (stats) setCacheStats(stats);
+        if (log) setLogEntries(log);
       }
       return status;
     } catch {
@@ -96,7 +108,15 @@ export function AdminLibraryView({ onAutoPlaylistsRegenerated }: AdminLibraryVie
     void pollEnrichStatus();
     void loadCacheStats();
     void loadConfig();
+    void loadLog();
   }, [pollEnrichStatus]);
+
+  async function loadLog(): Promise<void> {
+    try {
+      const entries = await getEnrichmentLog(50);
+      setLogEntries(entries);
+    } catch {}
+  }
 
   async function loadSynonyms(): Promise<void> {
     setLoadingSynonyms(true);
@@ -162,6 +182,23 @@ export function AdminLibraryView({ onAutoPlaylistsRegenerated }: AdminLibraryVie
     } catch {}
   }
 
+  async function handleReapplySynonyms(): Promise<void> {
+    setReapplying(true);
+    setSynonymMessage(null);
+    try {
+      const { scanned, updated } = await reapplyGenreSynonyms();
+      setSynonymMessage(
+        updated > 0
+          ? `Reapplied synonyms: ${updated} of ${scanned} tracks updated.`
+          : `Reapplied synonyms: nothing to change (${scanned} tracks scanned).`
+      );
+    } catch (err) {
+      setSynonymMessage(err instanceof Error ? err.message : "Failed to reapply synonyms.");
+    } finally {
+      setReapplying(false);
+    }
+  }
+
   // ── Enrichment handlers ────────────────────────────────────────
 
   async function handleToggleEnrichment(): Promise<void> {
@@ -189,6 +226,13 @@ export function AdminLibraryView({ onAutoPlaylistsRegenerated }: AdminLibraryVie
     try {
       await clearGenreCache();
       await loadCacheStats();
+    } catch {}
+  }
+
+  async function handleClearLog(): Promise<void> {
+    try {
+      await clearEnrichmentLog();
+      setLogEntries([]);
     } catch {}
   }
 
@@ -243,13 +287,23 @@ export function AdminLibraryView({ onAutoPlaylistsRegenerated }: AdminLibraryVie
       <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-display text-xl text-flaque-ink">Genre Synonyms</h3>
-          <button
-            type="button"
-            className="rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream"
-            onClick={() => { void handleResetSynonyms(); }}
-          >
-            Reset to defaults
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => { void handleReapplySynonyms(); }}
+              disabled={reapplying}
+            >
+              {reapplying ? "Reapplying..." : "Reapply to library"}
+            </button>
+            <button
+              type="button"
+              className="rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream"
+              onClick={() => { void handleResetSynonyms(); }}
+            >
+              Reset to defaults
+            </button>
+          </div>
         </div>
 
         <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={(e) => { void handleAddSynonym(e); }}>
@@ -359,6 +413,14 @@ export function AdminLibraryView({ onAutoPlaylistsRegenerated }: AdminLibraryVie
                 />
               </div>
             ) : null}
+            {enrichStatus.currentTrack ? (
+              <p className="text-xs text-flaque-steel">
+                <span className="text-flaque-steel/60">Now: </span>
+                <span className="text-flaque-ink">{enrichStatus.currentTrack.title}</span>
+                <span className="text-flaque-steel/60"> — </span>
+                <span className="text-flaque-steel">{enrichStatus.currentTrack.artist}</span>
+              </p>
+            ) : null}
             <div className="flex gap-3 text-xs text-flaque-steel">
               <span className="text-green-600">{enrichStatus.enriched} enriched</span>
               {enrichStatus.failed > 0 ? (
@@ -394,6 +456,85 @@ export function AdminLibraryView({ onAutoPlaylistsRegenerated }: AdminLibraryVie
             </button>
           </div>
         ) : null}
+      </section>
+
+      {/* ── Recent enrichment activity ───────────────────────────── */}
+      <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="font-display text-xl text-flaque-ink">Recent enrichment activity</h3>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream"
+              onClick={() => { void loadLog(); }}
+            >
+              Refresh
+            </button>
+            {logEntries.length > 0 ? (
+              <button
+                type="button"
+                className="rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream"
+                onClick={() => { void handleClearLog(); }}
+              >
+                Clear log
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        {logEntries.length === 0 ? (
+          <p className="mt-3 text-sm text-flaque-steel">No enrichment activity yet.</p>
+        ) : (
+          <div className="mt-3 max-h-80 overflow-y-auto rounded-xl border border-flaque-clay/40">
+            <table className="w-full text-left text-xs">
+              <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
+                <tr>
+                  <th className="px-3 py-2 font-medium">When</th>
+                  <th className="px-3 py-2 font-medium">Track</th>
+                  <th className="px-3 py-2 font-medium">Source</th>
+                  <th className="px-3 py-2 font-medium">Outcome</th>
+                  <th className="px-3 py-2 font-medium">Filled</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logEntries.map((entry, i) => (
+                  <tr key={`${entry.timestamp}-${entry.trackId}-${i}`} className="border-t border-flaque-clay/30">
+                    <td className="whitespace-nowrap px-3 py-1.5 text-flaque-steel">
+                      {new Date(entry.timestamp).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <span className="text-flaque-ink">{entry.title}</span>
+                      <span className="text-flaque-steel/60"> — </span>
+                      <span className="text-flaque-steel">{entry.artist}</span>
+                    </td>
+                    <td className="px-3 py-1.5 text-flaque-steel">{entry.source}</td>
+                    <td className={`px-3 py-1.5 ${
+                      entry.status === "hit" ? "text-green-600" :
+                      entry.status === "miss" ? "text-flaque-steel" :
+                      entry.status === "failed" ? "text-red-500" :
+                      "text-flaque-steel/60"
+                    }`}>
+                      {entry.status}
+                    </td>
+                    <td className="px-3 py-1.5 text-flaque-steel">
+                      {(() => {
+                        const parts: string[] = [];
+                        if (entry.filledGenre && entry.filledGenre.length > 0) {
+                          parts.push(`genre: ${entry.filledGenre.join(", ")}`);
+                        }
+                        if (entry.filledYear !== undefined) parts.push(`year: ${entry.filledYear}`);
+                        if (entry.coverFetched) parts.push("cover");
+                        if (entry.filledRecordingMbid) parts.push("MBID");
+                        if (entry.errorMessage) parts.push(`error: ${entry.errorMessage}`);
+                        return parts.length > 0 ? parts.join(" · ") : "—";
+                      })()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {/* ── Auto-Playlist Config ────────────────────────────────── */}
