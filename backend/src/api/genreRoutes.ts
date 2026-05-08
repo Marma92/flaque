@@ -20,6 +20,16 @@ import {
   resetSynonymsToDefaults
 } from "../services/genre/genreSynonymService";
 import { getGenreCacheStats, clearGenreCache } from "../services/genre/musicBrainzService";
+import {
+  clearAcoustIdCache,
+  getAcoustIdCacheStats,
+  isAcoustIdConfigured
+} from "../services/genre/acoustIdService";
+import {
+  clearFingerprintCache,
+  getFingerprintCacheStats,
+  isFingerprintingDisabled
+} from "../services/genre/fingerprintService";
 import { AppError } from "../utils/AppError";
 import { createLogger } from "../utils/logger";
 
@@ -150,12 +160,23 @@ export function createGenreRouter(indexStore: IndexStore): Router {
   });
 
   router.get("/genre/cache/stats", requireAuth, requireAdmin, (_req, res) => {
-    res.json(getGenreCacheStats());
+    const mbStats = getGenreCacheStats();
+    const fingerprintStats = getFingerprintCacheStats();
+    const acoustIdStats = getAcoustIdCacheStats();
+    res.json({
+      ...mbStats,
+      fingerprints: fingerprintStats.entries,
+      acoustid: acoustIdStats.entries,
+      acoustIdConfigured: isAcoustIdConfigured(),
+      fingerprintingAvailable: !isFingerprintingDisabled()
+    });
   });
 
   router.post("/genre/cache/clear", requireAuth, requireAdmin, (_req, res) => {
     clearGenreCache();
-    log.info("MusicBrainz genre cache cleared", { userId: _req.authUser?.id ?? "unknown" });
+    clearFingerprintCache();
+    clearAcoustIdCache();
+    log.info("MusicBrainz / fingerprint / AcoustID caches cleared", { userId: _req.authUser?.id ?? "unknown" });
     res.json({ cleared: true });
   });
 

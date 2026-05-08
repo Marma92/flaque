@@ -5,12 +5,24 @@ import {
   type TrackMetadataOverride
 } from "../indexer/metadataOverrideStore";
 import { findCoverFileByTrackId } from "../storage/coverService";
+import { resolveTrackAbsolutePath } from "../storage/storageService";
 import type { Track } from "../../types/library";
+import {
+  flushAcoustIdCache,
+  isAcoustIdConfigured,
+  lookupRecordingByFingerprint
+} from "./acoustIdService";
 import { fetchAndSaveCoverArt, flushCoverArtNegativeCache } from "./coverArtArchiveService";
+import {
+  computeTrackFingerprint,
+  flushFingerprintCache,
+  isFingerprintingDisabled
+} from "./fingerprintService";
 import {
   flushGenreCache,
   invalidateCacheEntry,
   lookupRecordingMetadata,
+  lookupRecordingMetadataByMbid,
   type RecordingMetadata
 } from "./musicBrainzService";
 import { normalizeGenreLabels } from "./genreSynonymService";
@@ -68,6 +80,11 @@ export type TrackEnrichmentInput = {
   hasYear: boolean;
   hasCover: boolean;
   source?: EnrichmentSource;
+  /**
+   * Absolute path to the audio file on disk. Required for the AcoustID
+   * fingerprint fallback. When omitted, fingerprint lookup is skipped.
+   */
+  absolutePath?: string;
 };
 
 export type TrackEnrichmentResult = {
@@ -77,6 +94,7 @@ export type TrackEnrichmentResult = {
   mbidReleaseGroup: string | null;
   mbidArtist: string | null;
   coverFetched: boolean;
+  resolvedViaFingerprint: boolean;
 };
 
 function metadataDiffersFromOverride(
@@ -151,7 +169,8 @@ function buildLogEntry(
     ...(result.mbidRecording ? { filledRecordingMbid: result.mbidRecording } : {}),
     ...(result.mbidReleaseGroup ? { filledReleaseGroupMbid: result.mbidReleaseGroup } : {}),
     ...(result.mbidArtist ? { filledArtistMbid: result.mbidArtist } : {}),
-    ...(result.coverFetched ? { coverFetched: true } : {})
+    ...(result.coverFetched ? { coverFetched: true } : {}),
+    ...(result.resolvedViaFingerprint ? { resolvedViaFingerprint: true } : {})
   };
 }
 
@@ -168,10 +187,35 @@ export async function enrichTrackMetadata(input: TrackEnrichmentInput): Promise<
     mbidRecording: null,
     mbidReleaseGroup: null,
     mbidArtist: null,
-    coverFetched: false
+    coverFetched: false,
+    resolvedViaFingerprint: false
   };
 
-  const metadata = await lookupRecordingMetadata(input.artist, input.title);
+  let metadata = await lookupRecordingMetadata(input.artist, input.title);
+
+  // Fallback: if name-search missed and we have a file path + AcoustID is
+  // configured + fpcalc is available, try to resolve the recording by
+  // audio fingerprint. This rescues tracks with broken or generic tags
+  // (e.g. "Track 01" / "Unknown Artist").
+  if (
+    !metadata &&
+    input.absolutePath &&
+    isAcoustIdConfigured() &&
+    !isFingerprintingDisabled()
+  ) {
+    const fingerprint = await computeTrackFingerprint(input.id, input.absolutePath);
+    if (fingerprint) {
+      const acoustHit = await lookupRecordingByFingerprint(
+        fingerprint.fingerprint,
+        fingerprint.duration
+      );
+      if (acoustHit) {
+        metadata = await lookupRecordingMetadataByMbid(acoustHit.recordingMbid);
+        if (metadata) result.resolvedViaFingerprint = true;
+      }
+    }
+  }
+
   if (!metadata) {
     appendEnrichmentLog(buildLogEntry(input, result, false, input.source ?? "bulk"));
     return result;
@@ -258,7 +302,8 @@ export async function reEnrichTrack(track: Track, indexStore?: IndexStore): Prom
       mbidRecording: null,
       mbidReleaseGroup: null,
       mbidArtist: null,
-      coverFetched: false
+      coverFetched: false,
+      resolvedViaFingerprint: false
     };
   }
 
@@ -272,7 +317,8 @@ export async function reEnrichTrack(track: Track, indexStore?: IndexStore): Prom
     hasGenre: Array.isArray(track.tags.genre) && track.tags.genre.length > 0,
     hasYear: typeof track.tags.year === "number",
     hasCover: cover !== null,
-    source: "single"
+    source: "single",
+    absolutePath: resolveTrackAbsolutePath(track.path)
   });
 
   const wroteMetadata =
@@ -306,7 +352,8 @@ function describeTrackEnrichmentNeeds(track: Track, hasCover: boolean): TrackEnr
     hasGenre,
     hasYear,
     hasCover,
-    source: "bulk"
+    source: "bulk",
+    absolutePath: resolveTrackAbsolutePath(track.path)
   };
 }
 
@@ -413,6 +460,8 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
   abortController = null;
   flushGenreCache();
   flushCoverArtNegativeCache();
+  flushFingerprintCache();
+  flushAcoustIdCache();
   if (anyMetadataWritten) {
     await indexStore.rebuild();
   }

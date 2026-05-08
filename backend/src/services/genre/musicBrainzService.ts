@@ -471,6 +471,65 @@ async function lookupRecordingMetadataUncached(artist: string, title: string): P
   return { kind: "resolved", metadata: null };
 }
 
+function recordingMetadataFromDetail(
+  recordingMbid: string,
+  detail: MBRecordingDetail
+): RecordingMetadata {
+  const genres = extractGenres(detail);
+  const { releaseGroupMbid, year } = pickCanonicalRelease(detail);
+  const artistMbid = extractArtistMbid(detail);
+  return { genres, recordingMbid, releaseGroupMbid, artistMbid, year };
+}
+
+/**
+ * Fetch rich metadata (genres, release-group, year, artist MBID) for a known
+ * recording MBID. Used by the AcoustID fingerprint fallback path: when the
+ * artist/title search misses but a fingerprint resolves to a recording, we
+ * still want the same downstream metadata.
+ *
+ * Cached under a `mbid:` key so repeated MBID lookups are deduped, but uses
+ * the same on-disk cache file as the artist/title path. Misses are NOT
+ * cached because we only get here for confirmed-via-fingerprint MBIDs.
+ */
+export async function lookupRecordingMetadataByMbid(recordingMbid: string): Promise<RecordingMetadata | null> {
+  if (!recordingMbid.trim()) return null;
+
+  const c = loadCache();
+  const key = `mbid:${recordingMbid.toLowerCase().trim()}`;
+  const existing = c[key];
+  if (existing && isCacheEntryFreshForRich(existing)) {
+    return entryToMetadata(existing);
+  }
+
+  const inflightPromise = inflightRich.get(key);
+  if (inflightPromise) return inflightPromise;
+
+  const promise = (async (): Promise<RecordingMetadata | null> => {
+    try {
+      const detail = await fetchRecordingDetail(recordingMbid, true);
+      if (detail.kind !== "ok") return null;
+      const metadata = recordingMetadataFromDetail(recordingMbid, detail.detail);
+      c[key] = {
+        cachedAt: Date.now(),
+        status: "hit",
+        richVersion: RICH_SCHEMA_VERSION,
+        genres: metadata.genres,
+        recordingMbid: metadata.recordingMbid,
+        releaseGroupMbid: metadata.releaseGroupMbid,
+        artistMbid: metadata.artistMbid,
+        year: metadata.year
+      };
+      scheduleCacheSave();
+      return metadata;
+    } finally {
+      inflightRich.delete(key);
+    }
+  })();
+
+  inflightRich.set(key, promise);
+  return promise;
+}
+
 function buildTitlePasses(title: string): string[] {
   const passes: string[] = [title];
   const simplified = simplifyTitle(title);
