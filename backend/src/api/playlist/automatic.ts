@@ -37,6 +37,14 @@ export function createAutoPlaylistRouter(indexStore: IndexStore): Router {
       if (typeof body.tracksPerPlaylist === "number") patch.tracksPerPlaylist = body.tracksPerPlaylist;
 
       const updated = await updateAutoPlaylistConfig(patch);
+
+      if (Object.keys(patch).length > 0) {
+        log.info("Automatic playlist config updated", {
+          userId: req.authUser?.id ?? "unknown",
+          changes: patch
+        });
+      }
+
       res.json(updated);
     } catch (error) {
       next(error);

@@ -135,9 +135,23 @@ export function usePlaybackCommands({
       return;
     }
 
-    const nextTrackFromQueue = getAdjacentTrackInQueue(refreshedQueue, currentTrack.id, direction, wrap);
-    if (nextTrackFromQueue && nextTrackFromQueue.id !== currentTrack.id) {
-      setSelectedTrack(nextTrackFromQueue);
+    const currentIndexInQueue = refreshedQueue.findIndex((track) => track.id === currentTrack.id);
+    const isInQueue = currentIndexInQueue >= 0;
+
+    if (isInQueue) {
+      const nextTrackFromQueue = getAdjacentTrackInQueue(refreshedQueue, currentTrack.id, direction, wrap);
+      if (nextTrackFromQueue && nextTrackFromQueue.id !== currentTrack.id) {
+        setSelectedTrack(nextTrackFromQueue);
+        return;
+      }
+
+      if (!wrap) {
+        setPlayerStatusMessage(
+          direction === "next"
+            ? "You reached the end of the current queue."
+            : "You are already at the start of the current queue."
+        );
+      }
       return;
     }
 
