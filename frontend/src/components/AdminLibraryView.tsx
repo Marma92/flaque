@@ -443,17 +443,47 @@ export function AdminLibraryView({ onAutoPlaylistsRegenerated }: AdminLibraryVie
         ) : null}
 
         {cacheStats ? (
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <span className="text-sm text-flaque-steel">
-              Cache: {cacheStats.entries} {cacheStats.entries === 1 ? "entry" : "entries"}
-            </span>
-            <button
-              type="button"
-              className="rounded-lg border border-flaque-clay px-3 py-1 text-xs text-flaque-ink transition hover:bg-flaque-cream"
-              onClick={() => { void handleClearCache(); }}
-            >
-              Clear cache
-            </button>
+          <div className="mt-3 space-y-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm text-flaque-steel">
+                Cache: {cacheStats.entries} {cacheStats.entries === 1 ? "MB entry" : "MB entries"}
+                {typeof cacheStats.fingerprints === "number"
+                  ? ` · ${cacheStats.fingerprints} fingerprint${cacheStats.fingerprints === 1 ? "" : "s"}`
+                  : ""}
+                {typeof cacheStats.acoustid === "number"
+                  ? ` · ${cacheStats.acoustid} AcoustID`
+                  : ""}
+              </span>
+              <button
+                type="button"
+                className="rounded-lg border border-flaque-clay px-3 py-1 text-xs text-flaque-ink transition hover:bg-flaque-cream"
+                onClick={() => { void handleClearCache(); }}
+              >
+                Clear cache
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-flaque-steel/80">
+              <span
+                className={`rounded px-2 py-0.5 ${
+                  cacheStats.acoustIdConfigured
+                    ? "bg-green-100 text-green-700"
+                    : "bg-flaque-clay/40 text-flaque-steel"
+                }`}
+                title="Set ACOUSTID_API_KEY on the server to enable fingerprint fallback for tracks with bad tags."
+              >
+                AcoustID: {cacheStats.acoustIdConfigured ? "configured" : "not configured"}
+              </span>
+              <span
+                className={`rounded px-2 py-0.5 ${
+                  cacheStats.fingerprintingAvailable
+                    ? "bg-green-100 text-green-700"
+                    : "bg-flaque-clay/40 text-flaque-steel"
+                }`}
+                title="Install the chromaprint (fpcalc) binary on the server to enable audio fingerprinting."
+              >
+                fpcalc: {cacheStats.fingerprintingAvailable ? "available" : "not detected"}
+              </span>
+            </div>
           </div>
         ) : null}
       </section>

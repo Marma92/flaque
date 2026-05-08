@@ -24,6 +24,7 @@ export type EnrichmentLogEntry = {
   filledReleaseGroupMbid?: string;
   filledArtistMbid?: string;
   coverFetched?: boolean;
+  resolvedViaFingerprint?: boolean;
   errorMessage?: string;
 };
 

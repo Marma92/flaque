@@ -107,6 +107,10 @@ export async function reapplyGenreSynonyms(): Promise<{ scanned: number; updated
 
 export type GenreCacheStats = {
   entries: number;
+  fingerprints?: number;
+  acoustid?: number;
+  acoustIdConfigured?: boolean;
+  fingerprintingAvailable?: boolean;
 };
 
 export async function getGenreCacheStats(): Promise<GenreCacheStats> {
