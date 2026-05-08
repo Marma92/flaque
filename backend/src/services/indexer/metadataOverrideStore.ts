@@ -7,7 +7,12 @@ export type TrackMetadataOverride = {
   album?: string;
   year?: number;
   genre?: string[];
+  mbidRecording?: string;
+  mbidReleaseGroup?: string;
+  mbidArtist?: string;
 };
+
+const MBID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type TrackMetadataOverridesMap = Record<string, TrackMetadataOverride>;
 
@@ -41,6 +46,12 @@ function normalizeGenre(value: unknown): string[] | undefined {
   return genres.length > 0 ? genres : undefined;
 }
 
+function normalizeMbid(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim().toLowerCase();
+  return MBID_PATTERN.test(trimmed) ? trimmed : undefined;
+}
+
 function normalizeOverride(override: unknown): TrackMetadataOverride | undefined {
   if (!override || typeof override !== "object") {
     return undefined;
@@ -52,8 +63,20 @@ function normalizeOverride(override: unknown): TrackMetadataOverride | undefined
   const title = normalizeField(record.title);
   const year = normalizeYear(record.year);
   const genre = normalizeGenre(record.genre);
+  const mbidRecording = normalizeMbid(record.mbidRecording);
+  const mbidReleaseGroup = normalizeMbid(record.mbidReleaseGroup);
+  const mbidArtist = normalizeMbid(record.mbidArtist);
 
-  if (!title && !artist && !album && year === undefined && !genre) {
+  if (
+    !title &&
+    !artist &&
+    !album &&
+    year === undefined &&
+    !genre &&
+    !mbidRecording &&
+    !mbidReleaseGroup &&
+    !mbidArtist
+  ) {
     return undefined;
   }
 
@@ -62,7 +85,10 @@ function normalizeOverride(override: unknown): TrackMetadataOverride | undefined
     artist,
     album,
     year,
-    genre
+    genre,
+    mbidRecording,
+    mbidReleaseGroup,
+    mbidArtist
   };
 }
 
@@ -125,7 +151,10 @@ export async function mergeTrackMetadataOverrides(
           existing?.artist === cleanOverride.artist &&
           existing?.album === cleanOverride.album &&
           existing?.year === cleanOverride.year &&
-          JSON.stringify(existing?.genre) === JSON.stringify(cleanOverride.genre)
+          JSON.stringify(existing?.genre) === JSON.stringify(cleanOverride.genre) &&
+          existing?.mbidRecording === cleanOverride.mbidRecording &&
+          existing?.mbidReleaseGroup === cleanOverride.mbidReleaseGroup &&
+          existing?.mbidArtist === cleanOverride.mbidArtist
         ) {
           continue;
         }

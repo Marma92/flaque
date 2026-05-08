@@ -233,3 +233,212 @@ describe("musicBrainzService", () => {
     expect(fsSync.existsSync(`${CACHE_FILE}.tmp`)).toBe(false);
   });
 });
+
+describe("musicBrainzService.lookupRecordingMetadata", () => {
+  const RECORDING_MBID = "11111111-1111-4111-8111-111111111111";
+  const RELEASE_GROUP_MBID = "22222222-2222-4222-8222-222222222222";
+  const ARTIST_MBID = "33333333-3333-4333-8333-333333333333";
+
+  it("returns full metadata with MBIDs and year from the earliest Album release", async () => {
+    let phase = 0;
+    fetchHandler = (url) => {
+      phase++;
+      if (phase === 1) {
+        return {
+          status: 200,
+          body: recordingsResponse([{ score: 95, id: RECORDING_MBID, tags: ["rock"] }])
+        };
+      }
+      // Detail fetch — returns 2 album releases (2003 and 2001) + 1 single
+      expect(url).toMatch(/inc=[^&]*release-groups/);
+      return {
+        status: 200,
+        body: {
+          id: RECORDING_MBID,
+          "artist-credit": [{ artist: { id: ARTIST_MBID, name: "Artist" } }],
+          releases: [
+            {
+              id: "rel-1",
+              "release-group": {
+                id: "rg-2003",
+                "first-release-date": "2003-05-01",
+                "primary-type": "Album"
+              }
+            },
+            {
+              id: "rel-2",
+              "release-group": {
+                id: RELEASE_GROUP_MBID,
+                "first-release-date": "2001-09-15",
+                "primary-type": "Album"
+              }
+            },
+            {
+              id: "rel-3",
+              "release-group": {
+                id: "rg-single-1999",
+                "first-release-date": "1999-01-01",
+                "primary-type": "Single"
+              }
+            }
+          ],
+          tags: [{ name: "rock" }],
+          genres: []
+        }
+      };
+    };
+    const { lookupRecordingMetadata } = await loadModule();
+    const result = await lookupRecordingMetadata("Artist", "Song");
+    expect(result).not.toBeNull();
+    expect(result!.recordingMbid).toBe(RECORDING_MBID);
+    expect(result!.releaseGroupMbid).toBe(RELEASE_GROUP_MBID);
+    expect(result!.artistMbid).toBe(ARTIST_MBID);
+    expect(result!.year).toBe(2001);
+    expect(result!.genres).toEqual(["Rock"]);
+  });
+
+  it("falls back to non-Album releases when no Album exists", async () => {
+    let phase = 0;
+    fetchHandler = () => {
+      phase++;
+      if (phase === 1) {
+        return {
+          status: 200,
+          body: recordingsResponse([{ score: 95, id: RECORDING_MBID }])
+        };
+      }
+      return {
+        status: 200,
+        body: {
+          id: RECORDING_MBID,
+          "artist-credit": [{ artist: { id: ARTIST_MBID } }],
+          releases: [
+            {
+              "release-group": {
+                id: "rg-ep-2010",
+                "first-release-date": "2010-06-01",
+                "primary-type": "EP"
+              }
+            }
+          ]
+        }
+      };
+    };
+    const { lookupRecordingMetadata } = await loadModule();
+    const result = await lookupRecordingMetadata("X", "Y");
+    expect(result?.releaseGroupMbid).toBe("rg-ep-2010");
+    expect(result?.year).toBe(2010);
+  });
+
+  it("returns null on a confirmed miss (no high-score recording)", async () => {
+    fetchHandler = () => ({ status: 200, body: recordingsResponse([{ score: 60, tags: ["rock"] }]) });
+    const { lookupRecordingMetadata } = await loadModule();
+    const result = await lookupRecordingMetadata("X", "Y");
+    expect(result).toBeNull();
+  });
+
+  it("returns null on transient error and does not cache it", async () => {
+    fetchHandler = () => ({ status: 503 });
+    const { lookupRecordingMetadata, flushGenreCache } = await loadModule();
+    expect(await lookupRecordingMetadata("X", "Y")).toBeNull();
+    flushGenreCache();
+    expect(fsSync.existsSync(CACHE_FILE)).toBe(false);
+  });
+
+  it("re-fetches a Phase 1 cache hit when a richer lookup is requested", async () => {
+    // Pre-populate cache with a Phase 1 entry (no richVersion, just genres).
+    fsSync.mkdirSync(tmpDir, { recursive: true });
+    const phase1 = {
+      "artist|||song": {
+        cachedAt: Date.now(),
+        status: "hit",
+        genres: ["Rock"]
+      }
+    };
+    fsSync.writeFileSync(CACHE_FILE, JSON.stringify(phase1), "utf8");
+
+    let phase = 0;
+    fetchHandler = () => {
+      phase++;
+      if (phase === 1) {
+        return {
+          status: 200,
+          body: recordingsResponse([{ score: 95, id: RECORDING_MBID, tags: ["rock"] }])
+        };
+      }
+      return {
+        status: 200,
+        body: {
+          id: RECORDING_MBID,
+          "artist-credit": [{ artist: { id: ARTIST_MBID } }],
+          releases: [
+            {
+              "release-group": {
+                id: RELEASE_GROUP_MBID,
+                "first-release-date": "1999-01-01",
+                "primary-type": "Album"
+              }
+            }
+          ]
+        }
+      };
+    };
+
+    const { lookupRecordingMetadata, lookupGenre } = await loadModule();
+
+    // Genre-only lookup is served from the legacy cache without fetching.
+    fetchCalls = [];
+    expect(await lookupGenre("Artist", "Song")).toEqual(["Rock"]);
+    expect(fetchCalls).toEqual([]);
+
+    // Rich lookup detects Phase 1 entry and re-fetches.
+    const rich = await lookupRecordingMetadata("Artist", "Song");
+    expect(rich?.recordingMbid).toBe(RECORDING_MBID);
+    expect(rich?.releaseGroupMbid).toBe(RELEASE_GROUP_MBID);
+    expect(rich?.year).toBe(1999);
+  });
+
+  it("caches a rich miss so the next call returns from cache without fetching", async () => {
+    fetchHandler = () => ({ status: 200, body: { recordings: [] } });
+    const { lookupRecordingMetadata } = await loadModule();
+    expect(await lookupRecordingMetadata("Unknown", "Unknown")).toBeNull();
+    fetchCalls = [];
+    expect(await lookupRecordingMetadata("Unknown", "Unknown")).toBeNull();
+    expect(fetchCalls).toEqual([]);
+  });
+
+  it("caches a rich hit so the next call returns from cache without fetching", async () => {
+    let phase = 0;
+    fetchHandler = () => {
+      phase++;
+      if (phase === 1) {
+        return { status: 200, body: recordingsResponse([{ score: 95, id: RECORDING_MBID }]) };
+      }
+      return {
+        status: 200,
+        body: {
+          id: RECORDING_MBID,
+          "artist-credit": [{ artist: { id: ARTIST_MBID } }],
+          releases: [
+            {
+              "release-group": {
+                id: RELEASE_GROUP_MBID,
+                "first-release-date": "1979-03-23",
+                "primary-type": "Album"
+              }
+            }
+          ],
+          tags: [{ name: "rock" }]
+        }
+      };
+    };
+    const { lookupRecordingMetadata } = await loadModule();
+    const first = await lookupRecordingMetadata("X", "Y");
+    expect(first?.year).toBe(1979);
+    fetchCalls = [];
+    const second = await lookupRecordingMetadata("X", "Y");
+    expect(second?.year).toBe(1979);
+    expect(second?.releaseGroupMbid).toBe(RELEASE_GROUP_MBID);
+    expect(fetchCalls).toEqual([]);
+  });
+});
