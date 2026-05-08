@@ -14,6 +14,7 @@ const CACHE_FLUSH_DEBOUNCE_MS = 500;
 const NEGATIVE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MIN_SCORE_THRESHOLD = 80;
 const RECORDING_SEARCH_LIMIT = 10;
+const RICH_SCHEMA_VERSION = 1;
 
 function readVersion(): string {
   try {
@@ -28,10 +29,26 @@ function readVersion(): string {
 
 const USER_AGENT = `flaque/${readVersion()} (https://github.com/Marma92/flaque)`;
 
-type CacheEntry = {
+export type RecordingMetadata = {
   genres: string[];
+  recordingMbid?: string;
+  releaseGroupMbid?: string;
+  artistMbid?: string;
+  year?: number;
+};
+
+type CacheEntry = {
   cachedAt: number;
   status: "hit" | "miss";
+  // Set to RICH_SCHEMA_VERSION once we've populated MBIDs and year. Absent
+  // for Phase 1 entries (genres-only), which trigger a refetch when a
+  // caller asks for richer metadata.
+  richVersion?: number;
+  genres: string[];
+  recordingMbid?: string;
+  releaseGroupMbid?: string;
+  artistMbid?: string;
+  year?: number;
 };
 
 type GenreCache = Record<string, CacheEntry>;
@@ -41,19 +58,21 @@ let cache: GenreCache | null = null;
 let cacheDirty = false;
 let saveTimer: NodeJS.Timeout | null = null;
 let lastRequestTime = 0;
-const inflight = new Map<string, Promise<string[]>>();
+const inflightGenre = new Map<string, Promise<string[]>>();
+const inflightRich = new Map<string, Promise<RecordingMetadata | null>>();
 
 function cacheKey(artist: string, title: string): string {
   return `${artist.toLowerCase().trim()}|||${title.toLowerCase().trim()}`;
 }
 
-function isLegacyEntry(value: unknown): value is string[] {
+function isLegacyArrayEntry(value: unknown): value is string[] {
   return Array.isArray(value);
 }
 
-function migrateLegacyEntry(value: string[]): CacheEntry {
-  // Old format had no timestamp; treat empty arrays as expired misses so
-  // they get re-fetched, and non-empty arrays as forever-valid hits.
+function migrateLegacyArrayEntry(value: string[]): CacheEntry {
+  // Pre-Phase-1 array format. Empty arrays migrate as expired misses so they
+  // get re-fetched; non-empty arrays migrate as Phase 1-style hits (no
+  // richVersion, so a richer-lookup caller will trigger a refetch).
   return {
     genres: value,
     cachedAt: value.length > 0 ? Date.now() : 0,
@@ -70,8 +89,8 @@ function loadCache(): GenreCache {
       const parsed = JSON.parse(raw) as GenreCache | LegacyGenreCache;
       const migrated: GenreCache = {};
       for (const [key, value] of Object.entries(parsed)) {
-        if (isLegacyEntry(value)) {
-          migrated[key] = migrateLegacyEntry(value);
+        if (isLegacyArrayEntry(value)) {
+          migrated[key] = migrateLegacyArrayEntry(value);
         } else if (value && typeof value === "object" && Array.isArray((value as CacheEntry).genres)) {
           migrated[key] = value as CacheEntry;
         }
@@ -117,9 +136,26 @@ function scheduleCacheSave(): void {
   saveTimer.unref?.();
 }
 
-function isCacheEntryFresh(entry: CacheEntry): boolean {
+function isCacheEntryFreshForGenre(entry: CacheEntry): boolean {
   if (entry.status === "hit") return true;
   return Date.now() - entry.cachedAt < NEGATIVE_CACHE_TTL_MS;
+}
+
+function isCacheEntryFreshForRich(entry: CacheEntry): boolean {
+  // Phase 1 hits (no richVersion) need a refetch to get MBIDs and year.
+  if (entry.status === "hit") return entry.richVersion === RICH_SCHEMA_VERSION;
+  return Date.now() - entry.cachedAt < NEGATIVE_CACHE_TTL_MS;
+}
+
+function entryToMetadata(entry: CacheEntry): RecordingMetadata | null {
+  if (entry.status === "miss") return null;
+  return {
+    genres: entry.genres,
+    recordingMbid: entry.recordingMbid,
+    releaseGroupMbid: entry.releaseGroupMbid,
+    artistMbid: entry.artistMbid,
+    year: entry.year
+  };
 }
 
 async function waitForRateLimit(): Promise<void> {
@@ -131,11 +167,24 @@ async function waitForRateLimit(): Promise<void> {
   lastRequestTime = Date.now();
 }
 
+type MBTagOrGenre = { name?: string; count?: number };
+type MBArtistCredit = { artist?: { id?: string; name?: string }; joinphrase?: string };
+type MBReleaseGroup = {
+  id?: string;
+  "first-release-date"?: string;
+  "primary-type"?: string;
+};
+type MBRelease = {
+  id?: string;
+  date?: string;
+  "release-group"?: MBReleaseGroup;
+};
+
 type MBRecording = {
   id?: string;
   score?: number;
-  tags?: Array<{ name?: string; count?: number }>;
-  genres?: Array<{ name?: string; count?: number }>;
+  tags?: MBTagOrGenre[];
+  genres?: MBTagOrGenre[];
 };
 
 type MBSearchResult = {
@@ -143,8 +192,11 @@ type MBSearchResult = {
 };
 
 type MBRecordingDetail = {
-  genres?: Array<{ name?: string; count?: number }>;
-  tags?: Array<{ name?: string; count?: number }>;
+  id?: string;
+  genres?: MBTagOrGenre[];
+  tags?: MBTagOrGenre[];
+  "artist-credit"?: MBArtistCredit[];
+  releases?: MBRelease[];
 };
 
 function extractGenres(recording: MBRecording | MBRecordingDetail): string[] {
@@ -167,6 +219,61 @@ function extractGenres(recording: MBRecording | MBRecordingDetail): string[] {
   }
 
   return genres;
+}
+
+function extractYearFromDate(date: string | undefined): number | undefined {
+  if (!date) return undefined;
+  const match = /^(\d{4})/.exec(date);
+  if (!match) return undefined;
+  const year = Number.parseInt(match[1]!, 10);
+  if (!Number.isInteger(year) || year < 1000 || year > 2999) return undefined;
+  return year;
+}
+
+type CanonicalRelease = {
+  releaseGroupMbid: string | undefined;
+  year: number | undefined;
+};
+
+function pickCanonicalRelease(detail: MBRecordingDetail): CanonicalRelease {
+  const releases = detail.releases ?? [];
+  const albums = releases.filter(
+    (r) => r["release-group"]?.["primary-type"] === "Album" && r["release-group"]?.id
+  );
+  const candidates = albums.length > 0
+    ? albums
+    : releases.filter((r) => r["release-group"]?.id);
+
+  if (candidates.length === 0) {
+    return { releaseGroupMbid: undefined, year: undefined };
+  }
+
+  let bestId: string | undefined;
+  let bestYear: number | undefined;
+
+  for (const rel of candidates) {
+    const rg = rel["release-group"]!;
+    const year = extractYearFromDate(rg["first-release-date"]);
+    if (year !== undefined) {
+      if (bestYear === undefined || year < bestYear) {
+        bestYear = year;
+        bestId = rg.id;
+      }
+    } else if (bestId === undefined) {
+      bestId = rg.id;
+    }
+  }
+
+  return { releaseGroupMbid: bestId, year: bestYear };
+}
+
+function extractArtistMbid(detail: MBRecordingDetail): string | undefined {
+  const credits = detail["artist-credit"] ?? [];
+  for (const credit of credits) {
+    const id = credit.artist?.id;
+    if (typeof id === "string" && id.trim()) return id.trim();
+  }
+  return undefined;
 }
 
 const LUCENE_SPECIAL = /([+\-!(){}\[\]^"~*?:\\/]|&&|\|\|)/g;
@@ -247,45 +354,66 @@ async function searchRecording(artist: string, title: string): Promise<SearchOut
   return { kind: "hit", recording: best };
 }
 
-async function fetchRecordingDetail(recordingId: string): Promise<MBRecordingDetail | null> {
+type DetailOutcome =
+  | { kind: "ok"; detail: MBRecordingDetail }
+  | { kind: "transient" }
+  | { kind: "missing" };
+
+async function fetchRecordingDetail(recordingId: string, withReleaseGroups: boolean): Promise<DetailOutcome> {
   await waitForRateLimit();
 
-  const detailUrl = `${MB_BASE_URL}/recording/${recordingId}?inc=genres+tags&fmt=json`;
+  const inc = withReleaseGroups
+    ? "genres+tags+artist-credits+releases+release-groups"
+    : "genres+tags";
+  const detailUrl = `${MB_BASE_URL}/recording/${recordingId}?inc=${inc}&fmt=json`;
+  let response: Response;
   try {
-    const detailResponse = await fetch(detailUrl, {
+    response = await fetch(detailUrl, {
       headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
-    if (!detailResponse.ok) return null;
-    return (await detailResponse.json()) as MBRecordingDetail;
   } catch (error) {
     log.warn("MusicBrainz detail fetch failed", {
       recordingId,
       error: error instanceof Error ? error.message : String(error)
     });
-    return null;
+    return { kind: "transient" };
+  }
+
+  if (response.status >= 500 || response.status === 429) {
+    return { kind: "transient" };
+  }
+  if (!response.ok) {
+    return { kind: "missing" };
+  }
+
+  try {
+    const detail = (await response.json()) as MBRecordingDetail;
+    return { kind: "ok", detail };
+  } catch (error) {
+    log.warn("MusicBrainz detail returned invalid JSON", {
+      recordingId,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return { kind: "transient" };
   }
 }
 
-type LookupResult =
+type LookupGenreResult =
   | { kind: "resolved"; genres: string[]; status: "hit" | "miss" }
   | { kind: "transient" };
 
-async function lookupGenresUncached(artist: string, title: string): Promise<LookupResult> {
-  const passes: string[] = [title];
-  const simplified = simplifyTitle(title);
-  if (simplified && simplified.toLowerCase() !== title.toLowerCase()) {
-    passes.push(simplified);
-  }
+type LookupRichResult =
+  | { kind: "resolved"; metadata: RecordingMetadata | null }
+  | { kind: "transient" };
+
+async function lookupGenresUncached(artist: string, title: string): Promise<LookupGenreResult> {
+  const passes = buildTitlePasses(title);
 
   for (const candidateTitle of passes) {
     const outcome = await searchRecording(artist, candidateTitle);
-    if (outcome.kind === "transient") {
-      return { kind: "transient" };
-    }
-    if (outcome.kind === "miss") {
-      continue;
-    }
+    if (outcome.kind === "transient") return { kind: "transient" };
+    if (outcome.kind === "miss") continue;
 
     const fromSearch = extractGenres(outcome.recording);
     if (fromSearch.length > 0) {
@@ -294,16 +422,62 @@ async function lookupGenresUncached(artist: string, title: string): Promise<Look
 
     if (!outcome.recording.id) continue;
 
-    const detail = await fetchRecordingDetail(outcome.recording.id);
-    if (!detail) continue;
+    const detail = await fetchRecordingDetail(outcome.recording.id, false);
+    if (detail.kind === "transient") return { kind: "transient" };
+    if (detail.kind === "missing") continue;
 
-    const fromDetail = extractGenres(detail);
+    const fromDetail = extractGenres(detail.detail);
     if (fromDetail.length > 0) {
       return { kind: "resolved", genres: fromDetail, status: "hit" };
     }
   }
 
   return { kind: "resolved", genres: [], status: "miss" };
+}
+
+async function lookupRecordingMetadataUncached(artist: string, title: string): Promise<LookupRichResult> {
+  const passes = buildTitlePasses(title);
+
+  for (const candidateTitle of passes) {
+    const outcome = await searchRecording(artist, candidateTitle);
+    if (outcome.kind === "transient") return { kind: "transient" };
+    if (outcome.kind === "miss") continue;
+    if (!outcome.recording.id) continue;
+
+    const detail = await fetchRecordingDetail(outcome.recording.id, true);
+    if (detail.kind === "transient") return { kind: "transient" };
+    if (detail.kind === "missing") continue;
+
+    const genres = (() => {
+      const fromSearch = extractGenres(outcome.recording);
+      if (fromSearch.length > 0) return fromSearch;
+      return extractGenres(detail.detail);
+    })();
+    const { releaseGroupMbid, year } = pickCanonicalRelease(detail.detail);
+    const artistMbid = extractArtistMbid(detail.detail);
+
+    return {
+      kind: "resolved",
+      metadata: {
+        genres,
+        recordingMbid: outcome.recording.id,
+        releaseGroupMbid,
+        artistMbid,
+        year
+      }
+    };
+  }
+
+  return { kind: "resolved", metadata: null };
+}
+
+function buildTitlePasses(title: string): string[] {
+  const passes: string[] = [title];
+  const simplified = simplifyTitle(title);
+  if (simplified && simplified.toLowerCase() !== title.toLowerCase()) {
+    passes.push(simplified);
+  }
+  return passes;
 }
 
 export function lookupGenre(artist: string, title: string): Promise<string[]> {
@@ -315,22 +489,20 @@ export function lookupGenre(artist: string, title: string): Promise<string[]> {
   const key = cacheKey(artist, title);
 
   const existing = c[key];
-  if (existing && isCacheEntryFresh(existing)) {
+  if (existing && isCacheEntryFreshForGenre(existing)) {
     return Promise.resolve(existing.genres);
   }
 
-  const inflightPromise = inflight.get(key);
-  if (inflightPromise) {
-    return inflightPromise;
-  }
+  const inflightPromise = inflightGenre.get(key);
+  if (inflightPromise) return inflightPromise;
 
   const promise = (async (): Promise<string[]> => {
     try {
       const result = await lookupGenresUncached(artist, title);
-      if (result.kind === "transient") {
-        return [];
-      }
+      if (result.kind === "transient") return [];
+      const previous = c[key];
       c[key] = {
+        ...previous,
         genres: result.genres,
         cachedAt: Date.now(),
         status: result.status
@@ -338,11 +510,52 @@ export function lookupGenre(artist: string, title: string): Promise<string[]> {
       scheduleCacheSave();
       return result.genres;
     } finally {
-      inflight.delete(key);
+      inflightGenre.delete(key);
     }
   })();
 
-  inflight.set(key, promise);
+  inflightGenre.set(key, promise);
+  return promise;
+}
+
+export function lookupRecordingMetadata(artist: string, title: string): Promise<RecordingMetadata | null> {
+  if (!artist.trim() || !title.trim()) {
+    return Promise.resolve(null);
+  }
+
+  const c = loadCache();
+  const key = cacheKey(artist, title);
+
+  const existing = c[key];
+  if (existing && isCacheEntryFreshForRich(existing)) {
+    return Promise.resolve(entryToMetadata(existing));
+  }
+
+  const inflightPromise = inflightRich.get(key);
+  if (inflightPromise) return inflightPromise;
+
+  const promise = (async (): Promise<RecordingMetadata | null> => {
+    try {
+      const result = await lookupRecordingMetadataUncached(artist, title);
+      if (result.kind === "transient") return null;
+      c[key] = {
+        cachedAt: Date.now(),
+        status: result.metadata ? "hit" : "miss",
+        richVersion: RICH_SCHEMA_VERSION,
+        genres: result.metadata?.genres ?? [],
+        recordingMbid: result.metadata?.recordingMbid,
+        releaseGroupMbid: result.metadata?.releaseGroupMbid,
+        artistMbid: result.metadata?.artistMbid,
+        year: result.metadata?.year
+      };
+      scheduleCacheSave();
+      return result.metadata;
+    } finally {
+      inflightRich.delete(key);
+    }
+  })();
+
+  inflightRich.set(key, promise);
   return promise;
 }
 
@@ -353,7 +566,8 @@ export function getGenreCacheStats(): { entries: number } {
 
 export function clearGenreCache(): void {
   cache = {};
-  inflight.clear();
+  inflightGenre.clear();
+  inflightRich.clear();
   cacheDirty = true;
   flushCacheNow();
 }
