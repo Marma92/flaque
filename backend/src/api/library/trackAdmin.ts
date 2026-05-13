@@ -7,7 +7,8 @@ import { requireAdmin, requireAuth } from "../../auth/middleware";
 import type { IndexStore } from "../../services/indexer/indexStore";
 import {
   mergeTrackMetadataOverrides,
-  readTrackMetadataOverrides
+  readTrackMetadataOverrides,
+  type TrackMetadataOverride
 } from "../../services/indexer/metadataOverrideStore";
 import { deleteTrackCover } from "../../services/storage/coverService";
 import { resolveTrackAbsolutePath } from "../../services/storage/storageService";
@@ -72,13 +73,24 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
       const currentOverrides = await readTrackMetadataOverrides();
       const currentOverride = currentOverrides[trackId] ?? {};
 
+      const provenance = { ...(currentOverride.provenance ?? {}) };
+      if (hasTitle) provenance.title = "manual";
+      if (hasArtist) provenance.artist = "manual";
+      if (hasAlbum) provenance.album = "manual";
+      if (hasYear) provenance.year = "manual";
+      if (hasGenre) provenance.genre = "manual";
+
       await mergeTrackMetadataOverrides({
         [trackId]: {
           title: hasTitle ? parsedTitle : currentOverride.title,
           artist: hasArtist ? parsedArtist : currentOverride.artist,
           album: hasAlbum ? parsedAlbum : currentOverride.album,
           year: hasYear ? parsedYear : currentOverride.year,
-          genre: hasGenre ? parsedGenre : currentOverride.genre
+          genre: hasGenre ? parsedGenre : currentOverride.genre,
+          mbidRecording: currentOverride.mbidRecording,
+          mbidReleaseGroup: currentOverride.mbidReleaseGroup,
+          mbidArtist: currentOverride.mbidArtist,
+          provenance: Object.keys(provenance).length > 0 ? provenance : undefined
         }
       });
 
@@ -198,7 +210,7 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
       if (parsedGenre === null) return next(new AppError("genre must be an array of strings or null", 400));
 
       const currentOverrides = await readTrackMetadataOverrides();
-      const overridePatch: Record<string, { title?: string; artist?: string; album?: string; year?: number; genre?: string[] }> = {};
+      const overridePatch: Record<string, TrackMetadataOverride> = {};
       const updated: string[] = [];
       const notFound: string[] = [];
 
@@ -210,12 +222,23 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
         }
 
         const current = currentOverrides[trackId] ?? {};
+        const provenance = { ...(current.provenance ?? {}) };
+        if (hasTitle) provenance.title = "manual";
+        if (hasArtist) provenance.artist = "manual";
+        if (hasAlbum) provenance.album = "manual";
+        if (hasYear) provenance.year = "manual";
+        if (hasGenre) provenance.genre = "manual";
+
         overridePatch[trackId] = {
           title: hasTitle ? parsedTitle : current.title,
           artist: hasArtist ? parsedArtist : current.artist,
           album: hasAlbum ? parsedAlbum : current.album,
           year: hasYear ? parsedYear : current.year,
-          genre: hasGenre ? parsedGenre : current.genre
+          genre: hasGenre ? parsedGenre : current.genre,
+          mbidRecording: current.mbidRecording,
+          mbidReleaseGroup: current.mbidReleaseGroup,
+          mbidArtist: current.mbidArtist,
+          provenance: Object.keys(provenance).length > 0 ? provenance : undefined
         };
         updated.push(trackId);
       }

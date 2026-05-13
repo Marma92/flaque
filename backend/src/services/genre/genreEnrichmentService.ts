@@ -2,7 +2,8 @@ import type { IndexStore } from "../indexer/indexStore";
 import {
   mergeTrackMetadataOverrides,
   readTrackMetadataOverrides,
-  type TrackMetadataOverride
+  type TrackMetadataOverride,
+  type TrackMetadataProvenance
 } from "../indexer/metadataOverrideStore";
 import { findCoverFileByTrackId } from "../storage/coverService";
 import { resolveTrackAbsolutePath } from "../storage/storageService";
@@ -21,6 +22,7 @@ import {
 import {
   flushGenreCache,
   invalidateCacheEntry,
+  invalidateMbidCacheEntry,
   lookupRecordingMetadata,
   lookupRecordingMetadataByMbid,
   type RecordingMetadata
@@ -191,12 +193,28 @@ export async function enrichTrackMetadata(input: TrackEnrichmentInput): Promise<
     resolvedViaFingerprint: false
   };
 
-  let metadata = await lookupRecordingMetadata(input.artist, input.title);
+  // Read overrides up front so we can prefer the stored MBID over a name
+  // search and respect per-field provenance when filling.
+  const allOverrides = await readTrackMetadataOverrides();
+  const existingOverride = allOverrides[input.id];
 
-  // Fallback: if name-search missed and we have a file path + AcoustID is
-  // configured + fpcalc is available, try to resolve the recording by
-  // audio fingerprint. This rescues tracks with broken or generic tags
-  // (e.g. "Track 01" / "Unknown Artist").
+  let metadata: RecordingMetadata | null = null;
+
+  // 1. Fast path: if we already know the recording MBID, fetch detail
+  // directly. Skips the fragile name-search and gives deterministic
+  // results regardless of how the artist/title tags drifted later.
+  if (existingOverride?.mbidRecording) {
+    metadata = await lookupRecordingMetadataByMbid(existingOverride.mbidRecording);
+  }
+
+  // 2. Name-search by artist+title.
+  if (!metadata) {
+    metadata = await lookupRecordingMetadata(input.artist, input.title);
+  }
+
+  // 3. Fingerprint fallback (Phase 4): if we have a file path + AcoustID
+  // is configured + fpcalc is available, try to resolve the recording by
+  // audio fingerprint. This rescues tracks with broken or generic tags.
   if (
     !metadata &&
     input.absolutePath &&
@@ -222,11 +240,14 @@ export async function enrichTrackMetadata(input: TrackEnrichmentInput): Promise<
   }
 
   const normalizedGenres = normalizeGenreLabels(metadata.genres);
-  const fillGenre = !input.hasGenre;
-  const fillYear = !input.hasYear;
+  const provenance = existingOverride?.provenance;
 
-  const allOverrides = await readTrackMetadataOverrides();
-  const existingOverride = allOverrides[input.id];
+  // Provenance gate: never auto-overwrite a field the admin marked
+  // "manual". Otherwise fall back to the existing "only fill missing"
+  // rule.
+  const fillGenre = provenance?.genre !== "manual" && !input.hasGenre;
+  const fillYear = provenance?.year !== "manual" && !input.hasYear;
+
   const shouldWrite = metadataDiffersFromOverride(
     metadata,
     existingOverride,
@@ -237,11 +258,19 @@ export async function enrichTrackMetadata(input: TrackEnrichmentInput): Promise<
 
   if (shouldWrite) {
     const next: TrackMetadataOverride = { ...(existingOverride ?? {}) };
-    if (fillGenre && normalizedGenres.length > 0) next.genre = normalizedGenres;
-    if (fillYear && metadata.year !== undefined) next.year = metadata.year;
+    const nextProvenance: TrackMetadataProvenance = { ...(existingOverride?.provenance ?? {}) };
+    if (fillGenre && normalizedGenres.length > 0) {
+      next.genre = normalizedGenres;
+      nextProvenance.genre = "auto";
+    }
+    if (fillYear && metadata.year !== undefined) {
+      next.year = metadata.year;
+      nextProvenance.year = "auto";
+    }
     if (metadata.recordingMbid) next.mbidRecording = metadata.recordingMbid;
     if (metadata.releaseGroupMbid) next.mbidReleaseGroup = metadata.releaseGroupMbid;
     if (metadata.artistMbid) next.mbidArtist = metadata.artistMbid;
+    next.provenance = Object.keys(nextProvenance).length > 0 ? nextProvenance : undefined;
     await mergeTrackMetadataOverrides({ [input.id]: next });
   }
 
@@ -308,6 +337,13 @@ export async function reEnrichTrack(track: Track, indexStore?: IndexStore): Prom
   }
 
   invalidateCacheEntry(artist, title);
+
+  // If the track already has a stored MBID, drop its mbid-keyed cache
+  // entry too so the re-enrich actually hits MusicBrainz instead of
+  // serving a stale rich-cache hit.
+  const allOverrides = await readTrackMetadataOverrides();
+  const storedMbid = allOverrides[track.id]?.mbidRecording;
+  if (storedMbid) invalidateMbidCacheEntry(storedMbid);
 
   const cover = await findCoverFileByTrackId(track.id);
   const result = await enrichTrackMetadata({

@@ -132,4 +132,28 @@ describe("metadataOverrideStore", () => {
     expect(result["track-1"]?.mbidRecording).toBeUndefined();
     expect(result["track-1"]?.mbidArtist).toBeUndefined();
   });
+
+  it("persists per-field provenance and round-trips it", async () => {
+    await mergeTrackMetadataOverrides({
+      "track-1": {
+        title: "Manual Title",
+        genre: ["Rock"],
+        provenance: { title: "manual", genre: "auto" }
+      }
+    });
+    const readBack = await readTrackMetadataOverrides();
+    expect(readBack["track-1"]?.provenance?.title).toBe("manual");
+    expect(readBack["track-1"]?.provenance?.genre).toBe("auto");
+  });
+
+  it("rejects invalid provenance values silently", async () => {
+    const result = await mergeTrackMetadataOverrides({
+      "track-1": {
+        title: "X",
+        provenance: { title: "bogus" as unknown as "manual", artist: "manual" }
+      }
+    });
+    expect(result["track-1"]?.provenance?.title).toBeUndefined();
+    expect(result["track-1"]?.provenance?.artist).toBe("manual");
+  });
 });

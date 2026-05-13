@@ -1,6 +1,16 @@
 import { readJsonFile, updateJsonFile } from "../../utils/fs";
 import { metadataOverridesFilePath } from "../../utils/paths";
 
+export type FieldProvenance = "manual" | "auto";
+
+export type TrackMetadataProvenance = {
+  title?: FieldProvenance;
+  artist?: FieldProvenance;
+  album?: FieldProvenance;
+  year?: FieldProvenance;
+  genre?: FieldProvenance;
+};
+
 export type TrackMetadataOverride = {
   title?: string;
   artist?: string;
@@ -10,6 +20,13 @@ export type TrackMetadataOverride = {
   mbidRecording?: string;
   mbidReleaseGroup?: string;
   mbidArtist?: string;
+  /**
+   * Per-field provenance. "manual" means an admin set this value
+   * explicitly and enrichment must never overwrite it. "auto" means the
+   * value was filled by the MusicBrainz/AcoustID enrichment pipeline.
+   * Absence is conservatively treated as "manual" by enrichment.
+   */
+  provenance?: TrackMetadataProvenance;
 };
 
 const MBID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -52,6 +69,21 @@ function normalizeMbid(value: unknown): string | undefined {
   return MBID_PATTERN.test(trimmed) ? trimmed : undefined;
 }
 
+function normalizeProvenanceValue(value: unknown): FieldProvenance | undefined {
+  return value === "manual" || value === "auto" ? value : undefined;
+}
+
+function normalizeProvenance(value: unknown): TrackMetadataProvenance | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Record<string, unknown>;
+  const result: TrackMetadataProvenance = {};
+  for (const field of ["title", "artist", "album", "year", "genre"] as const) {
+    const v = normalizeProvenanceValue(record[field]);
+    if (v) result[field] = v;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 function normalizeOverride(override: unknown): TrackMetadataOverride | undefined {
   if (!override || typeof override !== "object") {
     return undefined;
@@ -66,6 +98,7 @@ function normalizeOverride(override: unknown): TrackMetadataOverride | undefined
   const mbidRecording = normalizeMbid(record.mbidRecording);
   const mbidReleaseGroup = normalizeMbid(record.mbidReleaseGroup);
   const mbidArtist = normalizeMbid(record.mbidArtist);
+  const provenance = normalizeProvenance(record.provenance);
 
   if (
     !title &&
@@ -88,7 +121,8 @@ function normalizeOverride(override: unknown): TrackMetadataOverride | undefined
     genre,
     mbidRecording,
     mbidReleaseGroup,
-    mbidArtist
+    mbidArtist,
+    provenance
   };
 }
 
@@ -154,7 +188,8 @@ export async function mergeTrackMetadataOverrides(
           JSON.stringify(existing?.genre) === JSON.stringify(cleanOverride.genre) &&
           existing?.mbidRecording === cleanOverride.mbidRecording &&
           existing?.mbidReleaseGroup === cleanOverride.mbidReleaseGroup &&
-          existing?.mbidArtist === cleanOverride.mbidArtist
+          existing?.mbidArtist === cleanOverride.mbidArtist &&
+          JSON.stringify(existing?.provenance ?? null) === JSON.stringify(cleanOverride.provenance ?? null)
         ) {
           continue;
         }

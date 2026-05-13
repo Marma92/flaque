@@ -645,3 +645,14 @@ export function invalidateCacheEntry(artist: string, title: string): boolean {
   scheduleCacheSave();
   return true;
 }
+
+export function invalidateMbidCacheEntry(recordingMbid: string): boolean {
+  if (!recordingMbid.trim()) return false;
+  const c = loadCache();
+  const key = `mbid:${recordingMbid.toLowerCase().trim()}`;
+  if (!(key in c)) return false;
+  delete c[key];
+  cacheDirty = true;
+  scheduleCacheSave();
+  return true;
+}
