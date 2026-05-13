@@ -441,4 +441,39 @@ describe("musicBrainzService.lookupRecordingMetadata", () => {
     expect(second?.releaseGroupMbid).toBe(RELEASE_GROUP_MBID);
     expect(fetchCalls).toEqual([]);
   });
+
+  it("lookupRecordingMetadataByMbid fetches detail directly and caches the result", async () => {
+    fetchHandler = (url) => {
+      expect(url).toMatch(/\/recording\/11111111-1111-4111-8111-111111111111/);
+      expect(url).toMatch(/inc=[^&]*release-groups/);
+      return {
+        status: 200,
+        body: {
+          id: RECORDING_MBID,
+          "artist-credit": [{ artist: { id: ARTIST_MBID } }],
+          releases: [
+            {
+              "release-group": {
+                id: RELEASE_GROUP_MBID,
+                "first-release-date": "1989-09-21",
+                "primary-type": "Album"
+              }
+            }
+          ],
+          tags: [{ name: "rock" }]
+        }
+      };
+    };
+    const { lookupRecordingMetadataByMbid } = await loadModule();
+    const result = await lookupRecordingMetadataByMbid(RECORDING_MBID);
+    expect(result?.recordingMbid).toBe(RECORDING_MBID);
+    expect(result?.releaseGroupMbid).toBe(RELEASE_GROUP_MBID);
+    expect(result?.year).toBe(1989);
+    expect(result?.genres).toEqual(["Rock"]);
+
+    fetchCalls = [];
+    const cached = await lookupRecordingMetadataByMbid(RECORDING_MBID);
+    expect(cached?.year).toBe(1989);
+    expect(fetchCalls).toEqual([]);
+  });
 });
