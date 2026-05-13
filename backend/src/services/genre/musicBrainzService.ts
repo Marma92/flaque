@@ -37,6 +37,13 @@ export type RecordingMetadata = {
   year?: number;
 };
 
+export type ReleaseGroupMetadata = {
+  releaseGroupMbid: string;
+  year: number | undefined;
+  genres: string[];
+  artistMbid: string | undefined;
+};
+
 type CacheEntry = {
   cachedAt: number;
   status: "hit" | "miss";
@@ -406,6 +413,228 @@ type LookupGenreResult =
 type LookupRichResult =
   | { kind: "resolved"; metadata: RecordingMetadata | null }
   | { kind: "transient" };
+
+type LookupReleaseGroupResult =
+  | { kind: "resolved"; metadata: ReleaseGroupMetadata | null }
+  | { kind: "transient" };
+
+type MBReleaseGroupSearchEntry = {
+  id?: string;
+  score?: number;
+  "first-release-date"?: string;
+  "primary-type"?: string;
+};
+
+type MBReleaseGroupSearchResult = {
+  "release-groups"?: MBReleaseGroupSearchEntry[];
+};
+
+type MBReleaseGroupDetail = {
+  id?: string;
+  "first-release-date"?: string;
+  "primary-type"?: string;
+  genres?: MBTagOrGenre[];
+  tags?: MBTagOrGenre[];
+  "artist-credit"?: MBArtistCredit[];
+};
+
+type ReleaseGroupSearchOutcome =
+  | { kind: "hit"; entry: MBReleaseGroupSearchEntry }
+  | { kind: "miss" }
+  | { kind: "transient" };
+
+async function searchReleaseGroup(artist: string, album: string): Promise<ReleaseGroupSearchOutcome> {
+  await waitForRateLimit();
+
+  const query = `releasegroup:"${escapeLucene(album)}" AND artist:"${escapeLucene(artist)}"`;
+  const url = `${MB_BASE_URL}/release-group?query=${encodeURIComponent(query)}&fmt=json&limit=${RECORDING_SEARCH_LIMIT}`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    });
+  } catch (error) {
+    log.warn("MusicBrainz release-group search failed", {
+      artist,
+      album,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return { kind: "transient" };
+  }
+
+  if (response.status >= 500 || response.status === 429) {
+    log.warn(`MusicBrainz release-group search returned ${response.status}`, { artist, album });
+    return { kind: "transient" };
+  }
+  if (!response.ok) {
+    log.warn(`MusicBrainz release-group search returned ${response.status}`, { artist, album });
+    return { kind: "miss" };
+  }
+
+  let payload: MBReleaseGroupSearchResult;
+  try {
+    payload = (await response.json()) as MBReleaseGroupSearchResult;
+  } catch (error) {
+    log.warn("MusicBrainz release-group search returned invalid JSON", {
+      artist,
+      album,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return { kind: "transient" };
+  }
+
+  const entries = payload["release-groups"] ?? [];
+  // Prefer Album-type matches with score >= threshold; fall back to any
+  // matching primary type that still meets the score threshold.
+  const albums = entries.filter(
+    (e) => typeof e.score === "number" && e.score >= MIN_SCORE_THRESHOLD && e["primary-type"] === "Album"
+  );
+  const pool = albums.length > 0
+    ? albums
+    : entries.filter((e) => typeof e.score === "number" && e.score >= MIN_SCORE_THRESHOLD);
+
+  const best = pool.find((e) => typeof e.id === "string" && e.id.length > 0);
+  if (!best) return { kind: "miss" };
+  return { kind: "hit", entry: best };
+}
+
+async function fetchReleaseGroupDetail(rgMbid: string): Promise<MBReleaseGroupDetail | null> {
+  await waitForRateLimit();
+  const url = `${MB_BASE_URL}/release-group/${rgMbid}?inc=genres+tags+artist-credits&fmt=json`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    });
+  } catch (error) {
+    log.warn("MusicBrainz release-group detail fetch failed", {
+      rgMbid,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return null;
+  }
+  if (!response.ok) return null;
+  try {
+    return (await response.json()) as MBReleaseGroupDetail;
+  } catch {
+    return null;
+  }
+}
+
+function releaseGroupCacheKey(artist: string, album: string): string {
+  return `rg:${artist.toLowerCase().trim()}|||${album.toLowerCase().trim()}`;
+}
+
+async function lookupReleaseGroupUncached(artist: string, album: string): Promise<LookupReleaseGroupResult> {
+  const passes: string[] = [album];
+  const simplified = simplifyTitle(album);
+  if (simplified && simplified.toLowerCase() !== album.toLowerCase()) {
+    passes.push(simplified);
+  }
+
+  for (const candidate of passes) {
+    const outcome = await searchReleaseGroup(artist, candidate);
+    if (outcome.kind === "transient") return { kind: "transient" };
+    if (outcome.kind === "miss") continue;
+    const rgMbid = outcome.entry.id!;
+
+    // Prefer detail genres + artist-credit; if detail call fails, fall back
+    // to the search result's first-release-date for at least the year.
+    const detail = await fetchReleaseGroupDetail(rgMbid);
+    const year =
+      extractYearFromDate(detail?.["first-release-date"]) ??
+      extractYearFromDate(outcome.entry["first-release-date"]);
+    const genres = detail ? extractGenres(detail) : [];
+    const artistMbid = detail ? extractArtistMbid(detail) : undefined;
+
+    return {
+      kind: "resolved",
+      metadata: { releaseGroupMbid: rgMbid, year, genres, artistMbid }
+    };
+  }
+
+  return { kind: "resolved", metadata: null };
+}
+
+/**
+ * Look up a release-group by (artist, album). Returns the canonical
+ * release-group MBID, its first-release year, album-level genres, and
+ * the credited artist MBID — enough to fill the year/cover/MBID slots
+ * for every track on the album with a single MusicBrainz round-trip.
+ *
+ * Per-recording specifics (recordingMbid, recording-level genres) still
+ * require the per-track path; this is meant as a coarse-grained
+ * complement to lookupRecordingMetadata.
+ */
+export function lookupReleaseGroup(artist: string, album: string): Promise<ReleaseGroupMetadata | null> {
+  if (!artist.trim() || !album.trim()) return Promise.resolve(null);
+
+  const c = loadCache();
+  const key = releaseGroupCacheKey(artist, album);
+  const existing = c[key];
+  if (existing && isCacheEntryFreshForRich(existing)) {
+    if (existing.status === "miss" || !existing.releaseGroupMbid) return Promise.resolve(null);
+    return Promise.resolve({
+      releaseGroupMbid: existing.releaseGroupMbid,
+      year: existing.year,
+      genres: existing.genres,
+      artistMbid: existing.artistMbid
+    });
+  }
+
+  const inflightPromise = inflightRich.get(key);
+  if (inflightPromise) {
+    return inflightPromise.then((m) => {
+      if (!m || !m.releaseGroupMbid) return null;
+      return {
+        releaseGroupMbid: m.releaseGroupMbid,
+        year: m.year,
+        genres: m.genres,
+        artistMbid: m.artistMbid
+      };
+    });
+  }
+
+  const promise = (async (): Promise<RecordingMetadata | null> => {
+    try {
+      const result = await lookupReleaseGroupUncached(artist, album);
+      if (result.kind === "transient") return null;
+      c[key] = {
+        cachedAt: Date.now(),
+        status: result.metadata ? "hit" : "miss",
+        richVersion: RICH_SCHEMA_VERSION,
+        genres: result.metadata?.genres ?? [],
+        releaseGroupMbid: result.metadata?.releaseGroupMbid,
+        artistMbid: result.metadata?.artistMbid,
+        year: result.metadata?.year
+      };
+      scheduleCacheSave();
+      if (!result.metadata) return null;
+      return {
+        genres: result.metadata.genres,
+        releaseGroupMbid: result.metadata.releaseGroupMbid,
+        artistMbid: result.metadata.artistMbid,
+        year: result.metadata.year
+      };
+    } finally {
+      inflightRich.delete(key);
+    }
+  })();
+
+  inflightRich.set(key, promise);
+  return promise.then((m) => {
+    if (!m || !m.releaseGroupMbid) return null;
+    return {
+      releaseGroupMbid: m.releaseGroupMbid,
+      year: m.year,
+      genres: m.genres,
+      artistMbid: m.artistMbid
+    };
+  });
+}
 
 async function lookupGenresUncached(artist: string, title: string): Promise<LookupGenreResult> {
   const passes = buildTitlePasses(title);

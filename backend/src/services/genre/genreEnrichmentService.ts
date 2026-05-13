@@ -25,7 +25,9 @@ import {
   invalidateMbidCacheEntry,
   lookupRecordingMetadata,
   lookupRecordingMetadataByMbid,
-  type RecordingMetadata
+  lookupReleaseGroup,
+  type RecordingMetadata,
+  type ReleaseGroupMetadata
 } from "./musicBrainzService";
 import { normalizeGenreLabels } from "./genreSynonymService";
 import { appendEnrichmentLog, type EnrichmentLogEntry } from "./enrichmentLogStore";
@@ -87,6 +89,11 @@ export type TrackEnrichmentInput = {
    * fingerprint fallback. When omitted, fingerprint lookup is skipped.
    */
   absolutePath?: string;
+  /**
+   * Track's album tag, if any. Used by the bulk runner to group tracks
+   * into album cohorts for single-lookup enrichment.
+   */
+  album?: string;
 };
 
 export type TrackEnrichmentResult = {
@@ -389,8 +396,87 @@ function describeTrackEnrichmentNeeds(track: Track, hasCover: boolean): TrackEnr
     hasYear,
     hasCover,
     source: "bulk",
-    absolutePath: resolveTrackAbsolutePath(track.path)
+    absolutePath: resolveTrackAbsolutePath(track.path),
+    album: track.tags.album
   };
+}
+
+/**
+ * Apply album-level metadata (year, genre, release-group MBID, artist
+ * MBID) and a Cover Art Archive cover to a single track. Mirrors
+ * enrichTrackMetadata's writing/provenance logic but uses a pre-fetched
+ * ReleaseGroupMetadata so we don't hit MB per track. recordingMbid is
+ * NOT touched — that remains a per-recording lookup concern.
+ */
+export async function applyAlbumMetadataToTrack(
+  input: TrackEnrichmentInput,
+  rgMeta: ReleaseGroupMetadata
+): Promise<TrackEnrichmentResult> {
+  const result: TrackEnrichmentResult = {
+    genres: null,
+    year: null,
+    mbidRecording: null,
+    mbidReleaseGroup: null,
+    mbidArtist: null,
+    coverFetched: false,
+    resolvedViaFingerprint: false
+  };
+
+  const allOverrides = await readTrackMetadataOverrides();
+  const existingOverride = allOverrides[input.id];
+  const provenance = existingOverride?.provenance;
+  const normalizedGenres = normalizeGenreLabels(rgMeta.genres);
+
+  const fillGenre = provenance?.genre !== "manual" && !input.hasGenre && normalizedGenres.length > 0;
+  const fillYear = provenance?.year !== "manual" && !input.hasYear && rgMeta.year !== undefined;
+  const setReleaseGroup = !!rgMeta.releaseGroupMbid && existingOverride?.mbidReleaseGroup !== rgMeta.releaseGroupMbid;
+  const setArtist = !!rgMeta.artistMbid && existingOverride?.mbidArtist !== rgMeta.artistMbid;
+
+  if (fillGenre || fillYear || setReleaseGroup || setArtist) {
+    const next: TrackMetadataOverride = { ...(existingOverride ?? {}) };
+    const nextProvenance: TrackMetadataProvenance = { ...(existingOverride?.provenance ?? {}) };
+    if (fillGenre) {
+      next.genre = normalizedGenres;
+      nextProvenance.genre = "auto";
+    }
+    if (fillYear) {
+      next.year = rgMeta.year;
+      nextProvenance.year = "auto";
+    }
+    if (setReleaseGroup) next.mbidReleaseGroup = rgMeta.releaseGroupMbid;
+    if (setArtist) next.mbidArtist = rgMeta.artistMbid;
+    next.provenance = Object.keys(nextProvenance).length > 0 ? nextProvenance : undefined;
+    await mergeTrackMetadataOverrides({ [input.id]: next });
+  }
+
+  if (fillGenre) result.genres = normalizedGenres;
+  if (fillYear && rgMeta.year !== undefined) result.year = rgMeta.year;
+  result.mbidReleaseGroup = rgMeta.releaseGroupMbid;
+  result.mbidArtist = rgMeta.artistMbid ?? null;
+
+  if (!input.hasCover && rgMeta.releaseGroupMbid) {
+    const fetchResult = await fetchAndSaveCoverArt(input.id, rgMeta.releaseGroupMbid);
+    if (fetchResult.kind === "saved") result.coverFetched = true;
+  }
+
+  appendEnrichmentLog({
+    ...buildLogEntry(input, result, true, input.source ?? "bulk")
+  });
+  return result;
+}
+
+/**
+ * True when the track has nothing left to gain from a per-recording
+ * lookup after the album cohort filled what it could. Cover is treated
+ * as best-effort: if the cohort's release-group has no art (or the
+ * fetch was throttled), per-track lookup wouldn't find a different
+ * cover for the same release-group, so we don't fall through on a
+ * cover-only miss.
+ */
+function trackIsFullyCoveredByCohort(input: TrackEnrichmentInput, result: TrackEnrichmentResult): boolean {
+  const stillNeedsGenre = !input.hasGenre && result.genres === null;
+  const stillNeedsYear = !input.hasYear && result.year === null;
+  return !stillNeedsGenre && !stillNeedsYear;
 }
 
 export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<void> {
@@ -436,11 +522,138 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
     currentTrack: null
   };
 
-  log.info(`Starting metadata enrichment for ${candidates.length} tracks`);
+  // Group candidates into album cohorts. Tracks without an album, or
+  // albums with a single member, go straight to per-track lookup —
+  // there's no efficiency win for a singleton.
+  const cohortMap = new Map<string, TrackEnrichmentInput[]>();
+  const singletons: TrackEnrichmentInput[] = [];
+  for (const candidate of candidates) {
+    const albumKey = candidate.album?.trim();
+    if (!albumKey) {
+      singletons.push(candidate);
+      continue;
+    }
+    const key = `${candidate.artist.trim().toLowerCase()}|||${albumKey.toLowerCase()}`;
+    const existing = cohortMap.get(key);
+    if (existing) existing.push(candidate);
+    else cohortMap.set(key, [candidate]);
+  }
+
+  const perTrackQueue: TrackEnrichmentInput[] = [...singletons];
+  for (const members of cohortMap.values()) {
+    if (members.length < 2) {
+      perTrackQueue.push(...members);
+    }
+  }
+
+  log.info(
+    `Starting metadata enrichment for ${candidates.length} tracks ` +
+    `(${[...cohortMap.values()].filter((m) => m.length >= 2).length} album cohort(s), ` +
+    `${perTrackQueue.length} per-track)`
+  );
 
   let anyMetadataWritten = false;
 
-  for (const candidate of candidates) {
+  const recordTrackResult = (
+    input: TrackEnrichmentInput,
+    result: TrackEnrichmentResult
+  ): void => {
+    status.processed++;
+    const wroteMetadata =
+      result.genres !== null ||
+      result.year !== null ||
+      result.mbidRecording !== null ||
+      result.mbidReleaseGroup !== null ||
+      result.mbidArtist !== null;
+    if (wroteMetadata || result.coverFetched) {
+      status.enriched++;
+      if (wroteMetadata) anyMetadataWritten = true;
+      log.debug(`Enriched "${input.title}" by "${input.artist}"`, {
+        genres: result.genres ?? undefined,
+        year: result.year ?? undefined,
+        coverFetched: result.coverFetched
+      });
+    }
+  };
+
+  const recordTrackFailure = (input: TrackEnrichmentInput, error: unknown): void => {
+    status.processed++;
+    status.failed++;
+    log.warn(`Failed to enrich "${input.title}" by "${input.artist}"`, {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    appendEnrichmentLog({
+      timestamp: new Date().toISOString(),
+      trackId: input.id,
+      artist: input.artist,
+      title: input.title,
+      source: "bulk",
+      status: "failed",
+      errorMessage: error instanceof Error ? error.message : String(error)
+    });
+  };
+
+  // Album cohort pass: one MB lookup per album, applied to every member.
+  for (const [, members] of cohortMap) {
+    if (signal.aborted) {
+      log.info("Metadata enrichment aborted");
+      break;
+    }
+    if (members.length < 2) continue;
+
+    const first = members[0]!;
+    status.currentTrack = {
+      trackId: first.id,
+      artist: first.artist,
+      title: `${first.album ?? ""} (album)`
+    };
+
+    let rgMeta: ReleaseGroupMetadata | null = null;
+    try {
+      rgMeta = await lookupReleaseGroup(first.artist, first.album!);
+    } catch (error) {
+      log.warn(`Album cohort lookup failed for "${first.album}" by "${first.artist}"`, {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+
+    if (!rgMeta) {
+      // Cohort lookup missed — fall back to per-track for every member.
+      perTrackQueue.push(...members);
+      continue;
+    }
+
+    for (const member of members) {
+      if (signal.aborted) break;
+      status.currentTrack = {
+        trackId: member.id,
+        artist: member.artist,
+        title: member.title
+      };
+      try {
+        const result = await applyAlbumMetadataToTrack(member, rgMeta);
+        recordTrackResult(member, result);
+        if (!trackIsFullyCoveredByCohort(member, result)) {
+          // Cohort didn't fully cover this track (e.g. missing genre
+          // because rgMeta had none, or cover failed). Queue for the
+          // per-track path to take another swing.
+          perTrackQueue.push(member);
+          // Roll back the cohort-pass processed count so the per-track
+          // pass increments it again — avoids double-counting.
+          status.processed--;
+          if (result.genres || result.year || result.coverFetched || result.mbidReleaseGroup || result.mbidArtist) {
+            status.enriched--;
+          }
+        }
+      } catch (error) {
+        recordTrackFailure(member, error);
+      }
+    }
+  }
+
+  // Per-track pass: singletons and tracks the cohort path couldn't fully
+  // cover.
+  for (const candidate of perTrackQueue) {
     if (signal.aborted) {
       log.info("Metadata enrichment aborted");
       break;
@@ -454,40 +667,9 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
 
     try {
       const result = await enrichTrackMetadata(candidate);
-      status.processed++;
-      const wroteMetadata =
-        result.genres !== null ||
-        result.year !== null ||
-        result.mbidRecording !== null ||
-        result.mbidReleaseGroup !== null ||
-        result.mbidArtist !== null;
-      if (wroteMetadata || result.coverFetched) {
-        status.enriched++;
-        if (wroteMetadata) anyMetadataWritten = true;
-        log.debug(
-          `Enriched "${candidate.title}" by "${candidate.artist}"`,
-          {
-            genres: result.genres ?? undefined,
-            year: result.year ?? undefined,
-            coverFetched: result.coverFetched
-          }
-        );
-      }
+      recordTrackResult(candidate, result);
     } catch (error) {
-      status.processed++;
-      status.failed++;
-      log.warn(`Failed to enrich "${candidate.title}" by "${candidate.artist}"`, {
-        error: error instanceof Error ? error.message : String(error)
-      });
-      appendEnrichmentLog({
-        timestamp: new Date().toISOString(),
-        trackId: candidate.id,
-        artist: candidate.artist,
-        title: candidate.title,
-        source: "bulk",
-        status: "failed",
-        errorMessage: error instanceof Error ? error.message : String(error)
-      });
+      recordTrackFailure(candidate, error);
     }
   }
 

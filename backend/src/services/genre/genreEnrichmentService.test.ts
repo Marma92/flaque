@@ -206,6 +206,82 @@ describe("enrichTrackMetadata", () => {
     expect(overrides["track-1"]?.provenance?.year).toBe("auto");
   });
 
+  it("applyAlbumMetadataToTrack fills year and genre from a ReleaseGroupMetadata, stamping auto", async () => {
+    const { enrichment, overrideStore } = await loadModules();
+
+    const rgMeta = {
+      releaseGroupMbid: RELEASE_GROUP_MBID,
+      year: 1989,
+      genres: ["Rock", "Indie Rock"],
+      artistMbid: ARTIST_MBID
+    };
+
+    const result = await enrichment.applyAlbumMetadataToTrack(
+      {
+        id: "track-1",
+        artist: "Pixies",
+        title: "Debaser",
+        hasGenre: false,
+        hasYear: false,
+        hasCover: true, // skip cover fetch
+        source: "bulk",
+        album: "Doolittle"
+      },
+      rgMeta
+    );
+
+    expect(result.year).toBe(1989);
+    expect(result.genres).toEqual(["Rock", "Indie Rock"]);
+    expect(result.mbidReleaseGroup).toBe(RELEASE_GROUP_MBID);
+    expect(result.mbidArtist).toBe(ARTIST_MBID);
+
+    const overrides = await overrideStore.readTrackMetadataOverrides();
+    expect(overrides["track-1"]?.year).toBe(1989);
+    expect(overrides["track-1"]?.genre).toEqual(["Rock", "Indie Rock"]);
+    expect(overrides["track-1"]?.mbidReleaseGroup).toBe(RELEASE_GROUP_MBID);
+    expect(overrides["track-1"]?.mbidArtist).toBe(ARTIST_MBID);
+    expect(overrides["track-1"]?.provenance?.year).toBe("auto");
+    expect(overrides["track-1"]?.provenance?.genre).toBe("auto");
+  });
+
+  it("applyAlbumMetadataToTrack respects manual provenance and does not overwrite", async () => {
+    const { enrichment, overrideStore } = await loadModules();
+
+    // Track has manual genre. Cohort offers a different one.
+    await overrideStore.mergeTrackMetadataOverrides({
+      "track-1": {
+        genre: ["Indie"],
+        provenance: { genre: "manual" }
+      }
+    });
+
+    await enrichment.applyAlbumMetadataToTrack(
+      {
+        id: "track-1",
+        artist: "Pixies",
+        title: "Debaser",
+        hasGenre: true,
+        hasYear: false,
+        hasCover: true,
+        source: "bulk",
+        album: "Doolittle"
+      },
+      {
+        releaseGroupMbid: RELEASE_GROUP_MBID,
+        year: 1989,
+        genres: ["Rock"],
+        artistMbid: ARTIST_MBID
+      }
+    );
+
+    const overrides = await overrideStore.readTrackMetadataOverrides();
+    expect(overrides["track-1"]?.genre).toEqual(["Indie"]);
+    expect(overrides["track-1"]?.provenance?.genre).toBe("manual");
+    // Year still gets filled because no manual gate on it.
+    expect(overrides["track-1"]?.year).toBe(1989);
+    expect(overrides["track-1"]?.provenance?.year).toBe("auto");
+  });
+
   it("preserves an existing manual provenance entry on subsequent enrichment", async () => {
     const { enrichment, overrideStore } = await loadModules();
 
