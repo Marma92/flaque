@@ -442,6 +442,59 @@ describe("musicBrainzService.lookupRecordingMetadata", () => {
     expect(fetchCalls).toEqual([]);
   });
 
+  it("lookupReleaseGroup picks the best Album match, fetches detail, and caches", async () => {
+    let phase = 0;
+    fetchHandler = (url) => {
+      phase++;
+      if (phase === 1) {
+        expect(url).toMatch(/\/release-group\?query=/);
+        return {
+          status: 200,
+          body: {
+            "release-groups": [
+              { id: "rg-non-album", score: 95, "primary-type": "Single", "first-release-date": "1990-01-01" },
+              { id: RELEASE_GROUP_MBID, score: 95, "primary-type": "Album", "first-release-date": "1989-09-21" },
+              { id: "rg-low", score: 50, "primary-type": "Album", "first-release-date": "1991-01-01" }
+            ]
+          }
+        };
+      }
+      // Detail fetch for the selected release-group
+      expect(url).toMatch(new RegExp(`/release-group/${RELEASE_GROUP_MBID}`));
+      return {
+        status: 200,
+        body: {
+          id: RELEASE_GROUP_MBID,
+          "first-release-date": "1989-09-21",
+          "primary-type": "Album",
+          "artist-credit": [{ artist: { id: ARTIST_MBID } }],
+          tags: [{ name: "rock" }, { name: "indie rock" }]
+        }
+      };
+    };
+    const { lookupReleaseGroup } = await loadModule();
+    const result = await lookupReleaseGroup("Pixies", "Doolittle");
+    expect(result?.releaseGroupMbid).toBe(RELEASE_GROUP_MBID);
+    expect(result?.year).toBe(1989);
+    expect(result?.artistMbid).toBe(ARTIST_MBID);
+    expect(result?.genres).toEqual(["Rock", "Indie Rock"]);
+
+    // Subsequent call serves from cache (no fetch)
+    fetchCalls = [];
+    const cached = await lookupReleaseGroup("Pixies", "Doolittle");
+    expect(cached?.year).toBe(1989);
+    expect(fetchCalls).toEqual([]);
+  });
+
+  it("lookupReleaseGroup returns null when no result meets the score threshold", async () => {
+    fetchHandler = () => ({
+      status: 200,
+      body: { "release-groups": [{ id: "rg-low", score: 50, "primary-type": "Album" }] }
+    });
+    const { lookupReleaseGroup } = await loadModule();
+    expect(await lookupReleaseGroup("X", "Y")).toBeNull();
+  });
+
   it("lookupRecordingMetadataByMbid fetches detail directly and caches the result", async () => {
     fetchHandler = (url) => {
       expect(url).toMatch(/\/recording\/11111111-1111-4111-8111-111111111111/);
