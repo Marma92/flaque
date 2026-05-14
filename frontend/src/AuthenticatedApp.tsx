@@ -517,6 +517,14 @@ export function AuthenticatedApp({
             clearSelectedArtist();
             clearSelectedArtistAlbum();
             clearSelectedAlbum();
+          },
+          onNavigateToPlaylists: () => {
+            navigateTo("library", "playlists");
+            setActiveLibrarySection("playlists");
+            setPlaylistDetailId(null);
+            clearSelectedArtist();
+            clearSelectedArtistAlbum();
+            clearSelectedAlbum();
           }
         },
         musicProps: {
