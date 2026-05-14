@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useAudioPlayback, type RepeatMode, type TranscodeMode } from "../hooks/useAudioPlayback";
+import { usePlaybackPositionPersistence } from "../hooks/usePlaybackPositionPersistence";
 import type { Playlist, Track } from "../types";
 import { formatDuration } from "../utils/format";
 import {
@@ -117,6 +118,8 @@ export function AudioPlayer({
     shuffleEnabled, onShuffleEnabledChange,
     playRequestNonce, playRequestOffsetSec, onNext, onPrevious, onTrackPlayed, onTrackSkipped
   });
+
+  usePlaybackPositionPersistence({ track, currentTime, isPlaying });
 
   const [showPlaylistPicker, setShowPlaylistPicker] = useState(false);
   const [showQueuePanel, setShowQueuePanel] = useState(false);

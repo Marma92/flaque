@@ -117,3 +117,33 @@ export type PlayStatsResponse = {
 export async function getMyPlayStats(): Promise<PlayStatsResponse> {
   return requestJson<PlayStatsResponse>("/api/me/play-stats");
 }
+
+export type PlaybackState = {
+  trackId: string;
+  positionSec: number;
+  updatedAt: string;
+};
+
+export async function getMyPlaybackState(): Promise<PlaybackState | null> {
+  const { state } = await requestJson<{ state: PlaybackState | null }>("/api/me/playback-state");
+  return state;
+}
+
+export async function setMyPlaybackState(input: {
+  trackId: string;
+  positionSec: number;
+}): Promise<PlaybackState> {
+  const { state } = await requestJson<{ state: PlaybackState }>("/api/me/playback-state", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return state;
+}
+
+export async function clearMyPlaybackState(): Promise<void> {
+  await requestJson<void>("/api/me/playback-state", {
+    method: "DELETE",
+    skipJson: true
+  });
+}
