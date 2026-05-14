@@ -20,6 +20,7 @@ import { useAutoPlaylists } from "./hooks/useAutoPlaylists";
 import { useForYouPlaylists } from "./hooks/useForYouPlaylists";
 import { usePersonalPlaylists } from "./hooks/usePersonalPlaylists";
 import { useRadioStation } from "./hooks/useRadioStation";
+import { useResumeState } from "./hooks/useResumeState";
 
 type AuthenticatedAppProps = {
   user: User;
@@ -112,6 +113,16 @@ export function AuthenticatedApp({
     recordTrackPlayed, recordTrackSkipped, removeTrackFromPlayback,
     setSelectedTrack, resetAfterLogout
   } = usePlaybackState({ user, allTracksById, allTracks: allTracksLibrary.tracks, loadingAllTracks });
+
+  const { resumeState: resumeStateData, dismiss: dismissResume } = useResumeState(user?.id);
+
+  const resumeState = useMemo(() => {
+    if (!resumeStateData) return null;
+    if (selectedTrackRefreshed?.id === resumeStateData.trackId) return null;
+    const track = allTracksById.get(resumeStateData.trackId);
+    if (!track) return null;
+    return { track, positionSec: resumeStateData.positionSec };
+  }, [resumeStateData, allTracksById, selectedTrackRefreshed?.id]);
 
   const handlePlayRadioTrack = useCallback((track: Track, startOffsetSec: number): void => {
     requestTrackPlayback(track, [track], { startOffsetSec });
@@ -489,6 +500,14 @@ export function AuthenticatedApp({
             clearSelectedArtist();
             clearSelectedArtistAlbum();
             clearSelectedAlbum();
+          },
+          resumeState,
+          onResume: (track, positionSec) => {
+            setPlayerStatusMessage(null);
+            requestTrackPlayback(track, [track], { startOffsetSec: positionSec });
+          },
+          onDismissResume: () => {
+            void dismissResume();
           }
         },
         musicProps: {

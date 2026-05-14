@@ -21,9 +21,12 @@ export {
   patchUserAccount,
   deleteUserAccount,
   resetUserPassword,
-  getMyPlayStats
+  getMyPlayStats,
+  getMyPlaybackState,
+  setMyPlaybackState,
+  clearMyPlaybackState
 } from "./users";
-export type { PlayStatsResponse } from "./users";
+export type { PlayStatsResponse, PlaybackState } from "./users";
 
 export {
   getLibrary,

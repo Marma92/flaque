@@ -3,6 +3,12 @@ import type { RecentUploadAlbum, RecentUploadItem } from "../api";
 import type { UploadPeriod } from "../hooks/useRecentlyUploaded";
 import { RecentTracksPanel } from "./RecentTracksPanel";
 import { RecentlyUploadedPanel } from "./RecentlyUploadedPanel";
+import { ResumeRow } from "./ResumeRow";
+
+export type ResumeRowState = {
+  track: Track;
+  positionSec: number;
+};
 
 export type HomePanelsProps = {
   recentTracks: Track[];
@@ -21,6 +27,9 @@ export type HomePanelsProps = {
   radioCurrentTrack?: RadioTrack | null;
   radioNextTrack?: RadioTrack | null;
   onStartRadioPlayback?: () => void;
+  resumeState?: ResumeRowState | null;
+  onResume?: (track: Track, positionSec: number) => void;
+  onDismissResume?: () => void;
 };
 
 /**
@@ -43,7 +52,10 @@ export function HomePanels({
   radioStationId = null,
   radioCurrentTrack = null,
   radioNextTrack = null,
-  onStartRadioPlayback
+  onStartRadioPlayback,
+  resumeState = null,
+  onResume,
+  onDismissResume
 }: HomePanelsProps): JSX.Element | null {
   const hasRecent = recentTracks.length > 0;
   const hasUploaded = recentlyUploadedItems.length > 0 || recentlyUploadedLoading;
@@ -98,6 +110,15 @@ export function HomePanels({
         </div>
       </section>
 
+      {resumeState && onResume && onDismissResume ? (
+        <ResumeRow
+          track={resumeState.track}
+          positionSec={resumeState.positionSec}
+          onResume={onResume}
+          onDismiss={onDismissResume}
+        />
+      ) : null}
+
       {hasRecent ? (
         <RecentTracksPanel
           tracks={recentTracks}
@@ -118,7 +139,7 @@ export function HomePanels({
         />
       ) : null}
 
-      {!hasRecent && !hasUploaded ? (
+      {!hasRecent && !hasUploaded && !resumeState ? (
         <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-flaque-clay/60 bg-white/80 p-8 text-center">
           <div className="text-sm text-flaque-steel">
             <p className="font-bold text-flaque-ink">Oh flaque !</p>
