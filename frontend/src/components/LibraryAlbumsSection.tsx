@@ -1,10 +1,40 @@
 import type { AlbumEntry, Playlist, Track } from "../types";
 import { defaultCoverImage, getAlbumCoverSrc } from "../utils/covers";
 import { formatDurationHuman } from "../utils/format";
-import { useRef, useState } from "react";
+import {
+  type AlbumSortMode,
+  DEFAULT_ALBUM_SORT_MODE,
+  isAlbumSortMode,
+  sortAlbums,
+  sortAndGroupAlbums
+} from "../utils/albumSort";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlbumList } from "./AlbumList";
 import { Coverflow } from "./Coverflow";
+import { SectionLabel } from "./SectionLabel";
 import { TrackList } from "./TrackList";
+
+const ALBUM_SORT_STORAGE_KEY = "flaque.albums.sort";
+
+const ALBUM_SORT_OPTIONS: ReadonlyArray<{ value: AlbumSortMode; label: string }> = [
+  { value: "album-asc", label: "Album A → Z" },
+  { value: "album-desc", label: "Album Z → A" },
+  { value: "artist-asc", label: "Artist A → Z" },
+  { value: "artist-desc", label: "Artist Z → A" },
+  { value: "year-desc", label: "Year (newest)" },
+  { value: "year-asc", label: "Year (oldest)" }
+];
+
+function loadInitialSortMode(): AlbumSortMode {
+  if (typeof window === "undefined") return DEFAULT_ALBUM_SORT_MODE;
+  try {
+    const stored = window.localStorage.getItem(ALBUM_SORT_STORAGE_KEY);
+    if (isAlbumSortMode(stored)) return stored;
+  } catch {
+    // localStorage may be unavailable (private mode, etc.)
+  }
+  return DEFAULT_ALBUM_SORT_MODE;
+}
 
 export type LibraryAlbumsSectionProps = {
   libraryMetadataError: string | null;
@@ -48,11 +78,21 @@ export function LibraryAlbumsSection({
 }: LibraryAlbumsSectionProps): JSX.Element {
   const [viewMode, setViewMode] = useState<AlbumViewMode>("list");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortMode, setSortMode] = useState<AlbumSortMode>(loadInitialSortMode);
   const isAlbumSelected = selectedAlbum !== null;
   const lastSelectedAlbumRef = useRef<AlbumEntry | null>(null);
   if (selectedAlbum && viewMode === "coverflow") {
     lastSelectedAlbumRef.current = selectedAlbum;
   }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(ALBUM_SORT_STORAGE_KEY, sortMode);
+    } catch {
+      // ignore
+    }
+  }, [sortMode]);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredAlbums = normalizedQuery
@@ -62,6 +102,9 @@ export function LibraryAlbumsSection({
           (album.artist && album.artist.toLowerCase().includes(normalizedQuery))
       )
     : albums;
+
+  const sortedAlbums = useMemo(() => sortAlbums(filteredAlbums, sortMode), [filteredAlbums, sortMode]);
+  const groupedAlbums = useMemo(() => sortAndGroupAlbums(filteredAlbums, sortMode), [filteredAlbums, sortMode]);
 
   const albumCoverSrc = selectedAlbum ? getAlbumCoverSrc(selectedAlbum) : defaultCoverImage;
 
@@ -108,7 +151,7 @@ export function LibraryAlbumsSection({
         ) : (
           <>
             <h2 className="font-display text-xl text-flaque-ink">Albums</h2>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <input
                 className="rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-3 py-1.5 text-sm text-flaque-ink placeholder:text-flaque-steel/60 focus:border-flaque-ink/40 focus:outline-none"
                 type="text"
@@ -116,6 +159,20 @@ export function LibraryAlbumsSection({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              <label className="sr-only" htmlFor="album-sort">Sort albums</label>
+              <select
+                id="album-sort"
+                className="rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-3 py-1.5 text-sm text-flaque-ink focus:border-flaque-ink/40 focus:outline-none"
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as AlbumSortMode)}
+                aria-label="Sort albums"
+              >
+                {ALBUM_SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
               <div className="inline-flex rounded-xl border border-flaque-clay/70 bg-flaque-cream/50 p-1">
                 <button
                   className={`rounded-lg px-3 py-1.5 text-sm transition ${
@@ -154,18 +211,26 @@ export function LibraryAlbumsSection({
           {!isAlbumSelected && viewMode === "coverflow" ? (
             <div className="flex flex-1 items-center">
               <Coverflow
-                albums={filteredAlbums}
+                albums={sortedAlbums}
                 selectedAlbum={lastSelectedAlbumRef.current}
                 onAlbumSelect={onAlbumSelect}
               />
             </div>
           ) : !isAlbumSelected && viewMode === "list" ? (
-            <AlbumList
-              albums={filteredAlbums}
-              selectedAlbum={selectedAlbum}
-              onAlbumSelect={onAlbumSelect}
-              onPlayAlbum={onPlayAlbum}
-            />
+            <div className="mt-3">
+              {groupedAlbums.map((group, idx) => (
+                <div key={group.key}>
+                  <SectionLabel label={group.label} />
+                  <AlbumList
+                    albums={group.albums}
+                    selectedAlbum={selectedAlbum}
+                    onAlbumSelect={onAlbumSelect}
+                    onPlayAlbum={onPlayAlbum}
+                  />
+                  {idx < groupedAlbums.length - 1 && <div className="mb-4" />}
+                </div>
+              ))}
+            </div>
           ) : null}
 
           {isAlbumSelected ? (

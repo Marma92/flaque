@@ -6,6 +6,7 @@ import { formatDurationHuman } from "../utils/format";
 import { getArtistSortKey } from "../utils/tracks";
 import { AlbumList } from "./AlbumList";
 import { ArtistCard } from "./ArtistCard";
+import { SectionLabel } from "./SectionLabel";
 import { TrackList } from "./TrackList";
 
 export type LibraryArtistsSectionProps = {
@@ -209,10 +210,7 @@ export function LibraryArtistsSection({
 
             return sortedKeys.map((letter, idx) => (
               <div key={letter}>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-flaque-steel">{letter}</span>
-                  <div className="flex-1 h-[2px] border-t-[2px] border-flaque-clay/40" style={{ maskImage: "linear-gradient(to right, black 50%, transparent)", WebkitMaskImage: "linear-gradient(to right, black 50%, transparent)" }} />
-                </div>
+                <SectionLabel label={letter} />
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {grouped.get(letter)!.map((artist) => (
                     <ArtistCard
