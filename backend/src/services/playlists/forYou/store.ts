@@ -16,6 +16,12 @@ export type ForYouPlaylist = {
   trackIds: string[];
   trackCount: number;
   generatedAt: string;
+  /**
+   * Seed-artist score used to rank playlists "best-fit first" on Home.
+   * Missing on playlists generated before this field was introduced — those
+   * sink to the bottom on read.
+   */
+  score?: number;
 };
 
 type ForYouMeta = {
@@ -62,7 +68,12 @@ export async function loadForYouPlaylists(userId: string): Promise<ForYouPlaylis
     }
   }
 
-  return playlists.sort((a, b) => a.name.localeCompare(b.name));
+  return playlists.sort((a, b) => {
+    const scoreA = typeof a.score === "number" ? a.score : -Infinity;
+    const scoreB = typeof b.score === "number" ? b.score : -Infinity;
+    if (scoreA !== scoreB) return scoreB - scoreA;
+    return a.name.localeCompare(b.name);
+  });
 }
 
 export async function getForYouPlaylistById(

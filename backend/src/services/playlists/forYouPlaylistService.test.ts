@@ -230,6 +230,46 @@ describe("forYouPlaylistService", () => {
     expect(loaded[0]!.trackIds).toEqual(["t1", "t2", "t3"]);
   });
 
+  it("sorts loaded for-you playlists by score desc, with missing scores last", async () => {
+    const { saveForYouPlaylists, loadForYouPlaylists } = await import("./forYouPlaylistService");
+
+    await saveForYouPlaylists("user-1", [
+      {
+        id: "for-you:low",
+        name: "Around Low",
+        seedArtist: "Low",
+        trackIds: ["t1"],
+        trackCount: 1,
+        generatedAt: "2026-04-01T00:00:00Z",
+        score: 1.0
+      },
+      {
+        id: "for-you:high",
+        name: "Around High",
+        seedArtist: "High",
+        trackIds: ["t2"],
+        trackCount: 1,
+        generatedAt: "2026-04-01T00:00:00Z",
+        score: 5.0
+      },
+      {
+        id: "for-you:legacy",
+        name: "Around Legacy",
+        seedArtist: "Legacy",
+        trackIds: ["t3"],
+        trackCount: 1,
+        generatedAt: "2026-04-01T00:00:00Z"
+      }
+    ]);
+
+    const loaded = await loadForYouPlaylists("user-1");
+    expect(loaded.map((p) => p.id)).toEqual([
+      "for-you:high",
+      "for-you:low",
+      "for-you:legacy"
+    ]);
+  });
+
   it("enforces the per-peer-artist cap inside a playlist", async () => {
     const { generateForYouPlaylists } = await import("./forYouPlaylistService");
     const { ensureDir, writeJsonAtomic } = await import("../../utils/fs");

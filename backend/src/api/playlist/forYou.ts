@@ -65,7 +65,8 @@ export function createForYouPlaylistRouter(indexStore: IndexStore): Router {
           seedArtist: p.seedArtist,
           seedArtistPhoto: await resolveSeedArtistPhoto(indexStore, p.seedArtist, p.trackIds, photoCache),
           trackCount: p.trackCount,
-          generatedAt: p.generatedAt
+          generatedAt: p.generatedAt,
+          score: p.score
         }))
       );
 

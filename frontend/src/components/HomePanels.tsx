@@ -1,6 +1,7 @@
-import type { RadioTrack, Track } from "../types";
+import type { ForYouPlaylistSummary, RadioTrack, Track } from "../types";
 import type { RecentUploadAlbum, RecentUploadItem } from "../api";
 import type { UploadPeriod } from "../hooks/useRecentlyUploaded";
+import { HomeForYouRow } from "./HomeForYouRow";
 import { RecentTracksPanel } from "./RecentTracksPanel";
 import { RecentlyUploadedPanel } from "./RecentlyUploadedPanel";
 import { ResumeRow } from "./ResumeRow";
@@ -30,6 +31,8 @@ export type HomePanelsProps = {
   resumeState?: ResumeRowState | null;
   onResume?: (track: Track, positionSec: number) => void;
   onDismissResume?: () => void;
+  forYouPlaylists?: ForYouPlaylistSummary[];
+  onSelectForYouPlaylist?: (playlistId: string) => void;
 };
 
 /**
@@ -55,10 +58,13 @@ export function HomePanels({
   onStartRadioPlayback,
   resumeState = null,
   onResume,
-  onDismissResume
+  onDismissResume,
+  forYouPlaylists = [],
+  onSelectForYouPlaylist
 }: HomePanelsProps): JSX.Element | null {
   const hasRecent = recentTracks.length > 0;
   const hasUploaded = recentlyUploadedItems.length > 0 || recentlyUploadedLoading;
+  const hasForYou = forYouPlaylists.length > 0 && Boolean(onSelectForYouPlaylist);
   const canStartRadio = Boolean(onStartRadioPlayback && !radioLoading);
 
   const cardGridClass = "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
@@ -119,6 +125,13 @@ export function HomePanels({
         />
       ) : null}
 
+      {hasForYou && onSelectForYouPlaylist ? (
+        <HomeForYouRow
+          playlists={forYouPlaylists}
+          onSelect={onSelectForYouPlaylist}
+        />
+      ) : null}
+
       {hasRecent ? (
         <RecentTracksPanel
           tracks={recentTracks}
@@ -139,7 +152,7 @@ export function HomePanels({
         />
       ) : null}
 
-      {!hasRecent && !hasUploaded && !resumeState ? (
+      {!hasRecent && !hasUploaded && !resumeState && !hasForYou ? (
         <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-flaque-clay/60 bg-white/80 p-8 text-center">
           <div className="text-sm text-flaque-steel">
             <p className="font-bold text-flaque-ink">Oh flaque !</p>

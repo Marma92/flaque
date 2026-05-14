@@ -508,6 +508,15 @@ export function AuthenticatedApp({
           },
           onDismissResume: () => {
             void dismissResume();
+          },
+          forYouPlaylists,
+          onSelectForYouPlaylist: (playlistId: string) => {
+            navigateTo("library", "playlists");
+            setActiveLibrarySection("playlists");
+            setPlaylistDetailId(playlistId);
+            clearSelectedArtist();
+            clearSelectedArtistAlbum();
+            clearSelectedAlbum();
           }
         },
         musicProps: {

@@ -548,6 +548,7 @@ type BuildResult =
 
 async function buildForYouPlaylist(
   seedArtist: string,
+  seedScore: number,
   indexStore: IndexStore,
   allTracks: Track[],
   signals: SignalMaps,
@@ -685,7 +686,8 @@ async function buildForYouPlaylist(
       seedArtist,
       trackIds: sequenced.map((c) => c.track.id),
       trackCount: sequenced.length,
-      generatedAt: new Date().toISOString()
+      generatedAt: new Date().toISOString(),
+      score: seedScore
     },
     trace: baseTrace
   };
@@ -754,7 +756,7 @@ export async function generateForYouPlaylistsWithTrace(
     }
     attemptedSeeds++;
 
-    const result = await buildForYouPlaylist(candidate.artist, indexStore, allTracks, signals, userId);
+    const result = await buildForYouPlaylist(candidate.artist, candidate.score, indexStore, allTracks, signals, userId);
 
     if (result.playlist) {
       playlists.push(result.playlist);
