@@ -1,9 +1,11 @@
 import { ChangeEvent, type Dispatch, FormEvent, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { coverUrl, getMyPlayStats, type PlayStatsResponse } from "../api";
+import defaultCoverImage from "../assets/default-cover.png";
 import type { AppNotice } from "./AppStatusBanners";
 import type { Track, User, UserSession } from "../types";
 import { useAccountActions } from "../hooks/useAccountActions";
+import { formatArtistString, getTrackDisplayArtist, getTrackDisplayTitle } from "../utils/tracks";
 
 type AccountViewProps = {
   user: User;
@@ -508,13 +510,16 @@ export function AccountView({
               <div>
                 <h4 className="text-sm font-medium text-flaque-ink">Top Artists</h4>
                 <div className="mt-2 space-y-1">
-                  {playStats.topArtists.slice(0, 10).map((entry, i) => (
-                    <div key={entry.artist} className="flex items-center gap-2 rounded-lg bg-flaque-cream/40 px-3 py-1.5">
-                      <span className="w-5 shrink-0 text-right text-xs text-flaque-steel/60">{i + 1}</span>
-                      <span className="min-w-0 flex-1 truncate text-sm text-flaque-ink">{entry.artist}</span>
-                      <span className="shrink-0 text-xs text-flaque-steel">{entry.playCount} play{entry.playCount !== 1 ? "s" : ""}</span>
-                    </div>
-                  ))}
+                  {playStats.topArtists.slice(0, 10).map((entry, i) => {
+                    const artistLabel = formatArtistString(entry.artist) ?? "Unknown artist";
+                    return (
+                      <div key={entry.artist} className="flex items-center gap-2 rounded-lg bg-flaque-cream/40 px-3 py-1.5">
+                        <span className="w-5 shrink-0 text-right text-xs text-flaque-steel/60">{i + 1}</span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-flaque-ink">{artistLabel}</span>
+                        <span className="shrink-0 text-xs text-flaque-steel">{entry.playCount} play{entry.playCount !== 1 ? "s" : ""}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}
@@ -525,17 +530,23 @@ export function AccountView({
                 <div className="mt-2 space-y-1">
                   {playStats.topTracks.slice(0, 10).map((entry, i) => {
                     const track = allTracksById.get(entry.trackId);
+                    const title = track ? getTrackDisplayTitle(track) : "Unknown Track";
+                    const artist = (track ? getTrackDisplayArtist(track) : undefined) ?? "Unknown artist";
                     return (
                       <div key={entry.trackId} className="flex items-center gap-2 rounded-lg bg-flaque-cream/40 px-2 py-1.5">
                         <span className="w-5 shrink-0 text-right text-xs text-flaque-steel/60">{i + 1}</span>
-                        {track ? (
-                          <img src={coverUrl(track.id)} alt="" className="h-8 w-8 shrink-0 rounded-md object-cover" loading="lazy" />
-                        ) : (
-                          <div className="h-8 w-8 shrink-0 rounded-md bg-flaque-clay/30" />
-                        )}
+                        <img
+                          src={track ? coverUrl(track.id, track.cover) : defaultCoverImage}
+                          alt=""
+                          className="h-8 w-8 shrink-0 rounded-md object-cover"
+                          loading="lazy"
+                          onError={(event) => {
+                            event.currentTarget.src = defaultCoverImage;
+                          }}
+                        />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm text-flaque-ink">{track?.tags.title ?? entry.trackId}</p>
-                          <p className="truncate text-xs text-flaque-steel">{track?.tags.artist ?? "Unknown"}</p>
+                          <p className="truncate text-sm text-flaque-ink">{title}</p>
+                          <p className="truncate text-xs text-flaque-steel">{artist}</p>
                         </div>
                         <span className="shrink-0 text-xs text-flaque-steel">{entry.count}x</span>
                       </div>
