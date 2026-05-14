@@ -157,6 +157,8 @@ export type ForYouPlaylistSummary = {
   seedArtistPhoto?: string;
   trackCount: number;
   generatedAt: string;
+  /** Seed-artist score; higher = better fit. Missing on pre-2026-05 playlists. */
+  score?: number;
 };
 
 export type ForYouPlaylistDetail = ForYouPlaylistSummary & {
