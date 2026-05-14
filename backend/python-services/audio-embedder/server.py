@@ -24,7 +24,7 @@ from urllib.parse import urlparse
 # Allow `python server.py` from the package dir and from the repo root.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from model import MODEL_NAME, embed_path, path_is_reachable
+from model import MODEL_NAME, embed_path, path_is_reachable, warmup
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7001
@@ -101,6 +101,15 @@ def main() -> None:
     except ValueError:
         sys.stderr.write(f"[embedder] invalid EMBEDDER_PORT, falling back to {DEFAULT_PORT}\n")
         port = DEFAULT_PORT
+
+    if os.environ.get("EMBEDDER_WARMUP", "1") not in ("0", "false", "no", ""):
+        sys.stderr.write("[embedder] warming up model (this can take ~10 s)\n")
+        try:
+            warmup()
+            sys.stderr.write("[embedder] model warm\n")
+        except Exception as exc:  # noqa: BLE001 — surface any startup error
+            sys.stderr.write(f"[embedder] warmup failed: {exc}\n")
+            sys.exit(2)
 
     server = ThreadingHTTPServer((host, port), EmbedderHandler)
     sys.stderr.write(f"[embedder] listening on http://{host}:{port} (model={MODEL_NAME})\n")
