@@ -158,6 +158,15 @@ function splitArtistString(value: string): string[] {
     .filter((entry) => entry.length > 0);
 }
 
+export function formatArtistString(value: string | undefined | null): string | undefined {
+  const normalized = normalizeTagText(value);
+  if (!normalized) {
+    return undefined;
+  }
+
+  return formatArtistList(splitArtistString(normalized));
+}
+
 export function formatArtistList(artists: readonly string[]): string | undefined {
   if (artists.length === 0) {
     return undefined;
