@@ -11,12 +11,14 @@ function createAlbum(input: {
   name: string;
   artist: string;
   trackCount: number;
+  year?: number;
 }): AlbumEntry {
   return {
     id: input.id,
     name: input.name,
     artist: input.artist,
-    trackCount: input.trackCount
+    trackCount: input.trackCount,
+    year: input.year
   };
 }
 
@@ -251,5 +253,48 @@ describe("LibraryAlbumsSection", () => {
     const backButton = screen.getByRole("button", { name: "Back" });
     fireEvent.click(backButton);
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("groups albums by first letter by default and re-groups by year on sort change", () => {
+    const albums = [
+      createAlbum({ id: "1", name: "Alpha", artist: "X", trackCount: 1, year: 2020 }),
+      createAlbum({ id: "2", name: "Bravo", artist: "Y", trackCount: 1, year: 1999 }),
+      createAlbum({ id: "3", name: "Charlie", artist: "Z", trackCount: 1 })
+    ];
+
+    try {
+      window.localStorage.removeItem("flaque.albums.sort");
+    } catch {
+      // ignore
+    }
+
+    render(
+      <LibraryAlbumsSection
+        libraryMetadataError={null}
+        loadingAlbums={false}
+        albums={albums}
+        selectedAlbum={null}
+        selectedAlbumTracks={[]}
+        loadingSelectedAlbumTracks={false}
+        selectedAlbumTracksError={null}
+        ownerNameById={{}}
+        onAlbumSelect={vi.fn()}
+        onPlayAlbum={vi.fn()}
+        onBack={vi.fn()}
+        onTrackSelect={vi.fn()}
+      />
+    );
+
+    // Default = album-asc: section headers A, B, C
+    expect(screen.getByText("A")).toBeTruthy();
+    expect(screen.getByText("B")).toBeTruthy();
+    expect(screen.getByText("C")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Sort albums"), { target: { value: "year-desc" } });
+
+    // Now grouped by year: 2020, 1999, Unknown — labels also appear in cards so use getAllByText
+    expect(screen.getAllByText("2020").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("1999").length).toBeGreaterThan(0);
+    expect(screen.getByText("Unknown")).toBeTruthy();
   });
 });
