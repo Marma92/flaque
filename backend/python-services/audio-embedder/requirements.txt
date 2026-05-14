@@ -1,0 +1,11 @@
+# Phase 1 (stub) intentionally has no runtime dependencies — the sidecar uses
+# only Python 3.10+ stdlib (http.server, hashlib, json, dataclasses).
+#
+# Phase 2 will add:
+#   torch
+#   torchaudio
+#   transformers
+#   soundfile
+#   numpy
+#
+# Pinned versions and hashes will be set when those land.
