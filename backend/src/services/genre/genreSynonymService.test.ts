@@ -28,6 +28,7 @@ vi.mock("../../utils/logger", () => ({
 }));
 
 import {
+  getLibraryGenreLabels,
   getSynonyms,
   normalizeGenreLabel,
   normalizeGenreLabels,
@@ -85,5 +86,36 @@ describe("genreSynonymService", () => {
     resetSynonymsToDefaults();
     expect(getSynonyms()["custom-key"]).toBeUndefined();
     expect(normalizeGenreLabel("rap")).toBe("Hip-Hop");
+  });
+
+  describe("getLibraryGenreLabels", () => {
+    it("counts unique labels case-insensitively and reports synonyms", () => {
+      const tracks = [
+        { genre: ["Rock", "Hip Hop"] },
+        { genre: ["rock", "Indie Rock"] },
+        { genre: ["Hip Hop"] },
+        { genre: [] },
+        {}
+      ];
+      const labels = getLibraryGenreLabels(tracks);
+      expect(labels.find((l) => l.label.toLowerCase() === "rock")?.count).toBe(2);
+      expect(labels.find((l) => l.label.toLowerCase() === "hip hop")?.count).toBe(2);
+      expect(labels.find((l) => l.label.toLowerCase() === "indie rock")?.count).toBe(1);
+      // hip hop maps to Hip-Hop via default synonyms
+      expect(labels.find((l) => l.label.toLowerCase() === "hip hop")?.canonical).toBe("Hip-Hop");
+      // Indie Rock is already canonical → no canonical field
+      expect(labels.find((l) => l.label.toLowerCase() === "indie rock")?.canonical).toBeUndefined();
+    });
+
+    it("sorts by count descending, then label ascending", () => {
+      const tracks = [
+        { genre: ["B"] },
+        { genre: ["A"] },
+        { genre: ["A"] },
+        { genre: ["C"] }
+      ];
+      const labels = getLibraryGenreLabels(tracks);
+      expect(labels.map((l) => l.label)).toEqual(["A", "B", "C"]);
+    });
   });
 });

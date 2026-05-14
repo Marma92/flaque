@@ -14,6 +14,7 @@ import {
   readEnrichmentLog
 } from "../services/genre/enrichmentLogStore";
 import {
+  getLibraryGenreLabels,
   getSynonyms,
   setSynonym,
   removeSynonym,
@@ -143,6 +144,11 @@ export function createGenreRouter(indexStore: IndexStore): Router {
     resetSynonymsToDefaults();
     log.info("Genre synonyms reset to defaults", { userId: _req.authUser?.id ?? "unknown" });
     res.json({ reset: true });
+  });
+
+  router.get("/genre/library-labels", requireAuth, requireAdmin, (_req, res) => {
+    const tracks = indexStore.getTracks().map((t) => ({ genre: t.tags.genre }));
+    res.json({ labels: getLibraryGenreLabels(tracks) });
   });
 
   router.post("/genre/synonyms/reapply", requireAuth, requireAdmin, async (req, res, next) => {

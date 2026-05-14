@@ -2,7 +2,7 @@ import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { tmpDir } = vi.hoisted(() => {
   const fsS = require("node:fs") as typeof import("node:fs");
@@ -29,7 +29,7 @@ vi.mock("../../utils/logger", () => ({
 
 const CACHE_FILE = path.join(tmpDir, "musicbrainz-genre-cache.json");
 
-type FetchHandler = (url: string) => { status?: number; body?: unknown; throw?: Error };
+type FetchHandler = (url: string) => { status?: number; body?: unknown; throw?: Error; headers?: Record<string, string> };
 
 let fetchHandler: FetchHandler = () => ({ status: 200, body: { recordings: [] } });
 let fetchCalls: string[] = [];
@@ -48,9 +48,20 @@ beforeEach(async () => {
     if (result.throw) throw result.throw;
     return new Response(JSON.stringify(result.body ?? {}), {
       status: result.status ?? 200,
-      headers: { "Content-Type": "application/json" }
+      headers: { "Content-Type": "application/json", ...(result.headers ?? {}) }
     });
   }));
+});
+
+afterEach(async () => {
+  // Flush any pending debounced cache writes so they don't fire during
+  // the next test (and pollute its tmpDir after our cleanup runs).
+  try {
+    const m = await import("./musicBrainzService");
+    m.flushGenreCache();
+  } catch {
+    // module may not have loaded if the test bailed early
+  }
 });
 
 afterAll(() => {
@@ -108,18 +119,42 @@ describe("musicBrainzService", () => {
     expect(fsSync.existsSync(CACHE_FILE)).toBe(false);
   });
 
-  it("retries after transient error on next call (no negative cache)", async () => {
-    let firstCall = true;
+  it("retries within a single call after a transient 5xx and rescues the result", async () => {
+    let phase = 0;
     fetchHandler = () => {
-      if (firstCall) {
-        firstCall = false;
-        return { status: 503 };
-      }
+      phase++;
+      if (phase === 1) return { status: 503 };
       return { status: 200, body: recordingsResponse([{ score: 95, tags: ["pop"] }]) };
     };
     const { lookupGenre } = await loadModule();
-    expect(await lookupGenre("X", "Y")).toEqual([]);
     expect(await lookupGenre("X", "Y")).toEqual(["Pop"]);
+  });
+
+  it("returns transient (empty) and does not cache when retries are exhausted", async () => {
+    fetchHandler = () => ({ status: 503 });
+    const { lookupGenre, flushGenreCache } = await loadModule();
+    expect(await lookupGenre("X", "Y")).toEqual([]);
+    flushGenreCache();
+    expect(fsSync.existsSync(CACHE_FILE)).toBe(false);
+  });
+
+  it("honors the Retry-After header on 429", async () => {
+    let phase = 0;
+    const startedAt = Date.now();
+    fetchHandler = () => {
+      phase++;
+      if (phase === 1) {
+        return { status: 429, headers: { "retry-after": "1" } };
+      }
+      return { status: 200, body: recordingsResponse([{ score: 95, tags: ["rock"] }]) };
+    };
+    const { lookupGenre } = await loadModule();
+    const result = await lookupGenre("X", "Y");
+    const elapsed = Date.now() - startedAt;
+    expect(result).toEqual(["Rock"]);
+    // Must have waited at least the Retry-After value (1s), and the rate
+    // limiter spacing (1.1s) on top of that for the retried request.
+    expect(elapsed).toBeGreaterThanOrEqual(1000);
   });
 
   it("caches a successful miss (no recording found) and serves it from cache", async () => {
@@ -222,6 +257,16 @@ describe("musicBrainzService", () => {
     expect(b).toEqual(["Jazz"]);
     expect(c).toEqual(["Jazz"]);
     expect(fetchCount).toBe(1);
+  });
+
+  it("preserves MB's mixed-case labels (R&B, IDM) and title-cases all-lowercase ones", async () => {
+    fetchHandler = () => ({
+      status: 200,
+      body: recordingsResponse([{ score: 95, tags: ["R&B", "IDM", "indie rock", "j-pop"] }])
+    });
+    const { lookupGenre } = await loadModule();
+    const genres = await lookupGenre("X", "Y");
+    expect(genres).toEqual(["R&B", "IDM", "Indie Rock", "J-Pop"]);
   });
 
   it("writes the cache atomically (no .tmp left over after flush)", async () => {

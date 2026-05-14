@@ -95,6 +95,7 @@ export {
   clearEnrichmentLog,
   reEnrichTrack,
   reapplyGenreSynonyms,
+  getLibraryGenreLabels,
   getGenreCacheStats,
   clearGenreCache
 } from "./genre";
@@ -104,6 +105,7 @@ export type {
   EnrichmentCurrentTrack,
   EnrichmentLogEntry,
   ReEnrichResult,
+  LibraryGenreLabel,
   GenreCacheStats
 } from "./genre";
 

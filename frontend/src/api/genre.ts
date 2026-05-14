@@ -105,6 +105,17 @@ export async function reapplyGenreSynonyms(): Promise<{ scanned: number; updated
   });
 }
 
+export type LibraryGenreLabel = {
+  label: string;
+  count: number;
+  canonical?: string;
+};
+
+export async function getLibraryGenreLabels(): Promise<LibraryGenreLabel[]> {
+  const payload = await requestJson<{ labels: LibraryGenreLabel[] }>("/api/genre/library-labels");
+  return payload.labels;
+}
+
 export type GenreCacheStats = {
   entries: number;
   fingerprints?: number;

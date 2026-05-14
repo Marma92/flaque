@@ -174,6 +174,91 @@ async function waitForRateLimit(): Promise<void> {
   lastRequestTime = Date.now();
 }
 
+const MAX_RETRIES = 1;
+const BACKOFF_BASE_MS = 1000;
+const MAX_RETRY_AFTER_MS = 30_000;
+
+function parseRetryAfterMs(header: string | null): number | null {
+  if (!header) return null;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(Math.round(seconds * 1000), MAX_RETRY_AFTER_MS);
+  }
+  const epochMs = Date.parse(header);
+  if (Number.isFinite(epochMs)) {
+    return Math.min(Math.max(0, epochMs - Date.now()), MAX_RETRY_AFTER_MS);
+  }
+  return null;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+type FetchOutcome =
+  | { kind: "ok"; response: Response }
+  | { kind: "client-error"; response: Response }
+  | { kind: "transient" };
+
+/**
+ * Fetch a MusicBrainz endpoint with one retry on 5xx / 429 / network
+ * throw. Honors the Retry-After header on 429. Returns ok/client-error
+ * for any non-retryable response, and "transient" only after retries are
+ * exhausted (or capped by MAX_RETRY_AFTER_MS).
+ */
+async function fetchMbWithRetry(url: string, logContext: Record<string, unknown>): Promise<FetchOutcome> {
+  let lastNetworkError: Error | null = null;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+      });
+    } catch (error) {
+      lastNetworkError = error as Error;
+      if (attempt < MAX_RETRIES) {
+        const delayMs = BACKOFF_BASE_MS * Math.pow(2, attempt);
+        log.warn(`MusicBrainz fetch threw, retrying in ${delayMs}ms`, {
+          ...logContext,
+          error: lastNetworkError.message
+        });
+        await sleep(delayMs);
+        continue;
+      }
+      break;
+    }
+
+    if (response.status >= 500 || response.status === 429) {
+      if (attempt < MAX_RETRIES) {
+        const retryAfter = parseRetryAfterMs(response.headers.get("retry-after"));
+        const delayMs = retryAfter ?? (BACKOFF_BASE_MS * Math.pow(2, attempt));
+        log.warn(`MusicBrainz returned ${response.status}, retrying in ${delayMs}ms`, logContext);
+        await sleep(delayMs);
+        // re-pace the rate limiter; the next call will respect RATE_LIMIT_MS again
+        lastRequestTime = Date.now();
+        continue;
+      }
+      log.warn(`MusicBrainz returned ${response.status} after retries`, logContext);
+      return { kind: "transient" };
+    }
+
+    if (!response.ok) {
+      return { kind: "client-error", response };
+    }
+
+    return { kind: "ok", response };
+  }
+
+  if (lastNetworkError) {
+    log.warn("MusicBrainz fetch failed after retries", {
+      ...logContext,
+      error: lastNetworkError.message
+    });
+  }
+  return { kind: "transient" };
+}
+
 type MBTagOrGenre = { name?: string; count?: number };
 type MBArtistCredit = { artist?: { id?: string; name?: string }; joinphrase?: string };
 type MBReleaseGroup = {
@@ -206,6 +291,25 @@ type MBRecordingDetail = {
   releases?: MBRelease[];
 };
 
+function casifyGenreLabel(raw: string): string {
+  // If MB returned mixed-case (e.g. "R&B", "IDM", "J-Pop"), trust it.
+  // If it's all-lowercase (e.g. "rock", "hip hop"), title-case each
+  // space-separated word, preserving hyphens (so "hip-hop" → "Hip-Hop").
+  const trimmed = raw.trim();
+  if (trimmed !== trimmed.toLowerCase()) {
+    return trimmed;
+  }
+  return trimmed
+    .split(/\s+/)
+    .map((word) =>
+      word
+        .split("-")
+        .map((part) => (part.length > 0 ? part.charAt(0).toUpperCase() + part.slice(1) : part))
+        .join("-")
+    )
+    .join(" ");
+}
+
 function extractGenres(recording: MBRecording | MBRecordingDetail): string[] {
   const genres: string[] = [];
   const seen = new Set<string>();
@@ -214,14 +318,10 @@ function extractGenres(recording: MBRecording | MBRecordingDetail): string[] {
   for (const source of sources) {
     for (const entry of source) {
       if (typeof entry.name !== "string" || !entry.name.trim()) continue;
-      const normalized = entry.name.trim().toLowerCase();
-      if (seen.has(normalized)) continue;
-      seen.add(normalized);
-      const titleCased = normalized
-        .split(/[\s-]+/)
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
-      genres.push(titleCased);
+      const lookupKey = entry.name.trim().toLowerCase();
+      if (seen.has(lookupKey)) continue;
+      seen.add(lookupKey);
+      genres.push(casifyGenreLabel(entry.name));
     }
   }
 
@@ -315,34 +415,16 @@ async function searchRecording(artist: string, title: string): Promise<SearchOut
   const query = `recording:"${escapedTitle}" AND artist:"${escapedArtist}"`;
   const searchUrl = `${MB_BASE_URL}/recording?query=${encodeURIComponent(query)}&fmt=json&limit=${RECORDING_SEARCH_LIMIT}`;
 
-  let searchResponse: Response;
-  try {
-    searchResponse = await fetch(searchUrl, {
-      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
-    });
-  } catch (error) {
-    log.warn("MusicBrainz lookup failed", {
-      artist,
-      title,
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return { kind: "transient" };
-  }
-
-  if (searchResponse.status >= 500 || searchResponse.status === 429) {
-    log.warn(`MusicBrainz search returned ${searchResponse.status}`, { artist, title });
-    return { kind: "transient" };
-  }
-
-  if (!searchResponse.ok) {
-    log.warn(`MusicBrainz search returned ${searchResponse.status}`, { artist, title });
+  const outcome = await fetchMbWithRetry(searchUrl, { artist, title });
+  if (outcome.kind === "transient") return { kind: "transient" };
+  if (outcome.kind === "client-error") {
+    log.warn(`MusicBrainz search returned ${outcome.response.status}`, { artist, title });
     return { kind: "miss" };
   }
 
   let searchData: MBSearchResult;
   try {
-    searchData = (await searchResponse.json()) as MBSearchResult;
+    searchData = (await outcome.response.json()) as MBSearchResult;
   } catch (error) {
     log.warn("MusicBrainz search returned invalid JSON", {
       artist,
@@ -373,29 +455,13 @@ async function fetchRecordingDetail(recordingId: string, withReleaseGroups: bool
     ? "genres+tags+artist-credits+releases+release-groups"
     : "genres+tags";
   const detailUrl = `${MB_BASE_URL}/recording/${recordingId}?inc=${inc}&fmt=json`;
-  let response: Response;
-  try {
-    response = await fetch(detailUrl, {
-      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
-    });
-  } catch (error) {
-    log.warn("MusicBrainz detail fetch failed", {
-      recordingId,
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return { kind: "transient" };
-  }
 
-  if (response.status >= 500 || response.status === 429) {
-    return { kind: "transient" };
-  }
-  if (!response.ok) {
-    return { kind: "missing" };
-  }
+  const outcome = await fetchMbWithRetry(detailUrl, { recordingId });
+  if (outcome.kind === "transient") return { kind: "transient" };
+  if (outcome.kind === "client-error") return { kind: "missing" };
 
   try {
-    const detail = (await response.json()) as MBRecordingDetail;
+    const detail = (await outcome.response.json()) as MBRecordingDetail;
     return { kind: "ok", detail };
   } catch (error) {
     log.warn("MusicBrainz detail returned invalid JSON", {
@@ -449,33 +515,16 @@ async function searchReleaseGroup(artist: string, album: string): Promise<Releas
   const query = `releasegroup:"${escapeLucene(album)}" AND artist:"${escapeLucene(artist)}"`;
   const url = `${MB_BASE_URL}/release-group?query=${encodeURIComponent(query)}&fmt=json&limit=${RECORDING_SEARCH_LIMIT}`;
 
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
-    });
-  } catch (error) {
-    log.warn("MusicBrainz release-group search failed", {
-      artist,
-      album,
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return { kind: "transient" };
-  }
-
-  if (response.status >= 500 || response.status === 429) {
-    log.warn(`MusicBrainz release-group search returned ${response.status}`, { artist, album });
-    return { kind: "transient" };
-  }
-  if (!response.ok) {
-    log.warn(`MusicBrainz release-group search returned ${response.status}`, { artist, album });
+  const outcome = await fetchMbWithRetry(url, { artist, album });
+  if (outcome.kind === "transient") return { kind: "transient" };
+  if (outcome.kind === "client-error") {
+    log.warn(`MusicBrainz release-group search returned ${outcome.response.status}`, { artist, album });
     return { kind: "miss" };
   }
 
   let payload: MBReleaseGroupSearchResult;
   try {
-    payload = (await response.json()) as MBReleaseGroupSearchResult;
+    payload = (await outcome.response.json()) as MBReleaseGroupSearchResult;
   } catch (error) {
     log.warn("MusicBrainz release-group search returned invalid JSON", {
       artist,
@@ -503,22 +552,10 @@ async function searchReleaseGroup(artist: string, album: string): Promise<Releas
 async function fetchReleaseGroupDetail(rgMbid: string): Promise<MBReleaseGroupDetail | null> {
   await waitForRateLimit();
   const url = `${MB_BASE_URL}/release-group/${rgMbid}?inc=genres+tags+artist-credits&fmt=json`;
-  let response: Response;
+  const outcome = await fetchMbWithRetry(url, { rgMbid });
+  if (outcome.kind !== "ok") return null;
   try {
-    response = await fetch(url, {
-      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
-    });
-  } catch (error) {
-    log.warn("MusicBrainz release-group detail fetch failed", {
-      rgMbid,
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return null;
-  }
-  if (!response.ok) return null;
-  try {
-    return (await response.json()) as MBReleaseGroupDetail;
+    return (await outcome.response.json()) as MBReleaseGroupDetail;
   } catch {
     return null;
   }
