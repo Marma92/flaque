@@ -87,6 +87,73 @@ describe("metadataOverrideStore", () => {
     });
     await pruneTrackMetadataOverrides(["keep"]);
     const after = await readTrackMetadataOverrides();
-    expect(after).toEqual({ keep: { title: "Kept", artist: undefined, album: undefined, year: undefined, genre: undefined } });
+    expect(after).toEqual({
+      keep: {
+        title: "Kept",
+        artist: undefined,
+        album: undefined,
+        year: undefined,
+        genre: undefined,
+        mbidRecording: undefined,
+        mbidReleaseGroup: undefined,
+        mbidArtist: undefined
+      }
+    });
+  });
+
+  it("persists MBID fields and validates UUID shape", async () => {
+    const validMbid = "0123abcd-1234-5678-9abc-def012345678";
+    const result = await mergeTrackMetadataOverrides({
+      "track-1": {
+        genre: ["Rock"],
+        mbidRecording: validMbid,
+        mbidReleaseGroup: validMbid,
+        mbidArtist: validMbid
+      }
+    });
+    expect(result["track-1"]?.mbidRecording).toBe(validMbid);
+    expect(result["track-1"]?.mbidReleaseGroup).toBe(validMbid);
+    expect(result["track-1"]?.mbidArtist).toBe(validMbid);
+
+    // Round-trip through readTrackMetadataOverrides
+    const readBack = await readTrackMetadataOverrides();
+    expect(readBack["track-1"]?.mbidRecording).toBe(validMbid);
+  });
+
+  it("rejects invalid MBID values silently", async () => {
+    const result = await mergeTrackMetadataOverrides({
+      "track-1": {
+        title: "X",
+        mbidRecording: "not-a-uuid" as unknown as string,
+        mbidArtist: "" as unknown as string
+      }
+    });
+    expect(result["track-1"]?.title).toBe("X");
+    expect(result["track-1"]?.mbidRecording).toBeUndefined();
+    expect(result["track-1"]?.mbidArtist).toBeUndefined();
+  });
+
+  it("persists per-field provenance and round-trips it", async () => {
+    await mergeTrackMetadataOverrides({
+      "track-1": {
+        title: "Manual Title",
+        genre: ["Rock"],
+        provenance: { title: "manual", genre: "auto" }
+      }
+    });
+    const readBack = await readTrackMetadataOverrides();
+    expect(readBack["track-1"]?.provenance?.title).toBe("manual");
+    expect(readBack["track-1"]?.provenance?.genre).toBe("auto");
+  });
+
+  it("rejects invalid provenance values silently", async () => {
+    const result = await mergeTrackMetadataOverrides({
+      "track-1": {
+        title: "X",
+        provenance: { title: "bogus" as unknown as "manual", artist: "manual" }
+      }
+    });
+    expect(result["track-1"]?.provenance?.title).toBeUndefined();
+    expect(result["track-1"]?.provenance?.artist).toBe("manual");
   });
 });

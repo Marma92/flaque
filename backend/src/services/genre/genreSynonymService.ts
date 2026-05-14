@@ -274,3 +274,57 @@ export function resetSynonymsToDefaults(): void {
   synonyms = { ...DEFAULT_SYNONYMS };
   saveSynonyms();
 }
+
+export type LibraryGenreLabel = {
+  label: string;
+  count: number;
+  /**
+   * The canonical form this label would normalize to if reapplied through
+   * the current synonym table. Absent when the label is already canonical
+   * (or has no synonym entry).
+   */
+  canonical?: string;
+};
+
+/**
+ * Aggregate every genre label currently in use in the library (drawn
+ * from per-track tags). Each label is returned with its occurrence
+ * count and, when applicable, the canonical form the synonym table
+ * would map it to. Useful for the admin "promote to synonym" workflow:
+ * spot raw labels that should be normalized, sorted by impact.
+ */
+export function getLibraryGenreLabels(tracksWithGenre: Array<{ genre?: string[] }>): LibraryGenreLabel[] {
+  const counts = new Map<string, { label: string; count: number }>();
+  for (const t of tracksWithGenre) {
+    if (!Array.isArray(t.genre)) continue;
+    for (const label of t.genre) {
+      if (typeof label !== "string") continue;
+      const trimmed = label.trim();
+      if (!trimmed) continue;
+      const key = trimmed.toLowerCase();
+      const existing = counts.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        counts.set(key, { label: trimmed, count: 1 });
+      }
+    }
+  }
+
+  const synonymMap = loadSynonyms();
+  const result: LibraryGenreLabel[] = [];
+  for (const { label, count } of counts.values()) {
+    const canonical = synonymMap[label.toLowerCase()];
+    if (canonical && canonical !== label) {
+      result.push({ label, count, canonical });
+    } else {
+      result.push({ label, count });
+    }
+  }
+
+  result.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.label.localeCompare(b.label);
+  });
+  return result;
+}

@@ -91,10 +91,23 @@ export {
   getEnrichmentStatus,
   startEnrichment,
   stopEnrichment,
+  getEnrichmentLog,
+  clearEnrichmentLog,
+  reEnrichTrack,
+  reapplyGenreSynonyms,
+  getLibraryGenreLabels,
   getGenreCacheStats,
   clearGenreCache
 } from "./genre";
-export type { GenreSynonyms, EnrichmentStatus, GenreCacheStats } from "./genre";
+export type {
+  GenreSynonyms,
+  EnrichmentStatus,
+  EnrichmentCurrentTrack,
+  EnrichmentLogEntry,
+  ReEnrichResult,
+  LibraryGenreLabel,
+  GenreCacheStats
+} from "./genre";
 
 export {
   getSystemStats,

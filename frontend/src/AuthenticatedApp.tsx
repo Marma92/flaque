@@ -184,7 +184,7 @@ export function AuthenticatedApp({
   // ── Commands ──────────────────────────────────────────────────────────
   const {
     handleUpload, handleInspectUploadFile, handleRebuildIndex,
-    handleDeleteTrack, handleUpdateTrackMetadata,
+    handleDeleteTrack, handleUpdateTrackMetadata, handleReEnrichTrack,
     handleBulkDeleteTracks, handleBulkUpdateTrackMetadata,
     handleCreatePlaylist, handleAddTrackToPlaylist,
     handlePatchPlaylist, handleDeletePlaylist,
@@ -542,6 +542,7 @@ export function AuthenticatedApp({
         onRefreshTracks: refreshAllTracks,
         onDeleteTrack: handleDeleteTrack,
         onUpdateTrackMetadata: handleUpdateTrackMetadata,
+        onReEnrichTrack: handleReEnrichTrack,
         onBulkDeleteTracks: handleBulkDeleteTracks,
         onBulkUpdateTrackMetadata: handleBulkUpdateTrackMetadata
       }}
