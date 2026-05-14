@@ -1,3 +1,36 @@
+/**
+ * MusicBrainz lookup service with on-disk caching.
+ *
+ * Three lookup entry points, all writing into the same cache file but
+ * under distinct key namespaces:
+ *
+ *   - `lookupGenre(artist, title)` — legacy genres-only lookup. Cached
+ *     under `<artist>|||<title>`. Returns genres for upload-time
+ *     enrichment hooks that don't need MBIDs/year.
+ *   - `lookupRecordingMetadata(artist, title)` — full recording lookup
+ *     (genres + MBIDs + year). Cached under the same key as above but
+ *     entries carry `richVersion`. Phase-1 genre-only hits trigger a
+ *     refetch when a rich caller asks.
+ *   - `lookupReleaseGroup(artist, album)` — album-cohort lookup (one MB
+ *     round-trip per album). Cached under `rg:<artist>|||<album>`.
+ *   - `lookupRecordingMetadataByMbid(mbid)` — direct MBID lookup used by
+ *     the AcoustID fingerprint fallback and the "fast path" when an
+ *     override already has a stored MBID. Cached under `mbid:<mbid>`;
+ *     misses are NOT cached (we only get here for confirmed MBIDs).
+ *
+ * Caching invariants:
+ *   - Hits are kept forever (within `richVersion` compatibility).
+ *   - Misses get a 7-day TTL so we eventually retry.
+ *   - Writes go through a debounced flush (`CACHE_FLUSH_DEBOUNCE_MS`) +
+ *     atomic rename to avoid torn files.
+ *   - In-flight promises are deduped via `inflightGenre` / `inflightRich`.
+ *
+ * Networking:
+ *   - Rate-limited to one request every `RATE_LIMIT_MS` per the MB ToS.
+ *   - 5xx / 429 / network throws get one retry with backoff, honoring
+ *     `Retry-After` on 429.
+ */
+
 import fs from "node:fs";
 import path from "node:path";
 
@@ -15,6 +48,13 @@ const NEGATIVE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MIN_SCORE_THRESHOLD = 80;
 const RECORDING_SEARCH_LIMIT = 10;
 const RICH_SCHEMA_VERSION = 1;
+
+// Retry policy for 5xx / 429 / network throws. One retry only — the
+// MusicBrainz API is fragile under load and aggressive retries just
+// chew through our rate-limit budget.
+const MAX_RETRIES = 1;
+const BACKOFF_BASE_MS = 1000;
+const MAX_RETRY_AFTER_MS = 30_000;
 
 function readVersion(): string {
   try {
@@ -165,6 +205,42 @@ function entryToMetadata(entry: CacheEntry): RecordingMetadata | null {
   };
 }
 
+/**
+ * Write a rich-schema cache entry. Handles both the hit and miss case
+ * (pass `null` for miss). Caller is responsible for cache-key namespacing
+ * (`mbid:` / `rg:` / bare artist|||title).
+ */
+function writeRichCacheEntry(key: string, metadata: RecordingMetadata | null): void {
+  const c = loadCache();
+  c[key] = {
+    cachedAt: Date.now(),
+    status: metadata ? "hit" : "miss",
+    richVersion: RICH_SCHEMA_VERSION,
+    genres: metadata?.genres ?? [],
+    recordingMbid: metadata?.recordingMbid,
+    releaseGroupMbid: metadata?.releaseGroupMbid,
+    artistMbid: metadata?.artistMbid,
+    year: metadata?.year
+  };
+  scheduleCacheSave();
+}
+
+/**
+ * Project a `RecordingMetadata` (the shared cache value shape) down to a
+ * `ReleaseGroupMetadata`. Returns null when the release-group MBID is
+ * absent, since the album-cohort callers can't do anything useful
+ * without it.
+ */
+function toReleaseGroupMetadata(m: RecordingMetadata | null): ReleaseGroupMetadata | null {
+  if (!m || !m.releaseGroupMbid) return null;
+  return {
+    releaseGroupMbid: m.releaseGroupMbid,
+    year: m.year,
+    genres: m.genres,
+    artistMbid: m.artistMbid
+  };
+}
+
 async function waitForRateLimit(): Promise<void> {
   const now = Date.now();
   const elapsed = now - lastRequestTime;
@@ -173,10 +249,6 @@ async function waitForRateLimit(): Promise<void> {
   }
   lastRequestTime = Date.now();
 }
-
-const MAX_RETRIES = 1;
-const BACKOFF_BASE_MS = 1000;
-const MAX_RETRY_AFTER_MS = 30_000;
 
 function parseRetryAfterMs(header: string | null): number | null {
   if (!header) return null;
@@ -613,64 +685,38 @@ export function lookupReleaseGroup(artist: string, album: string): Promise<Relea
   const key = releaseGroupCacheKey(artist, album);
   const existing = c[key];
   if (existing && isCacheEntryFreshForRich(existing)) {
-    if (existing.status === "miss" || !existing.releaseGroupMbid) return Promise.resolve(null);
-    return Promise.resolve({
-      releaseGroupMbid: existing.releaseGroupMbid,
-      year: existing.year,
-      genres: existing.genres,
-      artistMbid: existing.artistMbid
-    });
+    return Promise.resolve(toReleaseGroupMetadata(entryToMetadata(existing)));
   }
 
   const inflightPromise = inflightRich.get(key);
   if (inflightPromise) {
-    return inflightPromise.then((m) => {
-      if (!m || !m.releaseGroupMbid) return null;
-      return {
-        releaseGroupMbid: m.releaseGroupMbid,
-        year: m.year,
-        genres: m.genres,
-        artistMbid: m.artistMbid
-      };
-    });
+    return inflightPromise.then(toReleaseGroupMetadata);
   }
 
   const promise = (async (): Promise<RecordingMetadata | null> => {
     try {
       const result = await lookupReleaseGroupUncached(artist, album);
       if (result.kind === "transient") return null;
-      c[key] = {
-        cachedAt: Date.now(),
-        status: result.metadata ? "hit" : "miss",
-        richVersion: RICH_SCHEMA_VERSION,
-        genres: result.metadata?.genres ?? [],
-        releaseGroupMbid: result.metadata?.releaseGroupMbid,
-        artistMbid: result.metadata?.artistMbid,
-        year: result.metadata?.year
-      };
-      scheduleCacheSave();
-      if (!result.metadata) return null;
-      return {
-        genres: result.metadata.genres,
-        releaseGroupMbid: result.metadata.releaseGroupMbid,
-        artistMbid: result.metadata.artistMbid,
-        year: result.metadata.year
-      };
+      // ReleaseGroupMetadata is a strict subset of RecordingMetadata
+      // (no recordingMbid). Store under the rg: key; readers project
+      // back down via toReleaseGroupMetadata.
+      const asRecording: RecordingMetadata | null = result.metadata
+        ? {
+            genres: result.metadata.genres,
+            releaseGroupMbid: result.metadata.releaseGroupMbid,
+            artistMbid: result.metadata.artistMbid,
+            year: result.metadata.year
+          }
+        : null;
+      writeRichCacheEntry(key, asRecording);
+      return asRecording;
     } finally {
       inflightRich.delete(key);
     }
   })();
 
   inflightRich.set(key, promise);
-  return promise.then((m) => {
-    if (!m || !m.releaseGroupMbid) return null;
-    return {
-      releaseGroupMbid: m.releaseGroupMbid,
-      year: m.year,
-      genres: m.genres,
-      artistMbid: m.artistMbid
-    };
-  });
+  return promise.then(toReleaseGroupMetadata);
 }
 
 async function lookupGenresUncached(artist: string, title: string): Promise<LookupGenreResult> {
@@ -775,17 +821,7 @@ export async function lookupRecordingMetadataByMbid(recordingMbid: string): Prom
       const detail = await fetchRecordingDetail(recordingMbid, true);
       if (detail.kind !== "ok") return null;
       const metadata = recordingMetadataFromDetail(recordingMbid, detail.detail);
-      c[key] = {
-        cachedAt: Date.now(),
-        status: "hit",
-        richVersion: RICH_SCHEMA_VERSION,
-        genres: metadata.genres,
-        recordingMbid: metadata.recordingMbid,
-        releaseGroupMbid: metadata.releaseGroupMbid,
-        artistMbid: metadata.artistMbid,
-        year: metadata.year
-      };
-      scheduleCacheSave();
+      writeRichCacheEntry(key, metadata);
       return metadata;
     } finally {
       inflightRich.delete(key);
@@ -863,17 +899,7 @@ export function lookupRecordingMetadata(artist: string, title: string): Promise<
     try {
       const result = await lookupRecordingMetadataUncached(artist, title);
       if (result.kind === "transient") return null;
-      c[key] = {
-        cachedAt: Date.now(),
-        status: result.metadata ? "hit" : "miss",
-        richVersion: RICH_SCHEMA_VERSION,
-        genres: result.metadata?.genres ?? [],
-        recordingMbid: result.metadata?.recordingMbid,
-        releaseGroupMbid: result.metadata?.releaseGroupMbid,
-        artistMbid: result.metadata?.artistMbid,
-        year: result.metadata?.year
-      };
-      scheduleCacheSave();
+      writeRichCacheEntry(key, result.metadata);
       return result.metadata;
     } finally {
       inflightRich.delete(key);

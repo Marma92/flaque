@@ -1,3 +1,28 @@
+/**
+ * Track-metadata enrichment orchestrator.
+ *
+ * The single per-track entry point is `enrichTrackMetadata`, which tries
+ * three resolution paths in order:
+ *
+ *   1. Stored MBID fast-path — if an existing override already carries a
+ *      `mbidRecording`, fetch detail directly. Survives later tag drift.
+ *   2. Name search — query MusicBrainz by (artist, title).
+ *   3. AcoustID fingerprint — when the file path is known and both
+ *      AcoustID and fpcalc are available, fingerprint the audio and
+ *      look up the resulting recording MBID. Rescues tracks with broken
+ *      or generic tags.
+ *
+ * Writes are gated by per-field `provenance`: a field marked "manual"
+ * (set by the admin via the track edit UI) is never overwritten. Fields
+ * without a manual mark are filled only when currently empty.
+ *
+ * `runBackgroundEnrichment` is the bulk runner. It groups candidates
+ * into album cohorts so a 12-track album costs one MB release-group
+ * lookup (plus one cover fetch) instead of 12 of each. Members the
+ * cohort cannot fully cover (missing genre, etc.) fall through to the
+ * per-track pass.
+ */
+
 import type { IndexStore } from "../indexer/indexStore";
 import {
   mergeTrackMetadataOverrides,
@@ -106,6 +131,28 @@ export type TrackEnrichmentResult = {
   resolvedViaFingerprint: boolean;
 };
 
+function emptyResult(): TrackEnrichmentResult {
+  return {
+    genres: null,
+    year: null,
+    mbidRecording: null,
+    mbidReleaseGroup: null,
+    mbidArtist: null,
+    coverFetched: false,
+    resolvedViaFingerprint: false
+  };
+}
+
+function wroteAnyMetadata(result: TrackEnrichmentResult): boolean {
+  return (
+    result.genres !== null ||
+    result.year !== null ||
+    result.mbidRecording !== null ||
+    result.mbidReleaseGroup !== null ||
+    result.mbidArtist !== null
+  );
+}
+
 function metadataDiffersFromOverride(
   metadata: RecordingMetadata,
   override: TrackMetadataOverride | undefined,
@@ -152,13 +199,7 @@ function buildLogEntry(
   metadataReturned: boolean,
   source: EnrichmentSource
 ): EnrichmentLogEntry {
-  const wroteAnything =
-    result.genres !== null ||
-    result.year !== null ||
-    result.mbidRecording !== null ||
-    result.mbidReleaseGroup !== null ||
-    result.mbidArtist !== null ||
-    result.coverFetched;
+  const wroteAnything = wroteAnyMetadata(result) || result.coverFetched;
 
   const status: EnrichmentLogEntry["status"] = !metadataReturned
     ? "miss"
@@ -190,15 +231,7 @@ function buildLogEntry(
  * art and we have a release-group MBID.
  */
 export async function enrichTrackMetadata(input: TrackEnrichmentInput): Promise<TrackEnrichmentResult> {
-  const result: TrackEnrichmentResult = {
-    genres: null,
-    year: null,
-    mbidRecording: null,
-    mbidReleaseGroup: null,
-    mbidArtist: null,
-    coverFetched: false,
-    resolvedViaFingerprint: false
-  };
+  const result = emptyResult();
 
   // Read overrides up front so we can prefer the stored MBID over a name
   // search and respect per-field provenance when filling.
@@ -332,15 +365,7 @@ export async function reEnrichTrack(track: Track, indexStore?: IndexStore): Prom
   const artist = track.tags.artist;
   const title = track.tags.title;
   if (!artist || !title) {
-    return {
-      genres: null,
-      year: null,
-      mbidRecording: null,
-      mbidReleaseGroup: null,
-      mbidArtist: null,
-      coverFetched: false,
-      resolvedViaFingerprint: false
-    };
+    return emptyResult();
   }
 
   invalidateCacheEntry(artist, title);
@@ -364,14 +389,7 @@ export async function reEnrichTrack(track: Track, indexStore?: IndexStore): Prom
     absolutePath: resolveTrackAbsolutePath(track.path)
   });
 
-  const wroteMetadata =
-    result.genres !== null ||
-    result.year !== null ||
-    result.mbidRecording !== null ||
-    result.mbidReleaseGroup !== null ||
-    result.mbidArtist !== null;
-
-  if (wroteMetadata && indexStore) {
+  if (wroteAnyMetadata(result) && indexStore) {
     await indexStore.rebuild();
   }
 
@@ -412,15 +430,7 @@ export async function applyAlbumMetadataToTrack(
   input: TrackEnrichmentInput,
   rgMeta: ReleaseGroupMetadata
 ): Promise<TrackEnrichmentResult> {
-  const result: TrackEnrichmentResult = {
-    genres: null,
-    year: null,
-    mbidRecording: null,
-    mbidReleaseGroup: null,
-    mbidArtist: null,
-    coverFetched: false,
-    resolvedViaFingerprint: false
-  };
+  const result = emptyResult();
 
   const allOverrides = await readTrackMetadataOverrides();
   const existingOverride = allOverrides[input.id];
@@ -479,6 +489,39 @@ function trackIsFullyCoveredByCohort(input: TrackEnrichmentInput, result: TrackE
   return !stillNeedsGenre && !stillNeedsYear;
 }
 
+type CohortPlan = {
+  cohorts: TrackEnrichmentInput[][];
+  perTrack: TrackEnrichmentInput[];
+};
+
+/**
+ * Group candidates into album cohorts (artist+album, ≥2 members) and a
+ * per-track queue. Singletons go straight to per-track since the cohort
+ * path costs the same MB round-trip with no amortization.
+ */
+function planAlbumCohorts(candidates: TrackEnrichmentInput[]): CohortPlan {
+  const cohortMap = new Map<string, TrackEnrichmentInput[]>();
+  const perTrack: TrackEnrichmentInput[] = [];
+  for (const candidate of candidates) {
+    const albumKey = candidate.album?.trim();
+    if (!albumKey) {
+      perTrack.push(candidate);
+      continue;
+    }
+    const key = `${candidate.artist.trim().toLowerCase()}|||${albumKey.toLowerCase()}`;
+    const existing = cohortMap.get(key);
+    if (existing) existing.push(candidate);
+    else cohortMap.set(key, [candidate]);
+  }
+
+  const cohorts: TrackEnrichmentInput[][] = [];
+  for (const members of cohortMap.values()) {
+    if (members.length >= 2) cohorts.push(members);
+    else perTrack.push(...members);
+  }
+  return { cohorts, perTrack };
+}
+
 export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<void> {
   if (status.running) {
     log.info("Genre enrichment already running, skipping");
@@ -522,34 +565,12 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
     currentTrack: null
   };
 
-  // Group candidates into album cohorts. Tracks without an album, or
-  // albums with a single member, go straight to per-track lookup —
-  // there's no efficiency win for a singleton.
-  const cohortMap = new Map<string, TrackEnrichmentInput[]>();
-  const singletons: TrackEnrichmentInput[] = [];
-  for (const candidate of candidates) {
-    const albumKey = candidate.album?.trim();
-    if (!albumKey) {
-      singletons.push(candidate);
-      continue;
-    }
-    const key = `${candidate.artist.trim().toLowerCase()}|||${albumKey.toLowerCase()}`;
-    const existing = cohortMap.get(key);
-    if (existing) existing.push(candidate);
-    else cohortMap.set(key, [candidate]);
-  }
-
-  const perTrackQueue: TrackEnrichmentInput[] = [...singletons];
-  for (const members of cohortMap.values()) {
-    if (members.length < 2) {
-      perTrackQueue.push(...members);
-    }
-  }
+  const plan = planAlbumCohorts(candidates);
+  const perTrackQueue: TrackEnrichmentInput[] = [...plan.perTrack];
 
   log.info(
     `Starting metadata enrichment for ${candidates.length} tracks ` +
-    `(${[...cohortMap.values()].filter((m) => m.length >= 2).length} album cohort(s), ` +
-    `${perTrackQueue.length} per-track)`
+    `(${plan.cohorts.length} album cohort(s), ${perTrackQueue.length} per-track upfront)`
   );
 
   let anyMetadataWritten = false;
@@ -559,12 +580,7 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
     result: TrackEnrichmentResult
   ): void => {
     status.processed++;
-    const wroteMetadata =
-      result.genres !== null ||
-      result.year !== null ||
-      result.mbidRecording !== null ||
-      result.mbidReleaseGroup !== null ||
-      result.mbidArtist !== null;
+    const wroteMetadata = wroteAnyMetadata(result);
     if (wroteMetadata || result.coverFetched) {
       status.enriched++;
       if (wroteMetadata) anyMetadataWritten = true;
@@ -594,12 +610,13 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
   };
 
   // Album cohort pass: one MB lookup per album, applied to every member.
-  for (const [, members] of cohortMap) {
+  // Members the cohort can't fully cover (e.g. rgMeta had no genre) get
+  // requeued for the per-track pass instead of being counted twice.
+  for (const members of plan.cohorts) {
     if (signal.aborted) {
       log.info("Metadata enrichment aborted");
       break;
     }
-    if (members.length < 2) continue;
 
     const first = members[0]!;
     status.currentTrack = {
@@ -618,7 +635,6 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
     }
 
     if (!rgMeta) {
-      // Cohort lookup missed — fall back to per-track for every member.
       perTrackQueue.push(...members);
       continue;
     }
@@ -632,18 +648,11 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
       };
       try {
         const result = await applyAlbumMetadataToTrack(member, rgMeta);
-        recordTrackResult(member, result);
-        if (!trackIsFullyCoveredByCohort(member, result)) {
-          // Cohort didn't fully cover this track (e.g. missing genre
-          // because rgMeta had none, or cover failed). Queue for the
-          // per-track path to take another swing.
+        if (trackIsFullyCoveredByCohort(member, result)) {
+          recordTrackResult(member, result);
+        } else {
+          // Defer counting to the per-track pass that will run next.
           perTrackQueue.push(member);
-          // Roll back the cohort-pass processed count so the per-track
-          // pass increments it again — avoids double-counting.
-          status.processed--;
-          if (result.genres || result.year || result.coverFetched || result.mbidReleaseGroup || result.mbidArtist) {
-            status.enriched--;
-          }
         }
       } catch (error) {
         recordTrackFailure(member, error);
@@ -651,8 +660,6 @@ export async function runBackgroundEnrichment(indexStore: IndexStore): Promise<v
     }
   }
 
-  // Per-track pass: singletons and tracks the cohort path couldn't fully
-  // cover.
   for (const candidate of perTrackQueue) {
     if (signal.aborted) {
       log.info("Metadata enrichment aborted");
