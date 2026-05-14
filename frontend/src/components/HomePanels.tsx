@@ -33,6 +33,7 @@ export type HomePanelsProps = {
   onDismissResume?: () => void;
   forYouPlaylists?: ForYouPlaylistSummary[];
   onSelectForYouPlaylist?: (playlistId: string) => void;
+  onNavigateToPlaylists?: () => void;
 };
 
 /**
@@ -60,7 +61,8 @@ export function HomePanels({
   onResume,
   onDismissResume,
   forYouPlaylists = [],
-  onSelectForYouPlaylist
+  onSelectForYouPlaylist,
+  onNavigateToPlaylists
 }: HomePanelsProps): JSX.Element | null {
   const hasRecent = recentTracks.length > 0;
   const hasUploaded = recentlyUploadedItems.length > 0 || recentlyUploadedLoading;
@@ -153,20 +155,56 @@ export function HomePanels({
       ) : null}
 
       {!hasRecent && !hasUploaded && !resumeState && !hasForYou ? (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-flaque-clay/60 bg-white/80 p-8 text-center">
+        <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-flaque-clay/60 bg-white/80 p-8 text-center">
           <div className="text-sm text-flaque-steel">
             <p className="font-bold text-flaque-ink">Oh flaque !</p>
-            <p className="mt-1">Nothing to play here at the moment, maybe you should browse your library ?</p>
+            <p className="mt-1">Nothing to play here at the moment. Where would you like to start ?</p>
           </div>
-          {onNavigateToLibrary ? (
-            <button
-              className="rounded-xl border border-flaque-clay/60 bg-flaque-cream/80 px-4 py-2 text-sm font-medium text-flaque-ink transition hover:bg-flaque-cream"
-              type="button"
-              onClick={onNavigateToLibrary}
-            >
-              Browse library
-            </button>
-          ) : null}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {onStartRadioPlayback ? (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-xl border border-flaque-clay/60 bg-flaque-cream/80 px-3 py-2 text-sm font-medium text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                disabled={!canStartRadio}
+                onClick={() => onStartRadioPlayback?.()}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M8 6v12l10-6-10-6z" />
+                </svg>
+                Tune in to FLAQUE FM
+              </button>
+            ) : null}
+            {onNavigateToLibrary ? (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-xl border border-flaque-clay/60 bg-flaque-cream/80 px-3 py-2 text-sm font-medium text-flaque-ink transition hover:bg-flaque-cream"
+                type="button"
+                onClick={onNavigateToLibrary}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+                </svg>
+                Browse library
+              </button>
+            ) : null}
+            {onNavigateToPlaylists ? (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-xl border border-flaque-clay/60 bg-flaque-cream/80 px-3 py-2 text-sm font-medium text-flaque-ink transition hover:bg-flaque-cream"
+                type="button"
+                onClick={onNavigateToPlaylists}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="8" y1="6" x2="21" y2="6" />
+                  <line x1="8" y1="12" x2="21" y2="12" />
+                  <line x1="8" y1="18" x2="21" y2="18" />
+                  <line x1="3" y1="6" x2="3.01" y2="6" />
+                  <line x1="3" y1="12" x2="3.01" y2="12" />
+                  <line x1="3" y1="18" x2="3.01" y2="18" />
+                </svg>
+                View playlists
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </div>
