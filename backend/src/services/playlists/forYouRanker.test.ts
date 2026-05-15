@@ -151,10 +151,11 @@ describe("forYouRanker", () => {
     });
 
     it("uses the documented default weights", () => {
-      expect(DEFAULT_WEIGHTS.genreOverlap).toBe(0.4);
+      // Phase 4 rebalance: embedding cosine is the primary fit signal.
+      expect(DEFAULT_WEIGHTS.embeddingSimilarity).toBe(0.4);
+      expect(DEFAULT_WEIGHTS.genreOverlap).toBe(0.25);
       expect(DEFAULT_WEIGHTS.albumOverlapWithSeed).toBeLessThan(0);
       expect(DEFAULT_WEIGHTS.skipPenalty).toBeLessThan(0);
-      expect(DEFAULT_WEIGHTS.embeddingSimilarity).toBeGreaterThan(0);
     });
   });
 });

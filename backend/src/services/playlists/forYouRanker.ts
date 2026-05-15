@@ -32,14 +32,20 @@ export type RankerWeights = {
   embeddingSimilarity: number;
 };
 
+/**
+ * Phase 4 rebalance (2026-05): with CLAP embeddings landing in v3 sidecars,
+ * shift relevance signal from tag-overlap to learned audio similarity.
+ * Genre and year are now coarse safety rails; embedding cosine is the
+ * primary fit signal. See docs/ai-playlist-spike.md §5.
+ */
 export const DEFAULT_WEIGHTS: RankerWeights = {
-  genreOverlap: 0.40,
-  yearProximity: 0.20,
+  genreOverlap: 0.25,
+  yearProximity: 0.10,
   libraryPopularity: 0.15,
   novelty: 0.15,
   albumOverlapWithSeed: -0.30,
   skipPenalty: -0.20,
-  embeddingSimilarity: 0.10
+  embeddingSimilarity: 0.40
 };
 
 /** Neutral similarity score when an embedding is unavailable. */

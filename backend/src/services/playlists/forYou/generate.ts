@@ -37,9 +37,11 @@ const ALBUM_DEPTH_WINDOW_DAYS = 60;
 const ALBUM_DEPTH_THRESHOLD = 0.7;
 const RECENT_SKIPS_WINDOW_DAYS = 60;
 
-// Candidate-pool fallbacks (broaden the pool beyond strict genre+year match)
-const GENRE_JACCARD_FLOOR = 0.2;
-const YEAR_FALLBACK_WINDOW = 7;
+// Candidate-pool fallbacks (broaden the pool beyond strict genre+year match).
+// Phase 4 (2026-05) loosened both: CLAP cosine in the ranker now decides
+// "actually similar?", so the pre-rank filters can be coarse safety rails.
+const GENRE_JACCARD_FLOOR = 0.1;
+const YEAR_FALLBACK_WINDOW = 12;
 
 // ── Aggregate signals ─────────────────────────────────────────────
 
