@@ -1,4 +1,5 @@
 import { createLogger } from "../../../utils/logger";
+import { extractPrimaryArtist } from "../../../utils/music";
 import { normalizeGenreLabel } from "../../genre/genreSynonymService";
 import { getUserPlayCounts } from "../../activity/playCountStore";
 import { getRecentSkipCounts } from "../../activity/skipStore";
@@ -256,20 +257,34 @@ function selectSeeds(signals: SignalMaps, indexStore: IndexStore): SeedCandidate
 
 type Candidate = {
   track: Track;
+  /** Full lowercased artist tag — used for signals lookup + display. */
   artist: string;
+  /**
+   * Primary artist (lowercased), stripped of `; X` / `feat. Y` / `ft. Z`
+   * suffixes. Used as the per-artist cap key so collab variants share a
+   * cap with their primary — otherwise "Bring Me The Horizon",
+   * "Bring Me The Horizon; AURORA", "Bring Me The Horizon; Underoath"
+   * etc. each get their own MAX_PER_PEER_ARTIST budget and the cap stops
+   * doing anything useful.
+   */
+  capKey: string;
   album: string;
   source: "genre" | "album-artist" | "label" | "year-fallback";
 };
 
 /**
- * Composite "<artist>::<album>" key used everywhere we deduplicate or cap on
- * album. Keying on album name alone collides across artists ("Greatest Hits",
- * self-titled debuts, etc.).
+ * Composite "<primary-artist>::<album>" key used everywhere we deduplicate
+ * or cap on album. The artist prefix avoids collisions across artists
+ * (multiple "Greatest Hits", self-titled debuts, etc.). Using the *primary*
+ * artist also makes collab variants of the same album share a key —
+ * without this, "Bring Me The Horizon::post human nex gen" and
+ * "Bring Me The Horizon; AURORA::post human nex gen" count as separate
+ * albums and the per-album cap lets 4–5 tracks from one album through.
  */
 function albumKey(artist: string | undefined, album: string | undefined): string {
   const b = (album ?? "").toLowerCase().trim();
   if (!b) return "";
-  const a = (artist ?? "").toLowerCase().trim();
+  const a = extractPrimaryArtist((artist ?? "").trim()).toLowerCase();
   return `${a}::${b}`;
 }
 
@@ -364,6 +379,7 @@ function gatherCandidates(
       candidates.set(track.id, {
         track,
         artist: trackArtist,
+        capKey: extractPrimaryArtist(trackArtist),
         album: albumKey(track.tags.artist, track.tags.album),
         source
       });
@@ -471,7 +487,10 @@ function pickWithCaps(
       passedOver.push(c);
       continue;
     }
-    const artistCount = artistCounts.get(c.artist) ?? 0;
+    // Cap on primary artist (capKey) so collab variants of the same artist
+    // share a budget. c.album is already keyed on the primary artist —
+    // see albumKey() above.
+    const artistCount = artistCounts.get(c.capKey) ?? 0;
     const albumCount = c.album ? albumCounts.get(c.album) ?? 0 : 0;
     if (artistCount >= perArtist) {
       passedOver.push(c);
@@ -482,7 +501,7 @@ function pickWithCaps(
       continue;
     }
     picked.push(c);
-    artistCounts.set(c.artist, artistCount + 1);
+    artistCounts.set(c.capKey, artistCount + 1);
     if (c.album) albumCounts.set(c.album, albumCount + 1);
   }
 
@@ -695,6 +714,8 @@ async function buildForYouPlaylist(
       return {
         track: t,
         artist: seedKey,
+        // seedKey is already the canonical primary artist (selectSeeds resolves it).
+        capKey: seedKey,
         album: albumKey(t.tags.artist, t.tags.album),
         source: "genre" as const,
         features,
@@ -731,7 +752,10 @@ async function buildForYouPlaylist(
     rejection: "cap-or-overflow"
   }));
 
-  const distinctPeerArtists = new Set(peerPick.picked.map((c) => c.artist)).size;
+  // Count distinct *primary* peer artists so the naming heuristic
+  // ("Artist & friends") doesn't get fooled by collab tags into thinking
+  // there are more distinct peers than there really are.
+  const distinctPeerArtists = new Set(peerPick.picked.map((c) => c.capKey)).size;
   const peerShare = combined.length > 0 ? peerPick.picked.length / combined.length : 0;
   const decade = dominantDecade(sequenced.map((c) => c.track));
   const name = namePlaylist(seedArtist, distinctPeerArtists, peerShare, decade);

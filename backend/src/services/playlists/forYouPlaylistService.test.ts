@@ -597,6 +597,97 @@ describe("forYouPlaylistService", () => {
     expect(knobs.tracksPerPlaylist).toBe(25);
   });
 
+  it("treats collab variants as the same artist for the per-peer-artist cap", async () => {
+    const { generateForYouPlaylists } = await import("./forYouPlaylistService");
+    const { ensureDir, writeJsonAtomic } = await import("../../utils/fs");
+
+    // Seed: Pink Floyd. Peer pool: one band ("Big Band") with many collab
+    // variants — each currently gets its own MAX_PER_PEER_ARTIST=4 budget
+    // because they have different exact artist strings, so without the
+    // primary-artist cap fix the cap effectively never binds.
+    const tracks: Track[] = [];
+    for (let i = 0; i < 10; i++) {
+      tracks.push(makeTrack({ id: `seed-${i}`, tags: { artist: "Pink Floyd", album: `pf-${i}`, genre: ["Rock"], year: 1973 } }));
+    }
+    // 3 plain Big Band + 6 collab variants (one per featured guest) = 9
+    // candidate tracks that would all bypass the cap with the old keying.
+    tracks.push(makeTrack({ id: `bb-1`, tags: { artist: "Big Band", album: "X", genre: ["Rock"], year: 1973 } }));
+    tracks.push(makeTrack({ id: `bb-2`, tags: { artist: "Big Band", album: "X", genre: ["Rock"], year: 1973 } }));
+    tracks.push(makeTrack({ id: `bb-3`, tags: { artist: "Big Band", album: "X", genre: ["Rock"], year: 1973 } }));
+    for (let i = 0; i < 6; i++) {
+      tracks.push(makeTrack({
+        id: `bb-feat-${i}`,
+        tags: { artist: `Big Band; Guest ${i}`, album: `Y-${i}`, genre: ["Rock"], year: 1973 }
+      }));
+    }
+    // Extra distinct peers so MIN_DISTINCT_ARTISTS=3 is met.
+    for (let i = 0; i < 4; i++) {
+      tracks.push(makeTrack({ id: `other-${i}`, tags: { artist: `Other ${i}`, album: `o-${i}`, genre: ["Rock"], year: 1973 } }));
+    }
+
+    const indexStore = makeMockIndexStore(tracks);
+    const dir = path.join(tmpDir, "data", "storage", "users", "user-1");
+    await ensureDir(dir);
+    const playCounts: Record<string, { count: number; lastPlayedAt: string }> = {};
+    for (let i = 0; i < 10; i++) playCounts[`seed-${i}`] = { count: 5, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    playCounts["other-0"] = { count: 1, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    playCounts["other-1"] = { count: 1, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    playCounts["other-2"] = { count: 1, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    await writeJsonAtomic(path.join(dir, "play-counts.json"), { tracks: playCounts });
+
+    const result = await generateForYouPlaylists("user-1", indexStore);
+    const pinkFloyd = result.find((p) => p.seedArtist === "Pink Floyd");
+    expect(pinkFloyd).toBeDefined();
+
+    // All Big-Band-anything tracks (plain + collabs) must collectively
+    // stay within MAX_PER_PEER_ARTIST = 4 in a non-Big-Band-seeded playlist.
+    const bigBandLike = pinkFloyd!.trackIds.filter((id) => id.startsWith("bb-")).length;
+    expect(bigBandLike).toBeLessThanOrEqual(4);
+  });
+
+  it("counts collab variants of the same album under one per-album cap", async () => {
+    const { generateForYouPlaylists } = await import("./forYouPlaylistService");
+    const { ensureDir, writeJsonAtomic } = await import("../../utils/fs");
+
+    // Seed: Pink Floyd. Peer: one album by "Big Band" with 5 tracks, but
+    // tagged with 5 different collab variants. Each variant currently has
+    // its own albumKey under the old logic, defeating MAX_PER_ALBUM=2.
+    const tracks: Track[] = [];
+    for (let i = 0; i < 10; i++) {
+      tracks.push(makeTrack({ id: `seed-${i}`, tags: { artist: "Pink Floyd", album: `pf-${i}`, genre: ["Rock"], year: 1973 } }));
+    }
+    // 5 tracks all from the same album, but each tagged with a different
+    // collab string. Under the old keying these get 5 different album
+    // cap slots; under the fix they share one slot capped at 2.
+    tracks.push(makeTrack({ id: `bb-1`, tags: { artist: "Big Band", album: "Greatest Hits", genre: ["Rock"], year: 1973 } }));
+    tracks.push(makeTrack({ id: `bb-2`, tags: { artist: "Big Band", album: "Greatest Hits", genre: ["Rock"], year: 1973 } }));
+    tracks.push(makeTrack({ id: `bb-3`, tags: { artist: "Big Band; Guest A", album: "Greatest Hits", genre: ["Rock"], year: 1973 } }));
+    tracks.push(makeTrack({ id: `bb-4`, tags: { artist: "Big Band feat. Guest B", album: "Greatest Hits", genre: ["Rock"], year: 1973 } }));
+    tracks.push(makeTrack({ id: `bb-5`, tags: { artist: "Big Band; Guest C", album: "Greatest Hits", genre: ["Rock"], year: 1973 } }));
+    // Extra distinct peers so MIN_DISTINCT_ARTISTS=3 is met.
+    for (let i = 0; i < 4; i++) {
+      tracks.push(makeTrack({ id: `other-${i}`, tags: { artist: `Other ${i}`, album: `o-${i}`, genre: ["Rock"], year: 1973 } }));
+    }
+
+    const indexStore = makeMockIndexStore(tracks);
+    const dir = path.join(tmpDir, "data", "storage", "users", "user-1");
+    await ensureDir(dir);
+    const playCounts: Record<string, { count: number; lastPlayedAt: string }> = {};
+    for (let i = 0; i < 10; i++) playCounts[`seed-${i}`] = { count: 5, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    playCounts["other-0"] = { count: 1, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    playCounts["other-1"] = { count: 1, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    playCounts["other-2"] = { count: 1, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    await writeJsonAtomic(path.join(dir, "play-counts.json"), { tracks: playCounts });
+
+    const result = await generateForYouPlaylists("user-1", indexStore);
+    const pinkFloyd = result.find((p) => p.seedArtist === "Pink Floyd");
+    expect(pinkFloyd).toBeDefined();
+
+    // Across all collab tags of the same album, MAX_PER_ALBUM = 2 must hold.
+    const sameAlbumPicks = pinkFloyd!.trackIds.filter((id) => id.startsWith("bb-")).length;
+    expect(sameAlbumPicks).toBeLessThanOrEqual(2);
+  });
+
   it("does not place the same track in every for-you playlist (cross-playlist reuse penalty)", async () => {
     const { regenerateForYouPlaylists, loadForYouPlaylists } = await import("./forYouPlaylistService");
     const { ensureDir, writeJsonAtomic } = await import("../../utils/fs");
