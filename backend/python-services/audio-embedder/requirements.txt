@@ -1,0 +1,18 @@
+# Phase 2 — pinned for CLAP (laion/clap-htsat-fused).
+#
+# CPU-only torch build. If you need GPU, install with:
+#   pip install torch==2.5.1
+# instead (which auto-detects CUDA). The sidecar runs fine on CPU at the
+# library sizes flaque is built for.
+#
+# Versions chosen for compatibility with transformers' ClapModel as of
+# 2026-05. Bump together; the trio (torch, transformers, librosa) is the
+# only thing here that can drift.
+
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+torch==2.5.1+cpu
+transformers==4.46.3
+librosa==0.10.2.post1
+soundfile==0.12.1
+numpy==1.26.4

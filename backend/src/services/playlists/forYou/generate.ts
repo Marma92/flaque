@@ -1,8 +1,9 @@
 import { createLogger } from "../../../utils/logger";
+import { extractPrimaryArtist } from "../../../utils/music";
 import { normalizeGenreLabel } from "../../genre/genreSynonymService";
 import { getUserPlayCounts } from "../../activity/playCountStore";
 import { getRecentSkipCounts } from "../../activity/skipStore";
-import { loadEmbedding } from "../../embeddings/audioEmbeddingService";
+import { getActiveEmbeddingProfile, loadEmbedding } from "../../embeddings/audioEmbeddingService";
 import { cosineSimilarity, meanVector } from "../../embeddings/audioFeatures";
 import type { IndexStore } from "../../indexer/indexStore";
 import type { Track } from "../../../types/library";
@@ -14,9 +15,12 @@ import {
   noveltyScore,
   scoreFeatures,
   yearProximity,
+  CLAP_WEIGHTS,
+  MFCC_WEIGHTS,
   NEUTRAL_EMBEDDING_SIMILARITY,
   SKIP_HARD_FILTER_THRESHOLD,
-  type CandidateFeatures
+  type CandidateFeatures,
+  type RankerWeights
 } from "../forYouRanker";
 import { getUserDismissals } from "./dismissals";
 import { slugify } from "./paths";
@@ -29,17 +33,64 @@ const MIN_DISTINCT_ARTISTS = 3;
 const MAX_SEEDS = 6;
 const TRACKS_PER_PLAYLIST = 25;
 const MAX_PER_PEER_ARTIST = 4;
+/** Per-album cap for peer picks — keeps a single album from dominating a playlist. */
 const MAX_PER_ALBUM = 2;
+/**
+ * Per-album cap for *seed* picks. Looser than the peer cap because a user
+ * who clicks "20s with Architects" is asking for Architects: if their
+ * library only has one Architects album, capping at 2 leaves 3-track
+ * playlists that don't deliver on the seed name. 4 strikes a balance —
+ * still spreads picks when the user has multiple albums per seed artist.
+ */
+const MAX_PER_ALBUM_SEED = 4;
 const TOP_REJECTIONS_RECORDED = 5;
+
+/**
+ * Score penalty applied to candidates that were already picked for a
+ * previous playlist in the *same regeneration*. Stops a handful of
+ * universal-cosine tracks (e.g. one Pink Floyd track that CLAP rates
+ * compatibly with every metalcore seed) from showing up in all five
+ * for-you playlists. Tuned to be slightly larger than the typical gap
+ * between consecutive picks (~0.05) so a reused track loses a slot to
+ * the next-best unused candidate, but stays large enough below feature
+ * weights that a truly-better candidate can still win on merit.
+ */
+const CROSS_PLAYLIST_REUSE_PENALTY = 0.12;
 
 const RECENT_PLAYS_WINDOW_DAYS = 30;
 const ALBUM_DEPTH_WINDOW_DAYS = 60;
 const ALBUM_DEPTH_THRESHOLD = 0.7;
 const RECENT_SKIPS_WINDOW_DAYS = 60;
 
-// Candidate-pool fallbacks (broaden the pool beyond strict genre+year match)
-const GENRE_JACCARD_FLOOR = 0.2;
-const YEAR_FALLBACK_WINDOW = 7;
+/**
+ * Pre-rank candidate-pool filters. Two profiles, picked by the active
+ * embedding model. CLAP cosine in the ranker judges "actually similar?"
+ * reliably, so the pre-rank filters can be loose. MFCC can't, so we keep
+ * them strict to compensate for the weaker ranking signal.
+ */
+type CandidateFilterProfile = { genreJaccardFloor: number; yearFallbackWindow: number };
+const CLAP_CANDIDATE_FILTERS: CandidateFilterProfile = {
+  genreJaccardFloor: 0.1,
+  yearFallbackWindow: 12
+};
+const MFCC_CANDIDATE_FILTERS: CandidateFilterProfile = {
+  genreJaccardFloor: 0.2,
+  yearFallbackWindow: 7
+};
+
+/**
+ * Resolve the matching ranker weights + pre-rank filters for an embedding
+ * profile. Keeps the "if model === 'clap' else …" dispatch in one place
+ * so adding a third model means one switch instead of two.
+ */
+function rankerProfileFor(model: "clap" | "mfcc"): {
+  weights: RankerWeights;
+  filters: CandidateFilterProfile;
+} {
+  return model === "clap"
+    ? { weights: CLAP_WEIGHTS, filters: CLAP_CANDIDATE_FILTERS }
+    : { weights: MFCC_WEIGHTS, filters: MFCC_CANDIDATE_FILTERS };
+}
 
 // ── Aggregate signals ─────────────────────────────────────────────
 
@@ -206,20 +257,34 @@ function selectSeeds(signals: SignalMaps, indexStore: IndexStore): SeedCandidate
 
 type Candidate = {
   track: Track;
+  /** Full lowercased artist tag — used for signals lookup + display. */
   artist: string;
+  /**
+   * Primary artist (lowercased), stripped of `; X` / `feat. Y` / `ft. Z`
+   * suffixes. Used as the per-artist cap key so collab variants share a
+   * cap with their primary — otherwise "Bring Me The Horizon",
+   * "Bring Me The Horizon; AURORA", "Bring Me The Horizon; Underoath"
+   * etc. each get their own MAX_PER_PEER_ARTIST budget and the cap stops
+   * doing anything useful.
+   */
+  capKey: string;
   album: string;
   source: "genre" | "album-artist" | "label" | "year-fallback";
 };
 
 /**
- * Composite "<artist>::<album>" key used everywhere we deduplicate or cap on
- * album. Keying on album name alone collides across artists ("Greatest Hits",
- * self-titled debuts, etc.).
+ * Composite "<primary-artist>::<album>" key used everywhere we deduplicate
+ * or cap on album. The artist prefix avoids collisions across artists
+ * (multiple "Greatest Hits", self-titled debuts, etc.). Using the *primary*
+ * artist also makes collab variants of the same album share a key —
+ * without this, "Bring Me The Horizon::post human nex gen" and
+ * "Bring Me The Horizon; AURORA::post human nex gen" count as separate
+ * albums and the per-album cap lets 4–5 tracks from one album through.
  */
 function albumKey(artist: string | undefined, album: string | undefined): string {
   const b = (album ?? "").toLowerCase().trim();
   if (!b) return "";
-  const a = (artist ?? "").toLowerCase().trim();
+  const a = extractPrimaryArtist((artist ?? "").trim()).toLowerCase();
   return `${a}::${b}`;
 }
 
@@ -258,7 +323,8 @@ function gatherCandidates(
   profile: { genres: string[]; minYear: number; maxYear: number },
   seedTracks: Track[],
   allTracks: Track[],
-  trackRecentSkips: ReadonlyMap<string, number>
+  trackRecentSkips: ReadonlyMap<string, number>,
+  filters: CandidateFilterProfile
 ): Candidate[] {
   const seedArtistLower = seedArtist.toLowerCase();
   const seedGenres = new Set(profile.genres);
@@ -266,8 +332,8 @@ function gatherCandidates(
   const seedAlbumArtists = buildSeedAlbumArtists(seedTracks);
   seedAlbumArtists.add(seedArtistLower);
   const midYear = (profile.minYear + profile.maxYear) / 2;
-  const yearLow = midYear - YEAR_FALLBACK_WINDOW;
-  const yearHigh = midYear + YEAR_FALLBACK_WINDOW;
+  const yearLow = midYear - filters.yearFallbackWindow;
+  const yearHigh = midYear + filters.yearFallbackWindow;
 
   const candidates = new Map<string, Candidate>();
 
@@ -280,7 +346,7 @@ function gatherCandidates(
     let source: Candidate["source"] | null = null;
 
     const trackGenres = track.tags.genre ?? [];
-    if (trackGenres.length > 0 && genreJaccard(trackGenres, seedGenres) >= GENRE_JACCARD_FLOOR) {
+    if (trackGenres.length > 0 && genreJaccard(trackGenres, seedGenres) >= filters.genreJaccardFloor) {
       source = "genre";
     }
 
@@ -313,6 +379,7 @@ function gatherCandidates(
       candidates.set(track.id, {
         track,
         artist: trackArtist,
+        capKey: extractPrimaryArtist(trackArtist),
         album: albumKey(track.tags.artist, track.tags.album),
         source
       });
@@ -361,14 +428,17 @@ function rankCandidates(
   midYear: number,
   seedAlbumKeys: ReadonlySet<string>,
   signals: SignalMaps,
-  similarityByTrackId: ReadonlyMap<string, number>
+  similarityByTrackId: ReadonlyMap<string, number>,
+  weights: RankerWeights,
+  alreadyUsedTrackIds: ReadonlySet<string>
 ): RankedCandidate[] {
   return candidates
     .map((c) => {
       const features = computeFeatures(c, seedGenres, midYear, seedAlbumKeys, signals, similarityByTrackId);
-      const rawScore = scoreFeatures(features);
+      const rawScore = scoreFeatures(features, weights);
+      const reusePenalty = alreadyUsedTrackIds.has(c.track.id) ? CROSS_PLAYLIST_REUSE_PENALTY : 0;
       const jitter = fnvJitter(`${userId}|${seedKey}|${c.track.id}`);
-      return { ...c, features, rawScore, score: rawScore + jitter };
+      return { ...c, features, rawScore, score: rawScore - reusePenalty + jitter };
     })
     .sort((a, b) => b.score - a.score);
 }
@@ -417,7 +487,10 @@ function pickWithCaps(
       passedOver.push(c);
       continue;
     }
-    const artistCount = artistCounts.get(c.artist) ?? 0;
+    // Cap on primary artist (capKey) so collab variants of the same artist
+    // share a budget. c.album is already keyed on the primary artist —
+    // see albumKey() above.
+    const artistCount = artistCounts.get(c.capKey) ?? 0;
     const albumCount = c.album ? albumCounts.get(c.album) ?? 0 : 0;
     if (artistCount >= perArtist) {
       passedOver.push(c);
@@ -428,7 +501,7 @@ function pickWithCaps(
       continue;
     }
     picked.push(c);
-    artistCounts.set(c.artist, artistCount + 1);
+    artistCounts.set(c.capKey, artistCount + 1);
     if (c.album) albumCounts.set(c.album, albumCount + 1);
   }
 
@@ -552,7 +625,10 @@ async function buildForYouPlaylist(
   indexStore: IndexStore,
   allTracks: Track[],
   signals: SignalMaps,
-  userId: string
+  userId: string,
+  weights: RankerWeights,
+  filters: CandidateFilterProfile,
+  alreadyUsedTrackIds: ReadonlySet<string>
 ): Promise<BuildResult> {
   const profile = getArtistProfile(seedArtist, indexStore);
   const baseTrace: BuildTrace = {
@@ -575,7 +651,7 @@ async function buildForYouPlaylist(
   const seedGenres = new Set(profile.genres);
   const midYear = (profile.minYear + profile.maxYear) / 2;
 
-  const candidates = gatherCandidates(seedArtist, profile, seedTracks, allTracks, signals.trackRecentSkips);
+  const candidates = gatherCandidates(seedArtist, profile, seedTracks, allTracks, signals.trackRecentSkips, filters);
   baseTrace.candidatePoolSize = candidates.length;
   baseTrace.peerTrackCount = candidates.length;
 
@@ -607,7 +683,9 @@ async function buildForYouPlaylist(
     midYear,
     seedAlbumKeys,
     signals,
-    similarityByTrackId
+    similarityByTrackId,
+    weights,
+    alreadyUsedTrackIds
   );
 
   const lifetimePlays = signals.artistLifetimePlays.get(seedKey) ?? 0;
@@ -632,10 +710,12 @@ async function buildForYouPlaylist(
         recentSkipCount: signals.trackRecentSkips.get(t.id) ?? 0,
         embeddingSimilarity: 1
       };
-      const rawScore = scoreFeatures(features);
+      const rawScore = scoreFeatures(features, weights);
       return {
         track: t,
         artist: seedKey,
+        // seedKey is already the canonical primary artist (selectSeeds resolves it).
+        capKey: seedKey,
         album: albumKey(t.tags.artist, t.tags.album),
         source: "genre" as const,
         features,
@@ -645,7 +725,7 @@ async function buildForYouPlaylist(
     })
     .sort((a, b) => b.score - a.score);
 
-  const seedPick = pickWithCaps(seedRanked, seedQuota, seedQuota, MAX_PER_ALBUM);
+  const seedPick = pickWithCaps(seedRanked, seedQuota, seedQuota, MAX_PER_ALBUM_SEED);
   const peerPick = pickWithCaps(ranked, peerQuota, MAX_PER_PEER_ARTIST, MAX_PER_ALBUM);
 
   const combined = [...seedPick.picked, ...peerPick.picked];
@@ -672,7 +752,10 @@ async function buildForYouPlaylist(
     rejection: "cap-or-overflow"
   }));
 
-  const distinctPeerArtists = new Set(peerPick.picked.map((c) => c.artist)).size;
+  // Count distinct *primary* peer artists so the naming heuristic
+  // ("Artist & friends") doesn't get fooled by collab tags into thinking
+  // there are more distinct peers than there really are.
+  const distinctPeerArtists = new Set(peerPick.picked.map((c) => c.capKey)).size;
   const peerShare = combined.length > 0 ? peerPick.picked.length / combined.length : 0;
   const decade = dominantDecade(sequenced.map((c) => c.track));
   const name = namePlaylist(seedArtist, distinctPeerArtists, peerShare, decade);
@@ -712,6 +795,23 @@ export async function generateForYouPlaylistsWithTrace(
 ): Promise<GenerationResult> {
   const builder = new ForYouTraceBuilder(userId);
 
+  const embeddingProfile = await getActiveEmbeddingProfile();
+  const { weights, filters } = rankerProfileFor(embeddingProfile.model);
+
+  builder.setRanker({
+    weights,
+    embeddingDim: embeddingProfile.dim,
+    embeddingVersion: embeddingProfile.version,
+    candidateFilters: { ...filters },
+    diversityKnobs: {
+      crossPlaylistReusePenalty: CROSS_PLAYLIST_REUSE_PENALTY,
+      maxPerAlbumSeed: MAX_PER_ALBUM_SEED,
+      maxPerAlbumPeer: MAX_PER_ALBUM,
+      maxPerPeerArtist: MAX_PER_PEER_ARTIST,
+      tracksPerPlaylist: TRACKS_PER_PLAYLIST
+    }
+  });
+
   const playCounts = await getUserPlayCounts(userId);
   const recentSkips = await getRecentSkipCounts(userId, RECENT_SKIPS_WINDOW_DAYS);
   const entries = Object.entries(playCounts);
@@ -745,6 +845,12 @@ export async function generateForYouPlaylistsWithTrace(
   const dismissals = await getUserDismissals(userId);
   const allTracks = indexStore.getSnapshot().tracks;
   const playlists: ForYouPlaylist[] = [];
+  /**
+   * Track IDs already placed in an earlier playlist this run. Passed into
+   * each subsequent buildForYouPlaylist call so the ranker can penalise
+   * reuse — see CROSS_PLAYLIST_REUSE_PENALTY.
+   */
+  const alreadyUsedTrackIds = new Set<string>();
   let attemptedSeeds = 0;
 
   for (const candidate of seedCandidates) {
@@ -756,10 +862,21 @@ export async function generateForYouPlaylistsWithTrace(
     }
     attemptedSeeds++;
 
-    const result = await buildForYouPlaylist(candidate.artist, candidate.score, indexStore, allTracks, signals, userId);
+    const result = await buildForYouPlaylist(
+      candidate.artist,
+      candidate.score,
+      indexStore,
+      allTracks,
+      signals,
+      userId,
+      weights,
+      filters,
+      alreadyUsedTrackIds
+    );
 
     if (result.playlist) {
       playlists.push(result.playlist);
+      for (const tid of result.playlist.trackIds) alreadyUsedTrackIds.add(tid);
       builder.recordSeedChosen(candidate.artist);
       builder.recordPlaylist({
         seed: candidate.artist,

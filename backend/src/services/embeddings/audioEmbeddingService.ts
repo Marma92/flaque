@@ -1,7 +1,14 @@
 /**
- * Audio embedding service. Decodes a track via ffmpeg → 16 kHz mono PCM,
- * runs the DSP pipeline in audioFeatures.ts, and persists the resulting
- * 32-dim vector as a sidecar JSON next to the track's id.
+ * Audio embedding service — orchestration layer.
+ *
+ * Two backends, chosen at runtime by the library setting `aiRecommendation`:
+ *   - true  → CLAP via the Python sidecar (512-dim, v3 sidecars).
+ *   - false → legacy in-process MFCC pipeline (32-dim, v2 sidecars).
+ *
+ * This file owns the on-disk format, the version gate, and the backfill
+ * loop. The version stored in each sidecar tells us which model produced
+ * it; if the user toggles modes, sidecars from the previous mode are
+ * treated as missing and the backfill recomputes them with the new model.
  *
  * Storage:  data/embeddings/<trackId>.json
  * Shape:    { trackId, version, computedAt, vec: number[] }
@@ -11,7 +18,6 @@
  * (skipped) feature.
  */
 
-import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -19,136 +25,150 @@ import { resolveTrackAbsolutePath } from "../storage/storageService";
 import { dataRoot } from "../../utils/paths";
 import { ensureDir, readJsonFile, writeJsonAtomic } from "../../utils/fs";
 import { createLogger } from "../../utils/logger";
+import { getLibrarySettings } from "../librarySettings/librarySettings";
+import { CLAP_EMBEDDING_DIM, CLAP_EMBEDDING_VERSION } from "./audioFeatures";
 import {
-  EMBEDDING_DIM,
-  EMBEDDING_VERSION,
-  SAMPLE_RATE,
-  computeFeatureVector
-} from "./audioFeatures";
+  MFCC_EMBEDDING_DIM,
+  MFCC_EMBEDDING_VERSION,
+  computeMfccVector,
+  decodeToPcm
+} from "./mfccEmbedder";
+import { requestEmbedding } from "./embedderClient";
 
 const log = createLogger("audio-embeddings");
 
+/** Directory holding per-track embedding sidecars (`<trackId>.json`). */
 export const EMBEDDINGS_DIR = path.join(dataRoot, "embeddings");
 
+/** On-disk shape for an embedding sidecar at `EMBEDDINGS_DIR/<trackId>.json`. */
 export type AudioEmbedding = {
   trackId: string;
+  /** Tag identifying which model produced the vector. See loadEmbedding. */
   version: number;
   computedAt: string;
   vec: number[];
+};
+
+/**
+ * Snapshot of which embedding backend is currently active. Returned by
+ * `getActiveEmbeddingProfile` and used by the ranker / trace builder to
+ * record what produced the vectors it's about to consume.
+ */
+export type EmbeddingProfile = {
+  /** Display label for logs + traces. */
+  model: "clap" | "mfcc";
+  /** Output dimension expected from this model's sidecars. */
+  dim: number;
+  /** On-disk version tag stamped into sidecars by this model. */
+  version: number;
 };
 
 function embeddingPath(trackId: string): string {
   return path.join(EMBEDDINGS_DIR, `${trackId}.json`);
 }
 
+// ── Active profile ────────────────────────────────────────────────
+
+/**
+ * Resolve which embedding model is currently active. Read from the library
+ * settings once per call site — settings change rarely, and the call sites
+ * (backfill, regen, upload) are not in tight loops.
+ */
+export async function getActiveEmbeddingProfile(): Promise<EmbeddingProfile> {
+  const settings = await getLibrarySettings();
+  return settings.aiRecommendation
+    ? { model: "clap", dim: CLAP_EMBEDDING_DIM, version: CLAP_EMBEDDING_VERSION }
+    : { model: "mfcc", dim: MFCC_EMBEDDING_DIM, version: MFCC_EMBEDDING_VERSION };
+}
+
 // ── Storage ───────────────────────────────────────────────────────
 
+/**
+ * Load an embedding only if it matches the currently active model. Sidecars
+ * left over from the other model are treated as missing — the backfill
+ * loop will recompute them.
+ */
 export async function loadEmbedding(trackId: string): Promise<AudioEmbedding | null> {
+  const profile = await getActiveEmbeddingProfile();
   const data = await readJsonFile<AudioEmbedding>(
     embeddingPath(trackId),
     null as unknown as AudioEmbedding
   );
-  if (!data || !Array.isArray(data.vec) || data.vec.length !== EMBEDDING_DIM) return null;
-  if (data.version !== EMBEDDING_VERSION) return null;
+  if (!data || !Array.isArray(data.vec) || data.vec.length !== profile.dim) return null;
+  if (data.version !== profile.version) return null;
   return data;
 }
 
+/**
+ * Write an embedding to disk atomically. Creates `EMBEDDINGS_DIR` on first
+ * write. Callers are expected to set `version` to the active backend's
+ * version constant — `saveEmbedding` does not enforce that, but
+ * `loadEmbedding` will refuse to return the sidecar later if it doesn't
+ * match the currently active model.
+ */
 export async function saveEmbedding(embedding: AudioEmbedding): Promise<void> {
   await ensureDir(EMBEDDINGS_DIR);
   await writeJsonAtomic(embeddingPath(embedding.trackId), embedding);
 }
 
-// ── Decode ────────────────────────────────────────────────────────
+// ── Compute (dispatched) ──────────────────────────────────────────
+
+async function computeViaClap(
+  trackId: string,
+  absolutePath: string
+): Promise<AudioEmbedding | null> {
+  const response = await requestEmbedding(absolutePath);
+  if (!response) return null; // client already logged the reason
+  if (response.vec.length !== CLAP_EMBEDDING_DIM) {
+    log.warn("CLAP sidecar returned unexpected dimension", {
+      trackId,
+      got: response.vec.length,
+      want: CLAP_EMBEDDING_DIM
+    });
+    return null;
+  }
+  return {
+    trackId,
+    version: CLAP_EMBEDDING_VERSION,
+    computedAt: new Date().toISOString(),
+    vec: response.vec
+  };
+}
+
+async function computeViaMfcc(
+  trackId: string,
+  absolutePath: string
+): Promise<AudioEmbedding | null> {
+  try {
+    const samples = await decodeToPcm(absolutePath);
+    const vec = computeMfccVector(samples);
+    if (!vec) {
+      log.debug("Track too short for MFCC embedding", { trackId });
+      return null;
+    }
+    return {
+      trackId,
+      version: MFCC_EMBEDDING_VERSION,
+      computedAt: new Date().toISOString(),
+      vec: Array.from(vec)
+    };
+  } catch (error) {
+    log.warn("MFCC embedding failed", { trackId, error: String(error) });
+    return null;
+  }
+}
 
 /**
- * Decode an audio file to mono 16 kHz Float32 PCM via ffmpeg. Returns the
- * raw samples as a Float32Array.
+ * Compute and persist an embedding for a track using whichever backend is
+ * currently active (CLAP sidecar or in-process MFCC). Returns the saved
+ * embedding, or `null` on any failure — best-effort by design so an
+ * upload or a backfill run never blocks on a single bad track.
  *
- * Implementation note: ffmpeg's `f32le` output writes little-endian floats
- * to stdout. We accumulate buffers and reinterpret the final byte sequence
- * as a Float32Array, which on little-endian hosts is a zero-copy view.
+ * Failure modes (all swallowed and logged):
+ *   - `resolveTrackAbsolutePath` rejects the relative path.
+ *   - CLAP mode: sidecar unreachable, times out, malformed body.
+ *   - MFCC mode: ffmpeg missing/failed, signal too short for one frame.
  */
-function decodeToPcm(absolutePath: string): Promise<Float32Array> {
-  return new Promise((resolve, reject) => {
-    const ffmpeg = spawn(
-      "ffmpeg",
-      [
-        "-v", "error",
-        "-i", absolutePath,
-        "-vn",
-        "-ac", "1",
-        "-ar", String(SAMPLE_RATE),
-        "-f", "f32le",
-        "-"
-      ],
-      { stdio: ["ignore", "pipe", "pipe"] }
-    );
-
-    const chunks: Buffer[] = [];
-    let totalBytes = 0;
-    let stderr = "";
-
-    ffmpeg.stdout.on("data", (chunk: Buffer) => {
-      chunks.push(chunk);
-      totalBytes += chunk.length;
-    });
-
-    ffmpeg.stderr.on("data", (chunk) => {
-      stderr += chunk.toString("utf8");
-      if (stderr.length > 4096) stderr = stderr.slice(-4096);
-    });
-
-    ffmpeg.on("error", (err) => {
-      reject(new Error(`ffmpeg failed to start: ${err.message}`));
-    });
-
-    ffmpeg.on("close", (code) => {
-      if (code !== 0) {
-        reject(new Error(`ffmpeg exited with code ${code}: ${stderr.trim()}`));
-        return;
-      }
-      // Buffer.concat's underlying ArrayBuffer offset isn't guaranteed to be
-      // 4-byte aligned, which is required to construct a Float32Array view.
-      // Copy bytes into a fresh, naturally aligned ArrayBuffer instead.
-      const usable = totalBytes - (totalBytes % 4);
-      const aligned = new ArrayBuffer(usable);
-      const dst = new Uint8Array(aligned);
-      let offset = 0;
-      for (const chunk of chunks) {
-        const remaining = usable - offset;
-        if (remaining <= 0) break;
-        const len = Math.min(chunk.length, remaining);
-        dst.set(chunk.subarray(0, len), offset);
-        offset += len;
-      }
-      resolve(new Float32Array(aligned));
-    });
-  });
-}
-
-// ── Concurrency control ───────────────────────────────────────────
-
-const MAX_CONCURRENT = 2;
-let active = 0;
-const queue: Array<() => void> = [];
-
-async function withSlot<T>(fn: () => Promise<T>): Promise<T> {
-  if (active >= MAX_CONCURRENT) {
-    await new Promise<void>((r) => queue.push(r));
-  }
-  active++;
-  try {
-    return await fn();
-  } finally {
-    active--;
-    const next = queue.shift();
-    if (next) next();
-  }
-}
-
-// ── Public API ────────────────────────────────────────────────────
-
-/** Compute and persist an embedding for a track. Returns null on any failure. */
 export async function computeAndSaveEmbedding(
   trackId: string,
   trackRelativePath: string
@@ -161,38 +181,29 @@ export async function computeAndSaveEmbedding(
     return null;
   }
 
-  return withSlot(async () => {
-    try {
-      const samples = await decodeToPcm(absolutePath);
-      const vec = computeFeatureVector(samples);
-      if (!vec) {
-        log.debug("Track too short for embedding", { trackId });
-        return null;
-      }
-      const embedding: AudioEmbedding = {
-        trackId,
-        version: EMBEDDING_VERSION,
-        computedAt: new Date().toISOString(),
-        vec: Array.from(vec)
-      };
-      await saveEmbedding(embedding);
-      return embedding;
-    } catch (error) {
-      log.warn("Embedding computation failed", { trackId, error: String(error) });
-      return null;
-    }
-  });
+  const profile = await getActiveEmbeddingProfile();
+  const embedding =
+    profile.model === "clap"
+      ? await computeViaClap(trackId, absolutePath)
+      : await computeViaMfcc(trackId, absolutePath);
+
+  if (!embedding) return null;
+  await saveEmbedding(embedding);
+  return embedding;
 }
 
+/** Convenience predicate: does a current-version sidecar exist for this track? */
 export async function hasEmbedding(trackId: string): Promise<boolean> {
   const existing = await loadEmbedding(trackId);
   return existing !== null;
 }
 
+// ── Backfill ──────────────────────────────────────────────────────
+
 /**
  * Background backfill: compute embeddings for any track that doesn't have
- * one yet. Trickles through serially (modulo the concurrency slot) so it
- * doesn't dominate ffmpeg capacity that transcoding might want.
+ * one at the current version yet. Sequential — whichever backend is active
+ * (sidecar or local DSP) handles its own internal concurrency.
  */
 export async function backfillMissingEmbeddings(
   tracks: Array<{ id: string; path: string }>,
@@ -203,9 +214,8 @@ export async function backfillMissingEmbeddings(
   let skipped = 0;
   let failed = 0;
 
-  // Build a Set of trackIds that already have a current-version sidecar.
-  // We readdir once (avoiding stat-per-track for tracks that lack a file)
-  // and then read only the existing sidecars to drop stale-version ones.
+  const profile = await getActiveEmbeddingProfile();
+
   await ensureDir(EMBEDDINGS_DIR);
   const validIds = new Set<string>();
   const entries = await fs.readdir(EMBEDDINGS_DIR).catch(() => [] as string[]);
@@ -223,6 +233,11 @@ export async function backfillMissingEmbeddings(
     })());
   }
   await Promise.all(workers);
+
+  log.info(
+    `Embedding backfill starting (model=${profile.model}, v${profile.version}, ` +
+      `${profile.dim}-dim): ${tracks.length} track(s), ${validIds.size} already current`
+  );
 
   for (let i = 0; i < tracks.length; i++) {
     const track = tracks[i]!;

@@ -150,3 +150,19 @@ export async function getAlbumTracks(albumId: string): Promise<Track[]> {
   const payload = await requestJson<{ tracks: Track[] }>(`/api/album/${encodeURIComponent(albumId)}`);
   return payload.tracks;
 }
+
+export type LibrarySettings = {
+  aiRecommendation: boolean;
+};
+
+export async function getLibrarySettings(): Promise<LibrarySettings> {
+  return requestJson<LibrarySettings>("/api/library/settings");
+}
+
+export async function patchLibrarySettings(patch: Partial<LibrarySettings>): Promise<LibrarySettings> {
+  return requestJson<LibrarySettings>("/api/library/settings", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch)
+  });
+}

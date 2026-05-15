@@ -33,3 +33,8 @@ playwright-report/
 test-results/
 
 .claude/settings.local.json
+
+# Python sidecar
+__pycache__/
+*.pyc
+backend/python-services/**/.venv/

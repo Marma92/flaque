@@ -53,6 +53,36 @@ export type ForYouPlaylistTrace = {
   rejection?: string;
 };
 
+/**
+ * Snapshot of the ranker configuration used for this regeneration. Captured
+ * so traces stay interpretable after weight tweaks — a few months later you
+ * can still tell "did this pick happen under the embedding-heavy weights
+ * or the older genre-heavy ones?". Optional on older trace files written
+ * before this field existed.
+ */
+export type RankerSnapshot = {
+  weights: {
+    genreOverlap: number;
+    yearProximity: number;
+    libraryPopularity: number;
+    novelty: number;
+    albumOverlapWithSeed: number;
+    skipPenalty: number;
+    embeddingSimilarity: number;
+  };
+  embeddingDim: number;
+  embeddingVersion: number;
+  /** e.g. GENRE_JACCARD_FLOOR, YEAR_FALLBACK_WINDOW — the pre-rank filters. */
+  candidateFilters?: Record<string, number>;
+  /**
+   * Knobs governing playlist-level diversity (cross-playlist reuse penalty,
+   * per-album / per-artist caps, total tracks per playlist). Captured so a
+   * future reader can tell whether a regenerated playlist's shape is
+   * explained by the *limits* in force at the time or by the candidate pool.
+   */
+  diversityKnobs?: Record<string, number>;
+};
+
 export type ForYouTrace = {
   generatedAt: string;
   userId: string;
@@ -60,6 +90,7 @@ export type ForYouTrace = {
   totalPlays: number;
   distinctArtists: number;
   skipReason?: "below-min-plays" | "below-min-artists";
+  ranker?: RankerSnapshot;
   seedSelection: {
     candidates: SeedCandidateTrace[];
     chosen: string[];
@@ -106,6 +137,7 @@ export class ForYouTraceBuilder {
   private readonly chosen: string[] = [];
   private readonly skipped: SeedSkippedTrace[] = [];
   private readonly playlists: ForYouPlaylistTrace[] = [];
+  private ranker: RankerSnapshot | undefined;
 
   constructor(userId: string) {
     this.userId = userId;
@@ -118,6 +150,17 @@ export class ForYouTraceBuilder {
 
   setSkipReason(reason: NonNullable<ForYouTrace["skipReason"]>): void {
     this.skipReason = reason;
+  }
+
+  /**
+   * Record which ranker configuration was active for this regeneration.
+   * Should be called once at the top of `generateForYouPlaylistsWithTrace`
+   * before any playlist work; the snapshot is included on the final trace
+   * so future readers can reproduce the picks even after the weights
+   * have moved on.
+   */
+  setRanker(snapshot: RankerSnapshot): void {
+    this.ranker = snapshot;
   }
 
   recordSeedCandidate(entry: SeedCandidateTrace): void {
@@ -144,6 +187,7 @@ export class ForYouTraceBuilder {
       totalPlays: this.totalPlays,
       distinctArtists: this.distinctArtists,
       ...(this.skipReason ? { skipReason: this.skipReason } : {}),
+      ...(this.ranker ? { ranker: this.ranker } : {}),
       seedSelection: {
         candidates: this.candidates,
         chosen: this.chosen,

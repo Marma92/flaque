@@ -35,9 +35,11 @@ export {
   getArtists,
   getAlbums,
   getArtistAlbums,
-  getAlbumTracks
+  getAlbumTracks,
+  getLibrarySettings,
+  patchLibrarySettings
 } from "./library";
-export type { TracksResponse, RecentUploadAlbum, RecentUploadItem } from "./library";
+export type { TracksResponse, RecentUploadAlbum, RecentUploadItem, LibrarySettings } from "./library";
 
 export { coverPathUrl, coverUrl } from "./covers";
 export { streamUrl } from "./streaming";

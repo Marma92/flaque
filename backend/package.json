@@ -6,7 +6,12 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "embed:probe": "tsx src/scripts/probeEmbedder.ts",
+    "embed:sidecar": "./python-services/audio-embedder/start.sh",
+    "embed:backfill": "tsx src/scripts/backfillEmbeddings.ts",
+    "for-you:regen": "tsx src/scripts/regenerateForYou.ts",
+    "for-you:inspect": "tsx src/scripts/inspectForYouTrace.ts"
   },
   "dependencies": {
     "@flaque/shared": "*",
