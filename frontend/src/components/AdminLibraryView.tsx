@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 
+import { AiRecommendationPanel } from "./adminLibrary/AiRecommendationPanel";
 import { AutoPlaylistConfigPanel } from "./adminLibrary/AutoPlaylistConfigPanel";
 import { EnrichmentLogPanel } from "./adminLibrary/EnrichmentLogPanel";
 import { EnrichmentPanel } from "./adminLibrary/EnrichmentPanel";
@@ -41,6 +42,8 @@ export function AdminLibraryView({ onAutoPlaylistsRegenerated }: AdminLibraryVie
       <EnrichmentLogPanel refreshKey={logRefreshKey} />
 
       <AutoPlaylistConfigPanel onAutoPlaylistsRegenerated={onAutoPlaylistsRegenerated} />
+
+      <AiRecommendationPanel />
     </div>
   );
 }

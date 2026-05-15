@@ -2,13 +2,8 @@ import { createLogger } from "../../../utils/logger";
 import { normalizeGenreLabel } from "../../genre/genreSynonymService";
 import { getUserPlayCounts } from "../../activity/playCountStore";
 import { getRecentSkipCounts } from "../../activity/skipStore";
-import { loadEmbedding } from "../../embeddings/audioEmbeddingService";
-import {
-  cosineSimilarity,
-  meanVector,
-  EMBEDDING_DIM,
-  EMBEDDING_VERSION
-} from "../../embeddings/audioFeatures";
+import { getActiveEmbeddingProfile, loadEmbedding } from "../../embeddings/audioEmbeddingService";
+import { cosineSimilarity, meanVector } from "../../embeddings/audioFeatures";
 import type { IndexStore } from "../../indexer/indexStore";
 import type { Track } from "../../../types/library";
 import { ForYouTraceBuilder, type ForYouTrace, type ScoredTrackTrace } from "../playlistTrace";
@@ -19,10 +14,12 @@ import {
   noveltyScore,
   scoreFeatures,
   yearProximity,
-  DEFAULT_WEIGHTS,
+  CLAP_WEIGHTS,
+  MFCC_WEIGHTS,
   NEUTRAL_EMBEDDING_SIMILARITY,
   SKIP_HARD_FILTER_THRESHOLD,
-  type CandidateFeatures
+  type CandidateFeatures,
+  type RankerWeights
 } from "../forYouRanker";
 import { getUserDismissals } from "./dismissals";
 import { slugify } from "./paths";
@@ -43,11 +40,21 @@ const ALBUM_DEPTH_WINDOW_DAYS = 60;
 const ALBUM_DEPTH_THRESHOLD = 0.7;
 const RECENT_SKIPS_WINDOW_DAYS = 60;
 
-// Candidate-pool fallbacks (broaden the pool beyond strict genre+year match).
-// Phase 4 (2026-05) loosened both: CLAP cosine in the ranker now decides
-// "actually similar?", so the pre-rank filters can be coarse safety rails.
-const GENRE_JACCARD_FLOOR = 0.1;
-const YEAR_FALLBACK_WINDOW = 12;
+/**
+ * Candidate-pool fallbacks. Two profiles, picked by the active embedding
+ * model. CLAP cosine in the ranker can judge "actually similar?" reliably,
+ * so the pre-rank filters can be loose. MFCC can't, so we keep them strict
+ * to compensate.
+ */
+type CandidateFilterProfile = { genreJaccardFloor: number; yearFallbackWindow: number };
+const CLAP_CANDIDATE_FILTERS: CandidateFilterProfile = {
+  genreJaccardFloor: 0.1,
+  yearFallbackWindow: 12
+};
+const MFCC_CANDIDATE_FILTERS: CandidateFilterProfile = {
+  genreJaccardFloor: 0.2,
+  yearFallbackWindow: 7
+};
 
 // ── Aggregate signals ─────────────────────────────────────────────
 
@@ -266,7 +273,8 @@ function gatherCandidates(
   profile: { genres: string[]; minYear: number; maxYear: number },
   seedTracks: Track[],
   allTracks: Track[],
-  trackRecentSkips: ReadonlyMap<string, number>
+  trackRecentSkips: ReadonlyMap<string, number>,
+  filters: CandidateFilterProfile
 ): Candidate[] {
   const seedArtistLower = seedArtist.toLowerCase();
   const seedGenres = new Set(profile.genres);
@@ -274,8 +282,8 @@ function gatherCandidates(
   const seedAlbumArtists = buildSeedAlbumArtists(seedTracks);
   seedAlbumArtists.add(seedArtistLower);
   const midYear = (profile.minYear + profile.maxYear) / 2;
-  const yearLow = midYear - YEAR_FALLBACK_WINDOW;
-  const yearHigh = midYear + YEAR_FALLBACK_WINDOW;
+  const yearLow = midYear - filters.yearFallbackWindow;
+  const yearHigh = midYear + filters.yearFallbackWindow;
 
   const candidates = new Map<string, Candidate>();
 
@@ -288,7 +296,7 @@ function gatherCandidates(
     let source: Candidate["source"] | null = null;
 
     const trackGenres = track.tags.genre ?? [];
-    if (trackGenres.length > 0 && genreJaccard(trackGenres, seedGenres) >= GENRE_JACCARD_FLOOR) {
+    if (trackGenres.length > 0 && genreJaccard(trackGenres, seedGenres) >= filters.genreJaccardFloor) {
       source = "genre";
     }
 
@@ -369,12 +377,13 @@ function rankCandidates(
   midYear: number,
   seedAlbumKeys: ReadonlySet<string>,
   signals: SignalMaps,
-  similarityByTrackId: ReadonlyMap<string, number>
+  similarityByTrackId: ReadonlyMap<string, number>,
+  weights: RankerWeights
 ): RankedCandidate[] {
   return candidates
     .map((c) => {
       const features = computeFeatures(c, seedGenres, midYear, seedAlbumKeys, signals, similarityByTrackId);
-      const rawScore = scoreFeatures(features);
+      const rawScore = scoreFeatures(features, weights);
       const jitter = fnvJitter(`${userId}|${seedKey}|${c.track.id}`);
       return { ...c, features, rawScore, score: rawScore + jitter };
     })
@@ -560,7 +569,9 @@ async function buildForYouPlaylist(
   indexStore: IndexStore,
   allTracks: Track[],
   signals: SignalMaps,
-  userId: string
+  userId: string,
+  weights: RankerWeights,
+  filters: CandidateFilterProfile
 ): Promise<BuildResult> {
   const profile = getArtistProfile(seedArtist, indexStore);
   const baseTrace: BuildTrace = {
@@ -583,7 +594,7 @@ async function buildForYouPlaylist(
   const seedGenres = new Set(profile.genres);
   const midYear = (profile.minYear + profile.maxYear) / 2;
 
-  const candidates = gatherCandidates(seedArtist, profile, seedTracks, allTracks, signals.trackRecentSkips);
+  const candidates = gatherCandidates(seedArtist, profile, seedTracks, allTracks, signals.trackRecentSkips, filters);
   baseTrace.candidatePoolSize = candidates.length;
   baseTrace.peerTrackCount = candidates.length;
 
@@ -615,7 +626,8 @@ async function buildForYouPlaylist(
     midYear,
     seedAlbumKeys,
     signals,
-    similarityByTrackId
+    similarityByTrackId,
+    weights
   );
 
   const lifetimePlays = signals.artistLifetimePlays.get(seedKey) ?? 0;
@@ -640,7 +652,7 @@ async function buildForYouPlaylist(
         recentSkipCount: signals.trackRecentSkips.get(t.id) ?? 0,
         embeddingSimilarity: 1
       };
-      const rawScore = scoreFeatures(features);
+      const rawScore = scoreFeatures(features, weights);
       return {
         track: t,
         artist: seedKey,
@@ -719,13 +731,19 @@ export async function generateForYouPlaylistsWithTrace(
   indexStore: IndexStore
 ): Promise<GenerationResult> {
   const builder = new ForYouTraceBuilder(userId);
+
+  const embeddingProfile = await getActiveEmbeddingProfile();
+  const weights = embeddingProfile.model === "clap" ? CLAP_WEIGHTS : MFCC_WEIGHTS;
+  const filters =
+    embeddingProfile.model === "clap" ? CLAP_CANDIDATE_FILTERS : MFCC_CANDIDATE_FILTERS;
+
   builder.setRanker({
-    weights: DEFAULT_WEIGHTS,
-    embeddingDim: EMBEDDING_DIM,
-    embeddingVersion: EMBEDDING_VERSION,
+    weights,
+    embeddingDim: embeddingProfile.dim,
+    embeddingVersion: embeddingProfile.version,
     candidateFilters: {
-      genreJaccardFloor: GENRE_JACCARD_FLOOR,
-      yearFallbackWindow: YEAR_FALLBACK_WINDOW
+      genreJaccardFloor: filters.genreJaccardFloor,
+      yearFallbackWindow: filters.yearFallbackWindow
     }
   });
 
@@ -773,7 +791,16 @@ export async function generateForYouPlaylistsWithTrace(
     }
     attemptedSeeds++;
 
-    const result = await buildForYouPlaylist(candidate.artist, candidate.score, indexStore, allTracks, signals, userId);
+    const result = await buildForYouPlaylist(
+      candidate.artist,
+      candidate.score,
+      indexStore,
+      allTracks,
+      signals,
+      userId,
+      weights,
+      filters
+    );
 
     if (result.playlist) {
       playlists.push(result.playlist);

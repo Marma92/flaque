@@ -33,12 +33,12 @@ export type RankerWeights = {
 };
 
 /**
- * Phase 4 rebalance (2026-05): with CLAP embeddings landing in v3 sidecars,
- * shift relevance signal from tag-overlap to learned audio similarity.
- * Genre and year are now coarse safety rails; embedding cosine is the
- * primary fit signal. See docs/ai-playlist-spike.md §5.
+ * CLAP-aware weights (phase 4, 2026-05). With semantic audio embeddings
+ * landing in v3 sidecars, the relevance signal shifts from tag-overlap to
+ * learned audio similarity. Genre/year become coarse safety rails;
+ * embedding cosine is the primary fit signal.
  */
-export const DEFAULT_WEIGHTS: RankerWeights = {
+export const CLAP_WEIGHTS: RankerWeights = {
   genreOverlap: 0.25,
   yearProximity: 0.10,
   libraryPopularity: 0.15,
@@ -47,6 +47,25 @@ export const DEFAULT_WEIGHTS: RankerWeights = {
   skipPenalty: -0.20,
   embeddingSimilarity: 0.40
 };
+
+/**
+ * Legacy weights, used when AI recommendation is disabled and embeddings
+ * fall back to the 32-dim MFCC pipeline. MFCCs capture timbre but not
+ * musical structure, so we can only trust them at a small weight; genre
+ * and year carry the rest of the load.
+ */
+export const MFCC_WEIGHTS: RankerWeights = {
+  genreOverlap: 0.40,
+  yearProximity: 0.20,
+  libraryPopularity: 0.15,
+  novelty: 0.15,
+  albumOverlapWithSeed: -0.30,
+  skipPenalty: -0.20,
+  embeddingSimilarity: 0.10
+};
+
+/** Default = AI on. Setting flips the active preset at generation time. */
+export const DEFAULT_WEIGHTS: RankerWeights = CLAP_WEIGHTS;
 
 /** Neutral similarity score when an embedding is unavailable. */
 export const NEUTRAL_EMBEDDING_SIMILARITY = 0.5;
