@@ -9,7 +9,7 @@
  * sidecar is single-threaded by design.
  *
  * The same backfill runs automatically on server start (see server.ts);
- * this CLI is for running it interactively after bumping EMBEDDING_VERSION
+ * this CLI is for running it interactively after bumping CLAP_EMBEDDING_VERSION
  * or after pointing AUDIO_EMBEDDER_URL at a different sidecar.
  *
  * Prerequisite: the sidecar must be running.

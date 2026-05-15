@@ -145,6 +145,13 @@ export class ForYouTraceBuilder {
     this.skipReason = reason;
   }
 
+  /**
+   * Record which ranker configuration was active for this regeneration.
+   * Should be called once at the top of `generateForYouPlaylistsWithTrace`
+   * before any playlist work; the snapshot is included on the final trace
+   * so future readers can reproduce the picks even after the weights
+   * have moved on.
+   */
   setRanker(snapshot: RankerSnapshot): void {
     this.ranker = snapshot;
   }

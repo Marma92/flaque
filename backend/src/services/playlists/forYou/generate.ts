@@ -41,10 +41,10 @@ const ALBUM_DEPTH_THRESHOLD = 0.7;
 const RECENT_SKIPS_WINDOW_DAYS = 60;
 
 /**
- * Candidate-pool fallbacks. Two profiles, picked by the active embedding
- * model. CLAP cosine in the ranker can judge "actually similar?" reliably,
- * so the pre-rank filters can be loose. MFCC can't, so we keep them strict
- * to compensate.
+ * Pre-rank candidate-pool filters. Two profiles, picked by the active
+ * embedding model. CLAP cosine in the ranker judges "actually similar?"
+ * reliably, so the pre-rank filters can be loose. MFCC can't, so we keep
+ * them strict to compensate for the weaker ranking signal.
  */
 type CandidateFilterProfile = { genreJaccardFloor: number; yearFallbackWindow: number };
 const CLAP_CANDIDATE_FILTERS: CandidateFilterProfile = {
@@ -55,6 +55,20 @@ const MFCC_CANDIDATE_FILTERS: CandidateFilterProfile = {
   genreJaccardFloor: 0.2,
   yearFallbackWindow: 7
 };
+
+/**
+ * Resolve the matching ranker weights + pre-rank filters for an embedding
+ * profile. Keeps the "if model === 'clap' else …" dispatch in one place
+ * so adding a third model means one switch instead of two.
+ */
+function rankerProfileFor(model: "clap" | "mfcc"): {
+  weights: RankerWeights;
+  filters: CandidateFilterProfile;
+} {
+  return model === "clap"
+    ? { weights: CLAP_WEIGHTS, filters: CLAP_CANDIDATE_FILTERS }
+    : { weights: MFCC_WEIGHTS, filters: MFCC_CANDIDATE_FILTERS };
+}
 
 // ── Aggregate signals ─────────────────────────────────────────────
 
@@ -733,18 +747,13 @@ export async function generateForYouPlaylistsWithTrace(
   const builder = new ForYouTraceBuilder(userId);
 
   const embeddingProfile = await getActiveEmbeddingProfile();
-  const weights = embeddingProfile.model === "clap" ? CLAP_WEIGHTS : MFCC_WEIGHTS;
-  const filters =
-    embeddingProfile.model === "clap" ? CLAP_CANDIDATE_FILTERS : MFCC_CANDIDATE_FILTERS;
+  const { weights, filters } = rankerProfileFor(embeddingProfile.model);
 
   builder.setRanker({
     weights,
     embeddingDim: embeddingProfile.dim,
     embeddingVersion: embeddingProfile.version,
-    candidateFilters: {
-      genreJaccardFloor: filters.genreJaccardFloor,
-      yearFallbackWindow: filters.yearFallbackWindow
-    }
+    candidateFilters: { ...filters }
   });
 
   const playCounts = await getUserPlayCounts(userId);

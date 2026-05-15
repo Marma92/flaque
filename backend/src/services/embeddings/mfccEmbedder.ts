@@ -232,6 +232,22 @@ function l2Normalize(vec: Float32Array): Float32Array {
   return vec;
 }
 
+/**
+ * Aggregate per-frame MFCC + spectral + time-domain stats into one
+ * fixed-length, L2-normalised vector. Caller passes mono PCM at
+ * `SAMPLE_RATE` (16 kHz). Returns `null` if the signal is shorter than
+ * one frame; the orchestrator treats that as "no embedding for this track".
+ *
+ * Output layout (length `MFCC_EMBEDDING_DIM` = 32):
+ *   - 13× MFCC means (scaled by 1/MFCC_SCALE)
+ *   - 13× MFCC stds (scaled by 1/MFCC_SCALE)
+ *   - spectral centroid mean (Hz / NYQUIST)
+ *   - spectral centroid std (Hz / NYQUIST)
+ *   - spectral rolloff mean (Hz / NYQUIST)
+ *   - spectral flatness mean (already 0..1)
+ *   - zero-crossing rate mean (already 0..1)
+ *   - RMS mean
+ */
 export function computeMfccVector(samples: Float32Array): Float32Array | null {
   if (samples.length < FRAME_SIZE) return null;
 

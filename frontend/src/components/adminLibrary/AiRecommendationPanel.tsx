@@ -2,6 +2,15 @@ import { useEffect, useState } from "react";
 
 import { getLibrarySettings, patchLibrarySettings, type LibrarySettings } from "../../api";
 
+/**
+ * Admin-only library setting: switch the embedding backend between CLAP
+ * (Python sidecar, default) and the legacy in-process MFCC pipeline.
+ *
+ * Stateless — reads the current setting from `/api/library/settings` on
+ * mount and PATCHes back on toggle. Backfill of existing tracks happens
+ * automatically on the next regeneration; the panel does not trigger it
+ * directly.
+ */
 export function AiRecommendationPanel(): JSX.Element {
   const [settings, setSettings] = useState<LibrarySettings | null>(null);
   const [loading, setLoading] = useState(true);

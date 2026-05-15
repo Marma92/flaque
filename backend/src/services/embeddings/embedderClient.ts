@@ -21,12 +21,17 @@ const DEFAULT_BASE_URL = "http://127.0.0.1:7001";
 // fast on a hung sidecar. Override per-call via AUDIO_EMBEDDER_TIMEOUT_MS.
 const DEFAULT_TIMEOUT_MS = 60_000;
 
+/** Wire response from the sidecar's `POST /embed`. */
 export type EmbedderResponse = {
+  /** Embedding vector. Always L2-normalised by the sidecar. */
   vec: number[];
+  /** Sidecar-reported dimension. Validated to match `vec.length` before return. */
   dim: number;
+  /** Model identifier the sidecar is using (e.g. `laion/clap-htsat-fused`). */
   model: string;
 };
 
+/** Wire response from the sidecar's `GET /healthz`. */
 export type EmbedderHealth = {
   ok: boolean;
   model: string;
@@ -52,6 +57,11 @@ async function fetchWithTimeout(url: string, init: RequestInit): Promise<Respons
   }
 }
 
+/**
+ * Structural validator for `/embed` responses. Rejects anything missing the
+ * three required fields, length mismatches between `vec` and `dim`, or
+ * non-finite numbers in `vec` (which would poison cosine similarity).
+ */
 function isValidEmbedderResponse(body: unknown): body is EmbedderResponse {
   if (!body || typeof body !== "object") return false;
   const r = body as Record<string, unknown>;

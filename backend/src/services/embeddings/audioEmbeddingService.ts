@@ -26,7 +26,7 @@ import { dataRoot } from "../../utils/paths";
 import { ensureDir, readJsonFile, writeJsonAtomic } from "../../utils/fs";
 import { createLogger } from "../../utils/logger";
 import { getLibrarySettings } from "../librarySettings/librarySettings";
-import { EMBEDDING_DIM, EMBEDDING_VERSION } from "./audioFeatures";
+import { CLAP_EMBEDDING_DIM, CLAP_EMBEDDING_VERSION } from "./audioFeatures";
 import {
   MFCC_EMBEDDING_DIM,
   MFCC_EMBEDDING_VERSION,
@@ -37,19 +37,29 @@ import { requestEmbedding } from "./embedderClient";
 
 const log = createLogger("audio-embeddings");
 
+/** Directory holding per-track embedding sidecars (`<trackId>.json`). */
 export const EMBEDDINGS_DIR = path.join(dataRoot, "embeddings");
 
+/** On-disk shape for an embedding sidecar at `EMBEDDINGS_DIR/<trackId>.json`. */
 export type AudioEmbedding = {
   trackId: string;
+  /** Tag identifying which model produced the vector. See loadEmbedding. */
   version: number;
   computedAt: string;
   vec: number[];
 };
 
+/**
+ * Snapshot of which embedding backend is currently active. Returned by
+ * `getActiveEmbeddingProfile` and used by the ranker / trace builder to
+ * record what produced the vectors it's about to consume.
+ */
 export type EmbeddingProfile = {
   /** Display label for logs + traces. */
   model: "clap" | "mfcc";
+  /** Output dimension expected from this model's sidecars. */
   dim: number;
+  /** On-disk version tag stamped into sidecars by this model. */
   version: number;
 };
 
@@ -67,7 +77,7 @@ function embeddingPath(trackId: string): string {
 export async function getActiveEmbeddingProfile(): Promise<EmbeddingProfile> {
   const settings = await getLibrarySettings();
   return settings.aiRecommendation
-    ? { model: "clap", dim: EMBEDDING_DIM, version: EMBEDDING_VERSION }
+    ? { model: "clap", dim: CLAP_EMBEDDING_DIM, version: CLAP_EMBEDDING_VERSION }
     : { model: "mfcc", dim: MFCC_EMBEDDING_DIM, version: MFCC_EMBEDDING_VERSION };
 }
 
@@ -89,6 +99,13 @@ export async function loadEmbedding(trackId: string): Promise<AudioEmbedding | n
   return data;
 }
 
+/**
+ * Write an embedding to disk atomically. Creates `EMBEDDINGS_DIR` on first
+ * write. Callers are expected to set `version` to the active backend's
+ * version constant — `saveEmbedding` does not enforce that, but
+ * `loadEmbedding` will refuse to return the sidecar later if it doesn't
+ * match the currently active model.
+ */
 export async function saveEmbedding(embedding: AudioEmbedding): Promise<void> {
   await ensureDir(EMBEDDINGS_DIR);
   await writeJsonAtomic(embeddingPath(embedding.trackId), embedding);
@@ -102,17 +119,17 @@ async function computeViaClap(
 ): Promise<AudioEmbedding | null> {
   const response = await requestEmbedding(absolutePath);
   if (!response) return null; // client already logged the reason
-  if (response.vec.length !== EMBEDDING_DIM) {
+  if (response.vec.length !== CLAP_EMBEDDING_DIM) {
     log.warn("CLAP sidecar returned unexpected dimension", {
       trackId,
       got: response.vec.length,
-      want: EMBEDDING_DIM
+      want: CLAP_EMBEDDING_DIM
     });
     return null;
   }
   return {
     trackId,
-    version: EMBEDDING_VERSION,
+    version: CLAP_EMBEDDING_VERSION,
     computedAt: new Date().toISOString(),
     vec: response.vec
   };
@@ -141,7 +158,17 @@ async function computeViaMfcc(
   }
 }
 
-/** Compute and persist an embedding for a track. Returns null on any failure. */
+/**
+ * Compute and persist an embedding for a track using whichever backend is
+ * currently active (CLAP sidecar or in-process MFCC). Returns the saved
+ * embedding, or `null` on any failure — best-effort by design so an
+ * upload or a backfill run never blocks on a single bad track.
+ *
+ * Failure modes (all swallowed and logged):
+ *   - `resolveTrackAbsolutePath` rejects the relative path.
+ *   - CLAP mode: sidecar unreachable, times out, malformed body.
+ *   - MFCC mode: ffmpeg missing/failed, signal too short for one frame.
+ */
 export async function computeAndSaveEmbedding(
   trackId: string,
   trackRelativePath: string
@@ -165,6 +192,7 @@ export async function computeAndSaveEmbedding(
   return embedding;
 }
 
+/** Convenience predicate: does a current-version sidecar exist for this track? */
 export async function hasEmbedding(trackId: string): Promise<boolean> {
   const existing = await loadEmbedding(trackId);
   return existing !== null;

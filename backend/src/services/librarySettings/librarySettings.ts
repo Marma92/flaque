@@ -29,6 +29,11 @@ const DEFAULT_SETTINGS: LibrarySettings = {
   aiRecommendation: true
 };
 
+/**
+ * Read the current library-wide settings. Missing or malformed fields
+ * fall back to `DEFAULT_SETTINGS`, so callers always get a fully-populated
+ * value and never have to special-case "settings file doesn't exist yet".
+ */
 export async function getLibrarySettings(): Promise<LibrarySettings> {
   const raw = await readJsonFile<Partial<LibrarySettings>>(settingsFile(), {});
   return {
@@ -38,6 +43,14 @@ export async function getLibrarySettings(): Promise<LibrarySettings> {
   };
 }
 
+/**
+ * Merge `patch` into the current settings and persist atomically. Fields
+ * whose patch value isn't a valid type are silently ignored — the API
+ * route is the right layer for telling a misbehaving client off, this
+ * helper is just defensive about what lands on disk.
+ *
+ * Returns the resulting full settings object.
+ */
 export async function updateLibrarySettings(
   patch: Partial<LibrarySettings>
 ): Promise<LibrarySettings> {

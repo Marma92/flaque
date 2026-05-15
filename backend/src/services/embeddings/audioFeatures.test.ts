@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { EMBEDDING_DIM, EMBEDDING_VERSION, cosineSimilarity, meanVector } from "./audioFeatures";
+import { CLAP_EMBEDDING_DIM, CLAP_EMBEDDING_VERSION, cosineSimilarity, meanVector } from "./audioFeatures";
 
-describe("EMBEDDING_DIM / EMBEDDING_VERSION", () => {
+describe("CLAP_EMBEDDING_DIM / CLAP_EMBEDDING_VERSION", () => {
   it("are the CLAP-aligned values", () => {
-    expect(EMBEDDING_DIM).toBe(512);
-    expect(EMBEDDING_VERSION).toBe(3);
+    expect(CLAP_EMBEDDING_DIM).toBe(512);
+    expect(CLAP_EMBEDDING_VERSION).toBe(3);
   });
 });
 
