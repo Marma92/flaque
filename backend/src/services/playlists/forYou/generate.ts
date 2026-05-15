@@ -3,7 +3,12 @@ import { normalizeGenreLabel } from "../../genre/genreSynonymService";
 import { getUserPlayCounts } from "../../activity/playCountStore";
 import { getRecentSkipCounts } from "../../activity/skipStore";
 import { loadEmbedding } from "../../embeddings/audioEmbeddingService";
-import { cosineSimilarity, meanVector } from "../../embeddings/audioFeatures";
+import {
+  cosineSimilarity,
+  meanVector,
+  EMBEDDING_DIM,
+  EMBEDDING_VERSION
+} from "../../embeddings/audioFeatures";
 import type { IndexStore } from "../../indexer/indexStore";
 import type { Track } from "../../../types/library";
 import { ForYouTraceBuilder, type ForYouTrace, type ScoredTrackTrace } from "../playlistTrace";
@@ -14,6 +19,7 @@ import {
   noveltyScore,
   scoreFeatures,
   yearProximity,
+  DEFAULT_WEIGHTS,
   NEUTRAL_EMBEDDING_SIMILARITY,
   SKIP_HARD_FILTER_THRESHOLD,
   type CandidateFeatures
@@ -713,6 +719,15 @@ export async function generateForYouPlaylistsWithTrace(
   indexStore: IndexStore
 ): Promise<GenerationResult> {
   const builder = new ForYouTraceBuilder(userId);
+  builder.setRanker({
+    weights: DEFAULT_WEIGHTS,
+    embeddingDim: EMBEDDING_DIM,
+    embeddingVersion: EMBEDDING_VERSION,
+    candidateFilters: {
+      genreJaccardFloor: GENRE_JACCARD_FLOOR,
+      yearFallbackWindow: YEAR_FALLBACK_WINDOW
+    }
+  });
 
   const playCounts = await getUserPlayCounts(userId);
   const recentSkips = await getRecentSkipCounts(userId, RECENT_SKIPS_WINDOW_DAYS);
