@@ -1,7 +1,9 @@
 /**
- * Audio embedding service. Decodes a track via ffmpeg → 16 kHz mono PCM,
- * runs the DSP pipeline in audioFeatures.ts, and persists the resulting
- * 32-dim vector as a sidecar JSON next to the track's id.
+ * Audio embedding service — orchestration layer.
+ *
+ * Delegates decoding + model inference to the Python sidecar
+ * (`python-services/audio-embedder/`). This file owns the on-disk format,
+ * the version gate, and the backfill loop.
  *
  * Storage:  data/embeddings/<trackId>.json
  * Shape:    { trackId, version, computedAt, vec: number[] }
@@ -11,7 +13,6 @@
  * (skipped) feature.
  */
 
-import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -19,12 +20,8 @@ import { resolveTrackAbsolutePath } from "../storage/storageService";
 import { dataRoot } from "../../utils/paths";
 import { ensureDir, readJsonFile, writeJsonAtomic } from "../../utils/fs";
 import { createLogger } from "../../utils/logger";
-import {
-  EMBEDDING_DIM,
-  EMBEDDING_VERSION,
-  SAMPLE_RATE,
-  computeFeatureVector
-} from "./audioFeatures";
+import { EMBEDDING_DIM, EMBEDDING_VERSION } from "./audioFeatures";
+import { requestEmbedding } from "./embedderClient";
 
 const log = createLogger("audio-embeddings");
 
@@ -58,95 +55,7 @@ export async function saveEmbedding(embedding: AudioEmbedding): Promise<void> {
   await writeJsonAtomic(embeddingPath(embedding.trackId), embedding);
 }
 
-// ── Decode ────────────────────────────────────────────────────────
-
-/**
- * Decode an audio file to mono 16 kHz Float32 PCM via ffmpeg. Returns the
- * raw samples as a Float32Array.
- *
- * Implementation note: ffmpeg's `f32le` output writes little-endian floats
- * to stdout. We accumulate buffers and reinterpret the final byte sequence
- * as a Float32Array, which on little-endian hosts is a zero-copy view.
- */
-function decodeToPcm(absolutePath: string): Promise<Float32Array> {
-  return new Promise((resolve, reject) => {
-    const ffmpeg = spawn(
-      "ffmpeg",
-      [
-        "-v", "error",
-        "-i", absolutePath,
-        "-vn",
-        "-ac", "1",
-        "-ar", String(SAMPLE_RATE),
-        "-f", "f32le",
-        "-"
-      ],
-      { stdio: ["ignore", "pipe", "pipe"] }
-    );
-
-    const chunks: Buffer[] = [];
-    let totalBytes = 0;
-    let stderr = "";
-
-    ffmpeg.stdout.on("data", (chunk: Buffer) => {
-      chunks.push(chunk);
-      totalBytes += chunk.length;
-    });
-
-    ffmpeg.stderr.on("data", (chunk) => {
-      stderr += chunk.toString("utf8");
-      if (stderr.length > 4096) stderr = stderr.slice(-4096);
-    });
-
-    ffmpeg.on("error", (err) => {
-      reject(new Error(`ffmpeg failed to start: ${err.message}`));
-    });
-
-    ffmpeg.on("close", (code) => {
-      if (code !== 0) {
-        reject(new Error(`ffmpeg exited with code ${code}: ${stderr.trim()}`));
-        return;
-      }
-      // Buffer.concat's underlying ArrayBuffer offset isn't guaranteed to be
-      // 4-byte aligned, which is required to construct a Float32Array view.
-      // Copy bytes into a fresh, naturally aligned ArrayBuffer instead.
-      const usable = totalBytes - (totalBytes % 4);
-      const aligned = new ArrayBuffer(usable);
-      const dst = new Uint8Array(aligned);
-      let offset = 0;
-      for (const chunk of chunks) {
-        const remaining = usable - offset;
-        if (remaining <= 0) break;
-        const len = Math.min(chunk.length, remaining);
-        dst.set(chunk.subarray(0, len), offset);
-        offset += len;
-      }
-      resolve(new Float32Array(aligned));
-    });
-  });
-}
-
-// ── Concurrency control ───────────────────────────────────────────
-
-const MAX_CONCURRENT = 2;
-let active = 0;
-const queue: Array<() => void> = [];
-
-async function withSlot<T>(fn: () => Promise<T>): Promise<T> {
-  if (active >= MAX_CONCURRENT) {
-    await new Promise<void>((r) => queue.push(r));
-  }
-  active++;
-  try {
-    return await fn();
-  } finally {
-    active--;
-    const next = queue.shift();
-    if (next) next();
-  }
-}
-
-// ── Public API ────────────────────────────────────────────────────
+// ── Compute via sidecar ───────────────────────────────────────────
 
 /** Compute and persist an embedding for a track. Returns null on any failure. */
 export async function computeAndSaveEmbedding(
@@ -161,27 +70,29 @@ export async function computeAndSaveEmbedding(
     return null;
   }
 
-  return withSlot(async () => {
-    try {
-      const samples = await decodeToPcm(absolutePath);
-      const vec = computeFeatureVector(samples);
-      if (!vec) {
-        log.debug("Track too short for embedding", { trackId });
-        return null;
-      }
-      const embedding: AudioEmbedding = {
-        trackId,
-        version: EMBEDDING_VERSION,
-        computedAt: new Date().toISOString(),
-        vec: Array.from(vec)
-      };
-      await saveEmbedding(embedding);
-      return embedding;
-    } catch (error) {
-      log.warn("Embedding computation failed", { trackId, error: String(error) });
-      return null;
-    }
-  });
+  const response = await requestEmbedding(absolutePath);
+  if (!response) {
+    // Client already logged the underlying reason.
+    return null;
+  }
+
+  if (response.vec.length !== EMBEDDING_DIM) {
+    log.warn("Embedder returned unexpected dimension", {
+      trackId,
+      got: response.vec.length,
+      want: EMBEDDING_DIM
+    });
+    return null;
+  }
+
+  const embedding: AudioEmbedding = {
+    trackId,
+    version: EMBEDDING_VERSION,
+    computedAt: new Date().toISOString(),
+    vec: response.vec
+  };
+  await saveEmbedding(embedding);
+  return embedding;
 }
 
 export async function hasEmbedding(trackId: string): Promise<boolean> {
@@ -189,10 +100,13 @@ export async function hasEmbedding(trackId: string): Promise<boolean> {
   return existing !== null;
 }
 
+// ── Backfill ──────────────────────────────────────────────────────
+
 /**
  * Background backfill: compute embeddings for any track that doesn't have
- * one yet. Trickles through serially (modulo the concurrency slot) so it
- * doesn't dominate ffmpeg capacity that transcoding might want.
+ * one at the current version yet. Sequential — the sidecar handles its own
+ * threading, and we'd rather not flood it with concurrent requests for a
+ * one-time backfill.
  */
 export async function backfillMissingEmbeddings(
   tracks: Array<{ id: string; path: string }>,

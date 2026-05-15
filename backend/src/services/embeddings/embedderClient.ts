@@ -1,22 +1,25 @@
 /**
  * Node-side client for the audio-embedder Python sidecar.
  *
- * Phase 1: protocol-only. The production embedding path
- * (`computeAndSaveEmbedding`) still uses the in-process DSP pipeline in
- * `audioFeatures.ts`. This client exists so we can exercise the wire format
- * end-to-end (via `npm run embed:probe`) before phase 3 swaps the production
- * call site over.
+ * `computeAndSaveEmbedding` in audioEmbeddingService.ts calls this on every
+ * new upload and during the backfill loop. The sidecar runs the CLAP model;
+ * we send only the absolute path (same host, no network bytes for the audio).
  *
  * Best-effort semantics match the rest of the embedding pipeline:
  * any failure (network, timeout, bad status, malformed body) returns `null`
- * and logs a warning — the caller is expected to fall back gracefully.
+ * and logs a warning — the caller falls back to "no embedding for this track"
+ * and the ranker uses NEUTRAL_EMBEDDING_SIMILARITY in its place.
  */
 import { createLogger } from "../../utils/logger";
 
 const log = createLogger("embedder-client");
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:7001";
-const DEFAULT_TIMEOUT_MS = 10_000;
+// CLAP backfill: ~1.5 s/track on a typical 3-min file, but multi-minute
+// prog-rock / live recordings (e.g. Echoes, 23 min) genuinely need 10–15 s
+// to decode + window. 60 s gives generous headroom while still failing
+// fast on a hung sidecar. Override per-call via AUDIO_EMBEDDER_TIMEOUT_MS.
+const DEFAULT_TIMEOUT_MS = 60_000;
 
 export type EmbedderResponse = {
   vec: number[];

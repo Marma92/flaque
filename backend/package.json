@@ -8,7 +8,8 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "embed:probe": "tsx src/scripts/probeEmbedder.ts",
-    "embed:sidecar": "./python-services/audio-embedder/start.sh"
+    "embed:sidecar": "./python-services/audio-embedder/start.sh",
+    "embed:backfill": "tsx src/scripts/backfillEmbeddings.ts"
   },
   "dependencies": {
     "@flaque/shared": "*",
