@@ -57,6 +57,11 @@ function printRankerHeader(trace: ForYouTrace): void {
     const parts = Object.entries(f).map(([k, v]) => `${k}=${v}`);
     console.log(`  pre-rank filters: ${parts.join("  ")}`);
   }
+  const d = trace.ranker.diversityKnobs;
+  if (d) {
+    const parts = Object.entries(d).map(([k, v]) => `${k}=${v}`);
+    console.log(`  diversity knobs:  ${parts.join("  ")}`);
+  }
 }
 
 function printSeeds(trace: ForYouTrace): void {

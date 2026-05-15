@@ -531,4 +531,122 @@ describe("forYouPlaylistService", () => {
     const chosenIncludesPF = trace!.seedSelection.chosen.includes("Pink Floyd");
     expect(chosenIncludesPF).toBe(false);
   });
+
+  it("allows >2 seed tracks from a single album (seed pick uses MAX_PER_ALBUM_SEED, not the peer cap)", async () => {
+    const { generateForYouPlaylists } = await import("./forYouPlaylistService");
+    const { ensureDir, writeJsonAtomic } = await import("../../utils/fs");
+
+    // Seed artist has only ONE album with 8 tracks. With the old MAX_PER_ALBUM=2
+    // cap shared by seed + peer picks, only 2 seed tracks would land. The seed-
+    // specific cap (4) should allow at least 4.
+    const tracks: Track[] = [];
+    for (let i = 0; i < 8; i++) {
+      tracks.push(makeTrack({ id: `seed-${i}`, tags: { artist: "Pink Floyd", album: "Meddle", genre: ["Rock"], year: 1971 } }));
+    }
+    // A handful of peer artists so the playlist can fill out and seed quota is
+    // not bound by lack of candidates.
+    for (let i = 0; i < 8; i++) {
+      tracks.push(makeTrack({ id: `peer-${i}`, tags: { artist: "Other Band", album: `ob-${i}`, genre: ["Rock"], year: 1972 } }));
+    }
+    for (let i = 0; i < 4; i++) {
+      tracks.push(makeTrack({ id: `third-${i}`, tags: { artist: "Third Band", album: `tb-${i}`, genre: ["Rock"], year: 1972 } }));
+    }
+
+    const indexStore = makeMockIndexStore(tracks);
+    const dir = path.join(tmpDir, "data", "storage", "users", "user-1");
+    await ensureDir(dir);
+    const playCounts: Record<string, { count: number; lastPlayedAt: string }> = {};
+    for (let i = 0; i < 8; i++) playCounts[`seed-${i}`] = { count: 5, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    playCounts["peer-0"] = { count: 1, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    playCounts["third-0"] = { count: 1, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    await writeJsonAtomic(path.join(dir, "play-counts.json"), { tracks: playCounts });
+
+    const result = await generateForYouPlaylists("user-1", indexStore);
+    const pinkFloyd = result.find((p) => p.seedArtist === "Pink Floyd");
+    expect(pinkFloyd).toBeDefined();
+    const seedTracks = pinkFloyd!.trackIds.filter((id) => id.startsWith("seed-"));
+    expect(seedTracks.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("records the diversity knobs (incl. cross-playlist reuse penalty) in the trace", async () => {
+    const { regenerateForYouPlaylists, loadForYouTrace } = await import("./forYouPlaylistService");
+    const { ensureDir, writeJsonAtomic } = await import("../../utils/fs");
+
+    const artists = ["Pink Floyd", "Led Zeppelin", "Deep Purple", "Black Sabbath"];
+    const tracks: Track[] = [];
+    for (let i = 0; i < 60; i++) {
+      const artist = artists[i % 4]!;
+      tracks.push(makeTrack({ id: `track-${i}`, tags: { artist, album: `${artist}-${i % 3}`, genre: ["Rock"], year: 1972 + (i % 6) } }));
+    }
+    const indexStore = makeMockIndexStore(tracks);
+    const dir = path.join(tmpDir, "data", "storage", "users", "user-1");
+    await ensureDir(dir);
+    const playCounts: Record<string, { count: number; lastPlayedAt: string }> = {};
+    for (let i = 0; i < 30; i++) playCounts[`track-${i}`] = { count: 2, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    await writeJsonAtomic(path.join(dir, "play-counts.json"), { tracks: playCounts });
+
+    await regenerateForYouPlaylists("user-1", indexStore);
+    const trace = await loadForYouTrace("user-1");
+    expect(trace).not.toBeNull();
+    expect(trace!.ranker?.diversityKnobs).toBeDefined();
+    const knobs = trace!.ranker!.diversityKnobs!;
+    expect(knobs.crossPlaylistReusePenalty).toBeGreaterThan(0);
+    expect(knobs.maxPerAlbumSeed).toBeGreaterThanOrEqual(4);
+    expect(knobs.maxPerAlbumPeer).toBe(2);
+    expect(knobs.maxPerPeerArtist).toBe(4);
+    expect(knobs.tracksPerPlaylist).toBe(25);
+  });
+
+  it("does not place the same track in every for-you playlist (cross-playlist reuse penalty)", async () => {
+    const { regenerateForYouPlaylists, loadForYouPlaylists } = await import("./forYouPlaylistService");
+    const { ensureDir, writeJsonAtomic } = await import("../../utils/fs");
+
+    // Two seed artists with full play history; one shared peer-artist pool of
+    // 10 tracks. Without the cross-playlist penalty, the per-peer-artist cap
+    // (4) would let the *same* 4 peer tracks land in both seeded playlists.
+    // With the penalty, the second playlist should rotate to at least one
+    // *different* peer track.
+    const tracks: Track[] = [];
+    for (let i = 0; i < 8; i++) {
+      tracks.push(makeTrack({ id: `pf-${i}`, tags: { artist: "Pink Floyd", album: `pf-${i % 2}`, genre: ["Rock"], year: 1972 } }));
+    }
+    for (let i = 0; i < 8; i++) {
+      tracks.push(makeTrack({ id: `lz-${i}`, tags: { artist: "Led Zeppelin", album: `lz-${i % 2}`, genre: ["Rock"], year: 1972 } }));
+    }
+    for (let i = 0; i < 10; i++) {
+      tracks.push(makeTrack({ id: `peer-${i}`, tags: { artist: "Peer Band", album: `pb-${i}`, genre: ["Rock"], year: 1972 } }));
+    }
+    // Extra distinct artist so MIN_DISTINCT_ARTISTS=3 is met.
+    for (let i = 0; i < 4; i++) {
+      tracks.push(makeTrack({ id: `other-${i}`, tags: { artist: "Other Band", album: `ob-${i}`, genre: ["Rock"], year: 1972 } }));
+    }
+
+    const indexStore = makeMockIndexStore(tracks);
+    const dir = path.join(tmpDir, "data", "storage", "users", "user-1");
+    await ensureDir(dir);
+    const playCounts: Record<string, { count: number; lastPlayedAt: string }> = {};
+    for (let i = 0; i < 8; i++) {
+      playCounts[`pf-${i}`] = { count: 5, lastPlayedAt: "2026-04-01T00:00:00Z" };
+      playCounts[`lz-${i}`] = { count: 5, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    }
+    playCounts["other-0"] = { count: 1, lastPlayedAt: "2026-04-01T00:00:00Z" };
+    await writeJsonAtomic(path.join(dir, "play-counts.json"), { tracks: playCounts });
+
+    await regenerateForYouPlaylists("user-1", indexStore);
+    const playlists = await loadForYouPlaylists("user-1");
+    const pf = playlists.find((p) => p.seedArtist === "Pink Floyd");
+    const lz = playlists.find((p) => p.seedArtist === "Led Zeppelin");
+    expect(pf).toBeDefined();
+    expect(lz).toBeDefined();
+
+    const peerInPf = pf!.trackIds.filter((id) => id.startsWith("peer-"));
+    const peerInLz = lz!.trackIds.filter((id) => id.startsWith("peer-"));
+    // Both playlists should contain peer tracks (sanity check on the harness).
+    expect(peerInPf.length).toBeGreaterThan(0);
+    expect(peerInLz.length).toBeGreaterThan(0);
+    // The reuse penalty should push the second playlist to pick at least one
+    // peer track that didn't land in the first.
+    const overlap = peerInLz.filter((id) => peerInPf.includes(id));
+    expect(overlap.length).toBeLessThan(peerInLz.length);
+  });
 });

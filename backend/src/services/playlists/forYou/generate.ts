@@ -32,8 +32,29 @@ const MIN_DISTINCT_ARTISTS = 3;
 const MAX_SEEDS = 6;
 const TRACKS_PER_PLAYLIST = 25;
 const MAX_PER_PEER_ARTIST = 4;
+/** Per-album cap for peer picks — keeps a single album from dominating a playlist. */
 const MAX_PER_ALBUM = 2;
+/**
+ * Per-album cap for *seed* picks. Looser than the peer cap because a user
+ * who clicks "20s with Architects" is asking for Architects: if their
+ * library only has one Architects album, capping at 2 leaves 3-track
+ * playlists that don't deliver on the seed name. 4 strikes a balance —
+ * still spreads picks when the user has multiple albums per seed artist.
+ */
+const MAX_PER_ALBUM_SEED = 4;
 const TOP_REJECTIONS_RECORDED = 5;
+
+/**
+ * Score penalty applied to candidates that were already picked for a
+ * previous playlist in the *same regeneration*. Stops a handful of
+ * universal-cosine tracks (e.g. one Pink Floyd track that CLAP rates
+ * compatibly with every metalcore seed) from showing up in all five
+ * for-you playlists. Tuned to be slightly larger than the typical gap
+ * between consecutive picks (~0.05) so a reused track loses a slot to
+ * the next-best unused candidate, but stays large enough below feature
+ * weights that a truly-better candidate can still win on merit.
+ */
+const CROSS_PLAYLIST_REUSE_PENALTY = 0.12;
 
 const RECENT_PLAYS_WINDOW_DAYS = 30;
 const ALBUM_DEPTH_WINDOW_DAYS = 60;
@@ -392,14 +413,16 @@ function rankCandidates(
   seedAlbumKeys: ReadonlySet<string>,
   signals: SignalMaps,
   similarityByTrackId: ReadonlyMap<string, number>,
-  weights: RankerWeights
+  weights: RankerWeights,
+  alreadyUsedTrackIds: ReadonlySet<string>
 ): RankedCandidate[] {
   return candidates
     .map((c) => {
       const features = computeFeatures(c, seedGenres, midYear, seedAlbumKeys, signals, similarityByTrackId);
       const rawScore = scoreFeatures(features, weights);
+      const reusePenalty = alreadyUsedTrackIds.has(c.track.id) ? CROSS_PLAYLIST_REUSE_PENALTY : 0;
       const jitter = fnvJitter(`${userId}|${seedKey}|${c.track.id}`);
-      return { ...c, features, rawScore, score: rawScore + jitter };
+      return { ...c, features, rawScore, score: rawScore - reusePenalty + jitter };
     })
     .sort((a, b) => b.score - a.score);
 }
@@ -585,7 +608,8 @@ async function buildForYouPlaylist(
   signals: SignalMaps,
   userId: string,
   weights: RankerWeights,
-  filters: CandidateFilterProfile
+  filters: CandidateFilterProfile,
+  alreadyUsedTrackIds: ReadonlySet<string>
 ): Promise<BuildResult> {
   const profile = getArtistProfile(seedArtist, indexStore);
   const baseTrace: BuildTrace = {
@@ -641,7 +665,8 @@ async function buildForYouPlaylist(
     seedAlbumKeys,
     signals,
     similarityByTrackId,
-    weights
+    weights,
+    alreadyUsedTrackIds
   );
 
   const lifetimePlays = signals.artistLifetimePlays.get(seedKey) ?? 0;
@@ -679,7 +704,7 @@ async function buildForYouPlaylist(
     })
     .sort((a, b) => b.score - a.score);
 
-  const seedPick = pickWithCaps(seedRanked, seedQuota, seedQuota, MAX_PER_ALBUM);
+  const seedPick = pickWithCaps(seedRanked, seedQuota, seedQuota, MAX_PER_ALBUM_SEED);
   const peerPick = pickWithCaps(ranked, peerQuota, MAX_PER_PEER_ARTIST, MAX_PER_ALBUM);
 
   const combined = [...seedPick.picked, ...peerPick.picked];
@@ -753,7 +778,14 @@ export async function generateForYouPlaylistsWithTrace(
     weights,
     embeddingDim: embeddingProfile.dim,
     embeddingVersion: embeddingProfile.version,
-    candidateFilters: { ...filters }
+    candidateFilters: { ...filters },
+    diversityKnobs: {
+      crossPlaylistReusePenalty: CROSS_PLAYLIST_REUSE_PENALTY,
+      maxPerAlbumSeed: MAX_PER_ALBUM_SEED,
+      maxPerAlbumPeer: MAX_PER_ALBUM,
+      maxPerPeerArtist: MAX_PER_PEER_ARTIST,
+      tracksPerPlaylist: TRACKS_PER_PLAYLIST
+    }
   });
 
   const playCounts = await getUserPlayCounts(userId);
@@ -789,6 +821,12 @@ export async function generateForYouPlaylistsWithTrace(
   const dismissals = await getUserDismissals(userId);
   const allTracks = indexStore.getSnapshot().tracks;
   const playlists: ForYouPlaylist[] = [];
+  /**
+   * Track IDs already placed in an earlier playlist this run. Passed into
+   * each subsequent buildForYouPlaylist call so the ranker can penalise
+   * reuse — see CROSS_PLAYLIST_REUSE_PENALTY.
+   */
+  const alreadyUsedTrackIds = new Set<string>();
   let attemptedSeeds = 0;
 
   for (const candidate of seedCandidates) {
@@ -808,11 +846,13 @@ export async function generateForYouPlaylistsWithTrace(
       signals,
       userId,
       weights,
-      filters
+      filters,
+      alreadyUsedTrackIds
     );
 
     if (result.playlist) {
       playlists.push(result.playlist);
+      for (const tid of result.playlist.trackIds) alreadyUsedTrackIds.add(tid);
       builder.recordSeedChosen(candidate.artist);
       builder.recordPlaylist({
         seed: candidate.artist,

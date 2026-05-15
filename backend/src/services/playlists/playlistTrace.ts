@@ -74,6 +74,13 @@ export type RankerSnapshot = {
   embeddingVersion: number;
   /** e.g. GENRE_JACCARD_FLOOR, YEAR_FALLBACK_WINDOW — the pre-rank filters. */
   candidateFilters?: Record<string, number>;
+  /**
+   * Knobs governing playlist-level diversity (cross-playlist reuse penalty,
+   * per-album / per-artist caps, total tracks per playlist). Captured so a
+   * future reader can tell whether a regenerated playlist's shape is
+   * explained by the *limits* in force at the time or by the candidate pool.
+   */
+  diversityKnobs?: Record<string, number>;
 };
 
 export type ForYouTrace = {
