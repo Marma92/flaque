@@ -3,8 +3,12 @@ import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
+import enAccount from "./locales/en/account.json";
+import enAuth from "./locales/en/auth.json";
 import enCommon from "./locales/en/common.json";
 import enPlayer from "./locales/en/player.json";
+import frAccount from "./locales/fr/account.json";
+import frAuth from "./locales/fr/auth.json";
 import frCommon from "./locales/fr/common.json";
 import frPlayer from "./locales/fr/player.json";
 
@@ -26,8 +30,8 @@ export const defaultNS = "common";
 // Resources are bundled (not lazy-loaded over HTTP) so `import "./i18n"` fully
 // initialises i18next synchronously — important for tests and first paint.
 export const resources = {
-  en: { common: enCommon, player: enPlayer },
-  fr: { common: frCommon, player: frPlayer }
+  en: { common: enCommon, player: enPlayer, auth: enAuth, account: enAccount },
+  fr: { common: frCommon, player: frPlayer, auth: frAuth, account: frAccount }
 } as const;
 
 void i18n
@@ -48,7 +52,7 @@ void i18n
     // Map regional tags (e.g. "fr-FR") to the base language we ship.
     load: "languageOnly",
     nonExplicitSupportedLngs: true,
-    ns: ["common", "player"],
+    ns: ["common", "player", "auth", "account"],
     defaultNS,
     returnNull: false,
     interpolation: {

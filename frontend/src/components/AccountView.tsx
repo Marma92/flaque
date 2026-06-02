@@ -13,6 +13,7 @@ import defaultCoverImage from "../assets/default-cover.png";
 import type { AppNotice } from "./AppStatusBanners";
 import type { Track, User, UserSession } from "../types";
 import { useAccountActions } from "../hooks/useAccountActions";
+import { activeLocale } from "../utils/format";
 import { formatArtistString, getTrackDisplayArtist, getTrackDisplayTitle } from "../utils/tracks";
 
 type AccountViewProps = {
@@ -33,30 +34,6 @@ function getUserInitial(user: User): string {
   }
 
   return value[0]?.toUpperCase() ?? "U";
-}
-
-/**
- * Self-service account page: avatar upload, password change and logout.
- */
-function formatSessionTimestamp(value: number): string {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) {
-    return "Unknown";
-  }
-
-  return date.toLocaleString();
-}
-
-function getSessionTitle(session: UserSession): string {
-  if (session.label) {
-    return session.label;
-  }
-
-  if (session.userAgent) {
-    return session.userAgent;
-  }
-
-  return "Unknown device";
 }
 
 const PASSWORD_MIN_LENGTH = 8;
@@ -105,7 +82,16 @@ export function AccountView({
   notifyAuthStateChanged,
   onLogout
 }: AccountViewProps): JSX.Element {
-  const { t, i18n } = useTranslation("common");
+  const { t, i18n } = useTranslation(["account", "common"]);
+  const formatSessionTimestamp = (value: number): string => {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) {
+      return t("account:sessions.unknownTime");
+    }
+    return date.toLocaleString(activeLocale());
+  };
+  const getSessionTitle = (session: UserSession): string =>
+    session.label ?? session.userAgent ?? t("account:sessions.unknownDevice");
   const currentLanguage: SupportedLanguage = isSupportedLanguage(i18n.resolvedLanguage)
     ? i18n.resolvedLanguage
     : DEFAULT_LANGUAGE;
@@ -174,11 +160,11 @@ export function AccountView({
       const nextSessions = await onListSessions();
       setSessions(nextSessions);
     } catch (error) {
-      setSessionsMessage(error instanceof Error ? error.message : "Unable to load sessions");
+      setSessionsMessage(error instanceof Error ? error.message : t("account:sessions.loadError"));
     } finally {
       setLoadingSessions(false);
     }
-  }, [onListSessions]);
+  }, [onListSessions, t]);
 
   useEffect(() => {
     void loadSessions();
@@ -209,7 +195,7 @@ export function AccountView({
   async function handlePhotoSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!selectedPhoto) {
-      setPhotoMessage("Select a photo before saving.");
+      setPhotoMessage(t("account:selectPhotoFirst"));
       return;
     }
 
@@ -218,7 +204,7 @@ export function AccountView({
 
     try {
       await onUpdatePhoto(selectedPhoto);
-      setPhotoMessage("Profile photo updated.");
+      setPhotoMessage(t("account:photoUpdated"));
       setSelectedPhoto(null);
 
       if (selectedPhotoPreviewUrl) {
@@ -226,7 +212,7 @@ export function AccountView({
       }
       setSelectedPhotoPreviewUrl(null);
     } catch (error) {
-      setPhotoMessage(error instanceof Error ? error.message : "Unable to update profile photo");
+      setPhotoMessage(error instanceof Error ? error.message : t("account:photoUpdateError"));
     } finally {
       setUpdatingPhoto(false);
     }
@@ -237,12 +223,12 @@ export function AccountView({
     setPasswordMessage(null);
 
     if (!currentPassword.trim() || !newPassword.trim()) {
-      setPasswordMessage({ text: "Current and new password are required.", isError: true });
+      setPasswordMessage({ text: t("account:password.bothRequired"), isError: true });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordMessage({ text: "Password confirmation does not match.", isError: true });
+      setPasswordMessage({ text: t("account:password.confirmMismatch"), isError: true });
       return;
     }
 
@@ -257,10 +243,10 @@ export function AccountView({
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setPasswordMessage({ text: "Password updated.", isError: false });
+      setPasswordMessage({ text: t("account:password.updated"), isError: false });
     } catch (error) {
       setPasswordMessage({
-        text: error instanceof Error ? error.message : "Unable to update password",
+        text: error instanceof Error ? error.message : t("account:password.updateError"),
         isError: true
       });
     } finally {
@@ -275,9 +261,9 @@ export function AccountView({
     try {
       await onRevokeSession(sessionId);
       await loadSessions();
-      setSessionsMessage("Session revoked.");
+      setSessionsMessage(t("account:sessions.revoked"));
     } catch (error) {
-      setSessionsMessage(error instanceof Error ? error.message : "Unable to revoke session");
+      setSessionsMessage(error instanceof Error ? error.message : t("account:sessions.revokeError"));
     } finally {
       setRevokingSessionId(null);
     }
@@ -290,9 +276,9 @@ export function AccountView({
     try {
       const revokedCount = await onLogoutOtherSessions();
       await loadSessions();
-      setSessionsMessage(`${revokedCount} session${revokedCount === 1 ? "" : "s"} logged out.`);
+      setSessionsMessage(t("account:sessions.loggedOut", { count: revokedCount }));
     } catch (error) {
-      setSessionsMessage(error instanceof Error ? error.message : "Unable to log out other sessions");
+      setSessionsMessage(error instanceof Error ? error.message : t("account:sessions.logoutOthersError"));
     } finally {
       setLoggingOutOtherSessions(false);
     }
@@ -312,7 +298,7 @@ export function AccountView({
     <div>
       <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="mt-1 font-display text-2xl text-flaque-ink">Account</h2>
+          <h2 className="mt-1 font-display text-2xl text-flaque-ink">{t("account:title")}</h2>
 
           <button
             className="inline-flex items-center gap-1.5 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-xs font-medium uppercase tracking-[0.1em] text-red-700 transition hover:bg-red-100"
@@ -335,7 +321,7 @@ export function AccountView({
               <polyline points="16 17 21 12 16 7" />
               <line x1="21" y1="12" x2="9" y2="12" />
             </svg>
-            Logout
+            {t("account:logout")}
           </button>
         </div>
 
@@ -346,7 +332,7 @@ export function AccountView({
                 className="group relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-flaque-clay/60 bg-flaque-cream/60 transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
                 type="button"
                 onClick={openPhotoPicker}
-                aria-label="Choose profile photo"
+                aria-label={t("account:choosePhoto")}
               >
                 {avatarLoadFailed ? (
                   <span className="font-display text-2xl text-flaque-ink">{initial}</span>
@@ -354,7 +340,7 @@ export function AccountView({
                   <img
                     className="h-full w-full object-cover"
                     src={displayedAvatarUrl}
-                    alt={`${user.username} profile`}
+                    alt={t("account:avatarAlt", { username: user.username })}
                     onError={() => {
                       setAvatarLoadFailed(true);
                     }}
@@ -400,7 +386,7 @@ export function AccountView({
                     onClick={async () => {
                       const trimmed = emailDraft.trim();
                       if (!trimmed || !trimmed.includes("@")) {
-                        setEmailMessage("A valid email address is required.");
+                        setEmailMessage(t("account:email.invalid"));
                         return;
                       }
                       if (trimmed === user.email) {
@@ -412,16 +398,16 @@ export function AccountView({
                       setEmailMessage(null);
                       try {
                         await onUpdateEmail(trimmed);
-                        setEmailMessage("Email updated.");
+                        setEmailMessage(t("account:email.updated"));
                         setEditingEmail(false);
                       } catch (error) {
-                        setEmailMessage(error instanceof Error ? error.message : "Unable to update email");
+                        setEmailMessage(error instanceof Error ? error.message : t("account:email.updateError"));
                       } finally {
                         setUpdatingEmail(false);
                       }
                     }}
                   >
-                    {updatingEmail ? "Saving..." : "Save"}
+                    {updatingEmail ? t("account:saving") : t("account:save")}
                   </button>
                   <button
                     className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
@@ -433,7 +419,7 @@ export function AccountView({
                       setEmailMessage(null);
                     }}
                   >
-                    Cancel
+                    {t("account:cancel")}
                   </button>
                 </div>
               ) : (
@@ -448,14 +434,14 @@ export function AccountView({
                       setEmailMessage(null);
                     }}
                   >
-                    edit
+                    {t("account:edit")}
                   </button>
                 </p>
               )}
 
               {emailMessage ? <p className="mt-1 text-xs text-flaque-steel">{emailMessage}</p> : null}
 
-              <p className="mt-2 text-xs text-flaque-steel/90">Username is fixed to keep your login stable.</p>
+              <p className="mt-2 text-xs text-flaque-steel/90">{t("account:usernameFixed")}</p>
             </div>
           </div>
 
@@ -466,7 +452,7 @@ export function AccountView({
                 type="submit"
                 disabled={updatingPhoto}
               >
-                {updatingPhoto ? "Saving..." : "Save photo"}
+                {updatingPhoto ? t("account:saving") : t("account:savePhoto")}
               </button>
             </div>
           ) : null}
@@ -475,11 +461,11 @@ export function AccountView({
         </form>
 
         <div className="mt-6 border-t border-flaque-clay/40 pt-5">
-          <h3 className="font-display text-lg text-flaque-ink">Change password</h3>
+          <h3 className="font-display text-lg text-flaque-ink">{t("account:password.heading")}</h3>
 
           <form className="mt-3 space-y-3" onSubmit={(event) => void handlePasswordSubmit(event)}>
             <label className="block text-sm text-flaque-steel" htmlFor="account-current-password">
-              Current password
+              {t("account:password.current")}
               <input
                 id="account-current-password"
                 className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
@@ -492,7 +478,7 @@ export function AccountView({
 
             <div className="grid gap-3 md:grid-cols-2">
               <label className="text-sm text-flaque-steel" htmlFor="account-new-password">
-                New password
+                {t("account:password.new")}
                 <input
                   id="account-new-password"
                   className={`mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2 ${
@@ -507,13 +493,13 @@ export function AccountView({
                 />
                 {newPasswordTooShort ? (
                   <span id="account-new-password-hint" className="mt-1 block text-xs text-red-600">
-                    Must be at least {PASSWORD_MIN_LENGTH} characters.
+                    {t("account:password.tooShort", { count: PASSWORD_MIN_LENGTH })}
                   </span>
                 ) : null}
               </label>
 
               <label className="text-sm text-flaque-steel" htmlFor="account-confirm-password">
-                Confirm new password
+                {t("account:password.confirm")}
                 <input
                   id="account-confirm-password"
                   className={`mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2 ${
@@ -528,7 +514,7 @@ export function AccountView({
                 />
                 {passwordMismatch ? (
                   <span id="account-confirm-password-hint" className="mt-1 block text-xs text-red-600">
-                    Passwords don't match.
+                    {t("account:password.mismatch")}
                   </span>
                 ) : null}
               </label>
@@ -540,7 +526,7 @@ export function AccountView({
                 type="submit"
                 disabled={updatingPassword || !passwordFormValid}
               >
-                {updatingPassword ? "Saving..." : "Update password"}
+                {updatingPassword ? t("account:saving") : t("account:password.submit")}
               </button>
             </div>
           </form>
@@ -560,7 +546,7 @@ export function AccountView({
 
         <div className="mt-6 border-t border-flaque-clay/40 pt-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h3 className="font-display text-lg text-flaque-ink">Sessions</h3>
+            <h3 className="font-display text-lg text-flaque-ink">{t("account:sessions.heading")}</h3>
 
             <div className="flex items-center gap-2">
               <button
@@ -571,7 +557,7 @@ export function AccountView({
                 }}
                 disabled={loadingSessions || revokingSessionId !== null || loggingOutOtherSessions}
               >
-                Refresh
+                {t("account:sessions.refresh")}
               </button>
 
               <button
@@ -582,14 +568,14 @@ export function AccountView({
                 }}
                 disabled={!hasOtherSessions || loadingSessions || revokingSessionId !== null || loggingOutOtherSessions}
               >
-                {loggingOutOtherSessions ? "Logging out..." : "Logout other devices"}
+                {loggingOutOtherSessions ? t("account:sessions.loggingOut") : t("account:sessions.logoutOthers")}
               </button>
             </div>
           </div>
 
-          {loadingSessions ? <p className="mt-3 text-sm text-flaque-steel">Loading sessions...</p> : null}
+          {loadingSessions ? <p className="mt-3 text-sm text-flaque-steel">{t("account:sessions.loading")}</p> : null}
 
-          {!loadingSessions && sessions.length === 0 ? <p className="mt-3 text-sm text-flaque-steel">No active session.</p> : null}
+          {!loadingSessions && sessions.length === 0 ? <p className="mt-3 text-sm text-flaque-steel">{t("account:sessions.empty")}</p> : null}
 
           {!loadingSessions && sessions.length > 0 ? (
             <div className="mt-3 space-y-2">
@@ -603,14 +589,21 @@ export function AccountView({
                       {getSessionTitle(session)}
                       {session.current ? (
                         <span className="ml-2 rounded-full bg-flaque-ink px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-flaque-cream">
-                          Current
+                          {t("account:sessions.current")}
                         </span>
                       ) : null}
                     </p>
                     <p className="truncate text-xs text-flaque-steel">
-                      Last seen {formatSessionTimestamp(session.lastSeenAt)} - Expires {formatSessionTimestamp(session.expiresAt)}
+                      {t("account:sessions.lastSeenExpires", {
+                        lastSeen: formatSessionTimestamp(session.lastSeenAt),
+                        expires: formatSessionTimestamp(session.expiresAt)
+                      })}
                     </p>
-                    {session.ipAddress ? <p className="truncate text-xs text-flaque-steel/90">IP: {session.ipAddress}</p> : null}
+                    {session.ipAddress ? (
+                      <p className="truncate text-xs text-flaque-steel/90">
+                        {t("account:sessions.ip", { ip: session.ipAddress })}
+                      </p>
+                    ) : null}
                   </div>
 
                   <button
@@ -626,7 +619,7 @@ export function AccountView({
                       void handleRevokeSession(session.id);
                     }}
                   >
-                    {revokingSessionId === session.id ? "Revoking..." : "Revoke"}
+                    {revokingSessionId === session.id ? t("account:sessions.revoking") : t("account:sessions.revoke")}
                   </button>
                 </div>
               ))}
@@ -638,10 +631,10 @@ export function AccountView({
       </section>
 
       <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-        <h3 className="font-display text-xl text-flaque-ink">{t("language.label")}</h3>
+        <h3 className="font-display text-xl text-flaque-ink">{t("common:language.label")}</h3>
         <div className="mt-3 max-w-xs">
           <label className="sr-only" htmlFor="account-language-select">
-            {t("language.label")}
+            {t("common:language.label")}
           </label>
           <select
             id="account-language-select"
@@ -673,10 +666,10 @@ export function AccountView({
       </section>
 
       <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-        <h3 className="font-display text-xl text-flaque-ink">Listening Stats</h3>
+        <h3 className="font-display text-xl text-flaque-ink">{t("account:stats.heading")}</h3>
 
         {loadingStats ? (
-          <p className="mt-3 text-sm text-flaque-steel">Loading stats...</p>
+          <p className="mt-3 text-sm text-flaque-steel">{t("account:stats.loading")}</p>
         ) : !playStats || playStats.totalPlays === 0 ? (
           <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-flaque-clay/50 bg-flaque-cream/20 px-4 py-8 text-center">
             <svg
@@ -691,15 +684,15 @@ export function AccountView({
               <circle cx="6" cy="18" r="3" />
               <circle cx="18" cy="16" r="3" />
             </svg>
-            <p className="text-sm text-flaque-steel">No listening history yet.</p>
-            <p className="text-xs text-flaque-steel/70">Start playing some music to fill this in.</p>
+            <p className="text-sm text-flaque-steel">{t("account:stats.emptyTitle")}</p>
+            <p className="text-xs text-flaque-steel/70">{t("account:stats.emptySubtitle")}</p>
           </div>
         ) : (
           <div className="mt-4 space-y-5">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <StatTile
                 value={playStats.totalPlays}
-                label="Total plays"
+                label={t("account:stats.totalPlays")}
                 gradient="from-flaque-sand/60 to-flaque-cream/30"
                 icon={
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -709,7 +702,7 @@ export function AccountView({
               />
               <StatTile
                 value={playStats.uniqueTracksPlayed}
-                label="Unique tracks"
+                label={t("account:stats.uniqueTracks")}
                 gradient="from-flaque-cream/60 to-flaque-sand/30"
                 icon={
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -721,7 +714,7 @@ export function AccountView({
               />
               <StatTile
                 value={playStats.topArtists.length}
-                label="Artists"
+                label={t("account:stats.artists")}
                 gradient="from-flaque-clay/30 to-flaque-cream/40"
                 icon={
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -734,10 +727,10 @@ export function AccountView({
 
             {playStats.topArtists.length > 0 ? (
               <div>
-                <h4 className="text-sm font-medium text-flaque-ink">Top Artists</h4>
+                <h4 className="text-sm font-medium text-flaque-ink">{t("account:stats.topArtists")}</h4>
                 <div className="mt-2 space-y-1">
                   {playStats.topArtists.slice(0, 10).map((entry, i) => {
-                    const artistLabel = formatArtistString(entry.artist) ?? "Unknown artist";
+                    const artistLabel = formatArtistString(entry.artist) ?? t("common:unknownArtist");
                     return (
                       <div
                         key={entry.artist}
@@ -746,7 +739,7 @@ export function AccountView({
                         <RankChip rank={i + 1} />
                         <span className="min-w-0 flex-1 truncate text-sm text-flaque-ink">{artistLabel}</span>
                         <span className="shrink-0 text-xs text-flaque-steel">
-                          {entry.playCount} play{entry.playCount !== 1 ? "s" : ""}
+                          {t("account:stats.plays", { count: entry.playCount })}
                         </span>
                       </div>
                     );
@@ -757,12 +750,12 @@ export function AccountView({
 
             {playStats.topTracks.length > 0 ? (
               <div>
-                <h4 className="text-sm font-medium text-flaque-ink">Top Tracks</h4>
+                <h4 className="text-sm font-medium text-flaque-ink">{t("account:stats.topTracks")}</h4>
                 <div className="mt-2 space-y-1">
                   {playStats.topTracks.slice(0, 10).map((entry, i) => {
                     const track = allTracksById.get(entry.trackId);
-                    const title = track ? getTrackDisplayTitle(track) : "Unknown Track";
-                    const artist = (track ? getTrackDisplayArtist(track) : undefined) ?? "Unknown artist";
+                    const title = track ? getTrackDisplayTitle(track) : t("account:stats.unknownTrack");
+                    const artist = (track ? getTrackDisplayArtist(track) : undefined) ?? t("common:unknownArtist");
                     return (
                       <div
                         key={entry.trackId}
@@ -782,7 +775,7 @@ export function AccountView({
                           <p className="truncate text-sm text-flaque-ink">{title}</p>
                           <p className="truncate text-xs text-flaque-steel">{artist}</p>
                         </div>
-                        <span className="shrink-0 text-xs text-flaque-steel">{entry.count}x</span>
+                        <span className="shrink-0 text-xs text-flaque-steel">{t("account:stats.playsCount", { count: entry.count })}</span>
                       </div>
                     );
                   })}

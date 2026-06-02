@@ -1,4 +1,5 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   getMySessions,
@@ -35,6 +36,8 @@ export function useAccountActions({
   setAvatarVersion,
   setUser
 }: UseAccountActionsArgs): UseAccountActionsResult {
+  const { t } = useTranslation("account");
+
   const handleUpdateProfilePhoto = useCallback(
     async (file: File): Promise<void> => {
       await uploadMyProfilePhoto(file);
@@ -70,9 +73,9 @@ export function useAccountActions({
     async (sessionId: string): Promise<void> => {
       await revokeMySession(sessionId);
       notifyAuthStateChanged("session-change");
-      setAppNotice({ tone: "success", message: "Session revoked" });
+      setAppNotice({ tone: "success", message: t("sessions.revoked") });
     },
-    [notifyAuthStateChanged, setAppNotice]
+    [notifyAuthStateChanged, setAppNotice, t]
   );
 
   const handleLogoutOtherSessions = useCallback(async (): Promise<number> => {
@@ -80,10 +83,10 @@ export function useAccountActions({
     notifyAuthStateChanged("session-change");
     setAppNotice({
       tone: "success",
-      message: `${result.revoked} session${result.revoked === 1 ? "" : "s"} logged out`
+      message: t("sessions.loggedOut", { count: result.revoked })
     });
     return result.revoked;
-  }, [notifyAuthStateChanged, setAppNotice]);
+  }, [notifyAuthStateChanged, setAppNotice, t]);
 
   return {
     handleUpdateProfilePhoto,
