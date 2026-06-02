@@ -121,7 +121,12 @@ export function AuthenticatedApp({
     if (selectedTrackRefreshed?.id === resumeStateData.trackId) return null;
     const track = allTracksById.get(resumeStateData.trackId);
     if (!track) return null;
-    return { track, positionSec: resumeStateData.positionSec };
+    // Resolve the persisted queue against the current index so resuming keeps
+    // playing past the current track rather than stopping at its end.
+    const queue = (resumeStateData.queue ?? [])
+      .map((trackId) => allTracksById.get(trackId))
+      .filter((queueTrack): queueTrack is Track => Boolean(queueTrack));
+    return { track, positionSec: resumeStateData.positionSec, queue };
   }, [resumeStateData, allTracksById, selectedTrackRefreshed?.id]);
 
   const handlePlayRadioTrack = useCallback((track: Track, startOffsetSec: number): void => {
@@ -504,7 +509,9 @@ export function AuthenticatedApp({
           resumeState,
           onResume: (track, positionSec) => {
             setPlayerStatusMessage(null);
-            requestTrackPlayback(track, [track], { startOffsetSec: positionSec });
+            const queueSource =
+              resumeState?.queue && resumeState.queue.length > 0 ? resumeState.queue : [track];
+            requestTrackPlayback(track, queueSource, { startOffsetSec: positionSec });
           },
           onDismissResume: () => {
             void dismissResume();

@@ -86,3 +86,57 @@ describe("useAudioPlayback skip detection", () => {
     expect(onTrackSkipped).not.toHaveBeenCalled();
   });
 });
+
+describe("useAudioPlayback previous-track behavior", () => {
+  function mountWithPrevious(track: Track, onPrevious: () => void, currentTime: number) {
+    const rendered = renderHook(() =>
+      useAudioPlayback({
+        track,
+        transcodeMode: "original",
+        repeatMode: "off",
+        shuffleEnabled: false,
+        playRequestNonce: 0,
+        onPrevious
+      })
+    );
+
+    const fakeAudio = {
+      load: vi.fn(),
+      play: vi.fn().mockResolvedValue(undefined),
+      pause: vi.fn(),
+      paused: true,
+      currentTime,
+      duration: 200,
+      volume: 1,
+      muted: false
+    };
+    rendered.result.current.audioRef.current = fakeAudio as unknown as HTMLAudioElement;
+    return { result: rendered.result, fakeAudio };
+  }
+
+  it("restarts the current track when more than 5s have elapsed", async () => {
+    const onPrevious = vi.fn();
+    const track = makeTrack({ id: "a", duration: 200 });
+    const { result, fakeAudio } = mountWithPrevious(track, onPrevious, 12);
+
+    await act(async () => {
+      result.current.handlePrevious({ wrap: false });
+    });
+
+    expect(onPrevious).not.toHaveBeenCalled();
+    expect(fakeAudio.currentTime).toBe(0);
+    expect(result.current.currentTime).toBe(0);
+  });
+
+  it("skips to the previous track when within the first 5s", async () => {
+    const onPrevious = vi.fn();
+    const track = makeTrack({ id: "a", duration: 200 });
+    const { result } = mountWithPrevious(track, onPrevious, 3);
+
+    await act(async () => {
+      result.current.handlePrevious({ wrap: false });
+    });
+
+    expect(onPrevious).toHaveBeenCalledWith({ wrap: false });
+  });
+});
