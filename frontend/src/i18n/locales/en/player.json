@@ -1,0 +1,79 @@
+{
+  "empty": {
+    "title": "Player",
+    "subtitle": "Select a track from the library to start streaming.",
+    "browseLibrary": "Browse library"
+  },
+  "radioStopped": "Radio stopped",
+  "controls": {
+    "previous": "Previous",
+    "previousAria": "Previous track",
+    "next": "Next",
+    "nextAria": "Next track",
+    "play": "Play",
+    "playAria": "Play playback",
+    "pause": "Pause",
+    "pauseAria": "Pause playback",
+    "stop": "Stop",
+    "stopRadioAria": "Stop radio",
+    "shuffleOn": "Shuffle on",
+    "shuffleOff": "Shuffle off",
+    "enableShuffle": "Enable shuffle",
+    "disableShuffle": "Disable shuffle",
+    "showQueue": "Show queue",
+    "hideQueue": "Hide queue",
+    "addToPlaylist": "Add to playlist",
+    "openOptions": "Open player options",
+    "closeOptions": "Close player options",
+    "moreOptions": "More options",
+    "close": "Close",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "volume": "Volume"
+  },
+  "repeat": {
+    "offTitle": "Repeat off",
+    "allTitle": "Repeat all",
+    "oneTitle": "Repeat one",
+    "enableAllAria": "Enable repeat all",
+    "enableOneAria": "Enable repeat one",
+    "disableAria": "Disable repeat"
+  },
+  "quality": {
+    "label": "Quality",
+    "original": "Original",
+    "opus": "Opus fallback",
+    "mp3": "MP3 fallback"
+  },
+  "transcode": {
+    "fallbackActive": "Streaming fallback via {{codec}}.",
+    "flacOnly": "Fallback transcoding is available only for FLAC tracks. Streaming original source."
+  },
+  "trackInfo": {
+    "openArtist": "Open artist: {{name}}",
+    "openAlbum": "Open album: {{name}}",
+    "lyricsBadge": "Lyrics"
+  },
+  "artwork": {
+    "coverAlt": "Cover for {{name}}",
+    "coverAltGeneric": "Track cover",
+    "radioMode": "Radio mode",
+    "radio": "Radio",
+    "showLyrics": "Show lyrics",
+    "hideLyrics": "Hide lyrics",
+    "closeLyrics": "Close lyrics",
+    "openPlayerView": "Open player view"
+  },
+  "queue": {
+    "title": "Current queue",
+    "stateNow": "Now",
+    "statePlayed": "Played",
+    "stateNext": "Next"
+  },
+  "status": {
+    "shuffleExhausted": "Shuffle has no additional track in the current queue.",
+    "queueEnd": "You reached the end of the current queue.",
+    "queueStart": "You are already at the start of the current queue.",
+    "navigateError": "Unable to change track right now."
+  }
+}

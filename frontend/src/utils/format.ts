@@ -31,6 +31,13 @@ export function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
-export function formatDate(isoString: string): string {
-  return new Date(isoString).toLocaleString();
+import i18n from "../i18n";
+
+/** The locale to drive `Intl`/`toLocale*` formatting, following the active UI language. */
+export function activeLocale(): string {
+  return i18n.language || "en";
+}
+
+export function formatDate(isoString: string, locale: string = activeLocale()): string {
+  return new Date(isoString).toLocaleString(locale);
 }

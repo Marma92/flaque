@@ -1,4 +1,5 @@
 import type { JSX } from "react";
+import { useTranslation } from "react-i18next";
 
 type PlayerTrackInfoProps = {
   expanded: boolean;
@@ -27,6 +28,7 @@ export function PlayerTrackInfo({
   onOpenTrackArtist,
   onOpenTrackAlbum
 }: PlayerTrackInfoProps): JSX.Element {
+  const { t } = useTranslation("player");
   const secondaryTextClassName = expanded
     ? "truncate text-sm text-flaque-steel/90"
     : "overflow-x-auto scrollbar-hide whitespace-nowrap text-sm text-flaque-steel";
@@ -39,7 +41,7 @@ export function PlayerTrackInfo({
     return (
       <div className={textBlockClassName}>
         <p className={`font-display text-flaque-ink leading-tight ${expanded ? "text-2xl" : "text-lg"}`}>
-          Radio stopped
+          {t("radioStopped")}
         </p>
       </div>
     );
@@ -76,7 +78,7 @@ export function PlayerTrackInfo({
               <button
                 className="max-w-full truncate rounded-sm text-left underline-offset-2 transition hover:text-flaque-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70"
                 type="button"
-                title={`Open artist: ${displayArtist}`}
+                title={t("trackInfo.openArtist", { name: displayArtist })}
                 onClick={onOpenTrackArtist}
               >
                 {displayArtist}
@@ -91,7 +93,7 @@ export function PlayerTrackInfo({
                 <button
                   className="max-w-full truncate rounded-sm text-left underline-offset-2 transition hover:text-flaque-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70"
                   type="button"
-                  title={`Open album: ${displayAlbumWithYear}`}
+                  title={t("trackInfo.openAlbum", { name: displayAlbumWithYear })}
                   onClick={onOpenTrackAlbum}
                 >
                   {displayAlbumWithYear}
@@ -105,7 +107,7 @@ export function PlayerTrackInfo({
             {codecLabel}
             {hasLyrics ? (
               <span className="ml-2 rounded bg-flaque-ink/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-flaque-ink/70 dark:bg-flaque-cream/10 dark:text-flaque-cream/70">
-                Lyrics
+                {t("trackInfo.lyricsBadge")}
               </span>
             ) : null}
           </p>
@@ -117,7 +119,7 @@ export function PlayerTrackInfo({
               <button
                 className="rounded-sm text-left underline-offset-2 transition hover:text-flaque-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70"
                 type="button"
-                title={`Open artist: ${displayArtist}`}
+                title={t("trackInfo.openArtist", { name: displayArtist })}
                 onClick={onOpenTrackArtist}
               >
                 {displayArtist}
@@ -132,7 +134,7 @@ export function PlayerTrackInfo({
                   <button
                     className="rounded-sm text-left underline-offset-2 transition hover:text-flaque-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70"
                     type="button"
-                    title={`Open album: ${displayAlbumWithYear}`}
+                    title={t("trackInfo.openAlbum", { name: displayAlbumWithYear })}
                     onClick={onOpenTrackAlbum}
                   >
                     {displayAlbumWithYear}

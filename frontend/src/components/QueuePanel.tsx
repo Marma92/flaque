@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import type { Track } from "../types";
 import { getTrackDisplayArtist, getTrackDisplayTitle } from "../utils/tracks";
 
@@ -9,6 +11,7 @@ type QueuePanelProps = {
 };
 
 export function QueuePanel({ tracks, currentIndex, expanded, onTrackSelect }: QueuePanelProps): JSX.Element {
+  const { t } = useTranslation(["player", "common"]);
   const containerClassName = expanded
     ? "rounded-2xl border border-flaque-clay/60 bg-flaque-cream/35 p-3"
     : "rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 p-2.5";
@@ -18,15 +21,19 @@ export function QueuePanel({ tracks, currentIndex, expanded, onTrackSelect }: Qu
 
   return (
     <div className={containerClassName}>
-      <p className="text-xs uppercase tracking-[0.2em] text-flaque-steel">Current queue</p>
+      <p className="text-xs uppercase tracking-[0.2em] text-flaque-steel">{t("player:queue.title")}</p>
       <div className={listClassName}>
         {tracks.map((queueTrack, index) => {
           const isCurrent = index === currentIndex;
           const isPlayed = index < currentIndex;
           const title = getTrackDisplayTitle(queueTrack);
-          const artist = getTrackDisplayArtist(queueTrack) ?? "Unknown artist";
+          const artist = getTrackDisplayArtist(queueTrack) ?? t("common:unknownArtist");
 
-          const stateLabel = isCurrent ? "Now" : isPlayed ? "Played" : "Next";
+          const stateLabel = isCurrent
+            ? t("player:queue.stateNow")
+            : isPlayed
+              ? t("player:queue.statePlayed")
+              : t("player:queue.stateNext");
           const rowClassName = isCurrent
             ? "border-flaque-sand/80 bg-white text-flaque-ink shadow-sm"
             : isPlayed

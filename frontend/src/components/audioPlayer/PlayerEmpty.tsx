@@ -1,4 +1,5 @@
 import type { JSX } from "react";
+import { useTranslation } from "react-i18next";
 
 type PlayerEmptyProps = {
   expanded: boolean;
@@ -6,14 +7,15 @@ type PlayerEmptyProps = {
 };
 
 export function PlayerEmpty({ expanded, onNavigateToLibrary }: PlayerEmptyProps): JSX.Element {
+  const { t } = useTranslation("player");
   return (
     <section className={expanded
       ? "flex min-h-0 flex-1 flex-col items-center justify-center rounded-xl m-4 border border-flaque-clay/50 bg-white/75 p-6 shadow-panel backdrop-blur-sm"
       : "rounded-3xl border border-flaque-clay/60 bg-white/85 p-6 shadow-panel backdrop-blur-sm"
     }>
-      <h2 className="font-display text-xl text-flaque-ink">Player</h2>
+      <h2 className="font-display text-xl text-flaque-ink">{t("empty.title")}</h2>
       <p className="mt-2 text-sm text-flaque-steel">
-        Select a track from the library to start streaming.
+        {t("empty.subtitle")}
       </p>
       {onNavigateToLibrary ? (
         <button
@@ -21,7 +23,7 @@ export function PlayerEmpty({ expanded, onNavigateToLibrary }: PlayerEmptyProps)
           type="button"
           onClick={onNavigateToLibrary}
         >
-          Browse library
+          {t("empty.browseLibrary")}
         </button>
       ) : null}
     </section>

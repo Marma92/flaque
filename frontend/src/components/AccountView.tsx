@@ -1,6 +1,14 @@
 import { ChangeEvent, type Dispatch, FormEvent, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { coverUrl, getMyPlayStats, type PlayStatsResponse } from "../api";
+import {
+  DEFAULT_LANGUAGE,
+  isSupportedLanguage,
+  LANGUAGE_LABELS,
+  SUPPORTED_LANGUAGES,
+  type SupportedLanguage
+} from "../i18n";
 import defaultCoverImage from "../assets/default-cover.png";
 import type { AppNotice } from "./AppStatusBanners";
 import type { Track, User, UserSession } from "../types";
@@ -97,6 +105,10 @@ export function AccountView({
   notifyAuthStateChanged,
   onLogout
 }: AccountViewProps): JSX.Element {
+  const { t, i18n } = useTranslation("common");
+  const currentLanguage: SupportedLanguage = isSupportedLanguage(i18n.resolvedLanguage)
+    ? i18n.resolvedLanguage
+    : DEFAULT_LANGUAGE;
   const {
     handleUpdateProfilePhoto: onUpdatePhoto,
     handleUpdateEmail: onUpdateEmail,
@@ -622,6 +634,29 @@ export function AccountView({
           ) : null}
 
           {sessionsMessage ? <p className="mt-3 text-sm text-flaque-steel">{sessionsMessage}</p> : null}
+        </div>
+      </section>
+
+      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <h3 className="font-display text-xl text-flaque-ink">{t("language.label")}</h3>
+        <div className="mt-3 max-w-xs">
+          <label className="sr-only" htmlFor="account-language-select">
+            {t("language.label")}
+          </label>
+          <select
+            id="account-language-select"
+            className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+            value={currentLanguage}
+            onChange={(event) => {
+              void i18n.changeLanguage(event.target.value);
+            }}
+          >
+            {SUPPORTED_LANGUAGES.map((lng) => (
+              <option key={lng} value={lng}>
+                {LANGUAGE_LABELS[lng]}
+              </option>
+            ))}
+          </select>
         </div>
       </section>
 

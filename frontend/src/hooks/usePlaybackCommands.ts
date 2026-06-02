@@ -1,4 +1,5 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
 
 import { getAdjacentTrack, getAlbumTracks } from "../api";
 import type { AppNotice } from "../components/AppStatusBanners";
@@ -52,6 +53,8 @@ export function usePlaybackCommands({
   setLibraryError,
   setAppNotice
 }: UsePlaybackCommandsArgs): UsePlaybackCommandsResult {
+  const { t } = useTranslation("player");
+
   const requestTrackPlaybackWithStatus = useCallback((track: Track, queueSource?: Track[]): void => {
     setPlayerStatusMessage(null);
     requestTrackPlayback(track, queueSource);
@@ -130,7 +133,7 @@ export function usePlaybackCommands({
       }
 
       if (!wrap) {
-        setPlayerStatusMessage("Shuffle has no additional track in the current queue.");
+        setPlayerStatusMessage(t("status.shuffleExhausted"));
       }
       return;
     }
@@ -148,8 +151,8 @@ export function usePlaybackCommands({
       if (!wrap) {
         setPlayerStatusMessage(
           direction === "next"
-            ? "You reached the end of the current queue."
-            : "You are already at the start of the current queue."
+            ? t("status.queueEnd")
+            : t("status.queueStart")
         );
       }
       return;
@@ -180,7 +183,7 @@ export function usePlaybackCommands({
       setSelectedTrack(adjacentTrack);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to navigate tracks";
-      setPlayerStatusMessage("Unable to change track right now.");
+      setPlayerStatusMessage(t("status.navigateError"));
       setLibraryError(message);
       setAppNotice({
         tone: "error",
@@ -199,7 +202,8 @@ export function usePlaybackCommands({
     setLibraryError,
     setPlayerStatusMessage,
     setSelectedTrack,
-    shuffleEnabled
+    shuffleEnabled,
+    t
   ]);
 
   return {

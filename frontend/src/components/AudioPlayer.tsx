@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useAudioPlayback, type RepeatMode, type TranscodeMode } from "../hooks/useAudioPlayback";
 import { usePlaybackPositionPersistence } from "../hooks/usePlaybackPositionPersistence";
@@ -69,12 +70,6 @@ type AudioPlayerProps = {
   onOpenTrackAlbum?: () => void;
 };
 
-const repeatLabels = {
-  off: { aria: "Enable repeat all", title: "Repeat off" },
-  all: { aria: "Enable repeat one", title: "Repeat all" },
-  one: { aria: "Disable repeat", title: "Repeat one" }
-} satisfies Record<RepeatMode, { aria: string; title: string }>;
-
 export function AudioPlayer({
   track,
   expanded = false,
@@ -104,6 +99,12 @@ export function AudioPlayer({
   onOpenTrackArtist,
   onOpenTrackAlbum
 }: AudioPlayerProps): JSX.Element {
+  const { t } = useTranslation(["player", "common"]);
+  const repeatLabels = {
+    off: { aria: t("player:repeat.enableAllAria"), title: t("player:repeat.offTitle") },
+    all: { aria: t("player:repeat.enableOneAria"), title: t("player:repeat.allTitle") },
+    one: { aria: t("player:repeat.disableAria"), title: t("player:repeat.oneTitle") }
+  } satisfies Record<RepeatMode, { aria: string; title: string }>;
   const {
     audioRef, streamSource,
     isPlaying, currentTime, duration, volume, muted,
@@ -187,7 +188,7 @@ export function AudioPlayer({
   }`;
   const displayTitle = getTrackDisplayTitle(track);
   const trackArtist = getTrackDisplayArtist(track);
-  const displayArtist = trackArtist ?? "Unknown artist";
+  const displayArtist = trackArtist ?? t("common:unknownArtist");
   const displayAlbumWithYear = getTrackDisplayAlbumWithYear(track);
   const displayLyrics = getTrackDisplayLyrics(track);
   const hasLyrics = Boolean(displayLyrics);
@@ -263,8 +264,8 @@ export function AudioPlayer({
                 <button
                   className={ghostControlButtonClassName}
                   type="button"
-                  aria-label="Previous track"
-                  title="Previous"
+                  aria-label={t("player:controls.previousAria")}
+                  title={t("player:controls.previous")}
                   onClick={() => handlePrevious({ wrap: false })}
                   disabled={!onPrevious || seekLocked}
                 >
@@ -274,8 +275,20 @@ export function AudioPlayer({
               <button
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-flaque-ink text-flaque-cream transition hover:bg-flaque-steel"
                 type="button"
-                aria-label={isRadioMode && isPlaying ? "Stop radio" : isPlaying ? "Pause playback" : "Play playback"}
-                title={isRadioMode && isPlaying ? "Stop" : isPlaying ? "Pause" : "Play"}
+                aria-label={
+                  isRadioMode && isPlaying
+                    ? t("player:controls.stopRadioAria")
+                    : isPlaying
+                      ? t("player:controls.pauseAria")
+                      : t("player:controls.playAria")
+                }
+                title={
+                  isRadioMode && isPlaying
+                    ? t("player:controls.stop")
+                    : isPlaying
+                      ? t("player:controls.pause")
+                      : t("player:controls.play")
+                }
                 onClick={() => {
                   if (isRadioMode && isPlaying) {
                     pausePlayback();
@@ -299,8 +312,8 @@ export function AudioPlayer({
                 <button
                   className={ghostControlButtonClassName}
                   type="button"
-                  aria-label="Next track"
-                  title="Next"
+                  aria-label={t("player:controls.nextAria")}
+                  title={t("player:controls.next")}
                   onClick={() => {
                     if (onNext) {
                       void onNext({ wrap: false });
@@ -339,8 +352,8 @@ export function AudioPlayer({
                         : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-sand"
                     }`}
                     type="button"
-                    aria-label={shuffleEnabled ? "Disable shuffle" : "Enable shuffle"}
-                    title={shuffleEnabled ? "Shuffle on" : "Shuffle off"}
+                    aria-label={shuffleEnabled ? t("player:controls.disableShuffle") : t("player:controls.enableShuffle")}
+                    title={shuffleEnabled ? t("player:controls.shuffleOn") : t("player:controls.shuffleOff")}
                     onClick={onToggleShuffle}
                     disabled={!onShuffleEnabledChange}
                   >
@@ -354,8 +367,8 @@ export function AudioPlayer({
               <button
                 className={queueButtonClassName}
                 type="button"
-                aria-label={showQueuePanel ? "Hide queue" : "Show queue"}
-                title={showQueuePanel ? "Hide queue" : "Show queue"}
+                aria-label={showQueuePanel ? t("player:controls.hideQueue") : t("player:controls.showQueue")}
+                title={showQueuePanel ? t("player:controls.hideQueue") : t("player:controls.showQueue")}
                 disabled={seekLocked}
                 onClick={() => setShowQueuePanel((current) => !current)}
               >
@@ -365,8 +378,8 @@ export function AudioPlayer({
               <button
                 className={playlistButtonClassName}
                 type="button"
-                aria-label="Add to playlist"
-                title="Add to playlist"
+                aria-label={t("player:controls.addToPlaylist")}
+                title={t("player:controls.addToPlaylist")}
                 onClick={() => setShowPlaylistPicker((current) => !current)}
                 disabled={!onAddTrackToPlaylist || !hasPlayablePlaylists}
               >
@@ -376,8 +389,8 @@ export function AudioPlayer({
               <button
                 className={`${ghostControlButtonClassName} lg:hidden`}
                 type="button"
-                aria-label={showMobileUtilityPanel ? "Close player options" : "Open player options"}
-                title={showMobileUtilityPanel ? "Close options" : "More options"}
+                aria-label={showMobileUtilityPanel ? t("player:controls.closeOptions") : t("player:controls.openOptions")}
+                title={showMobileUtilityPanel ? t("player:controls.close") : t("player:controls.moreOptions")}
                 aria-expanded={showMobileUtilityPanel}
                 onClick={() => setShowMobileUtilityPanel((current) => !current)}
               >
@@ -386,7 +399,7 @@ export function AudioPlayer({
 
               <div className="hidden h-9 items-center justify-end gap-2 lg:flex">
                 <label className="sr-only" htmlFor="player-quality-select-desktop">
-                  Quality
+                  {t("player:quality.label")}
                 </label>
                 <select
                   id="player-quality-select-desktop"
@@ -394,16 +407,16 @@ export function AudioPlayer({
                   value={transcodeMode}
                   onChange={(event) => handleTranscodeModeChange(event.target.value as TranscodeMode)}
                 >
-                  <option value="original">Original</option>
-                  <option value="opus">Opus fallback</option>
-                  <option value="mp3">MP3 fallback</option>
+                  <option value="original">{t("player:quality.original")}</option>
+                  <option value="opus">{t("player:quality.opus")}</option>
+                  <option value="mp3">{t("player:quality.mp3")}</option>
                 </select>
 
                 <button
                   className={ghostControlButtonClassName}
                   type="button"
-                  aria-label={isVolumeMuted ? "Unmute" : "Mute"}
-                  title={isVolumeMuted ? "Unmute" : "Mute"}
+                  aria-label={isVolumeMuted ? t("player:controls.unmute") : t("player:controls.mute")}
+                  title={isVolumeMuted ? t("player:controls.unmute") : t("player:controls.mute")}
                   onClick={handleToggleMuted}
                 >
                   {isVolumeMuted ? <VolumeMutedIcon /> : <VolumeOnIcon />}
@@ -416,8 +429,8 @@ export function AudioPlayer({
                   max={1}
                   step={0.01}
                   value={volume}
-                  aria-label="Volume"
-                  title="Volume"
+                  aria-label={t("player:controls.volume")}
+                  title={t("player:controls.volume")}
                   onChange={(event) => handleVolumeChange(Number(event.target.value))}
                 />
               </div>
@@ -455,8 +468,8 @@ export function AudioPlayer({
           {transcodeMode !== "original" ? (
             <p className="text-xs text-flaque-steel">
               {canTranscode
-                ? `Streaming fallback via ${transcodeMode.toUpperCase()}.`
-                : "Fallback transcoding is available only for FLAC tracks. Streaming original source."}
+                ? t("player:transcode.fallbackActive", { codec: transcodeMode.toUpperCase() })
+                : t("player:transcode.flacOnly")}
             </p>
           ) : null}
 

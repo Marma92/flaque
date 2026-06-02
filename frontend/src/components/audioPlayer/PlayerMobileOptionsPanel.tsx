@@ -1,4 +1,5 @@
 import type { JSX } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { RepeatMode, TranscodeMode } from "../../hooks/useAudioPlayback";
 import {
@@ -27,12 +28,6 @@ type PlayerMobileOptionsPanelProps = {
   onToggleMuted: () => void;
 };
 
-const repeatLabels = {
-  off: { aria: "Enable repeat all", title: "Repeat off" },
-  all: { aria: "Enable repeat one", title: "Repeat all" },
-  one: { aria: "Disable repeat", title: "Repeat one" }
-} satisfies Record<RepeatMode, { aria: string; title: string }>;
-
 export function PlayerMobileOptionsPanel({
   ghostControlButtonClassName,
   qualitySelectClassName,
@@ -49,6 +44,12 @@ export function PlayerMobileOptionsPanel({
   onVolumeChange,
   onToggleMuted
 }: PlayerMobileOptionsPanelProps): JSX.Element {
+  const { t } = useTranslation("player");
+  const repeatLabels = {
+    off: { aria: t("repeat.enableAllAria"), title: t("repeat.offTitle") },
+    all: { aria: t("repeat.enableOneAria"), title: t("repeat.allTitle") },
+    one: { aria: t("repeat.disableAria"), title: t("repeat.oneTitle") }
+  } satisfies Record<RepeatMode, { aria: string; title: string }>;
   const repeatLabel = repeatLabels[repeatMode];
   const isVolumeMuted = muted || volume === 0;
 
@@ -58,8 +59,8 @@ export function PlayerMobileOptionsPanel({
         <button
           className="flex h-8 w-8 items-center justify-center rounded-lg border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-sand"
           type="button"
-          aria-label="Close player options"
-          title="Close"
+          aria-label={t("controls.closeOptions")}
+          title={t("controls.close")}
           onClick={onClose}
         >
           <CloseIcon className="h-4 w-4" strokeWidth={2} />
@@ -88,8 +89,8 @@ export function PlayerMobileOptionsPanel({
               : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-sand"
           }`}
           type="button"
-          aria-label={shuffleEnabled ? "Disable shuffle" : "Enable shuffle"}
-          title={shuffleEnabled ? "Shuffle on" : "Shuffle off"}
+          aria-label={shuffleEnabled ? t("controls.disableShuffle") : t("controls.enableShuffle")}
+          title={shuffleEnabled ? t("controls.shuffleOn") : t("controls.shuffleOff")}
           onClick={onToggleShuffle}
           disabled={!onShuffleEnabledChange}
         >
@@ -98,16 +99,16 @@ export function PlayerMobileOptionsPanel({
       </div>
 
       <label className="flex items-center justify-between gap-2 text-xs text-flaque-steel" htmlFor="player-quality-select-mobile">
-        <span>Quality</span>
+        <span>{t("quality.label")}</span>
         <select
           id="player-quality-select-mobile"
           className={`${qualitySelectClassName} w-32`}
           value={transcodeMode}
           onChange={(event) => onTranscodeModeChange(event.target.value as TranscodeMode)}
         >
-          <option value="original">Original</option>
-          <option value="opus">Opus fallback</option>
-          <option value="mp3">MP3 fallback</option>
+          <option value="original">{t("quality.original")}</option>
+          <option value="opus">{t("quality.opus")}</option>
+          <option value="mp3">{t("quality.mp3")}</option>
         </select>
       </label>
 
@@ -115,8 +116,8 @@ export function PlayerMobileOptionsPanel({
         <button
           className={ghostControlButtonClassName}
           type="button"
-          aria-label={isVolumeMuted ? "Unmute" : "Mute"}
-          title={isVolumeMuted ? "Unmute" : "Mute"}
+          aria-label={isVolumeMuted ? t("controls.unmute") : t("controls.mute")}
+          title={isVolumeMuted ? t("controls.unmute") : t("controls.mute")}
           onClick={onToggleMuted}
         >
           {isVolumeMuted ? <VolumeMutedIcon /> : <VolumeOnIcon />}
@@ -129,8 +130,8 @@ export function PlayerMobileOptionsPanel({
           max={1}
           step={0.01}
           value={volume}
-          aria-label="Volume"
-          title="Volume"
+          aria-label={t("controls.volume")}
+          title={t("controls.volume")}
           onChange={(event) => onVolumeChange(Number(event.target.value))}
         />
       </div>
