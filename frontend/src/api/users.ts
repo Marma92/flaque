@@ -122,6 +122,8 @@ export type PlaybackState = {
   trackId: string;
   positionSec: number;
   updatedAt: string;
+  /** Ordered track IDs of the queue that was playing, so a resume can continue past the current track. */
+  queue?: string[];
 };
 
 export async function getMyPlaybackState(): Promise<PlaybackState | null> {
@@ -132,6 +134,7 @@ export async function getMyPlaybackState(): Promise<PlaybackState | null> {
 export async function setMyPlaybackState(input: {
   trackId: string;
   positionSec: number;
+  queue?: string[];
 }): Promise<PlaybackState> {
   const { state } = await requestJson<{ state: PlaybackState }>("/api/me/playback-state", {
     method: "PUT",

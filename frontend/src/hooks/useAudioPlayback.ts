@@ -18,6 +18,9 @@ type NavigateOptions = {
 const PLAYER_VOLUME_STORAGE_KEY = "flaque_player_volume_v1";
 const SKIP_TIME_THRESHOLD_SECONDS = 30;
 const SKIP_RATIO_THRESHOLD = 0.5;
+// Pressing "previous" past this point restarts the current track instead of
+// jumping to the previous one (matches the convention used by most players).
+const PREVIOUS_RESTART_THRESHOLD_SECONDS = 5;
 
 function isFlacTrack(track: Track): boolean {
   return (
@@ -74,6 +77,7 @@ export type AudioPlaybackState = {
   pausePlayback: () => void;
   onTogglePlayback: () => void;
   onSeek: (seconds: number) => void;
+  handlePrevious: (options?: NavigateOptions) => void;
   onEnded: () => void;
   onCycleRepeatMode: () => void;
   onToggleShuffle: () => void;
@@ -321,9 +325,7 @@ export function useAudioPlayback({
     bindAction("pause", () => pausePlayback());
     bindAction("stop", () => pausePlayback());
     bindAction("previoustrack", () => {
-      if (onPrevious) {
-        void onPrevious({ wrap: false });
-      }
+      handlePrevious({ wrap: false });
     });
     bindAction("nexttrack", () => {
       if (onNext) {
@@ -456,6 +458,22 @@ export function useAudioPlayback({
     audioElement.currentTime = nextSeconds;
     currentTimeRef.current = nextSeconds;
     setCurrentTime(nextSeconds);
+  }
+
+  function handlePrevious(options?: NavigateOptions): void {
+    const audioElement = audioRef.current;
+    // If we're already a few seconds into the track, "previous" restarts it
+    // rather than skipping back to the prior track.
+    if (audioElement && audioElement.currentTime > PREVIOUS_RESTART_THRESHOLD_SECONDS) {
+      audioElement.currentTime = 0;
+      currentTimeRef.current = 0;
+      setCurrentTime(0);
+      return;
+    }
+
+    if (onPrevious) {
+      void onPrevious(options);
+    }
   }
 
   function onEnded(): void {
@@ -609,6 +627,7 @@ export function useAudioPlayback({
     pausePlayback,
     onTogglePlayback,
     onSeek,
+    handlePrevious,
     onEnded,
     onCycleRepeatMode,
     onToggleShuffle,

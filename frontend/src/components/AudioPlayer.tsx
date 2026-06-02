@@ -108,7 +108,7 @@ export function AudioPlayer({
     audioRef, streamSource,
     isPlaying, currentTime, duration, volume, muted,
     canTranscode, effectiveTranscode,
-    pausePlayback, onTogglePlayback, onSeek, onEnded,
+    pausePlayback, onTogglePlayback, onSeek, handlePrevious, onEnded,
     onCycleRepeatMode, onToggleShuffle,
     handleTranscodeModeChange, handleVolumeChange, setMuted,
     handleAudioPlay, handleAudioPause, handleAudioTimeUpdate, handleAudioLoadedMetadata
@@ -119,7 +119,7 @@ export function AudioPlayer({
     playRequestNonce, playRequestOffsetSec, onNext, onPrevious, onTrackPlayed, onTrackSkipped
   });
 
-  usePlaybackPositionPersistence({ track, currentTime, isPlaying });
+  usePlaybackPositionPersistence({ track, currentTime, isPlaying, queue: queueTracks });
 
   const [showPlaylistPicker, setShowPlaylistPicker] = useState(false);
   const [showQueuePanel, setShowQueuePanel] = useState(false);
@@ -265,11 +265,7 @@ export function AudioPlayer({
                   type="button"
                   aria-label="Previous track"
                   title="Previous"
-                  onClick={() => {
-                    if (onPrevious) {
-                      void onPrevious({ wrap: false });
-                    }
-                  }}
+                  onClick={() => handlePrevious({ wrap: false })}
                   disabled={!onPrevious || seekLocked}
                 >
                   <PrevIcon />

@@ -75,6 +75,61 @@ describe("playbackStateStore", () => {
     expect((await getPlaybackState("user-2"))?.trackId).toBe("track-b");
   });
 
+  it("stores and retrieves the playback queue", async () => {
+    const result = await setPlaybackState("user-1", {
+      trackId: "track-a",
+      positionSec: 5,
+      queue: ["track-a", "track-b", "track-c"]
+    });
+
+    expect(result.queue).toEqual(["track-a", "track-b", "track-c"]);
+    expect((await getPlaybackState("user-1"))?.queue).toEqual([
+      "track-a",
+      "track-b",
+      "track-c"
+    ]);
+  });
+
+  it("preserves the existing queue when a position-only update omits it", async () => {
+    await setPlaybackState("user-1", {
+      trackId: "track-a",
+      positionSec: 5,
+      queue: ["track-a", "track-b", "track-c"]
+    });
+
+    const updated = await setPlaybackState("user-1", { trackId: "track-b", positionSec: 42 });
+
+    expect(updated.trackId).toBe("track-b");
+    expect(updated.positionSec).toBe(42);
+    expect(updated.queue).toEqual(["track-a", "track-b", "track-c"]);
+  });
+
+  it("replaces the queue when a new one is provided", async () => {
+    await setPlaybackState("user-1", {
+      trackId: "track-a",
+      positionSec: 5,
+      queue: ["track-a", "track-b"]
+    });
+
+    const updated = await setPlaybackState("user-1", {
+      trackId: "track-x",
+      positionSec: 0,
+      queue: ["track-x", "track-y"]
+    });
+
+    expect(updated.queue).toEqual(["track-x", "track-y"]);
+  });
+
+  it("drops an empty queue rather than storing it", async () => {
+    const result = await setPlaybackState("user-1", {
+      trackId: "track-a",
+      positionSec: 5,
+      queue: []
+    });
+
+    expect(result.queue).toBeUndefined();
+  });
+
   it("clearPlaybackState removes the stored state", async () => {
     await setPlaybackState("user-1", { trackId: "track-a", positionSec: 10 });
     await clearPlaybackState("user-1");

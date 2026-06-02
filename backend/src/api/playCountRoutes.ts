@@ -110,12 +110,20 @@ export function createPlayCountRouter(indexStore: IndexStore): Router {
         return next(new AppError("Authentication required", 401));
       }
 
-      const body = req.body as { trackId?: unknown; positionSec?: unknown } | undefined;
+      const body = req.body as { trackId?: unknown; positionSec?: unknown; queue?: unknown } | undefined;
       const trackId = typeof body?.trackId === "string" ? body.trackId.trim() : "";
       const positionSec =
         typeof body?.positionSec === "number" && Number.isFinite(body.positionSec)
           ? body.positionSec
           : null;
+      // Only persist queue entries that still exist in the index. `undefined`
+      // (queue omitted) leaves the previously stored queue untouched.
+      const queue = Array.isArray(body?.queue)
+        ? body.queue
+            .filter((entry): entry is string => typeof entry === "string")
+            .map((entry) => entry.trim())
+            .filter((entry) => entry.length > 0 && indexStore.hasTrack(entry))
+        : undefined;
 
       if (!trackId) {
         return next(new AppError("trackId is required", 400));
@@ -127,7 +135,7 @@ export function createPlayCountRouter(indexStore: IndexStore): Router {
         return next(new AppError("Track not found", 404));
       }
 
-      const state = await setPlaybackState(userId, { trackId, positionSec });
+      const state = await setPlaybackState(userId, { trackId, positionSec, queue });
       res.json({ state });
     } catch (error) {
       next(error);
