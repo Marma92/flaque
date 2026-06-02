@@ -1,3 +1,5 @@
+import { DEFAULT_LANGUAGE, normalizeLanguage, type UserLanguage } from "@flaque/shared";
+
 import type { AuthUser, UserRole } from "../types/auth";
 import { createId } from "../utils/hash";
 import { hashPassword } from "./password";
@@ -34,13 +36,13 @@ export function createUser(
     )
     .run(id, username, normalizedEmail, passwordHash, role, now);
 
-  return { id, username, role, email: normalizedEmail };
+  return { id, username, role, email: normalizedEmail, language: DEFAULT_LANGUAGE };
 }
 
 export function findUserByUsername(username: string): UserRow | null {
   const database = requireDb();
   const row = database
-    .prepare("SELECT id, username, email, password_hash, role FROM users WHERE username = ?")
+    .prepare("SELECT id, username, email, password_hash, role, language FROM users WHERE username = ?")
     .get(username) as UserRow | undefined;
   return row ?? null;
 }
@@ -53,7 +55,7 @@ export function findUserByEmail(email: string): UserRow | null {
   }
 
   const row = database
-    .prepare("SELECT id, username, email, password_hash, role FROM users WHERE email = ?")
+    .prepare("SELECT id, username, email, password_hash, role, language FROM users WHERE email = ?")
     .get(normalizedEmail) as UserRow | undefined;
   return row ?? null;
 }
@@ -72,28 +74,36 @@ export function findUserByLogin(login: string): UserRow | null {
   return findUserByEmail(normalizedLogin);
 }
 
+type AuthUserRow = Omit<AuthUser, "language"> & { language: string | null };
+
+function toAuthUser(row: AuthUserRow): AuthUser {
+  return { ...row, language: normalizeLanguage(row.language) };
+}
+
 export function findUserById(userId: string): AuthUser | null {
   const database = requireDb();
   const row = database
-    .prepare("SELECT id, username, COALESCE(email, '') AS email, role FROM users WHERE id = ?")
-    .get(userId) as AuthUser | undefined;
-  return row ?? null;
+    .prepare("SELECT id, username, COALESCE(email, '') AS email, role, language FROM users WHERE id = ?")
+    .get(userId) as AuthUserRow | undefined;
+  return row ? toAuthUser(row) : null;
 }
 
 export function listUsers(): AuthUser[] {
   const database = requireDb();
-  return database
-    .prepare("SELECT id, username, COALESCE(email, '') AS email, role FROM users ORDER BY username ASC")
-    .all() as AuthUser[];
+  const rows = database
+    .prepare("SELECT id, username, COALESCE(email, '') AS email, role, language FROM users ORDER BY username ASC")
+    .all() as AuthUserRow[];
+  return rows.map(toAuthUser);
 }
 
 export function listAdminUsersWithEmail(): AuthUser[] {
   const database = requireDb();
-  return database
+  const rows = database
     .prepare(
-      "SELECT id, username, COALESCE(email, '') AS email, role FROM users WHERE role = 'admin' AND email IS NOT NULL AND TRIM(email) != ''"
+      "SELECT id, username, COALESCE(email, '') AS email, role, language FROM users WHERE role = 'admin' AND email IS NOT NULL AND TRIM(email) != ''"
     )
-    .all() as AuthUser[];
+    .all() as AuthUserRow[];
+  return rows.map(toAuthUser);
 }
 
 export function countUsersByRole(role: UserRole): number {
@@ -141,5 +151,11 @@ export function updateUserEmail(userId: string, email: string | null | undefined
   const database = requireDb();
   const normalizedEmail = normalizeEmail(email);
   const result = database.prepare("UPDATE users SET email = ? WHERE id = ?").run(normalizedEmail, userId);
+  return result.changes > 0;
+}
+
+export function setUserLanguage(userId: string, language: UserLanguage): boolean {
+  const database = requireDb();
+  const result = database.prepare("UPDATE users SET language = ? WHERE id = ?").run(language, userId);
   return result.changes > 0;
 }

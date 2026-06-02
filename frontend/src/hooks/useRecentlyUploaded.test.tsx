@@ -16,7 +16,8 @@ const USER: User = {
   id: "user-1",
   username: "alice",
   email: "alice@example.com",
-  role: "user"
+  role: "user",
+  language: "en"
 };
 
 beforeEach(() => {

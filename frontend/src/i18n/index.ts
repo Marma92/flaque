@@ -1,3 +1,4 @@
+import { DEFAULT_LANGUAGE, isSupportedLanguage, SUPPORTED_LANGUAGES, type UserLanguage } from "@flaque/shared";
 import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
@@ -7,10 +8,10 @@ import enPlayer from "./locales/en/player.json";
 import frCommon from "./locales/fr/common.json";
 import frPlayer from "./locales/fr/player.json";
 
-export const SUPPORTED_LANGUAGES = ["en", "fr"] as const;
-export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
-
-export const DEFAULT_LANGUAGE: SupportedLanguage = "en";
+// Re-export the shared language vocabulary so UI code can import everything
+// i18n-related from a single module.
+export { DEFAULT_LANGUAGE, isSupportedLanguage, SUPPORTED_LANGUAGES };
+export type SupportedLanguage = UserLanguage;
 
 /** Endonyms — each language label is shown in its own language. */
 export const LANGUAGE_LABELS: Record<SupportedLanguage, string> = {
@@ -29,17 +30,14 @@ export const resources = {
   fr: { common: frCommon, player: frPlayer }
 } as const;
 
-export function isSupportedLanguage(value: unknown): value is SupportedLanguage {
-  return typeof value === "string" && (SUPPORTED_LANGUAGES as readonly string[]).includes(value);
-}
-
 void i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources,
-    // Phase 0: detection order is localStorage → browser. The account-synced
-    // preference is layered on top in Phase 1.
+    // Detection order for logged-out / first paint is localStorage → browser.
+    // For signed-in users the account preference is layered on top by syncing
+    // i18n to `user.language` once the session loads (see useLanguageSync).
     detection: {
       order: ["localStorage", "navigator"],
       lookupLocalStorage: LANGUAGE_STORAGE_KEY,

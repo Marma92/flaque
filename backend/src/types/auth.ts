@@ -1,3 +1,5 @@
+import type { UserLanguage } from "@flaque/shared";
+
 export type UserRole = "admin" | "user";
 
 export type AuthUser = {
@@ -5,6 +7,7 @@ export type AuthUser = {
   username: string;
   email: string;
   role: UserRole;
+  language: UserLanguage;
 };
 
 export type AuthSession = {

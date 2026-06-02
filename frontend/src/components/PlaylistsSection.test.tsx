@@ -32,7 +32,8 @@ const USER: User = {
   id: "user-1",
   username: "alice",
   email: "a@b.c",
-  role: "user"
+  role: "user",
+  language: "en"
 };
 
 function baseProps(overrides: Partial<PlaylistsSectionProps> = {}): PlaylistsSectionProps {

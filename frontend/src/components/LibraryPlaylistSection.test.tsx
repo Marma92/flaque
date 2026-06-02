@@ -36,7 +36,7 @@ function createPlaylist(input: {
 const defaultProps = {
   manageablePlaylists: [] as Playlist[],
   allTracksById: new Map(),
-  user: { id: "user-1", username: "Alice", email: "alice@test.local", role: "user" as const },
+  user: { id: "user-1", username: "Alice", email: "alice@test.local", role: "user" as const, language: "en" as const },
   onPatchPlaylist: vi.fn().mockResolvedValue(undefined),
   onDeletePlaylist: vi.fn().mockResolvedValue(undefined),
   onNavigateToPlaylist: vi.fn(),

@@ -18,6 +18,7 @@ export {
   getUsers,
   createUserAccount,
   updateMyEmail,
+  updateMyLanguage,
   patchUserAccount,
   deleteUserAccount,
   resetUserPassword,

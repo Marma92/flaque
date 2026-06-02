@@ -6,6 +6,8 @@ import multer from "multer";
 import { Router } from "express";
 import sharp from "sharp";
 
+import { isSupportedLanguage } from "@flaque/shared";
+
 import {
   countUsersByRole,
   createUser,
@@ -13,6 +15,7 @@ import {
   findUserById,
   findUserByUsername,
   listUsers,
+  setUserLanguage,
   updateUserEmail,
   updateUserPassword,
   updateUserRole,
@@ -279,6 +282,30 @@ export function createUserRouter(): Router {
       if (isSqliteUniqueError(error)) {
         return next(new AppError("Email address already in use", 409));
       }
+      next(error);
+    }
+  });
+
+  router.post("/users/me/language", requireAuth, (req, res, next) => {
+    try {
+      const authUser = req.authUser;
+      if (!authUser) {
+        return next(new AppError("Unauthorized", 401));
+      }
+
+      const language = req.body?.language;
+      if (!isSupportedLanguage(language)) {
+        return next(new AppError("Unsupported language", 400));
+      }
+
+      const updated = setUserLanguage(authUser.id, language);
+      if (!updated) {
+        return next(new AppError("User not found", 404));
+      }
+
+      const updatedUser = findUserById(authUser.id);
+      res.json({ ok: true, user: updatedUser });
+    } catch (error) {
       next(error);
     }
   });

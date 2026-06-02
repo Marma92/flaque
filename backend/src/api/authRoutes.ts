@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { Router, type Request, type Response } from "express";
+import { normalizeLanguage } from "@flaque/shared";
 
 import { AppError } from "../utils/AppError";
 
@@ -262,7 +263,9 @@ export function createAuthRouter(): Router {
       user: {
         id: user.id,
         username: user.username,
-        role: user.role
+        email: user.email ?? "",
+        role: user.role,
+        language: normalizeLanguage(user.language)
       }
     });
   });

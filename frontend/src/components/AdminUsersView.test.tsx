@@ -8,9 +8,9 @@ import { AdminUsersView } from "./AdminUsersView";
 
 // ── Mock data ──────────────────────────────────────────────────────────
 
-const adminUser: User = { id: "admin-1", username: "admin", email: "admin@test.local", role: "admin" };
-const regularUser: User = { id: "user-2", username: "bob", email: "bob@test.local", role: "user" };
-const otherAdmin: User = { id: "admin-3", username: "carol", email: "carol@test.local", role: "admin" };
+const adminUser: User = { id: "admin-1", username: "admin", email: "admin@test.local", role: "admin", language: "en" };
+const regularUser: User = { id: "user-2", username: "bob", email: "bob@test.local", role: "user", language: "en" };
+const otherAdmin: User = { id: "admin-3", username: "carol", email: "carol@test.local", role: "admin", language: "en" };
 
 // ── Hook mocks ─────────────────────────────────────────────────────────
 

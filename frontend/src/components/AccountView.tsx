@@ -1,7 +1,7 @@
 import { ChangeEvent, type Dispatch, FormEvent, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { coverUrl, getMyPlayStats, type PlayStatsResponse } from "../api";
+import { coverUrl, getMyPlayStats, updateMyLanguage, type PlayStatsResponse } from "../api";
 import {
   DEFAULT_LANGUAGE,
   isSupportedLanguage,
@@ -648,7 +648,19 @@ export function AccountView({
             className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
             value={currentLanguage}
             onChange={(event) => {
-              void i18n.changeLanguage(event.target.value);
+              const next = event.target.value;
+              if (!isSupportedLanguage(next) || next === currentLanguage) {
+                return;
+              }
+              // Switch the UI immediately (also caches to localStorage), then
+              // persist to the account so the choice follows the user across
+              // devices.
+              void i18n.changeLanguage(next);
+              void updateMyLanguage(next)
+                .then((updatedUser) => setUser(updatedUser))
+                .catch(() => {
+                  // Best-effort: the local switch already took effect.
+                });
             }}
           >
             {SUPPORTED_LANGUAGES.map((lng) => (

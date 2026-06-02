@@ -1,11 +1,12 @@
-import type { Playlist, Track } from "@flaque/shared";
+import type { Playlist, Track, UserLanguage } from "@flaque/shared";
 
 export type {
   Playlist,
   PlaylistVisibility,
   Track,
   TrackTagExtraValue,
-  TrackTags
+  TrackTags,
+  UserLanguage
 } from "@flaque/shared";
 
 export type User = {
@@ -13,6 +14,7 @@ export type User = {
   username: string;
   email: string;
   role: "admin" | "user";
+  language: UserLanguage;
 };
 
 export type UserSession = {

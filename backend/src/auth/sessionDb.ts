@@ -1,3 +1,5 @@
+import { normalizeLanguage } from "@flaque/shared";
+
 import type { AuthSession, AuthUser } from "../types/auth";
 import { createId } from "../utils/hash";
 
@@ -90,6 +92,7 @@ export function findSessionUser(sessionId: string): { user: AuthUser; session: A
         u.username,
         COALESCE(u.email, '') AS email,
         u.role,
+        u.language,
         s.id AS session_id,
         s.created_at,
         s.expires_at,
@@ -127,7 +130,8 @@ export function findSessionUser(sessionId: string): { user: AuthUser; session: A
       id: row.id,
       username: row.username,
       email: (row as { email?: string }).email ?? "",
-      role: row.role
+      role: row.role,
+      language: normalizeLanguage(row.language)
     },
     session: {
       id: row.session_id,

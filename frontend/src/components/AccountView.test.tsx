@@ -31,7 +31,8 @@ const {
 
 vi.mock("../api", () => ({
   coverUrl: (trackId: string, coverPath?: string) => coverPath ?? `/mock-covers/${trackId}`,
-  getMyPlayStats: mockGetMyPlayStats
+  getMyPlayStats: mockGetMyPlayStats,
+  updateMyLanguage: vi.fn().mockResolvedValue(undefined)
 }));
 
 vi.mock("../hooks/useAccountActions", () => ({
@@ -71,7 +72,8 @@ function createUser(): User {
     id: "user-1",
     username: "alice",
     email: "alice@test.local",
-    role: "user"
+    role: "user",
+    language: "en"
   };
 }
 

@@ -1,4 +1,4 @@
-import type { User } from "../types";
+import type { User, UserLanguage } from "../types";
 import { requestJson, withApiBase } from "./client";
 
 export function myProfilePhotoUrl(input?: { version?: number; userId?: string }): string {
@@ -66,6 +66,18 @@ export async function updateMyEmail(email: string): Promise<User> {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({ email })
+  });
+
+  return payload.user;
+}
+
+export async function updateMyLanguage(language: UserLanguage): Promise<User> {
+  const payload = await requestJson<{ user: User }>("/api/users/me/language", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ language })
   });
 
   return payload.user;

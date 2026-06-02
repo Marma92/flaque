@@ -45,7 +45,8 @@ const mockUser: AuthUser = {
   id: "user-1",
   username: "user-1",
   email: "user1@example.com",
-  role: "user"
+  role: "user",
+  language: "en"
 };
 
 function createMockIndexStore(overrides: Partial<{
