@@ -9,6 +9,7 @@ import {
   sortAndGroupAlbums
 } from "../utils/albumSort";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AlbumList } from "./AlbumList";
 import { Coverflow } from "./Coverflow";
 import { SectionLabel } from "./SectionLabel";
@@ -16,14 +17,23 @@ import { TrackList } from "./TrackList";
 
 const ALBUM_SORT_STORAGE_KEY = "flaque.albums.sort";
 
-const ALBUM_SORT_OPTIONS: ReadonlyArray<{ value: AlbumSortMode; label: string }> = [
-  { value: "album-asc", label: "Album A → Z" },
-  { value: "album-desc", label: "Album Z → A" },
-  { value: "artist-asc", label: "Artist A → Z" },
-  { value: "artist-desc", label: "Artist Z → A" },
-  { value: "year-desc", label: "Year (newest)" },
-  { value: "year-asc", label: "Year (oldest)" }
+const ALBUM_SORT_MODES: ReadonlyArray<AlbumSortMode> = [
+  "album-asc",
+  "album-desc",
+  "artist-asc",
+  "artist-desc",
+  "year-desc",
+  "year-asc"
 ];
+
+const ALBUM_SORT_LABEL_KEYS: Record<AlbumSortMode, string> = {
+  "album-asc": "albumAsc",
+  "album-desc": "albumDesc",
+  "artist-asc": "artistAsc",
+  "artist-desc": "artistDesc",
+  "year-desc": "yearNewest",
+  "year-asc": "yearOldest"
+};
 
 function loadInitialSortMode(): AlbumSortMode {
   if (typeof window === "undefined") return DEFAULT_ALBUM_SORT_MODE;
@@ -76,6 +86,7 @@ export function LibraryAlbumsSection({
   playlists,
   onAddTrackToPlaylist
 }: LibraryAlbumsSectionProps): JSX.Element {
+  const { t } = useTranslation(["library", "common"]);
   const [viewMode, setViewMode] = useState<AlbumViewMode>("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<AlbumSortMode>(loadInitialSortMode);
@@ -123,11 +134,11 @@ export function LibraryAlbumsSection({
             <div className="min-w-0">
               <h3 className="truncate font-display text-4xl font-bold text-flaque-ink">{selectedAlbum.name}</h3>
               <p className="mt-1 text-base text-flaque-steel">
-                {selectedAlbum.artist ?? "Unknown artist"}
+                {selectedAlbum.artist ?? t("common:unknownArtist")}
               </p>
               <p className="mt-0.5 text-sm text-flaque-steel">
                 {selectedAlbum.year ? `${selectedAlbum.year} · ` : ""}
-                {selectedAlbum.trackCount} track{selectedAlbum.trackCount !== 1 ? "s" : ""}
+                {t("common:trackCount", { count: selectedAlbum.trackCount })}
                 {selectedAlbum.totalDuration ? ` · ${formatDurationHuman(selectedAlbum.totalDuration)}` : ""}
               </p>
             </div>
@@ -142,7 +153,7 @@ export function LibraryAlbumsSection({
             className="mb-3 inline-flex items-center rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-2.5 py-1 text-xs font-medium text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
             type="button"
             onClick={onBack}
-            aria-label="Back"
+            aria-label={t("library:albums.back")}
           >
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
@@ -150,26 +161,26 @@ export function LibraryAlbumsSection({
           </button>
         ) : (
           <>
-            <h2 className="font-display text-xl text-flaque-ink">Albums</h2>
+            <h2 className="font-display text-xl text-flaque-ink">{t("library:albums.title")}</h2>
             <div className="flex flex-wrap items-center gap-3">
               <input
                 className="rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-3 py-1.5 text-sm text-flaque-ink placeholder:text-flaque-steel/60 focus:border-flaque-ink/40 focus:outline-none"
                 type="text"
-                placeholder="Search albums..."
+                placeholder={t("library:albums.search")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <label className="sr-only" htmlFor="album-sort">Sort albums</label>
+              <label className="sr-only" htmlFor="album-sort">{t("library:albums.sortLabel")}</label>
               <select
                 id="album-sort"
                 className="rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-3 py-1.5 text-sm text-flaque-ink focus:border-flaque-ink/40 focus:outline-none"
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as AlbumSortMode)}
-                aria-label="Sort albums"
+                aria-label={t("library:albums.sortLabel")}
               >
-                {ALBUM_SORT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
+                {ALBUM_SORT_MODES.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {t(`library:albums.sort.${ALBUM_SORT_LABEL_KEYS[mode]}`)}
                   </option>
                 ))}
               </select>
@@ -181,7 +192,7 @@ export function LibraryAlbumsSection({
                   type="button"
                   onClick={() => setViewMode("list")}
                 >
-                  List
+                  {t("library:albums.viewList")}
                 </button>
                 <button
                   className={`rounded-lg px-3 py-1.5 text-sm transition ${
@@ -190,7 +201,7 @@ export function LibraryAlbumsSection({
                   type="button"
                   onClick={() => setViewMode("coverflow")}
                 >
-                  Coverflow
+                  {t("library:albums.viewCoverflow")}
                 </button>
               </div>
             </div>
@@ -203,9 +214,13 @@ export function LibraryAlbumsSection({
       ) : null}
 
       {loadingAlbums ? (
-        <p className="mt-3 text-sm text-flaque-steel">Loading albums...</p>
+        <p className="mt-3 text-sm text-flaque-steel">{t("library:albums.loading")}</p>
       ) : filteredAlbums.length === 0 ? (
-        <p className="mt-3 text-sm text-flaque-steel">No albums found{normalizedQuery ? ` matching "${searchQuery.trim()}"` : " for these filters"}.</p>
+        <p className="mt-3 text-sm text-flaque-steel">
+          {normalizedQuery
+            ? t("library:albums.emptyMatching", { query: searchQuery.trim() })
+            : t("library:albums.emptyFilters")}
+        </p>
       ) : (
         <>
           {!isAlbumSelected && viewMode === "coverflow" ? (
@@ -236,7 +251,7 @@ export function LibraryAlbumsSection({
           {isAlbumSelected ? (
             <div className="overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/75">
               {loadingSelectedAlbumTracks ? (
-                <p className="px-4 py-3 text-xs text-flaque-steel">Loading album tracks...</p>
+                <p className="px-4 py-3 text-xs text-flaque-steel">{t("library:albums.loadingTracks")}</p>
               ) : null}
               {selectedAlbumTracksError ? (
                 <p className="px-4 py-3 text-xs text-red-700">{selectedAlbumTracksError}</p>
@@ -249,7 +264,7 @@ export function LibraryAlbumsSection({
                 onTrackSelect={onTrackSelect}
                 playlists={playlists}
                 onAddTrackToPlaylist={onAddTrackToPlaylist}
-                emptyMessage="No tracks found for this album."
+                emptyMessage={t("library:albums.noTracks")}
                 constrainHeight={false}
                 showTrackNumber
               />

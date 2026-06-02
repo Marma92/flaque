@@ -1,0 +1,80 @@
+{
+  "title": "Library",
+  "loadingShort": "Loading…",
+  "loading": "Loading library...",
+  "loadingMore": "Loading more tracks...",
+  "allLoaded": "All tracks loaded",
+  "trackTotalFiltered_one": "{{count, number}} track matches current filters",
+  "trackTotalFiltered_other": "{{count, number}} tracks match current filters",
+  "play": "Play",
+  "playLibrary": "Play library",
+  "shuffle": "Shuffle",
+  "shuffleLibrary": "Shuffle library",
+  "search": "Search title, artist, album, year",
+  "filters": "Filters",
+  "clearAll": "Clear all",
+  "removeFilter": "Remove {{label}} filter",
+  "filter": {
+    "owner": "Owner",
+    "artist": "Artist",
+    "album": "Album",
+    "allOwners": "All owners",
+    "allArtists": "All artists",
+    "allAlbums": "All albums"
+  },
+  "sections": {
+    "home": "Home",
+    "music": "Library",
+    "artists": "Artists",
+    "albums": "Albums",
+    "playlists": "Playlists"
+  },
+  "albums": {
+    "title": "Albums",
+    "search": "Search albums...",
+    "sortLabel": "Sort albums",
+    "viewList": "List",
+    "viewCoverflow": "Coverflow",
+    "loading": "Loading albums...",
+    "loadingTracks": "Loading album tracks...",
+    "emptyMatching": "No albums found matching \"{{query}}\".",
+    "emptyFilters": "No albums found for these filters.",
+    "noTracks": "No tracks found for this album.",
+    "back": "Back",
+    "sort": {
+      "albumAsc": "Album A → Z",
+      "albumDesc": "Album Z → A",
+      "artistAsc": "Artist A → Z",
+      "artistDesc": "Artist Z → A",
+      "yearNewest": "Year (newest)",
+      "yearOldest": "Year (oldest)"
+    }
+  },
+  "artists": {
+    "title": "Artists",
+    "search": "Search artists...",
+    "loading": "Loading artists...",
+    "loadingAlbums": "Loading artist albums...",
+    "loadingTracks": "Loading album tracks...",
+    "emptyMatching": "No artists found matching \"{{query}}\".",
+    "emptyFilters": "No artists found for these filters.",
+    "noAlbums": "No albums found for this artist.",
+    "noTracks": "No tracks found for this album.",
+    "back": "Back"
+  },
+  "albumCard": {
+    "play": "Play {{album}}",
+    "coverAlt": "Cover for {{album}}"
+  },
+  "artistCard": {
+    "artworkAlt": "Artwork for {{name}}"
+  },
+  "track": {
+    "addToPlaylist": "Add to playlist",
+    "createPlaylistFirst": "Create a playlist first",
+    "addToPlaylistAria": "Add {{title}} to playlist",
+    "playAria": "Play {{title}}",
+    "emptyDefault": "No tracks match this filter yet.",
+    "coverAlt": "Cover for {{name}}"
+  }
+}

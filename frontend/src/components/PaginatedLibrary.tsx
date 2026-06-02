@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { AlbumEntry, ArtistEntry, Playlist, Track } from "../types";
 import type { LibraryFilters } from "../types/library";
@@ -29,8 +30,7 @@ export type PaginatedLibraryProps = {
 };
 
 type ActiveChip = {
-  key: keyof LibraryFilters;
-  label: string;
+  key: "owner" | "artist" | "album";
   value: string;
 };
 
@@ -54,6 +54,7 @@ export function PaginatedLibrary({
   playlists,
   onAddTrackToPlaylist
 }: PaginatedLibraryProps): JSX.Element {
+  const { t } = useTranslation(["library", "common"]);
   const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
   const hasActiveFilters = Boolean(filters.owner || filters.artist || filters.album || filters.q);
   const [searchDraft, setSearchDraft] = useState(filters.q ?? "");
@@ -69,13 +70,13 @@ export function PaginatedLibrary({
   const activeChips = useMemo<ActiveChip[]>(() => {
     const chips: ActiveChip[] = [];
     if (filters.owner) {
-      chips.push({ key: "owner", label: "Owner", value: resolveOwnerLabel(filters.owner) });
+      chips.push({ key: "owner", value: resolveOwnerLabel(filters.owner) });
     }
     if (filters.artist) {
-      chips.push({ key: "artist", label: "Artist", value: filters.artist });
+      chips.push({ key: "artist", value: filters.artist });
     }
     if (filters.album) {
-      chips.push({ key: "album", label: "Album", value: filters.album });
+      chips.push({ key: "album", value: filters.album });
     }
     return chips;
     // resolveOwnerLabel closes over ownerNameById, but we list its inputs directly.
@@ -116,11 +117,13 @@ export function PaginatedLibrary({
       <div className="rounded-3xl border border-flaque-clay/60 bg-gradient-to-br from-flaque-cream/80 to-white/70 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="font-display text-3xl text-flaque-ink">Library</h2>
+            <h2 className="font-display text-3xl text-flaque-ink">{t("library:title")}</h2>
             <p className="mt-1 text-sm text-flaque-steel">
               {loading && total === 0
-                ? "Loading…"
-                : `${total.toLocaleString()} track${total === 1 ? "" : "s"}${hasActiveFilters ? " match current filters" : ""}`}
+                ? t("library:loadingShort")
+                : hasActiveFilters
+                  ? t("library:trackTotalFiltered", { count: total })
+                  : t("common:trackCount", { count: total })}
             </p>
           </div>
 
@@ -130,19 +133,19 @@ export function PaginatedLibrary({
               type="button"
               onClick={onPlayLibrary}
               disabled={!onPlayLibrary || noTracks}
-              title="Play library"
+              title={t("library:playLibrary")}
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
                 <path d="M8 5.14v13.72a1 1 0 0 0 1.55.83l10.4-6.86a1 1 0 0 0 0-1.66l-10.4-6.86A1 1 0 0 0 8 5.14z" />
               </svg>
-              Play
+              {t("library:play")}
             </button>
             <button
               className="inline-flex items-center gap-1.5 rounded-full border border-flaque-ink/15 bg-white px-4 py-2 text-sm font-semibold text-flaque-ink transition hover:bg-flaque-cream/70 disabled:cursor-not-allowed disabled:opacity-55"
               type="button"
               onClick={onShuffleLibrary}
               disabled={!onShuffleLibrary || noTracks}
-              title="Shuffle library"
+              title={t("library:shuffleLibrary")}
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M16 3h5v5" strokeLinecap="round" strokeLinejoin="round" />
@@ -152,7 +155,7 @@ export function PaginatedLibrary({
                 <path d="M21 21l-7-7" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M3 3l5 5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              Shuffle
+              {t("library:shuffle")}
             </button>
           </div>
         </div>
@@ -174,7 +177,7 @@ export function PaginatedLibrary({
             <input
               className="w-full rounded-full border border-flaque-clay bg-white py-2 pl-9 pr-3 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               type="search"
-              placeholder="Search title, artist, album, year"
+              placeholder={t("library:search")}
               value={searchDraft}
               onChange={(event) => setSearchDraft(event.target.value)}
             />
@@ -189,7 +192,7 @@ export function PaginatedLibrary({
             aria-expanded={filtersOpen}
             onClick={() => setFiltersOpen((c) => !c)}
           >
-            Filters
+            {t("library:filters")}
             <svg className={`h-3.5 w-3.5 transition-transform ${filtersOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M6 10l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -203,7 +206,7 @@ export function PaginatedLibrary({
                 onFilterChange({});
               }}
             >
-              Clear all
+              {t("library:clearAll")}
             </button>
           ) : null}
         </div>
@@ -216,12 +219,12 @@ export function PaginatedLibrary({
                 key={chip.key}
                 className="inline-flex items-center gap-1 rounded-full bg-flaque-ink/8 px-3 py-1 text-xs text-flaque-ink"
               >
-                <span className="text-flaque-steel">{chip.label}:</span>
+                <span className="text-flaque-steel">{t(`library:filter.${chip.key}`)}:</span>
                 <span className="max-w-[14rem] truncate" title={chip.value}>{chip.value}</span>
                 <button
                   className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-flaque-steel transition hover:bg-flaque-ink/15 hover:text-flaque-ink"
                   type="button"
-                  aria-label={`Remove ${chip.label.toLowerCase()} filter`}
+                  aria-label={t("library:removeFilter", { label: t(`library:filter.${chip.key}`) })}
                   onClick={() => clearChip(chip.key)}
                 >
                   <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
@@ -237,7 +240,7 @@ export function PaginatedLibrary({
         {filtersOpen ? (
           <div className="mt-4 grid grid-cols-1 gap-3 rounded-2xl border border-flaque-clay/55 bg-flaque-cream/45 p-3 md:grid-cols-3">
             <label className="text-xs text-flaque-steel">
-              Owner
+              {t("library:filter.owner")}
               <select
                 className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
                 value={filters.owner ?? ""}
@@ -245,7 +248,7 @@ export function PaginatedLibrary({
                   onFilterChange({ ...filters, owner: event.target.value || undefined })
                 }
               >
-                <option value="">All owners</option>
+                <option value="">{t("library:filter.allOwners")}</option>
                 {owners.map((owner) => (
                   <option key={owner} value={owner}>
                     {resolveOwnerLabel(owner)}
@@ -254,7 +257,7 @@ export function PaginatedLibrary({
               </select>
             </label>
             <label className="text-xs text-flaque-steel">
-              Artist
+              {t("library:filter.artist")}
               <select
                 className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
                 value={filters.artist ?? ""}
@@ -262,7 +265,7 @@ export function PaginatedLibrary({
                   onFilterChange({ ...filters, artist: event.target.value || undefined })
                 }
               >
-                <option value="">All artists</option>
+                <option value="">{t("library:filter.allArtists")}</option>
                 {artists.map((artist) => (
                   <option key={artist.name} value={artist.name}>
                     {artist.name}
@@ -271,7 +274,7 @@ export function PaginatedLibrary({
               </select>
             </label>
             <label className="text-xs text-flaque-steel">
-              Album
+              {t("library:filter.album")}
               <select
                 className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
                 value={filters.album ?? ""}
@@ -279,7 +282,7 @@ export function PaginatedLibrary({
                   onFilterChange({ ...filters, album: event.target.value || undefined })
                 }
               >
-                <option value="">All albums</option>
+                <option value="">{t("library:filter.allAlbums")}</option>
                 {filteredAlbums.map((album) => (
                   <option key={`${album.artist ?? "unknown"}-${album.name}`} value={album.name}>
                     {album.artist ? `${album.artist} - ${album.name}` : album.name}
@@ -294,7 +297,7 @@ export function PaginatedLibrary({
       {/* Track list */}
       <div className="mt-4 overflow-hidden rounded-2xl border border-flaque-clay/55 bg-white/75">
         {loading && tracks.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-flaque-steel">Loading library...</p>
+          <p className="px-4 py-6 text-sm text-flaque-steel">{t("library:loading")}</p>
         ) : (
           <TrackList
             tracks={tracks}
@@ -312,11 +315,11 @@ export function PaginatedLibrary({
       <div ref={sentinelRef} className="h-1" />
 
       {loadingMore ? (
-        <p className="mt-3 text-center text-sm text-flaque-steel">Loading more tracks...</p>
+        <p className="mt-3 text-center text-sm text-flaque-steel">{t("library:loadingMore")}</p>
       ) : null}
 
       {!loading && !loadingMore && !hasMore && tracks.length > 0 ? (
-        <p className="mt-3 text-center text-xs text-flaque-steel/70">All tracks loaded</p>
+        <p className="mt-3 text-center text-xs text-flaque-steel/70">{t("library:allLoaded")}</p>
       ) : null}
     </section>
   );

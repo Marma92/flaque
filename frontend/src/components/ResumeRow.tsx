@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { coverUrl } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
 import type { Track } from "../types";
@@ -16,8 +18,9 @@ type ResumeRowProps = {
  * paused, with a one-click resume and a dismiss button.
  */
 export function ResumeRow({ track, positionSec, onResume, onDismiss }: ResumeRowProps): JSX.Element {
+  const { t } = useTranslation(["home", "common"]);
   const title = getTrackDisplayTitle(track);
-  const artist = getTrackDisplayArtist(track) ?? "Unknown artist";
+  const artist = getTrackDisplayArtist(track) ?? t("common:unknownArtist");
   const duration = track.duration || 0;
   const clampedPosition = Math.max(0, Math.min(positionSec, duration > 0 ? duration : positionSec));
   const progressPercent = duration > 0 ? Math.min(100, (clampedPosition / duration) * 100) : 0;
@@ -35,7 +38,7 @@ export function ResumeRow({ track, positionSec, onResume, onDismiss }: ResumeRow
         />
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-flaque-steel">
-            Resume
+            {t("home:resume.label")}
           </p>
           <p className="mt-0.5 truncate text-sm font-semibold text-flaque-ink" title={title}>
             {title}
@@ -63,14 +66,14 @@ export function ResumeRow({ track, positionSec, onResume, onDismiss }: ResumeRow
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M8 6v12l10-6-10-6z" />
             </svg>
-            Resume
+            {t("home:resume.action")}
           </button>
           <button
             type="button"
             className="rounded-xl border border-flaque-clay/60 bg-white px-3 py-1 text-[11px] text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
             onClick={onDismiss}
           >
-            Dismiss
+            {t("home:resume.dismiss")}
           </button>
         </div>
       </div>

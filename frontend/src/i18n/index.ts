@@ -6,10 +6,14 @@ import { initReactI18next } from "react-i18next";
 import enAccount from "./locales/en/account.json";
 import enAuth from "./locales/en/auth.json";
 import enCommon from "./locales/en/common.json";
+import enHome from "./locales/en/home.json";
+import enLibrary from "./locales/en/library.json";
 import enPlayer from "./locales/en/player.json";
 import frAccount from "./locales/fr/account.json";
 import frAuth from "./locales/fr/auth.json";
 import frCommon from "./locales/fr/common.json";
+import frHome from "./locales/fr/home.json";
+import frLibrary from "./locales/fr/library.json";
 import frPlayer from "./locales/fr/player.json";
 
 // Re-export the shared language vocabulary so UI code can import everything
@@ -30,8 +34,8 @@ export const defaultNS = "common";
 // Resources are bundled (not lazy-loaded over HTTP) so `import "./i18n"` fully
 // initialises i18next synchronously — important for tests and first paint.
 export const resources = {
-  en: { common: enCommon, player: enPlayer, auth: enAuth, account: enAccount },
-  fr: { common: frCommon, player: frPlayer, auth: frAuth, account: frAccount }
+  en: { common: enCommon, player: enPlayer, auth: enAuth, account: enAccount, home: enHome, library: enLibrary },
+  fr: { common: frCommon, player: frPlayer, auth: frAuth, account: frAccount, home: frHome, library: frLibrary }
 } as const;
 
 void i18n
@@ -52,12 +56,19 @@ void i18n
     // Map regional tags (e.g. "fr-FR") to the base language we ship.
     load: "languageOnly",
     nonExplicitSupportedLngs: true,
-    ns: ["common", "player", "auth", "account"],
+    ns: ["common", "player", "auth", "account", "home", "library"],
     defaultNS,
     returnNull: false,
     interpolation: {
       // React already escapes interpolated values.
-      escapeValue: false
+      escapeValue: false,
+      // Enables `{{count, number}}` to render locale-aware grouped numbers.
+      format: (value, format, lng) => {
+        if (format === "number" && typeof value === "number") {
+          return new Intl.NumberFormat(lng).format(value);
+        }
+        return String(value);
+      }
     }
   });
 

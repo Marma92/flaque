@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { AlbumEntry } from "../types";
 import { getAlbumKey } from "../utils/appUtils";
@@ -13,6 +14,7 @@ export type AlbumListProps = {
 };
 
 export const AlbumList = memo(function AlbumList({ albums, selectedAlbum, onAlbumSelect, onPlayAlbum }: AlbumListProps): JSX.Element {
+  const { t } = useTranslation(["library", "common"]);
   const selectedKey = selectedAlbum ? getAlbumKey(selectedAlbum) : null;
 
   return (
@@ -20,6 +22,9 @@ export const AlbumList = memo(function AlbumList({ albums, selectedAlbum, onAlbu
       {albums.map((album) => {
         const albumKey = getAlbumKey(album);
         const isSelected = selectedKey === albumKey;
+        const yearSuffix = album.year ? ` (${album.year})` : "";
+        const playLabel = `${album.name}${yearSuffix}`;
+        const albumLabel = album.artist ? `${album.artist} - ${playLabel}` : playLabel;
 
         return (
           <div
@@ -30,13 +35,13 @@ export const AlbumList = memo(function AlbumList({ albums, selectedAlbum, onAlbu
                 : "hover:bg-flaque-cream/60"
             }`}
             onClick={() => onAlbumSelect(album)}
-            title={album.artist ? `${album.artist} - ${album.name}${album.year ? ` (${album.year})` : ""}` : `${album.name}${album.year ? ` (${album.year})` : ""}`}
+            title={albumLabel}
           >
             <div className="group relative">
               <img
                 className="aspect-square w-full object-cover"
                 src={getAlbumCoverSrc(album)}
-                alt={album.artist ? `Cover for ${album.artist} - ${album.name}${album.year ? ` (${album.year})` : ""}` : `Cover for ${album.name}${album.year ? ` (${album.year})` : ""}`}
+                alt={t("library:albumCard.coverAlt", { album: albumLabel })}
                 onError={(event) => {
                   event.currentTarget.src = defaultCoverImage;
                 }}
@@ -45,7 +50,7 @@ export const AlbumList = memo(function AlbumList({ albums, selectedAlbum, onAlbu
                 <button
                   className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
                   type="button"
-                  aria-label={`Play ${album.name}${album.year ? ` (${album.year})` : ""}`}
+                  aria-label={t("library:albumCard.play", { album: playLabel })}
                   onClick={(event) => {
                     event.stopPropagation();
                     onPlayAlbum(album);
@@ -59,10 +64,10 @@ export const AlbumList = memo(function AlbumList({ albums, selectedAlbum, onAlbu
             </div>
             <div className="mt-1.5 min-w-0 px-0.5">
               <p className="truncate text-xs font-medium text-flaque-ink">{album.name}</p>
-              <p className="truncate text-xs text-flaque-steel">{album.artist ?? "Unknown artist"}</p>
+              <p className="truncate text-xs text-flaque-steel">{album.artist ?? t("common:unknownArtist")}</p>
               {album.year ? <p className="text-xs text-flaque-steel/90">{album.year}</p> : null}
               <p className="text-xs text-flaque-steel/70">
-                {album.trackCount} track{album.trackCount > 1 ? "s" : ""}
+                {t("common:trackCount", { count: album.trackCount })}
                 {album.totalDuration ? ` · ${formatDurationHuman(album.totalDuration)}` : ""}
               </p>
             </div>

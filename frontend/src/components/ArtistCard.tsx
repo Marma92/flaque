@@ -1,4 +1,5 @@
 import { memo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { ArtistEntry } from "../types";
 import { defaultCoverImage, getArtistPhotoSrc } from "../utils/covers";
@@ -10,6 +11,7 @@ type ArtistCardProps = {
 };
 
 export const ArtistCard = memo(function ArtistCard({ artist, onSelect }: ArtistCardProps): JSX.Element {
+  const { t } = useTranslation(["library", "common"]);
   const artistPhoto = getArtistPhotoSrc(artist);
   const handleClick = useCallback(() => onSelect(artist), [artist, onSelect]);
 
@@ -23,7 +25,7 @@ export const ArtistCard = memo(function ArtistCard({ artist, onSelect }: ArtistC
       <img
         className="mx-auto h-full max-h-44 w-full max-w-44 rounded-full border border-flaque-clay/50 object-cover"
         src={artistPhoto}
-        alt={`Artwork for ${artist.name}`}
+        alt={t("library:artistCard.artworkAlt", { name: artist.name })}
         onError={(event) => {
           event.currentTarget.src = defaultCoverImage;
         }}
@@ -31,9 +33,9 @@ export const ArtistCard = memo(function ArtistCard({ artist, onSelect }: ArtistC
       <div className="mt-2 min-w-0">
         <p className="truncate text-sm font-medium text-flaque-ink">{artist.name}</p>
         <p className="text-xs text-flaque-steel">
-          {artist.albumCount} album{artist.albumCount !== 1 ? "s" : ""}
+          {t("common:albumCount", { count: artist.albumCount })}
           {" · "}
-          {artist.trackCount} track{artist.trackCount !== 1 ? "s" : ""}
+          {t("common:trackCount", { count: artist.trackCount })}
           {" · "}
           {formatDurationHuman(artist.totalDuration)}
         </p>

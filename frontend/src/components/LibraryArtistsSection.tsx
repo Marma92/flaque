@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { AlbumEntry, ArtistEntry, Playlist, Track } from "../types";
 import { defaultCoverImage, getAlbumCoverSrc, getArtistPhotoSrc } from "../utils/covers";
@@ -57,7 +58,7 @@ export function LibraryArtistsSection({
   playlists,
   onAddTrackToPlaylist
 }: LibraryArtistsSectionProps): JSX.Element {
-
+  const { t } = useTranslation(["library", "common"]);
   const [searchQuery, setSearchQuery] = useState("");
   const isArtistSelected = selectedArtist !== null;
   const isTracklistVisible = selectedArtistAlbum !== null;
@@ -90,7 +91,7 @@ export function LibraryArtistsSection({
               </p>
               <p className="mt-0.5 text-sm text-flaque-steel">
                 {selectedArtistAlbum.year ? `${selectedArtistAlbum.year} · ` : ""}
-                {selectedArtistAlbum.trackCount} track{selectedArtistAlbum.trackCount !== 1 ? "s" : ""}
+                {t("common:trackCount", { count: selectedArtistAlbum.trackCount })}
                 {selectedArtistAlbum.totalDuration ? ` · ${formatDurationHuman(selectedArtistAlbum.totalDuration)}` : ""}
               </p>
             </div>
@@ -111,9 +112,9 @@ export function LibraryArtistsSection({
             <div className="min-w-0">
               <h3 className="truncate font-display text-4xl font-bold text-flaque-ink">{selectedArtist.name}</h3>
               <p className="mt-1 text-sm text-flaque-steel">
-                {selectedArtist.albumCount} album{selectedArtist.albumCount !== 1 ? "s" : ""}
+                {t("common:albumCount", { count: selectedArtist.albumCount })}
                 {" · "}
-                {selectedArtist.trackCount} track{selectedArtist.trackCount !== 1 ? "s" : ""}
+                {t("common:trackCount", { count: selectedArtist.trackCount })}
                 {" · "}
                 {formatDurationHuman(selectedArtist.totalDuration)}
               </p>
@@ -125,11 +126,11 @@ export function LibraryArtistsSection({
     <section className="border m-4 rounded-xl border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
       {!isArtistSelected && (
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <h2 className="font-display text-xl text-flaque-ink">Artists</h2>
+          <h2 className="font-display text-xl text-flaque-ink">{t("library:artists.title")}</h2>
           <input
             className="rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-3 py-1.5 text-sm text-flaque-ink placeholder:text-flaque-steel/60 focus:border-flaque-ink/40 focus:outline-none"
             type="text"
-            placeholder="Search artists..."
+            placeholder={t("library:artists.search")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -140,7 +141,7 @@ export function LibraryArtistsSection({
           className={`inline-flex items-center rounded-lg border border-flaque-clay/70 bg-flaque-cream/40 px-2.5 py-1 text-xs font-medium text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink${isTracklistVisible ? " mb-3" : ""}`}
           type="button"
           onClick={isTracklistVisible ? onArtistAlbumBack : onArtistBack}
-          aria-label="Back"
+          aria-label={t("library:artists.back")}
         >
           <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
@@ -155,13 +156,17 @@ export function LibraryArtistsSection({
       ) : null}
 
       {loadingArtists ? (
-        <p className="mt-3 text-sm text-flaque-steel">Loading artists...</p>
+        <p className="mt-3 text-sm text-flaque-steel">{t("library:artists.loading")}</p>
       ) : filteredArtists.length === 0 && !isArtistSelected ? (
-        <p className="mt-3 text-sm text-flaque-steel">No artists found{normalizedQuery ? ` matching "${searchQuery.trim()}"` : " for these filters"}.</p>
+        <p className="mt-3 text-sm text-flaque-steel">
+          {normalizedQuery
+            ? t("library:artists.emptyMatching", { query: searchQuery.trim() })
+            : t("library:artists.emptyFilters")}
+        </p>
       ) : isArtistSelected && isTracklistVisible ? (
         <div className="overflow-hidden rounded-2xl border border-flaque-clay/60 bg-white/75">
           {loadingSelectedArtistAlbumTracks ? (
-            <p className="px-4 py-3 text-xs text-flaque-steel">Loading album tracks...</p>
+            <p className="px-4 py-3 text-xs text-flaque-steel">{t("library:artists.loadingTracks")}</p>
           ) : null}
           {selectedArtistAlbumTracksError ? (
             <p className="px-4 py-3 text-xs text-red-700">{selectedArtistAlbumTracksError}</p>
@@ -174,15 +179,15 @@ export function LibraryArtistsSection({
             onTrackSelect={onArtistAlbumTrackSelect}
             playlists={playlists}
             onAddTrackToPlaylist={onAddTrackToPlaylist}
-            emptyMessage="No tracks found for this album."
+            emptyMessage={t("library:artists.noTracks")}
             constrainHeight={false}
             showTrackNumber
           />
         </div>
       ) : isArtistSelected && loadingArtistAlbums ? (
-        <p className="mt-3 text-sm text-flaque-steel">Loading artist albums...</p>
+        <p className="mt-3 text-sm text-flaque-steel">{t("library:artists.loadingAlbums")}</p>
       ) : isArtistSelected && artistAlbums.length === 0 ? (
-        <p className="mt-3 text-sm text-flaque-steel">No albums found for this artist.</p>
+        <p className="mt-3 text-sm text-flaque-steel">{t("library:artists.noAlbums")}</p>
       ) : isArtistSelected ? (
         <AlbumList
           albums={artistAlbums}

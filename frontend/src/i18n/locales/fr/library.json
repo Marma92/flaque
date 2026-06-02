@@ -1,0 +1,80 @@
+{
+  "title": "Bibliothèque",
+  "loadingShort": "Chargement…",
+  "loading": "Chargement de la bibliothèque…",
+  "loadingMore": "Chargement de morceaux supplémentaires…",
+  "allLoaded": "Tous les morceaux sont chargés",
+  "trackTotalFiltered_one": "{{count, number}} morceau correspond aux filtres actuels",
+  "trackTotalFiltered_other": "{{count, number}} morceaux correspondent aux filtres actuels",
+  "play": "Lire",
+  "playLibrary": "Lire la bibliothèque",
+  "shuffle": "Aléatoire",
+  "shuffleLibrary": "Lecture aléatoire de la bibliothèque",
+  "search": "Rechercher titre, artiste, album, année",
+  "filters": "Filtres",
+  "clearAll": "Tout effacer",
+  "removeFilter": "Retirer le filtre {{label}}",
+  "filter": {
+    "owner": "Propriétaire",
+    "artist": "Artiste",
+    "album": "Album",
+    "allOwners": "Tous les propriétaires",
+    "allArtists": "Tous les artistes",
+    "allAlbums": "Tous les albums"
+  },
+  "sections": {
+    "home": "Accueil",
+    "music": "Bibliothèque",
+    "artists": "Artistes",
+    "albums": "Albums",
+    "playlists": "Playlists"
+  },
+  "albums": {
+    "title": "Albums",
+    "search": "Rechercher des albums…",
+    "sortLabel": "Trier les albums",
+    "viewList": "Liste",
+    "viewCoverflow": "Pochettes",
+    "loading": "Chargement des albums…",
+    "loadingTracks": "Chargement des morceaux de l'album…",
+    "emptyMatching": "Aucun album trouvé pour « {{query}} ».",
+    "emptyFilters": "Aucun album trouvé pour ces filtres.",
+    "noTracks": "Aucun morceau trouvé pour cet album.",
+    "back": "Retour",
+    "sort": {
+      "albumAsc": "Album A → Z",
+      "albumDesc": "Album Z → A",
+      "artistAsc": "Artiste A → Z",
+      "artistDesc": "Artiste Z → A",
+      "yearNewest": "Année (récent)",
+      "yearOldest": "Année (ancien)"
+    }
+  },
+  "artists": {
+    "title": "Artistes",
+    "search": "Rechercher des artistes…",
+    "loading": "Chargement des artistes…",
+    "loadingAlbums": "Chargement des albums de l'artiste…",
+    "loadingTracks": "Chargement des morceaux de l'album…",
+    "emptyMatching": "Aucun artiste trouvé pour « {{query}} ».",
+    "emptyFilters": "Aucun artiste trouvé pour ces filtres.",
+    "noAlbums": "Aucun album trouvé pour cet artiste.",
+    "noTracks": "Aucun morceau trouvé pour cet album.",
+    "back": "Retour"
+  },
+  "albumCard": {
+    "play": "Lire {{album}}",
+    "coverAlt": "Pochette de {{album}}"
+  },
+  "artistCard": {
+    "artworkAlt": "Portrait de {{name}}"
+  },
+  "track": {
+    "addToPlaylist": "Ajouter à une playlist",
+    "createPlaylistFirst": "Créez d'abord une playlist",
+    "addToPlaylistAria": "Ajouter {{title}} à une playlist",
+    "playAria": "Lire {{title}}",
+    "emptyDefault": "Aucun morceau ne correspond à ce filtre pour l'instant.",
+    "coverAlt": "Pochette de {{name}}"
+  }
+}

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { coverPathUrl } from "../api";
 import type { ForYouPlaylistSummary } from "../types";
 
@@ -13,13 +15,15 @@ type HomeForYouRowProps = {
  * caller decides ordering — by default the API returns alphabetically.
  */
 export function HomeForYouRow({ playlists, onSelect }: HomeForYouRowProps): JSX.Element | null {
+  const { t } = useTranslation(["home", "common"]);
+
   if (playlists.length === 0) {
     return null;
   }
 
   return (
     <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      <h2 className="font-display text-xl text-flaque-ink">Made for you</h2>
+      <h2 className="font-display text-xl text-flaque-ink">{t("home:madeForYou")}</h2>
       <div
         className="mt-3 flex gap-3 overflow-x-auto pb-1 [scrollbar-width:thin]"
         role="list"
@@ -61,7 +65,7 @@ export function HomeForYouRow({ playlists, onSelect }: HomeForYouRowProps): JSX.
                   {playlist.name}
                 </p>
                 <p className="mt-0.5 text-[10px] text-flaque-steel">
-                  {playlist.trackCount} track{playlist.trackCount !== 1 ? "s" : ""}
+                  {t("common:trackCount", { count: playlist.trackCount })}
                 </p>
               </div>
             </button>
