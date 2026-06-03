@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Track } from "../types";
 import { getTrackDisplayTitle } from "../utils/tracks";
@@ -27,17 +28,18 @@ export function TrackEditModal({
   saving,
   onStateChange
 }: TrackEditModalProps): JSX.Element {
+  const { t } = useTranslation(["admin", "common"]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
       <form
         className="w-full max-w-md rounded-3xl border border-flaque-clay/60 bg-white p-5 shadow-panel"
         onSubmit={onSubmit}
       >
-        <h3 className="font-display text-xl text-flaque-ink">Edit metadata</h3>
+        <h3 className="font-display text-xl text-flaque-ink">{t("admin:files.editMetadata")}</h3>
         <p className="mt-2 text-sm text-flaque-steel">{getTrackDisplayTitle(editState.track)}</p>
 
         <label className="mt-4 block text-sm text-flaque-ink">
-          Title
+          {t("admin:fields.title")}
           <input
             className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
             type="text"
@@ -56,7 +58,7 @@ export function TrackEditModal({
         </label>
 
         <label className="mt-3 block text-sm text-flaque-ink">
-          Artist
+          {t("admin:fields.artist")}
           <input
             className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
             type="text"
@@ -75,7 +77,7 @@ export function TrackEditModal({
         </label>
 
         <label className="mt-3 block text-sm text-flaque-ink">
-          Album
+          {t("admin:fields.album")}
           <input
             className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
             type="text"
@@ -94,13 +96,13 @@ export function TrackEditModal({
         </label>
 
         <label className="mt-3 block text-sm text-flaque-ink">
-          Year
+          {t("admin:fields.year")}
           <input
             className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
             type="text"
             inputMode="numeric"
             value={editState.year}
-            placeholder="e.g. 1979"
+            placeholder={t("admin:fields.yearPlaceholder")}
             onChange={(event) =>
               onStateChange((current) =>
                 current
@@ -115,12 +117,12 @@ export function TrackEditModal({
         </label>
 
         <label className="mt-3 block text-sm text-flaque-ink">
-          Genre
+          {t("admin:fields.genre")}
           <input
             className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
             type="text"
             value={editState.genre}
-            placeholder="e.g. Rock, Progressive Rock"
+            placeholder={t("admin:fields.genrePlaceholder")}
             onChange={(event) =>
               onStateChange((current) =>
                 current
@@ -132,11 +134,11 @@ export function TrackEditModal({
               )
             }
           />
-          <span className="mt-0.5 block text-xs text-flaque-steel">Comma-separated</span>
+          <span className="mt-0.5 block text-xs text-flaque-steel">{t("admin:fields.commaSeparated")}</span>
         </label>
 
         <p className="mt-3 text-xs text-flaque-steel">
-          Leave a field empty to clear override and fallback to embedded file metadata.
+          {t("admin:bulk.editHint")}
         </p>
 
         <div className="mt-5 flex items-center justify-end gap-2">
@@ -146,14 +148,14 @@ export function TrackEditModal({
             onClick={onClose}
             disabled={saving}
           >
-            Cancel
+            {t("admin:bulk.cancel")}
           </button>
           <button
             className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
             type="submit"
             disabled={saving}
           >
-            {saving ? "Saving..." : "Save"}
+            {saving ? t("admin:bulk.saving") : t("admin:save")}
           </button>
         </div>
       </form>

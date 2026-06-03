@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { LogEntry, StorageUsage, SystemStats, UpdateStatus, VersionInfo } from "../api";
 import type { User } from "../types";
 import { useAdminServer, type SystemStatsDataPoint } from "../hooks/useAdminServer";
-import { formatSize } from "../utils/format";
+import { activeLocale, formatSize } from "../utils/format";
 
 type AdminServerViewProps = {
   currentUser: User;
@@ -20,7 +21,7 @@ function formatLogTime(epochMs: number): { hm: string; s: string; ms: string } {
 
 function formatLogDate(epochMs: number): string {
   const d = new Date(epochMs);
-  return d.toLocaleDateString("en-CA");
+  return d.toLocaleDateString(activeLocale());
 }
 
 function formatLevelLabel(level: number): string {
@@ -63,11 +64,11 @@ function extractExtraFields(entry: LogEntry): Record<string, unknown> | null {
 }
 
 const LEVEL_OPTIONS: Array<[string, number | null]> = [
-  ["All levels", null],
-  ["Debug+", 20],
-  ["Info+", 30],
-  ["Warn+", 40],
-  ["Error+", 50]
+  ["allLevels", null],
+  ["debugPlus", 20],
+  ["infoPlus", 30],
+  ["warnPlus", 40],
+  ["errorPlus", 50]
 ];
 
 const DIR_COLORS = [
@@ -112,11 +113,12 @@ type SystemStatsSectionProps = {
 };
 
 function SystemStatsSection({ systemStats, history, loading }: SystemStatsSectionProps): JSX.Element {
+  const { t } = useTranslation("admin");
   if (loading && !systemStats) {
     return (
       <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-        <h3 className="font-display text-xl text-flaque-ink">System</h3>
-        <p className="mt-2 text-sm text-flaque-steel">Loading...</p>
+        <h3 className="font-display text-xl text-flaque-ink">{t("server.system")}</h3>
+        <p className="mt-2 text-sm text-flaque-steel">{t("loading")}</p>
       </section>
     );
   }
@@ -124,8 +126,8 @@ function SystemStatsSection({ systemStats, history, loading }: SystemStatsSectio
   if (!systemStats) {
     return (
       <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-        <h3 className="font-display text-xl text-flaque-ink">System</h3>
-        <p className="mt-2 text-sm text-flaque-steel">System stats unavailable.</p>
+        <h3 className="font-display text-xl text-flaque-ink">{t("server.system")}</h3>
+        <p className="mt-2 text-sm text-flaque-steel">{t("server.statsUnavailable")}</p>
       </section>
     );
   }
@@ -143,17 +145,17 @@ function SystemStatsSection({ systemStats, history, loading }: SystemStatsSectio
 
   return (
     <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      <h3 className="font-display text-xl text-flaque-ink">System</h3>
+      <h3 className="font-display text-xl text-flaque-ink">{t("server.system")}</h3>
 
       <div className="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2">
         {/* CPU */}
         <div>
           <div className="flex items-baseline justify-between text-sm">
-            <span className="font-medium text-flaque-ink">CPU</span>
+            <span className="font-medium text-flaque-ink">{t("server.cpu")}</span>
             <span className="text-flaque-steel">
               {cpuPercent.toFixed(1)}%
               {systemStats.cpu.model ? <> &middot; {systemStats.cpu.model}</> : null}
-              {" "}&middot; {systemStats.cpu.cores} cores
+              {" "}&middot; {t("server.cores", { count: systemStats.cpu.cores })}
             </span>
           </div>
           <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-flaque-clay/30">
@@ -170,7 +172,7 @@ function SystemStatsSection({ systemStats, history, loading }: SystemStatsSectio
         {/* Memory */}
         <div>
           <div className="flex items-baseline justify-between text-sm">
-            <span className="font-medium text-flaque-ink">Memory</span>
+            <span className="font-medium text-flaque-ink">{t("server.memory")}</span>
             <span className="text-flaque-steel">
               {memPercent.toFixed(1)}% &middot; {formatSize(systemStats.memory.used)} / {formatSize(systemStats.memory.total)}
             </span>
@@ -191,11 +193,12 @@ function SystemStatsSection({ systemStats, history, loading }: SystemStatsSectio
 }
 
 function StorageSection({ storageUsage, loading }: { storageUsage: StorageUsage | null; loading: boolean }): JSX.Element {
+  const { t } = useTranslation("admin");
   if (loading && !storageUsage) {
     return (
       <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-        <h3 className="font-display text-xl text-flaque-ink">Storage</h3>
-        <p className="mt-2 text-sm text-flaque-steel">Loading...</p>
+        <h3 className="font-display text-xl text-flaque-ink">{t("server.storage")}</h3>
+        <p className="mt-2 text-sm text-flaque-steel">{t("loading")}</p>
       </section>
     );
   }
@@ -203,8 +206,8 @@ function StorageSection({ storageUsage, loading }: { storageUsage: StorageUsage 
   if (!storageUsage) {
     return (
       <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-        <h3 className="font-display text-xl text-flaque-ink">Storage</h3>
-        <p className="mt-2 text-sm text-flaque-steel">Storage information unavailable.</p>
+        <h3 className="font-display text-xl text-flaque-ink">{t("server.storage")}</h3>
+        <p className="mt-2 text-sm text-flaque-steel">{t("server.storageUnavailable")}</p>
       </section>
     );
   }
@@ -214,15 +217,15 @@ function StorageSection({ storageUsage, loading }: { storageUsage: StorageUsage 
 
   return (
     <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      <h3 className="font-display text-xl text-flaque-ink">Storage</h3>
+      <h3 className="font-display text-xl text-flaque-ink">{t("server.storage")}</h3>
 
       <div className="mt-3">
         <div className="flex items-baseline justify-between text-sm">
           <span className="text-flaque-ink">
-            {formatSize(disk.used)} used of {formatSize(disk.total)}
+            {t("server.diskUsage", { used: formatSize(disk.used), total: formatSize(disk.total) })}
           </span>
           <span className="text-flaque-steel">
-            {formatSize(disk.free)} free ({(100 - usedPercent).toFixed(1)}%)
+            {t("server.diskFree", { free: formatSize(disk.free), percent: (100 - usedPercent).toFixed(1) })}
           </span>
         </div>
 
@@ -236,7 +239,7 @@ function StorageSection({ storageUsage, loading }: { storageUsage: StorageUsage 
 
       <div className="mt-4">
         <p className="text-sm font-medium text-flaque-ink">
-          Flaque data: {formatSize(totalDataSize)}
+          {t("server.flaqueData", { size: formatSize(totalDataSize) })}
         </p>
 
         <div className="mt-2 space-y-1.5">
@@ -263,12 +266,13 @@ type VersionSectionProps = {
 };
 
 function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate, onCheckForUpdates }: VersionSectionProps): JSX.Element | null {
+  const { t } = useTranslation("admin");
   const isUpdating = updateStatus?.status === "updating";
 
   if (loading && !versionInfo) {
     return (
       <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-        <p className="text-sm text-flaque-steel">Checking for updates...</p>
+        <p className="text-sm text-flaque-steel">{t("server.checkingUpdates")}</p>
       </section>
     );
   }
@@ -281,9 +285,9 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate, o
   if (isUpdating) {
     return (
       <section className="rounded-xl m-4 border border-amber-200 bg-amber-50/80 p-5 shadow-panel backdrop-blur-sm">
-        <h3 className="font-display text-lg text-amber-900">Updating...</h3>
+        <h3 className="font-display text-lg text-amber-900">{t("server.updating")}</h3>
         <p className="mt-1 text-sm text-amber-700">
-          {updateStatus.message ?? "Pulling latest code and rebuilding containers. This may take a few minutes."}
+          {updateStatus.message ?? t("server.updatingDetail")}
         </p>
       </section>
     );
@@ -294,11 +298,11 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate, o
       <section className="rounded-xl m-4 border border-emerald-200 bg-emerald-50/80 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="font-display text-lg text-emerald-900">Update complete</h3>
+            <h3 className="font-display text-lg text-emerald-900">{t("server.updateComplete")}</h3>
             <p className="mt-1 text-sm text-emerald-700">
-              Running v{versionInfo.currentVersion}.
+              {t("server.runningVersionDot", { version: versionInfo.currentVersion })}
               {updateStatus.message ? ` ${updateStatus.message}.` : ""}
-              {" "}Reload the page to get the latest interface.
+              {" "}{t("server.reloadHint")}
             </p>
           </div>
           <button
@@ -306,7 +310,7 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate, o
             className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
             onClick={() => window.location.reload()}
           >
-            Reload page
+            {t("server.reloadPage")}
           </button>
         </div>
       </section>
@@ -316,9 +320,9 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate, o
   if (updateStatus?.status === "failed") {
     return (
       <section className="rounded-xl m-4 border border-red-200 bg-red-50/80 p-5 shadow-panel backdrop-blur-sm">
-        <h3 className="font-display text-lg text-red-900">Update failed</h3>
+        <h3 className="font-display text-lg text-red-900">{t("server.updateFailed")}</h3>
         <p className="mt-1 text-sm text-red-700">
-          {updateStatus.message ?? "The update did not complete successfully. Check the server logs for details."}
+          {updateStatus.message ?? t("server.updateFailedDetail")}
         </p>
       </section>
     );
@@ -330,11 +334,11 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate, o
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-display text-lg text-blue-900">
-              Update available: v{versionInfo.latestVersion}
+              {t("server.updateAvailable", { version: versionInfo.latestVersion })}
             </h3>
             <p className="mt-1 text-sm text-blue-700">
-              You are running v{versionInfo.currentVersion}.
-              {versionInfo.releaseName ? ` Latest: ${versionInfo.releaseName}.` : ""}
+              {t("server.youAreRunning", { version: versionInfo.currentVersion })}
+              {versionInfo.releaseName ? t("server.latestRelease", { name: versionInfo.releaseName }) : ""}
             </p>
           </div>
 
@@ -346,7 +350,7 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate, o
                 rel="noopener noreferrer"
                 className="rounded-xl border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
               >
-                View release
+                {t("server.viewRelease")}
               </a>
             ) : null}
             <button
@@ -356,7 +360,7 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate, o
                 void onTriggerUpdate();
               }}
             >
-              Update now
+              {t("server.updateNow")}
             </button>
           </div>
         </div>
@@ -368,9 +372,9 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate, o
     <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 px-5 py-3 shadow-panel backdrop-blur-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-flaque-steel">
-          Running v{versionInfo.currentVersion}
+          {t("server.runningVersion", { version: versionInfo.currentVersion })}
           {versionInfo.checkedAt
-            ? ` — last checked ${new Date(versionInfo.checkedAt).toLocaleString()}`
+            ? t("server.lastChecked", { date: new Date(versionInfo.checkedAt).toLocaleString(activeLocale()) })
             : ""}
         </p>
         <button
@@ -379,7 +383,7 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate, o
           disabled={loading}
           onClick={() => { void onCheckForUpdates(); }}
         >
-          {loading ? "Checking..." : "Check for updates"}
+          {loading ? t("server.checking") : t("server.checkForUpdates")}
         </button>
       </div>
     </section>
@@ -399,6 +403,7 @@ export function AdminServerView({ currentUser }: AdminServerViewProps): JSX.Elem
     levelFilter, setLevelFilter: onLevelFilterChange,
     refreshServer: onRefresh, loadMore: onLoadMore, hasMore
   } = useAdminServer({ user: currentUser });
+  const { t } = useTranslation("admin");
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   function toggleExpanded(index: number): void {
@@ -420,11 +425,11 @@ export function AdminServerView({ currentUser }: AdminServerViewProps): JSX.Elem
       <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="font-display text-xl text-flaque-ink">Server logs</h3>
+            <h3 className="font-display text-xl text-flaque-ink">{t("server.serverLogs")}</h3>
             <p className="text-sm text-flaque-steel">
               {loadingEntries
-                ? "Loading..."
-                : `${entries.length} / ${total} entries`}
+                ? t("loading")
+                : t("server.entriesCount", { shown: entries.length, total })}
             </p>
           </div>
 
@@ -436,7 +441,7 @@ export function AdminServerView({ currentUser }: AdminServerViewProps): JSX.Elem
               disabled={loadingFiles}
             >
               {logFiles.length === 0 ? (
-                <option value="">No log files</option>
+                <option value="">{t("server.noLogFiles")}</option>
               ) : null}
               {logFiles.map((file) => (
                 <option key={file.name} value={file.name}>
@@ -455,7 +460,7 @@ export function AdminServerView({ currentUser }: AdminServerViewProps): JSX.Elem
             >
               {LEVEL_OPTIONS.map(([label, value]) => (
                 <option key={label} value={value ?? ""}>
-                  {label}
+                  {t(`server.levelOptions.${label}`)}
                 </option>
               ))}
             </select>
@@ -468,7 +473,7 @@ export function AdminServerView({ currentUser }: AdminServerViewProps): JSX.Elem
               }}
               disabled={loadingEntries || loadingFiles}
             >
-              Refresh
+              {t("server.refresh")}
             </button>
           </div>
         </div>
@@ -482,7 +487,7 @@ export function AdminServerView({ currentUser }: AdminServerViewProps): JSX.Elem
         <div className="mt-4 max-h-[60vh] overflow-auto rounded-2xl border border-flaque-clay/40 bg-flaque-cream/30">
           {entries.length === 0 && !loadingEntries ? (
             <p className="px-4 py-6 text-center text-sm text-flaque-steel">
-              No log entries found.
+              {t("server.noEntries")}
             </p>
           ) : null}
 
@@ -549,7 +554,7 @@ export function AdminServerView({ currentUser }: AdminServerViewProps): JSX.Elem
               }}
               disabled={loadingEntries}
             >
-              {loadingEntries ? "Loading..." : "Load more"}
+              {loadingEntries ? t("loading") : t("server.loadMore")}
             </button>
           </div>
         ) : null}

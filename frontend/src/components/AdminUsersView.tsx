@@ -1,4 +1,5 @@
 import { type Dispatch, FormEvent, type SetStateAction, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { User } from "../types";
 import type { ViewName } from "../utils/appUtils";
@@ -24,6 +25,7 @@ export function AdminUsersView({
   setUser,
   setActiveView
 }: AdminUsersViewProps): JSX.Element {
+  const { t } = useTranslation("admin");
   const { adminUsers: users, loadingAdminUsers: loading, adminError: error, refreshAdminUsers, clearAdminState } = useAdminUsers({ user: currentUser });
   const { handleCreateUser: onCreateUser, handlePatchUser: onPatchUser, handleDeleteUser: onDeleteUser, handleResetUserPassword: onResetPassword } = useAdminCommands({
     user: currentUser, setUser, setActiveView, clearAdminState, refreshAdminUsers
@@ -73,14 +75,14 @@ export function AdminUsersView({
         role
       });
 
-      setFormMessage({ text: "User created successfully.", isError: false });
+      setFormMessage({ text: t("users.createdSuccess"), isError: false });
       setUsername("");
       setPassword("");
       setEmail("");
       setRole("user");
     } catch (submitError) {
       setFormMessage({
-        text: submitError instanceof Error ? submitError.message : "Failed to create user",
+        text: submitError instanceof Error ? submitError.message : t("users.createFailed"),
         isError: true
       });
     } finally {
@@ -144,7 +146,7 @@ export function AdminUsersView({
 
   function openDeleteModal(user: User): void {
     if (user.id === currentUser.id) {
-      setActionMessage("You cannot delete your own account.");
+      setActionMessage(t("users.cannotDeleteSelf"));
       return;
     }
 
@@ -172,7 +174,7 @@ export function AdminUsersView({
         case "rename": {
           const nextUsername = modalState.username.trim();
           if (!nextUsername) {
-            setModalError("Username cannot be empty.");
+            setModalError(t("users.usernameEmpty"));
             return;
           }
 
@@ -185,7 +187,7 @@ export function AdminUsersView({
             userId: modalState.user.id,
             username: nextUsername
           });
-          setActionMessage(`Username updated for ${modalState.user.username}.`);
+          setActionMessage(t("users.usernameUpdated", { username: modalState.user.username }));
           setModalState(null);
           break;
         }
@@ -193,7 +195,7 @@ export function AdminUsersView({
         case "changeEmail": {
           const nextEmail = modalState.email.trim();
           if (!nextEmail || !nextEmail.includes("@")) {
-            setModalError("A valid email address is required.");
+            setModalError(t("users.emailInvalid"));
             return;
           }
 
@@ -206,7 +208,7 @@ export function AdminUsersView({
             userId: modalState.user.id,
             email: nextEmail
           });
-          setActionMessage(`Email updated for ${modalState.user.username}.`);
+          setActionMessage(t("users.emailUpdated", { username: modalState.user.username }));
           setModalState(null);
           break;
         }
@@ -214,12 +216,12 @@ export function AdminUsersView({
         case "resetPassword": {
           const nextPassword = modalState.password.trim();
           if (!nextPassword) {
-            setModalError("Password cannot be empty.");
+            setModalError(t("users.passwordEmpty"));
             return;
           }
 
           await onResetPassword(modalState.user.id, nextPassword);
-          setActionMessage(`Password reset for ${modalState.user.username}.`);
+          setActionMessage(t("users.passwordReset", { username: modalState.user.username }));
           setModalState(null);
           break;
         }
@@ -229,25 +231,25 @@ export function AdminUsersView({
             userId: modalState.user.id,
             role: modalState.nextRole
           });
-          setActionMessage(`Role updated for ${modalState.user.username}: ${modalState.nextRole}.`);
+          setActionMessage(t("users.roleUpdated", { username: modalState.user.username, role: modalState.nextRole }));
           setModalState(null);
           break;
         }
 
         case "deleteUser": {
           if (modalState.user.id === currentUser.id) {
-            setModalError("You cannot delete your own account.");
+            setModalError(t("users.cannotDeleteSelf"));
             return;
           }
 
           await onDeleteUser(modalState.user.id);
-          setActionMessage(`User ${modalState.user.username} deleted.`);
+          setActionMessage(t("users.userDeleted", { username: modalState.user.username }));
           setModalState(null);
           break;
         }
       }
     } catch (actionError) {
-      setModalError(actionError instanceof Error ? actionError.message : "Action failed");
+      setModalError(actionError instanceof Error ? actionError.message : t("users.actionFailed"));
     } finally {
       setModalSubmitting(false);
       setActiveUserActionId(null);
@@ -259,9 +261,9 @@ export function AdminUsersView({
       <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="font-display text-xl text-flaque-ink">User Management</h3>
+            <h3 className="font-display text-xl text-flaque-ink">{t("users.title")}</h3>
             <p className="mt-2 text-sm text-flaque-steel">
-              Create user accounts, reset passwords, and remove access when needed.
+              {t("users.description")}
             </p>
           </div>
 
@@ -271,13 +273,13 @@ export function AdminUsersView({
             onClick={handleRefresh}
             disabled={loading || refreshing}
           >
-            {refreshing ? "Refreshing..." : "Refresh users"}
+            {refreshing ? t("users.refreshing") : t("users.refresh")}
           </button>
         </div>
 
         <form className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-5" onSubmit={handleSubmit}>
           <label className="text-sm text-flaque-ink">
-            Username
+            {t("users.fieldUsername")}
             <input
               className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               type="text"
@@ -291,19 +293,19 @@ export function AdminUsersView({
           </label>
 
           <label className="text-sm text-flaque-ink">
-            Email
+            {t("users.fieldEmail")}
             <input
               className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="user@example.com"
+              placeholder={t("users.emailPlaceholder")}
               required
             />
           </label>
 
           <label className="text-sm text-flaque-ink">
-            Password
+            {t("users.fieldPassword")}
             <input
               className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               type="password"
@@ -317,7 +319,7 @@ export function AdminUsersView({
           </label>
 
           <label className="text-sm text-flaque-ink">
-            Role
+            {t("users.fieldRole")}
             <select
               className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               value={role}
@@ -334,31 +336,31 @@ export function AdminUsersView({
               type="submit"
               disabled={submitting}
             >
-              {submitting ? "Creating..." : "Create user"}
+              {submitting ? t("users.creating") : t("users.createUser")}
             </button>
           </div>
         </form>
 
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
           <label className="text-sm text-flaque-ink md:col-span-2">
-            Search users
+            {t("users.searchUsers")}
             <input
               className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               type="search"
-              placeholder="Search by username or user id"
+              placeholder={t("users.searchPlaceholder")}
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}
             />
           </label>
 
           <label className="text-sm text-flaque-ink">
-            Role filter
+            {t("users.fieldRole")} filter
             <select
               className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               value={roleFilter}
               onChange={(event) => setRoleFilter(event.target.value as UserRoleFilter)}
             >
-              <option value="all">all roles</option>
+              <option value="all">{t("users.allRoles")}</option>
               <option value="admin">admin</option>
               <option value="user">user</option>
             </select>
@@ -366,7 +368,7 @@ export function AdminUsersView({
         </div>
 
         <p className="mt-3 text-sm text-flaque-steel">
-          Showing {filteredUsers.length} / {users.length} users.
+          {t("users.showing", { shown: filteredUsers.length, total: users.length })}
         </p>
 
         {formMessage ? (
@@ -422,7 +424,7 @@ export function AdminUsersView({
                     disabled={runningAction}
                     onClick={() => openRenameModal(entry)}
                   >
-                    Rename
+                    {t("users.rename")}
                   </button>
                   <button
                     className="rounded-lg border border-flaque-clay bg-white px-3 py-2 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
@@ -430,7 +432,7 @@ export function AdminUsersView({
                     disabled={runningAction}
                     onClick={() => openChangeEmailModal(entry)}
                   >
-                    Change email
+                    {t("users.changeEmail")}
                   </button>
                   <button
                     className="rounded-lg border border-flaque-clay bg-white px-3 py-2 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
@@ -438,7 +440,7 @@ export function AdminUsersView({
                     disabled={runningAction}
                     onClick={() => openToggleRoleModal(entry)}
                   >
-                    {entry.role === "admin" ? "Make user" : "Make admin"}
+                    {entry.role === "admin" ? t("users.makeUser") : t("users.makeAdmin")}
                   </button>
                   <button
                     className="rounded-lg border border-flaque-clay bg-white px-3 py-2 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
@@ -446,7 +448,7 @@ export function AdminUsersView({
                     disabled={runningAction}
                     onClick={() => openResetPasswordModal(entry)}
                   >
-                    Reset password
+                    {t("users.resetPassword")}
                   </button>
                   <button
                     className="rounded-lg border border-red-300 bg-white px-3 py-2 text-xs text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -454,25 +456,25 @@ export function AdminUsersView({
                     disabled={runningAction || isCurrentUser}
                     onClick={() => openDeleteModal(entry)}
                   >
-                    {isCurrentUser ? "Current session" : "Delete user"}
+                    {isCurrentUser ? t("users.currentSession") : t("users.deleteUser")}
                   </button>
                 </div>
               </article>
             );
           })}
 
-          {filteredUsers.length === 0 ? <p className="text-sm text-flaque-steel">No users match this search/filter.</p> : null}
+          {filteredUsers.length === 0 ? <p className="text-sm text-flaque-steel">{t("users.noMatch")}</p> : null}
         </div>
 
         <div className="hidden max-h-[50vh] overflow-auto lg:block">
           <table className="w-full min-w-[900px] border-collapse text-left text-sm">
             <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
               <tr>
-                <th className="px-4 py-3 font-medium">Username</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Role</th>
-                <th className="px-4 py-3 font-medium">User ID</th>
-                <th className="px-4 py-3 font-medium">Actions</th>
+                <th className="px-4 py-3 font-medium">{t("users.colUsername")}</th>
+                <th className="px-4 py-3 font-medium">{t("users.colEmail")}</th>
+                <th className="px-4 py-3 font-medium">{t("users.colRole")}</th>
+                <th className="px-4 py-3 font-medium">{t("users.colUserId")}</th>
+                <th className="px-4 py-3 font-medium">{t("users.colActions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -504,7 +506,7 @@ export function AdminUsersView({
                           disabled={runningAction}
                           onClick={() => openRenameModal(entry)}
                         >
-                          Rename
+                          {t("users.rename")}
                         </button>
                         <button
                           className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
@@ -512,7 +514,7 @@ export function AdminUsersView({
                           disabled={runningAction}
                           onClick={() => openChangeEmailModal(entry)}
                         >
-                          Change email
+                          {t("users.changeEmail")}
                         </button>
                         <button
                           className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
@@ -520,7 +522,7 @@ export function AdminUsersView({
                           disabled={runningAction}
                           onClick={() => openToggleRoleModal(entry)}
                         >
-                          {entry.role === "admin" ? "Make user" : "Make admin"}
+                          {entry.role === "admin" ? t("users.makeUser") : t("users.makeAdmin")}
                         </button>
                         <button
                           className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
@@ -528,7 +530,7 @@ export function AdminUsersView({
                           disabled={runningAction}
                           onClick={() => openResetPasswordModal(entry)}
                         >
-                          Reset password
+                          {t("users.resetPassword")}
                         </button>
                         <button
                           className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -536,7 +538,7 @@ export function AdminUsersView({
                           disabled={runningAction || isCurrentUser}
                           onClick={() => openDeleteModal(entry)}
                         >
-                          {isCurrentUser ? "Current session" : "Delete user"}
+                          {isCurrentUser ? t("users.currentSession") : t("users.deleteUser")}
                         </button>
                       </div>
                     </td>
@@ -546,7 +548,7 @@ export function AdminUsersView({
               {filteredUsers.length === 0 ? (
                 <tr>
                   <td className="px-4 py-4 text-flaque-steel" colSpan={5}>
-                    No users match this search/filter.
+                    {t("users.noMatch")}
                   </td>
                 </tr>
               ) : null}
