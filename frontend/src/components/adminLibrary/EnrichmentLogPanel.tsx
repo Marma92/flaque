@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   clearEnrichmentLog,
@@ -38,6 +39,7 @@ function outcomeClass(status: EnrichmentLogEntry["status"]): string {
 }
 
 export function EnrichmentLogPanel({ refreshKey = 0 }: Props): JSX.Element {
+  const { t } = useTranslation("admin");
   const [entries, setEntries] = useState<EnrichmentLogEntry[]>([]);
 
   const load = useCallback(async () => {
@@ -59,14 +61,14 @@ export function EnrichmentLogPanel({ refreshKey = 0 }: Props): JSX.Element {
   return (
     <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-display text-xl text-flaque-ink">Recent enrichment activity</h3>
+        <h3 className="font-display text-xl text-flaque-ink">{t("enrichmentLog.title")}</h3>
         <div className="flex items-center gap-2">
           <button
             type="button"
             className="rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream"
             onClick={() => { void load(); }}
           >
-            Refresh
+            {t("enrichmentLog.refresh")}
           </button>
           {entries.length > 0 ? (
             <button
@@ -74,24 +76,24 @@ export function EnrichmentLogPanel({ refreshKey = 0 }: Props): JSX.Element {
               className="rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream"
               onClick={() => { void handleClear(); }}
             >
-              Clear log
+              {t("enrichmentLog.clearLog")}
             </button>
           ) : null}
         </div>
       </div>
 
       {entries.length === 0 ? (
-        <p className="mt-3 text-sm text-flaque-steel">No enrichment activity yet.</p>
+        <p className="mt-3 text-sm text-flaque-steel">{t("enrichmentLog.empty")}</p>
       ) : (
         <div className="mt-3 max-h-80 overflow-y-auto rounded-xl border border-flaque-clay/40">
           <table className="w-full text-left text-xs">
             <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
               <tr>
-                <th className="px-3 py-2 font-medium">When</th>
-                <th className="px-3 py-2 font-medium">Track</th>
-                <th className="px-3 py-2 font-medium">Source</th>
-                <th className="px-3 py-2 font-medium">Outcome</th>
-                <th className="px-3 py-2 font-medium">Filled</th>
+                <th className="px-3 py-2 font-medium">{t("enrichmentLog.colWhen")}</th>
+                <th className="px-3 py-2 font-medium">{t("enrichmentLog.colTrack")}</th>
+                <th className="px-3 py-2 font-medium">{t("enrichmentLog.colSource")}</th>
+                <th className="px-3 py-2 font-medium">{t("enrichmentLog.colOutcome")}</th>
+                <th className="px-3 py-2 font-medium">{t("enrichmentLog.colFilled")}</th>
               </tr>
             </thead>
             <tbody>

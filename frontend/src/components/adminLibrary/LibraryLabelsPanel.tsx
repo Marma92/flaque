@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
 import { getLibraryGenreLabels, type LibraryGenreLabel } from "../../api";
 
@@ -15,6 +16,7 @@ type Props = {
 const LABEL_DISPLAY_LIMIT = 100;
 
 export function LibraryLabelsPanel({ refreshKey = 0, onPromote }: Props): JSX.Element {
+  const { t } = useTranslation("admin");
   const [labels, setLabels] = useState<LibraryGenreLabel[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -33,31 +35,31 @@ export function LibraryLabelsPanel({ refreshKey = 0, onPromote }: Props): JSX.El
   return (
     <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-display text-xl text-flaque-ink">Library labels</h3>
+        <h3 className="font-display text-xl text-flaque-ink">{t("labels.title")}</h3>
         <button
           type="button"
           className="rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream"
           onClick={() => { void load(); }}
         >
-          Refresh
+          {t("labels.refresh")}
         </button>
       </div>
       <p className="mt-1 text-sm text-flaque-steel">
-        Unique genre labels in the library, sorted by track count. Click <strong>Promote</strong> to pre-fill the synonym form above with that label.
+        <Trans i18nKey="labels.description" ns="admin" components={{ strong: <strong /> }} />
       </p>
 
       {loading ? (
-        <p className="mt-3 text-sm text-flaque-steel">Loading...</p>
+        <p className="mt-3 text-sm text-flaque-steel">{t("loading")}</p>
       ) : labels.length === 0 ? (
-        <p className="mt-3 text-sm text-flaque-steel">No genre labels found in the library yet.</p>
+        <p className="mt-3 text-sm text-flaque-steel">{t("labels.empty")}</p>
       ) : (
         <div className="mt-3 max-h-80 overflow-y-auto rounded-xl border border-flaque-clay/40">
           <table className="w-full text-left text-sm">
             <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
               <tr>
-                <th className="px-3 py-2 font-medium">Label</th>
-                <th className="w-20 px-3 py-2 font-medium">Tracks</th>
-                <th className="px-3 py-2 font-medium">Would normalize to</th>
+                <th className="px-3 py-2 font-medium">{t("labels.colLabel")}</th>
+                <th className="w-20 px-3 py-2 font-medium">{t("labels.colTracks")}</th>
+                <th className="px-3 py-2 font-medium">{t("labels.colNormalized")}</th>
                 <th className="w-24 px-3 py-2" />
               </tr>
             </thead>
@@ -79,7 +81,7 @@ export function LibraryLabelsPanel({ refreshKey = 0, onPromote }: Props): JSX.El
                       className="text-xs text-flaque-ink underline-offset-2 hover:underline"
                       onClick={() => onPromote(row.label)}
                     >
-                      Promote
+                      {t("labels.promote")}
                     </button>
                   </td>
                 </tr>
@@ -90,7 +92,7 @@ export function LibraryLabelsPanel({ refreshKey = 0, onPromote }: Props): JSX.El
       )}
       {labels.length > LABEL_DISPLAY_LIMIT ? (
         <p className="mt-2 text-xs text-flaque-steel/70">
-          Showing top {LABEL_DISPLAY_LIMIT} of {labels.length} unique labels.
+          {t("labels.showing", { limit: LABEL_DISPLAY_LIMIT, total: labels.length })}
         </p>
       ) : null}
     </section>

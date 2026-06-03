@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   clearGenreCache,
@@ -24,6 +25,7 @@ const POLL_INTERVAL_MS = 2000;
 const TOGGLE_SETTLE_MS = 500;
 
 export function EnrichmentPanel({ onPollTick }: Props): JSX.Element {
+  const { t } = useTranslation("admin");
   const [status, setStatus] = useState<EnrichmentStatus | null>(null);
   const [toggling, setToggling] = useState(false);
   const [cacheStats, setCacheStats] = useState<GenreCacheStats | null>(null);
@@ -103,9 +105,9 @@ export function EnrichmentPanel({ onPollTick }: Props): JSX.Element {
 
   return (
     <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      <h3 className="font-display text-xl text-flaque-ink">MusicBrainz Enrichment</h3>
+      <h3 className="font-display text-xl text-flaque-ink">{t("enrichment.title")}</h3>
       <p className="mt-1 text-sm text-flaque-steel">
-        Enrich tracks missing genre data by looking them up on MusicBrainz.
+        {t("enrichment.description")}
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -122,15 +124,15 @@ export function EnrichmentPanel({ onPollTick }: Props): JSX.Element {
           {toggling
             ? "..."
             : status?.running
-              ? "Stop enrichment"
-              : "Start enrichment"}
+              ? t("enrichment.stop")
+              : t("enrichment.start")}
         </button>
       </div>
 
       {status && status.running ? (
         <div className="mt-3 space-y-2">
           <div className="flex items-center gap-2 text-sm text-flaque-steel">
-            <span>{status.processed} / {status.total} tracks processed</span>
+            <span>{t("enrichment.progress", { processed: status.processed, total: status.total })}</span>
             <span className="text-flaque-steel/60">({percent}%)</span>
           </div>
           {status.total > 0 ? (
@@ -143,28 +145,28 @@ export function EnrichmentPanel({ onPollTick }: Props): JSX.Element {
           ) : null}
           {status.currentTrack ? (
             <p className="text-xs text-flaque-steel">
-              <span className="text-flaque-steel/60">Now: </span>
+              <span className="text-flaque-steel/60">{t("enrichment.now")}</span>
               <span className="text-flaque-ink">{status.currentTrack.title}</span>
               <span className="text-flaque-steel/60"> — </span>
               <span className="text-flaque-steel">{status.currentTrack.artist}</span>
             </p>
           ) : null}
           <div className="flex gap-3 text-xs text-flaque-steel">
-            <span className="text-green-600">{status.enriched} enriched</span>
+            <span className="text-green-600">{t("enrichment.enriched", { count: status.enriched })}</span>
             {status.failed > 0 ? (
-              <span className="text-red-500">{status.failed} failed</span>
+              <span className="text-red-500">{t("enrichment.failed", { count: status.failed })}</span>
             ) : null}
           </div>
         </div>
       ) : status && !status.running && status.processed > 0 ? (
         <div className="mt-3 space-y-1">
           <p className="text-sm text-flaque-steel">
-            Last run: {status.processed} / {status.total} tracks processed
+            {t("enrichment.lastRun", { processed: status.processed, total: status.total })}
           </p>
           <div className="flex gap-3 text-xs text-flaque-steel">
-            <span className="text-green-600">{status.enriched} enriched</span>
+            <span className="text-green-600">{t("enrichment.enriched", { count: status.enriched })}</span>
             {status.failed > 0 ? (
-              <span className="text-red-500">{status.failed} failed</span>
+              <span className="text-red-500">{t("enrichment.failed", { count: status.failed })}</span>
             ) : null}
           </div>
         </div>
@@ -174,12 +176,13 @@ export function EnrichmentPanel({ onPollTick }: Props): JSX.Element {
         <div className="mt-3 space-y-2">
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-sm text-flaque-steel">
-              Cache: {cacheStats.entries} {cacheStats.entries === 1 ? "MB entry" : "MB entries"}
+              {t("enrichment.cachePrefix")}
+              {t("enrichment.cacheEntries", { count: cacheStats.entries })}
               {typeof cacheStats.fingerprints === "number"
-                ? ` · ${cacheStats.fingerprints} fingerprint${cacheStats.fingerprints === 1 ? "" : "s"}`
+                ? ` · ${t("enrichment.cacheFingerprints", { count: cacheStats.fingerprints })}`
                 : ""}
               {typeof cacheStats.acoustid === "number"
-                ? ` · ${cacheStats.acoustid} AcoustID`
+                ? ` · ${t("enrichment.cacheAcoustid", { count: cacheStats.acoustid })}`
                 : ""}
             </span>
             <button
@@ -187,7 +190,7 @@ export function EnrichmentPanel({ onPollTick }: Props): JSX.Element {
               className="rounded-lg border border-flaque-clay px-3 py-1 text-xs text-flaque-ink transition hover:bg-flaque-cream"
               onClick={() => { void handleClearCache(); }}
             >
-              Clear cache
+              {t("enrichment.clearCache")}
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-xs text-flaque-steel/80">
@@ -197,9 +200,9 @@ export function EnrichmentPanel({ onPollTick }: Props): JSX.Element {
                   ? "bg-green-100 text-green-700"
                   : "bg-flaque-clay/40 text-flaque-steel"
               }`}
-              title="Set ACOUSTID_API_KEY on the server to enable fingerprint fallback for tracks with bad tags."
+              title={t("enrichment.acoustIdHint")}
             >
-              AcoustID: {cacheStats.acoustIdConfigured ? "configured" : "not configured"}
+              {t("enrichment.acoustIdLabel", { status: cacheStats.acoustIdConfigured ? t("enrichment.configured") : t("enrichment.notConfigured") })}
             </span>
             <span
               className={`rounded px-2 py-0.5 ${
@@ -207,9 +210,9 @@ export function EnrichmentPanel({ onPollTick }: Props): JSX.Element {
                   ? "bg-green-100 text-green-700"
                   : "bg-flaque-clay/40 text-flaque-steel"
               }`}
-              title="Install the chromaprint (fpcalc) binary on the server to enable audio fingerprinting."
+              title={t("enrichment.fpcalcHint")}
             >
-              fpcalc: {cacheStats.fingerprintingAvailable ? "available" : "not detected"}
+              {t("enrichment.fpcalcLabel", { status: cacheStats.fingerprintingAvailable ? t("enrichment.available") : t("enrichment.notDetected") })}
             </span>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   getAutoPlaylistConfig,
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export function AutoPlaylistConfigPanel({ onAutoPlaylistsRegenerated }: Props): JSX.Element {
+  const { t } = useTranslation("admin");
   const [config, setConfig] = useState<AutoPlaylistConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [maxField, setMaxField] = useState("");
@@ -51,9 +53,9 @@ export function AutoPlaylistConfigPanel({ onAutoPlaylistsRegenerated }: Props): 
       if (!isNaN(tracksVal)) patch.tracksPerPlaylist = tracksVal;
       const updated = await patchAutoPlaylistConfig(patch);
       setConfig(updated);
-      setConfigMessage("Configuration saved.");
+      setConfigMessage(t("autoConfig.saved"));
     } catch (err) {
-      setConfigMessage(err instanceof Error ? err.message : "Failed to save config.");
+      setConfigMessage(err instanceof Error ? err.message : t("autoConfig.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -64,10 +66,10 @@ export function AutoPlaylistConfigPanel({ onAutoPlaylistsRegenerated }: Props): 
     setRegenMessage(null);
     try {
       const result = await regenerateAutoPlaylists();
-      setRegenMessage(`Regenerated ${result.regenerated} playlist${result.regenerated !== 1 ? "s" : ""}.`);
+      setRegenMessage(t("autoConfig.regenResult", { count: result.regenerated }));
       onAutoPlaylistsRegenerated?.();
     } catch (err) {
-      setRegenMessage(err instanceof Error ? err.message : "Failed to regenerate.");
+      setRegenMessage(err instanceof Error ? err.message : t("autoConfig.regenerateFailed"));
     } finally {
       setRegenerating(false);
     }
@@ -75,18 +77,18 @@ export function AutoPlaylistConfigPanel({ onAutoPlaylistsRegenerated }: Props): 
 
   return (
     <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      <h3 className="font-display text-xl text-flaque-ink">Automatic Playlists</h3>
+      <h3 className="font-display text-xl text-flaque-ink">{t("autoConfig.title")}</h3>
       <p className="mt-1 text-sm text-flaque-steel">
-        Configure how genre/decade playlists are generated.
+        {t("autoConfig.description")}
       </p>
 
       {loading || !config ? (
-        <p className="mt-3 text-sm text-flaque-steel">Loading...</p>
+        <p className="mt-3 text-sm text-flaque-steel">{t("loading")}</p>
       ) : (
         <form className="mt-3 space-y-3" onSubmit={(e) => { void handleSave(e); }}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <label className="text-sm text-flaque-ink">
-              Max playlists
+              {t("autoConfig.maxPlaylists")}
               <input
                 className="mt-1 block w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
                 type="number"
@@ -96,7 +98,7 @@ export function AutoPlaylistConfigPanel({ onAutoPlaylistsRegenerated }: Props): 
               />
             </label>
             <label className="text-sm text-flaque-ink">
-              Min tracks per playlist
+              {t("autoConfig.minTracks")}
               <input
                 className="mt-1 block w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
                 type="number"
@@ -106,7 +108,7 @@ export function AutoPlaylistConfigPanel({ onAutoPlaylistsRegenerated }: Props): 
               />
             </label>
             <label className="text-sm text-flaque-ink">
-              Tracks per playlist
+              {t("autoConfig.tracksPerPlaylist")}
               <input
                 className="mt-1 block w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
                 type="number"
@@ -123,7 +125,7 @@ export function AutoPlaylistConfigPanel({ onAutoPlaylistsRegenerated }: Props): 
               className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:opacity-60"
               disabled={saving}
             >
-              {saving ? "Saving..." : "Save configuration"}
+              {saving ? t("autoConfig.saving") : t("autoConfig.saveConfig")}
             </button>
             <button
               type="button"
@@ -131,7 +133,7 @@ export function AutoPlaylistConfigPanel({ onAutoPlaylistsRegenerated }: Props): 
               onClick={() => { void handleRegenerate(); }}
               disabled={regenerating}
             >
-              {regenerating ? "Regenerating..." : "Regenerate now"}
+              {regenerating ? t("autoConfig.regenerating") : t("autoConfig.regenerate")}
             </button>
           </div>
 

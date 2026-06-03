@@ -1,4 +1,5 @@
 import type { JSX } from "react";
+import { useTranslation } from "react-i18next";
 
 type IndexOpsSectionProps = {
   loadingTracks: boolean;
@@ -13,11 +14,12 @@ export function IndexOpsSection({
   onRefreshTracks,
   onRebuildIndex
 }: IndexOpsSectionProps): JSX.Element {
+  const { t } = useTranslation("admin");
   return (
     <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      <h3 className="font-display text-xl text-flaque-ink">Index operations</h3>
+      <h3 className="font-display text-xl text-flaque-ink">{t("indexOps.title")}</h3>
       <p className="mt-2 text-sm text-flaque-steel">
-        Keep the search index synchronized with the file system and refresh global file listings.
+        {t("indexOps.description")}
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -27,7 +29,7 @@ export function IndexOpsSection({
           onClick={() => { void onRefreshTracks(); }}
           disabled={loadingTracks}
         >
-          {loadingTracks ? "Refreshing tracks..." : "Refresh files"}
+          {loadingTracks ? t("indexOps.refreshingFiles") : t("indexOps.refreshFiles")}
         </button>
         <button
           className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
@@ -35,7 +37,7 @@ export function IndexOpsSection({
           onClick={() => { void onRebuildIndex(); }}
           disabled={rebuilding}
         >
-          {rebuilding ? "Rebuilding index..." : "Rebuild index"}
+          {rebuilding ? t("indexOps.rebuilding") : t("indexOps.rebuildIndex")}
         </button>
       </div>
     </section>

@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   deleteGenreSynonym,
@@ -21,6 +22,7 @@ type Props = {
 
 export const GenreSynonymsPanel = forwardRef<GenreSynonymsPanelHandle, Props>(
   function GenreSynonymsPanel({ onSynonymsChanged }, ref) {
+    const { t } = useTranslation("admin");
     const [synonyms, setSynonyms] = useState<GenreSynonyms>({});
     const [loading, setLoading] = useState(true);
     const [keyInput, setKeyInput] = useState("");
@@ -46,7 +48,7 @@ export const GenreSynonymsPanel = forwardRef<GenreSynonymsPanelHandle, Props>(
         const data = await getGenreSynonyms();
         setSynonyms(data);
       } catch {
-        setMessage("Failed to load synonyms.");
+        setMessage(t("synonyms.loadFailed"));
       } finally {
         setLoading(false);
       }
@@ -66,7 +68,7 @@ export const GenreSynonymsPanel = forwardRef<GenreSynonymsPanelHandle, Props>(
         await loadSynonyms();
         onSynonymsChanged?.();
       } catch (err) {
-        setMessage(err instanceof Error ? err.message : "Failed to save synonym.");
+        setMessage(err instanceof Error ? err.message : t("synonyms.saveFailed"));
       }
     }
 
@@ -82,7 +84,7 @@ export const GenreSynonymsPanel = forwardRef<GenreSynonymsPanelHandle, Props>(
       try {
         await resetGenreSynonyms();
         await loadSynonyms();
-        setMessage("Synonyms reset to defaults.");
+        setMessage(t("synonyms.resetDone"));
         onSynonymsChanged?.();
       } catch {}
     }
@@ -94,12 +96,12 @@ export const GenreSynonymsPanel = forwardRef<GenreSynonymsPanelHandle, Props>(
         const { scanned, updated } = await reapplyGenreSynonyms();
         setMessage(
           updated > 0
-            ? `Reapplied synonyms: ${updated} of ${scanned} tracks updated.`
-            : `Reapplied synonyms: nothing to change (${scanned} tracks scanned).`
+            ? t("synonyms.reapplyResult", { updated, scanned })
+            : t("synonyms.reapplyNothing", { scanned })
         );
         onSynonymsChanged?.();
       } catch (err) {
-        setMessage(err instanceof Error ? err.message : "Failed to reapply synonyms.");
+        setMessage(err instanceof Error ? err.message : t("synonyms.reapplyFailed"));
       } finally {
         setReapplying(false);
       }
@@ -110,7 +112,7 @@ export const GenreSynonymsPanel = forwardRef<GenreSynonymsPanelHandle, Props>(
     return (
       <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-display text-xl text-flaque-ink">Genre Synonyms</h3>
+          <h3 className="font-display text-xl text-flaque-ink">{t("synonyms.title")}</h3>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -118,36 +120,36 @@ export const GenreSynonymsPanel = forwardRef<GenreSynonymsPanelHandle, Props>(
               onClick={() => { void handleReapply(); }}
               disabled={reapplying}
             >
-              {reapplying ? "Reapplying..." : "Reapply to library"}
+              {reapplying ? t("synonyms.reapplying") : t("synonyms.reapply")}
             </button>
             <button
               type="button"
               className="rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream"
               onClick={() => { void handleReset(); }}
             >
-              Reset to defaults
+              {t("synonyms.resetDefaults")}
             </button>
           </div>
         </div>
 
         <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={(e) => { void handleAdd(e); }}>
           <label className="text-sm text-flaque-ink">
-            From
+            {t("synonyms.from")}
             <input
               ref={keyInputRef}
               className="mt-1 block w-40 rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               value={keyInput}
               onChange={(e) => setKeyInput(e.target.value)}
-              placeholder="e.g. hiphop"
+              placeholder={t("synonyms.fromPlaceholder")}
             />
           </label>
           <label className="text-sm text-flaque-ink">
-            To
+            {t("synonyms.to")}
             <input
               className="mt-1 block w-40 rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               value={valueInput}
               onChange={(e) => setValueInput(e.target.value)}
-              placeholder="e.g. hip-hop"
+              placeholder={t("synonyms.toPlaceholder")}
             />
           </label>
           <button
@@ -155,23 +157,23 @@ export const GenreSynonymsPanel = forwardRef<GenreSynonymsPanelHandle, Props>(
             className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:opacity-60"
             disabled={!keyInput.trim() || !valueInput.trim()}
           >
-            Add
+            {t("synonyms.add")}
           </button>
         </form>
 
         {message ? <p className="mt-2 text-xs text-flaque-steel">{message}</p> : null}
 
         {loading ? (
-          <p className="mt-3 text-sm text-flaque-steel">Loading...</p>
+          <p className="mt-3 text-sm text-flaque-steel">{t("loading")}</p>
         ) : entries.length === 0 ? (
-          <p className="mt-3 text-sm text-flaque-steel">No synonyms configured.</p>
+          <p className="mt-3 text-sm text-flaque-steel">{t("synonyms.empty")}</p>
         ) : (
           <div className="mt-3 max-h-60 overflow-y-auto rounded-xl border border-flaque-clay/40">
             <table className="w-full text-left text-sm">
               <thead className="sticky top-0 bg-flaque-cream/95 text-flaque-ink">
                 <tr>
-                  <th className="px-3 py-2 font-medium">From</th>
-                  <th className="px-3 py-2 font-medium">To</th>
+                  <th className="px-3 py-2 font-medium">{t("synonyms.from")}</th>
+                  <th className="px-3 py-2 font-medium">{t("synonyms.to")}</th>
                   <th className="w-16 px-3 py-2" />
                 </tr>
               </thead>
@@ -186,7 +188,7 @@ export const GenreSynonymsPanel = forwardRef<GenreSynonymsPanelHandle, Props>(
                         className="text-xs text-red-500 hover:text-red-700"
                         onClick={() => { void handleDelete(key); }}
                       >
-                        Delete
+                        {t("synonyms.delete")}
                       </button>
                     </td>
                   </tr>
