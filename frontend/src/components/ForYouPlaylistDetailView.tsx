@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { coverPathUrl, getForYouPlaylistDetail } from "../api";
 import { usePlaylistDetailPlayback } from "../hooks/usePlaylistDetailPlayback";
 import type { ForYouPlaylistDetail, Playlist, Track } from "../types";
-import { formatDurationCompact } from "../utils/format";
+import { activeLocale, formatDurationCompact } from "../utils/format";
 import { PlaylistTrackList } from "./PlaylistTrackList";
 
 export type ForYouPlaylistDetailViewProps = {
@@ -21,6 +22,7 @@ export function ForYouPlaylistDetailView({
   onPlayTrack,
   onDismiss
 }: ForYouPlaylistDetailViewProps): JSX.Element {
+  const { t } = useTranslation(["playlists", "common"]);
   const [detail, setDetail] = useState<ForYouPlaylistDetail | null>(null);
   const [detailTracks, setDetailTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,7 +94,7 @@ export function ForYouPlaylistDetailView({
       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
       </svg>
-      Back to playlists
+      {t("playlists:backToPlaylists")}
     </button>
   );
 
@@ -100,7 +102,7 @@ export function ForYouPlaylistDetailView({
     return (
       <section className="m-4 rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         {backButton}
-        <p className="mt-4 text-sm text-flaque-steel">Loading...</p>
+        <p className="mt-4 text-sm text-flaque-steel">{t("playlists:loading")}</p>
       </section>
     );
   }
@@ -109,7 +111,7 @@ export function ForYouPlaylistDetailView({
     return (
       <section className="m-4 rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         {backButton}
-        <p className="mt-4 text-sm text-flaque-steel">For-you playlist not found.</p>
+        <p className="mt-4 text-sm text-flaque-steel">{t("playlists:forYouNotFound")}</p>
       </section>
     );
   }
@@ -146,7 +148,7 @@ export function ForYouPlaylistDetailView({
                type="button"
                className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
                onClick={handlePlayAll}
-               aria-label={`Play ${detail.name}`}
+               aria-label={t("playlists:play", { name: detail.name })}
              >
                <svg className="h-12 w-12 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
                  <path d="M8 6v12l10-6-10-6z" />
@@ -162,9 +164,9 @@ export function ForYouPlaylistDetailView({
               <span className="rounded-full bg-indigo-100/70 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-600/80">
                 Made for you
               </span>
-              <span>{detail.trackCount} track{detail.trackCount !== 1 ? "s" : ""}</span>
+              <span>{t("common:trackCount", { count: detail.trackCount })}</span>
               {totalDuration > 0 ? <span>{formatDurationCompact(totalDuration)}</span> : null}
-              <span>Generated {new Date(detail.generatedAt).toLocaleDateString()}</span>
+              <span>{t("playlists:generated", { date: new Date(detail.generatedAt).toLocaleDateString(activeLocale()) })}</span>
             </div>
 
             {/* Action buttons */}
@@ -204,7 +206,7 @@ export function ForYouPlaylistDetailView({
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-                {dismissing ? "Hiding..." : "Not interested"}
+                {dismissing ? t("playlists:hiding") : t("playlists:notInterested")}
               </button>
             </div>
           </div>

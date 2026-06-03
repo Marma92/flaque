@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Playlist } from "../types";
 
@@ -15,6 +16,7 @@ export function PlaylistPicker({
   onAddTrackToPlaylist,
   onDismiss
 }: PlaylistPickerProps): JSX.Element {
+  const { t } = useTranslation("playlists");
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -53,18 +55,18 @@ export function PlaylistPicker({
               })
             )
               .then(() => {
-                setSubmitStatus("Track added to playlist.");
+                setSubmitStatus(t("picker.added"));
                 onDismiss();
               })
               .catch((error) => {
-                setSubmitStatus(error instanceof Error ? error.message : "Unable to add track");
+                setSubmitStatus(error instanceof Error ? error.message : t("picker.addError"));
               })
               .finally(() => {
                 setSubmitLoading(false);
               });
           }}
         >
-          {submitLoading ? "Adding..." : "Add"}
+          {submitLoading ? t("picker.adding") : t("picker.add")}
         </button>
       </div>
       {submitStatus ? <p className="text-xs text-flaque-steel">{submitStatus}</p> : null}

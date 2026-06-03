@@ -1,15 +1,9 @@
 import { FormEvent, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import defaultCoverImage from "../assets/default-cover.png";
 import { coverPathUrl, coverUrl, getForYouPlaylistDetail, playlistCoverUrl } from "../api";
-import type { AutoPlaylistSummary, ForYouPlaylistSummary, PersonalPlaylistSummary, Playlist, PlaylistVisibility, TempoBucket, Track, User } from "../types";
-
-const TEMPO_HERO_LABEL: Record<TempoBucket, string> = {
-  slow: "Slow",
-  mid: "Mid",
-  driving: "Drive",
-  fast: "Fast"
-};
+import type { AutoPlaylistSummary, ForYouPlaylistSummary, PersonalPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
 
 export type LibraryPlaylistSectionProps = {
   availablePlaylists: Playlist[];
@@ -108,6 +102,7 @@ type PlaylistCardProps = {
 };
 
 function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPlay, showBadges, onHeart, hasHearted }: PlaylistCardProps): JSX.Element {
+  const { t } = useTranslation(["playlists", "common"]);
   const mosaicTracks = getPlaylistMosaicTracks(playlist.trackIds, allTracksById);
   const owner = ownerNameById[playlist.authorId] ?? playlist.authorId;
 
@@ -133,7 +128,7 @@ function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPl
             type="button"
             className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/cover:bg-black/35 group-hover/cover:opacity-100"
             onClick={(e) => { e.stopPropagation(); onPlay(); }}
-            aria-label={`Play ${playlist.name}`}
+            aria-label={t("playlists:play", { name: playlist.name })}
           >
             <svg className="h-10 w-10 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
               <path d="M8 6v12l10-6-10-6z" />
@@ -149,7 +144,7 @@ function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPl
           <p className="mt-0.5 line-clamp-1 text-[10px] text-flaque-steel">{playlist.description}</p>
         ) : null}
         <p className="mt-0.5 truncate text-[10px] text-flaque-steel">
-          {owner} &middot; {playlist.trackIds.length} track{playlist.trackIds.length !== 1 ? "s" : ""}
+          {owner} &middot; {t("common:trackCount", { count: playlist.trackIds.length })}
         </p>
 
         {/* Badges */}
@@ -162,7 +157,7 @@ function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPl
                   hasHearted ? "text-red-500 hover:text-red-600" : "text-flaque-steel hover:text-red-400"
                 }`}
                 onClick={(e) => { e.stopPropagation(); onHeart(); }}
-                aria-label={hasHearted ? "Remove heart" : "Heart playlist"}
+                aria-label={hasHearted ? t("playlists:removeHeart") : t("playlists:heart")}
               >
                 <svg className="h-3 w-3" fill={hasHearted ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -193,7 +188,7 @@ function PlaylistCard({ playlist, allTracksById, ownerNameById, onNavigate, onPl
                   <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 2a8 8 0 110 16 8 8 0 010-16zM12 11a2 2 0 100 4 2 2 0 000-4z"/>
                   </svg>
-                  Everyone
+                  {t("playlists:collaborators.everyone")}
                 </span>
               ) : (
                 <>
@@ -246,6 +241,7 @@ export function LibraryPlaylistSection({
   loadingPersonalPlaylists,
   onRefreshPersonalPlaylists
 }: LibraryPlaylistSectionProps): JSX.Element {
+  const { t } = useTranslation(["playlists", "common"]);
   const [playlistName, setPlaylistName] = useState("");
   const [playlistDescription, setPlaylistDescription] = useState("");
   const [playlistVisibility, setPlaylistVisibility] = useState<PlaylistVisibility>("private");
@@ -270,9 +266,9 @@ export function LibraryPlaylistSection({
       });
       setPlaylistName("");
       setPlaylistDescription("");
-      setStatusMessage("Playlist created.");
+      setStatusMessage(t("playlists:created"));
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Unable to create playlist");
+      setStatusMessage(error instanceof Error ? error.message : t("playlists:createError"));
     } finally {
       setSubmitting(false);
     }
@@ -309,7 +305,7 @@ export function LibraryPlaylistSection({
     <div className="m-4 space-y-6">
       {/* ── My Playlists ──────────────────────────────────────────── */}
       <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-        <SectionHeader title="My Playlists" />
+        <SectionHeader title={t("playlists:myPlaylists")} />
 
         <form
           className="mt-4 space-y-3"
@@ -319,7 +315,7 @@ export function LibraryPlaylistSection({
             <input
               className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               type="text"
-              placeholder="New playlist name"
+              placeholder={t("playlists:newPlaylistName")}
               value={playlistName}
               onChange={(event) => setPlaylistName(event.target.value)}
             />
@@ -328,22 +324,22 @@ export function LibraryPlaylistSection({
               value={playlistVisibility}
               onChange={(event) => setPlaylistVisibility(event.target.value as PlaylistVisibility)}
             >
-              <option value="private">Private</option>
-              <option value="public">Public</option>
+              <option value="private">{t("playlists:visibility.private")}</option>
+              <option value="public">{t("playlists:visibility.public")}</option>
             </select>
             <button
               className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
               type="submit"
               disabled={submitting || !playlistName.trim()}
             >
-              {submitting ? "Creating..." : "Create"}
+              {submitting ? t("playlists:creating") : t("playlists:create")}
             </button>
           </div>
           {playlistName.trim() ? (
             <textarea
               className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               rows={2}
-              placeholder="Description (optional)"
+              placeholder={t("playlists:descriptionOptional")}
               value={playlistDescription}
               onChange={(event) => setPlaylistDescription(event.target.value)}
             />
@@ -353,7 +349,7 @@ export function LibraryPlaylistSection({
         {statusMessage ? <p className="mt-2 text-sm text-flaque-steel">{statusMessage}</p> : null}
 
         {myPlaylists.length === 0 ? (
-          <p className="mt-4 text-sm text-flaque-steel">No playlists yet.</p>
+          <p className="mt-4 text-sm text-flaque-steel">{t("playlists:noPlaylistsYet")}</p>
         ) : (
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {myPlaylists.map((playlist) => (
@@ -373,14 +369,14 @@ export function LibraryPlaylistSection({
       {/* ── Made For You ────────────────────────────────────────── */}
       <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex items-center justify-between">
-          <SectionHeader title="Made for you" />
+          <SectionHeader title={t("playlists:madeForYou")} />
           {!loadingForYouPlaylists && onRefreshForYouPlaylists ? (
             <button
               type="button"
               className="text-xs text-flaque-steel hover:text-flaque-ink"
               onClick={() => { void onRefreshForYouPlaylists?.(); }}
-              title="Refresh recommendations"
-              aria-label="Refresh recommendations"
+              title={t("playlists:refreshRecommendations")}
+              aria-label={t("playlists:refreshRecommendations")}
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -389,7 +385,7 @@ export function LibraryPlaylistSection({
           ) : null}
         </div>
         {loadingForYouPlaylists ? (
-          <p className="mt-2 text-sm text-flaque-steel">Loading recommendations...</p>
+          <p className="mt-2 text-sm text-flaque-steel">{t("playlists:forYouLoading")}</p>
         ) : forYouPlaylists.length > 0 ? (
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {forYouPlaylists.map((fy) => {
@@ -422,7 +418,7 @@ export function LibraryPlaylistSection({
                       type="button"
                       className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/cover:bg-black/35 group-hover/cover:opacity-100"
                       onClick={(e) => { e.stopPropagation(); void handlePlayForYou(fy); }}
-                      aria-label={`Play ${fy.name}`}
+                      aria-label={t("playlists:play", { name: fy.name })}
                     >
                       <svg className="h-10 w-10 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
                         <path d="M8 6v12l10-6-10-6z" />
@@ -441,7 +437,7 @@ export function LibraryPlaylistSection({
                       e.stopPropagation();
                       void onDismissForYouPlaylist(fy.id);
                     }}
-                    aria-label={`Hide ${fy.name}`}
+                    aria-label={t("playlists:hide", { name: fy.name })}
                   >
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -452,14 +448,14 @@ export function LibraryPlaylistSection({
             })}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-flaque-steel">No recommendations yet. Listen to more music!</p>
+          <p className="mt-2 text-sm text-flaque-steel">{t("playlists:forYouEmpty")}</p>
         )}
       </section>
 
       {/* ── Popular Playlists ─────────────────────────────────────── */}
       {popularPlaylists.length > 0 ? (
         <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-          <SectionHeader title="Popular Playlists" />
+          <SectionHeader title={t("playlists:popularPlaylists")} />
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {popularPlaylists.map((playlist) => (
               <PlaylistCard
@@ -482,14 +478,14 @@ export function LibraryPlaylistSection({
       {(loadingPersonalPlaylists || personalPlaylists.length > 0) ? (
         <section className="rounded-xl border border-flaque-clay/60 bg-gradient-to-br from-white/85 to-flaque-cream/40 p-5 shadow-panel backdrop-blur-sm">
           <div className="flex items-center justify-between">
-            <SectionHeader title="Personal Mixes" />
+            <SectionHeader title={t("playlists:personalMixes")} />
             {!loadingPersonalPlaylists && onRefreshPersonalPlaylists ? (
               <button
                 type="button"
                 className="text-xs text-flaque-steel hover:text-flaque-ink"
                 onClick={() => { void onRefreshPersonalPlaylists(); }}
-                title="Refresh personal mixes"
-                aria-label="Refresh personal mixes"
+                title={t("playlists:refreshPersonalMixes")}
+                aria-label={t("playlists:refreshPersonalMixes")}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -498,7 +494,7 @@ export function LibraryPlaylistSection({
             ) : null}
           </div>
           {loadingPersonalPlaylists ? (
-            <p className="mt-2 text-sm text-flaque-steel">Loading...</p>
+            <p className="mt-2 text-sm text-flaque-steel">{t("playlists:loading")}</p>
           ) : (
             <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
               {personalPlaylists.map((pp) => {
@@ -545,7 +541,7 @@ export function LibraryPlaylistSection({
                         type="button"
                         className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/cover:bg-black/35 group-hover/cover:opacity-100"
                         onClick={(e) => { e.stopPropagation(); onNavigateToPlaylist(pp.id); }}
-                        aria-label={`Open ${pp.name}`}
+                        aria-label={t("playlists:open", { name: pp.name })}
                       >
                         <svg className="h-10 w-10 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
                           <path d="M8 6v12l10-6-10-6z" />
@@ -555,7 +551,7 @@ export function LibraryPlaylistSection({
                     <div className="p-2">
                       <p className="line-clamp-2 text-xs text-flaque-steel">{pp.description}</p>
                       <p className="mt-0.5 text-xs text-flaque-steel/80">
-                        {pp.trackCount} track{pp.trackCount !== 1 ? "s" : ""}
+                        {t("common:trackCount", { count: pp.trackCount })}
                       </p>
                     </div>
                   </div>
@@ -568,12 +564,12 @@ export function LibraryPlaylistSection({
 
       {/* ── Automatic Playlists ────────────────────────────────────── */}
       <section className="rounded-xl border border-flaque-clay/60 bg-gradient-to-br from-white/85 to-flaque-cream/40 p-5 shadow-panel backdrop-blur-sm">
-        <SectionHeader title="Automatic Playlists" />
+        <SectionHeader title={t("playlists:automaticPlaylists")} />
         {loadingAutoPlaylists ? (
-          <p className="mt-2 text-sm text-flaque-steel">Loading...</p>
+          <p className="mt-2 text-sm text-flaque-steel">{t("playlists:loading")}</p>
         ) : autoPlaylists.length === 0 ? (
           <p className="mt-2 text-sm text-flaque-steel">
-            Automatic playlists will appear here once generated.
+            {t("playlists:autoEmpty")}
           </p>
         ) : (
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
@@ -582,7 +578,7 @@ export function LibraryPlaylistSection({
               const angle = ap.gradientAngle ?? 135;
               const gradientStyle = { background: `linear-gradient(${angle}deg, ${c1}, ${c2}, ${c3})` };
               const heroLabel = ap.axis === "genre-tempo" && ap.tempo
-                ? TEMPO_HERO_LABEL[ap.tempo]
+                ? t(`playlists:tempo.${ap.tempo}`)
                 : ap.decade % 100 === 0
                   ? String(ap.decade)
                   : `${ap.decade % 100}s`;
@@ -616,7 +612,7 @@ export function LibraryPlaylistSection({
                       type="button"
                       className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/cover:bg-black/35 group-hover/cover:opacity-100"
                       onClick={(e) => { e.stopPropagation(); onNavigateToPlaylist(ap.id); }}
-                      aria-label={`Play ${ap.name}`}
+                      aria-label={t("playlists:play", { name: ap.name })}
                     >
                       <svg className="h-10 w-10 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
                         <path d="M8 6v12l10-6-10-6z" />
@@ -626,7 +622,7 @@ export function LibraryPlaylistSection({
                   <div className="p-2">
                     <p className="truncate text-xs font-semibold text-flaque-ink">{ap.name}</p>
                     <p className="mt-0.5 text-xs text-flaque-steel">
-                      {ap.trackCount} track{ap.trackCount !== 1 ? "s" : ""}
+                      {t("common:trackCount", { count: ap.trackCount })}
                     </p>
                   </div>
                 </div>

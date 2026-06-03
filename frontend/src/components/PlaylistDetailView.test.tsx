@@ -201,7 +201,7 @@ describe("PlaylistDetailView", () => {
 
   it("shows visibility badge", () => {
     render(<PlaylistDetailView {...defaultProps} />);
-    expect(screen.getByText("public")).toBeTruthy();
+    expect(screen.getByText("Public")).toBeTruthy();
   });
 
   it("shows private badge for private playlist", () => {
@@ -213,7 +213,7 @@ describe("PlaylistDetailView", () => {
         manageablePlaylists={[playlist]}
       />
     );
-    expect(screen.getByText("private")).toBeTruthy();
+    expect(screen.getByText("Private")).toBeTruthy();
   });
 
   // ── Listen count ─────────────────────────────────────────────

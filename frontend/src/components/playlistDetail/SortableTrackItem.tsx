@@ -1,4 +1,5 @@
 import type { JSX } from "react";
+import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -15,6 +16,7 @@ type SortableTrackItemProps = {
 };
 
 export function SortableTrackItem({ id, track, saving, onRemove }: SortableTrackItemProps): JSX.Element {
+  const { t } = useTranslation(["playlists", "common"]);
   const {
     attributes,
     listeners,
@@ -42,7 +44,7 @@ export function SortableTrackItem({ id, track, saving, onRemove }: SortableTrack
       <button
         type="button"
         className="shrink-0 cursor-grab touch-none rounded p-0.5 text-flaque-steel/50 transition hover:text-flaque-ink active:cursor-grabbing"
-        aria-label="Drag to reorder"
+        aria-label={t("playlists:track.dragToReorder")}
         {...attributes}
         {...listeners}
       >
@@ -72,7 +74,7 @@ export function SortableTrackItem({ id, track, saving, onRemove }: SortableTrack
         </p>
         {track ? (
           <p className="truncate text-[10px] text-flaque-steel">
-            {getTrackDisplayArtist(track) ?? "Unknown artist"}
+            {getTrackDisplayArtist(track) ?? t("common:unknownArtist")}
           </p>
         ) : null}
       </div>
@@ -81,7 +83,7 @@ export function SortableTrackItem({ id, track, saving, onRemove }: SortableTrack
         className="shrink-0 rounded p-0.5 text-red-400 transition hover:text-red-600 disabled:opacity-30"
         onClick={() => onRemove(id)}
         disabled={saving}
-        aria-label="Remove track"
+        aria-label={t("playlists:track.remove")}
       >
         <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />

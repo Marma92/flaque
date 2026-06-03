@@ -9,12 +9,14 @@ import enCommon from "./locales/en/common.json";
 import enHome from "./locales/en/home.json";
 import enLibrary from "./locales/en/library.json";
 import enPlayer from "./locales/en/player.json";
+import enPlaylists from "./locales/en/playlists.json";
 import frAccount from "./locales/fr/account.json";
 import frAuth from "./locales/fr/auth.json";
 import frCommon from "./locales/fr/common.json";
 import frHome from "./locales/fr/home.json";
 import frLibrary from "./locales/fr/library.json";
 import frPlayer from "./locales/fr/player.json";
+import frPlaylists from "./locales/fr/playlists.json";
 
 // Re-export the shared language vocabulary so UI code can import everything
 // i18n-related from a single module.
@@ -34,8 +36,8 @@ export const defaultNS = "common";
 // Resources are bundled (not lazy-loaded over HTTP) so `import "./i18n"` fully
 // initialises i18next synchronously — important for tests and first paint.
 export const resources = {
-  en: { common: enCommon, player: enPlayer, auth: enAuth, account: enAccount, home: enHome, library: enLibrary },
-  fr: { common: frCommon, player: frPlayer, auth: frAuth, account: frAccount, home: frHome, library: frLibrary }
+  en: { common: enCommon, player: enPlayer, auth: enAuth, account: enAccount, home: enHome, library: enLibrary, playlists: enPlaylists },
+  fr: { common: frCommon, player: frPlayer, auth: frAuth, account: frAccount, home: frHome, library: frLibrary, playlists: frPlaylists }
 } as const;
 
 void i18n
@@ -56,7 +58,7 @@ void i18n
     // Map regional tags (e.g. "fr-FR") to the base language we ship.
     load: "languageOnly",
     nonExplicitSupportedLngs: true,
-    ns: ["common", "player", "auth", "account", "home", "library"],
+    ns: ["common", "player", "auth", "account", "home", "library", "playlists"],
     defaultNS,
     returnNull: false,
     interpolation: {
