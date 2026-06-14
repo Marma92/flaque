@@ -161,3 +161,62 @@ Sweep the remaining surface, one domain per PR to keep diffs reviewable:
 | 5 — Tooling + QA | S–M |
 
 The long pole is Phase 2 (sheer string volume). Everything else is small-to-medium and well-bounded by the existing patterns (additive DB migration, account endpoint, format utils).
+
+---
+
+## 7. Status (delivered) & contributor guide
+
+All phases are implemented on `feat/i18n-foundation`. The app — UI, server-generated
+playlist names, transactional emails and API error messages — ships bilingual EN/FR.
+
+| Phase | Status |
+|---|---|
+| 0 — Foundation + audio-player pilot | ✅ |
+| 1 — Account-synced language preference | ✅ |
+| 2 — UI extraction (account/auth, home/library, playlists, admin) | ✅ |
+| 3 — Server-generated playlist names | ✅ |
+| 4 — Transactional emails + API error codes | ✅ |
+| 5 — Tooling & QA | ✅ |
+
+### Where copy lives
+- **Frontend UI**: `frontend/src/i18n/locales/<lang>/<namespace>.json`. Namespaces by
+  domain: `common`, `player`, `auth`, `account`, `home`, `library`, `playlists`,
+  `admin`, `errors`. Registered in `frontend/src/i18n/index.ts`.
+- **Backend emails**: `backend/src/utils/emailMessages.ts` (a small typed catalog —
+  emails can't be localized client-side).
+- **Supported language codes**: `@flaque/shared` (`SUPPORTED_LANGUAGES`,
+  `UserLanguage`, `normalizeLanguage`) — the single source of truth used by both ends.
+
+### Key-naming conventions
+- Reference for new keys is **English**; add to `en/` first, then mirror in every
+  other language (the check below enforces parity).
+- Group by UI area inside a namespace (`sessions.revoke`, `password.tooShort`).
+- Pluralize with i18next suffixes (`_one` / `_other`) + `{{count}}`, never string
+  concatenation. Use `{{count, number}}` for locale-grouped numbers.
+- Server-generated playlist names live under `playlists:generatedNames.*` and are
+  derived client-side from structured fields (variant / genre+decade+tempo /
+  for-you name variant). Never localize these on the server.
+- API error codes are **stable, opaque identifiers** (`AppError`'s `code`), translated
+  via the `errors` namespace with the server's English message as `defaultValue`.
+
+### Adding a language
+1. Add the code to `shared/src/language.ts` (`SUPPORTED_LANGUAGES`) and a label in
+   `LANGUAGE_LABELS` (`frontend/src/i18n/index.ts`).
+2. Copy `frontend/src/i18n/locales/en/*.json` to `locales/<lang>/` and translate.
+3. Add `<lang>/admin.json` backend-equivalent copy in `emailMessages.ts`.
+4. Run `npm run i18n:check` until green.
+
+### Tooling
+- **`npm run i18n:check`** (`frontend/scripts/check-i18n.mjs`): fast, source-free
+  parity check — every language must define exactly the reference key set per
+  namespace. CI-friendly; also enforced as a Vitest test (`src/i18n/i18n.test.ts`).
+  We deliberately do **not** run an `i18next-parser` unused-key report: many keys are
+  resolved dynamically (e.g. `` t(`server.levelOptions.${k}`) ``) and the entire
+  `errors` namespace is keyed by backend codes, so an unused-key scan would be all
+  false positives.
+- **Pseudolocalization** for QA: append **`?pseudo`** to any URL. Strings render
+  accented, bracketed and ~30% longer (`⟦Šáṽé ··⟧`), which surfaces (a) hardcoded
+  strings that never went through i18n — they stay plain ASCII, (b) layouts that
+  break when text grows, and (c) clipped text — the brackets reveal the bounds.
+  Interpolations and markup are preserved. Pseudo mode is opt-in per page load and
+  survives login; reload without `?pseudo` to exit.

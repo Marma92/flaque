@@ -2,6 +2,7 @@ import { isSupportedLanguage } from "@flaque/shared";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
+import { isPseudoEnabled } from "../i18n/pseudo";
 import type { User } from "../types";
 
 /**
@@ -15,6 +16,10 @@ export function useLanguageSync(user: User | null): void {
   const preferred = user?.language;
 
   useEffect(() => {
+    // Don't fight the QA pseudo locale when it's active.
+    if (isPseudoEnabled()) {
+      return;
+    }
     if (isSupportedLanguage(preferred) && i18n.resolvedLanguage !== preferred) {
       void i18n.changeLanguage(preferred);
     }

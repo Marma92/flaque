@@ -21,6 +21,7 @@ import frHome from "./locales/fr/home.json";
 import frLibrary from "./locales/fr/library.json";
 import frPlayer from "./locales/fr/player.json";
 import frPlaylists from "./locales/fr/playlists.json";
+import { isPseudoEnabled, PSEUDO_LANGUAGE, pseudoizeResource } from "./pseudo";
 
 // Re-export the shared language vocabulary so UI code can import everything
 // i18n-related from a single module.
@@ -44,11 +45,18 @@ export const resources = {
   fr: { common: frCommon, player: frPlayer, auth: frAuth, account: frAccount, home: frHome, library: frLibrary, playlists: frPlaylists, admin: frAdmin, errors: frErrors }
 } as const;
 
+// QA-only pseudo locale (opt-in via `?pseudo`), derived from English.
+const pseudoEnabled = isPseudoEnabled();
+const runtimeResources = pseudoEnabled
+  ? { ...resources, [PSEUDO_LANGUAGE]: pseudoizeResource(resources.en) }
+  : resources;
+
 void i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources,
+    resources: runtimeResources,
+    ...(pseudoEnabled ? { lng: PSEUDO_LANGUAGE } : {}),
     // Detection order for logged-out / first paint is localStorage → browser.
     // For signed-in users the account preference is layered on top by syncing
     // i18n to `user.language` once the session loads (see useLanguageSync).
@@ -57,7 +65,7 @@ void i18n
       lookupLocalStorage: LANGUAGE_STORAGE_KEY,
       caches: ["localStorage"]
     },
-    supportedLngs: [...SUPPORTED_LANGUAGES],
+    supportedLngs: [...SUPPORTED_LANGUAGES, ...(pseudoEnabled ? [PSEUDO_LANGUAGE] : [])],
     fallbackLng: DEFAULT_LANGUAGE,
     // Map regional tags (e.g. "fr-FR") to the base language we ship.
     load: "languageOnly",
