@@ -9,9 +9,18 @@ export function errorHandler(
   err: unknown,
   _req: Request,
   res: Response,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   next: NextFunction
 ): void {
+  // If the response already started streaming (e.g. a file send that failed
+  // mid-flight), we cannot write a JSON error body on top of it — doing so
+  // throws "Cannot set headers after they are sent" and leaves the socket with
+  // a body shorter than its advertised Content-Length. Hand off to Express's
+  // default handler, which aborts the connection cleanly.
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       error: err.message,

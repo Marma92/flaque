@@ -56,8 +56,7 @@ describe("errorHandler middleware", () => {
     expect(mockNext).not.toHaveBeenCalled();
   });
 
-  it("should call next if response headers already sent? (optional)", () => {
-    // Simulate headers sent
+  it("delegates to next without writing a body when headers were already sent", () => {
     const mockResWithSent = {
       ...mockRes,
       headersSent: true,
@@ -66,10 +65,11 @@ describe("errorHandler middleware", () => {
 
     errorHandler(err as any, mockReq as any, mockResWithSent, mockNext);
 
-    // In Express, if headers already sent, you should call next
-    // Our implementation does not check headersSent; but we can note that.
-    // For now, we just expect that it still tries to json (which may fail in real Express)
-    // We'll just ensure it doesn't crash.
-    expect(mockRes.json).toHaveBeenCalled();
+    // Writing on top of an in-flight response would corrupt it (body shorter
+    // than the advertised Content-Length), so we must hand off to Express's
+    // default handler instead of calling res.status()/res.json().
+    expect(mockRes.status).not.toHaveBeenCalled();
+    expect(mockRes.json).not.toHaveBeenCalled();
+    expect(mockNext).toHaveBeenCalledWith(err);
   });
 });

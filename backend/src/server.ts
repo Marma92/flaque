@@ -79,6 +79,23 @@ async function bootstrap(): Promise<void> {
   server.requestTimeout = readNonNegativeIntEnv("HTTP_REQUEST_TIMEOUT_MS", 0);
   server.timeout = readNonNegativeIntEnv("HTTP_SOCKET_TIMEOUT_MS", 0);
 
+  // Keep-alive lifetime must outlive the reverse proxy's idle timeout so the
+  // proxy — not the backend — decides when to retire a pooled connection. With
+  // Node's short 5s default, nginx can pick an idle keep-alive socket to reuse
+  // at the exact moment Node is closing it; the in-flight response is then
+  // truncated and the browser surfaces a "Content-Length header of network
+  // response exceeds response Body" error. Default to 65s, comfortably above
+  // nginx's 60s upstream keepalive_timeout.
+  const keepAliveTimeoutMs = readNonNegativeIntEnv("HTTP_KEEP_ALIVE_TIMEOUT_MS", 65_000);
+  server.keepAliveTimeout = keepAliveTimeoutMs;
+  // headersTimeout must stay strictly greater than keepAliveTimeout, otherwise
+  // Node can time out the next request on a reused connection while the current
+  // response is still being written. Clamp up if the env override breaks that.
+  server.headersTimeout = Math.max(
+    readNonNegativeIntEnv("HTTP_HEADERS_TIMEOUT_MS", 70_000),
+    keepAliveTimeoutMs + 5_000
+  );
+
   server.listen(port, () => {
     log.info(`flaque backend listening on http://localhost:${port}`);
   });
