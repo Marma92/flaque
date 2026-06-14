@@ -136,7 +136,7 @@ export function createLogRouter(): Router {
       const filePath = safeResolveLogPath(fileName);
 
       if (!filePath) {
-        return next(new AppError("Invalid log file name", 400));
+        return next(new AppError("Invalid log file name", 400, "invalidLogFileName"));
       }
 
       let content: string;

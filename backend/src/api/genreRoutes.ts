@@ -87,14 +87,14 @@ export function createGenreRouter(indexStore: IndexStore): Router {
     try {
       const trackId = req.params.trackId;
       if (!trackId) {
-        return next(new AppError("Track id is required", 400));
+        return next(new AppError("Track id is required", 400, "trackId"));
       }
       const track = indexStore.getTrackById(trackId);
       if (!track) {
-        return next(new AppError("Track not found", 404));
+        return next(new AppError("Track not found", 404, "trackFound"));
       }
       if (!track.tags.artist || !track.tags.title) {
-        return next(new AppError("Track is missing artist or title; cannot re-enrich", 400));
+        return next(new AppError("Track is missing artist or title; cannot re-enrich", 400, "trackMissingArtistTitleCannot"));
       }
 
       log.info("Track re-enrichment requested", {
@@ -117,7 +117,7 @@ export function createGenreRouter(indexStore: IndexStore): Router {
   router.put("/genre/synonyms", requireAuth, requireAdmin, (req, res, next) => {
     const { from, to } = req.body as { from?: string; to?: string };
     if (typeof from !== "string" || !from.trim() || typeof to !== "string" || !to.trim()) {
-      return next(new AppError("Both 'from' and 'to' must be non-empty strings", 400));
+      return next(new AppError("Both 'from' and 'to' must be non-empty strings", 400, "bothFromNonEmptyStrings"));
     }
 
     setSynonym(from, to);
@@ -128,12 +128,12 @@ export function createGenreRouter(indexStore: IndexStore): Router {
   router.delete("/genre/synonyms/:key", requireAuth, requireAdmin, (req, res, next) => {
     const key = req.params.key;
     if (!key) {
-      return next(new AppError("Synonym key required", 400));
+      return next(new AppError("Synonym key required", 400, "synonymKey"));
     }
 
     const removed = removeSynonym(key);
     if (!removed) {
-      return next(new AppError("Synonym not found", 404));
+      return next(new AppError("Synonym not found", 404, "synonymFound"));
     }
 
     log.info("Genre synonym removed", { key, userId: req.authUser?.id ?? "unknown" });

@@ -22,7 +22,7 @@ import { requireOwnerId, requireSessionId } from "./parsers";
  */
 function handleChunkedError(error: unknown, _res: Response, next: NextFunction): void {
   if (error instanceof SessionForbiddenError) {
-    return next(new AppError("Upload session does not belong to you", 403));
+    return next(new AppError("Upload session does not belong to you", 403, "uploadSessionDoesBelong"));
   }
   next(error);
 }
@@ -40,7 +40,7 @@ export function createChunkedUploadRouter(): Router {
       const fileSize = Number(req.body?.fileSize);
 
       if (!fileName || !Number.isFinite(fileSize) || fileSize <= 0) {
-        return next(new AppError("fileName and fileSize are required", 400));
+        return next(new AppError("fileName and fileSize are required", 400, "filenameFilesize"));
       }
 
       if (fileSize > maxUploadBytes) {
@@ -48,7 +48,7 @@ export function createChunkedUploadRouter(): Router {
       }
 
       if (!isSupportedAudioFile(fileName)) {
-        return next(new AppError("Unsupported audio format", 400));
+        return next(new AppError("Unsupported audio format", 400, "unsupportedAudioFormat"));
       }
 
       const session = await initChunkedUpload(ownerId, fileName, fileSize);
@@ -73,11 +73,11 @@ export function createChunkedUploadRouter(): Router {
 
         const chunkIndex = Number(req.body?.chunkIndex);
         if (!Number.isFinite(chunkIndex)) {
-          return next(new AppError("chunkIndex is required", 400));
+          return next(new AppError("chunkIndex is required", 400, "chunkindex"));
         }
 
         if (!req.file?.buffer) {
-          return next(new AppError("Chunk data is required", 400));
+          return next(new AppError("Chunk data is required", 400, "chunkData"));
         }
 
         const session = await saveChunk(sessionId, ownerId, chunkIndex, req.file.buffer);
@@ -98,7 +98,7 @@ export function createChunkedUploadRouter(): Router {
 
       const session = getOwnedSession(sessionId, ownerId);
       if (!session) {
-        return next(new AppError("Upload session not found", 404));
+        return next(new AppError("Upload session not found", 404, "uploadSessionFound"));
       }
 
       const assembledPath = await assembleChunks(sessionId, ownerId);

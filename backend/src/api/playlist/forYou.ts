@@ -50,7 +50,7 @@ export function createForYouPlaylistRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.authUser?.id;
       if (!userId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const playlists = await loadForYouPlaylists(userId);
@@ -82,17 +82,17 @@ export function createForYouPlaylistRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.authUser?.id;
       if (!userId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const id = req.params.id;
       if (!id) {
-        return next(new AppError("Playlist id is required", 400));
+        return next(new AppError("Playlist id is required", 400, "playlistId"));
       }
 
       const playlist = await getForYouPlaylistById(userId, id);
       if (!playlist) {
-        return next(new AppError("For-you playlist not found", 404));
+        return next(new AppError("For-you playlist not found", 404, "playlistFound2"));
       }
 
       const tracks = playlist.trackIds
@@ -112,7 +112,7 @@ export function createForYouPlaylistRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.authUser?.id;
       if (!userId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const playlists = await regenerateForYouPlaylists(userId, indexStore);
@@ -135,11 +135,11 @@ export function createForYouPlaylistRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.params.userId;
       if (!userId) {
-        return next(new AppError("userId is required", 400));
+        return next(new AppError("userId is required", 400, "userid"));
       }
       const trace = await loadForYouTrace(userId);
       if (!trace) {
-        return next(new AppError("No for-you trace available for this user", 404));
+        return next(new AppError("No for-you trace available for this user", 404, "noTraceAvailableUser"));
       }
       res.json(trace);
     } catch (error) {
@@ -151,12 +151,12 @@ export function createForYouPlaylistRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.authUser?.id;
       if (!userId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const playlistId = req.params.id;
       if (!playlistId) {
-        return next(new AppError("Playlist id is required", 400));
+        return next(new AppError("Playlist id is required", 400, "playlistId"));
       }
 
       await dismissForYouPlaylist(userId, playlistId);

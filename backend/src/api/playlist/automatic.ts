@@ -79,7 +79,7 @@ export function createAutoPlaylistRouter(indexStore: IndexStore): Router {
     try {
       const trace = await loadAutoTrace();
       if (!trace) {
-        return next(new AppError("No auto-playlist trace available", 404));
+        return next(new AppError("No auto-playlist trace available", 404, "noAutoPlaylistTraceAvailable"));
       }
       res.json(trace);
     } catch (error) {
@@ -91,12 +91,12 @@ export function createAutoPlaylistRouter(indexStore: IndexStore): Router {
     try {
       const id = req.params.id;
       if (!id) {
-        return next(new AppError("Playlist id is required", 400));
+        return next(new AppError("Playlist id is required", 400, "playlistId"));
       }
 
       const playlist = await getAutoPlaylistById(id);
       if (!playlist) {
-        return next(new AppError("Auto playlist not found", 404));
+        return next(new AppError("Auto playlist not found", 404, "autoPlaylistFound"));
       }
 
       const tracks = playlist.trackIds

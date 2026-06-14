@@ -21,32 +21,32 @@ export function loadPlaylist(
 ) {
   return async function (req: Request, res: Response, next: NextFunction) {
     if (requireAuth && !req.authUser) {
-      return next(new AppError("Authentication required", 401));
+      return next(new AppError("Authentication required", 401, "authentication"));
     }
 
     const playlistId = req.params.id;
     if (!playlistId) {
-      return next(new AppError("Playlist id is required", 400));
+      return next(new AppError("Playlist id is required", 400, "playlistId"));
     }
 
     const playlist = findPlaylistById(indexStore, playlistId);
     if (!playlist) {
-      return next(new AppError("Playlist not found", 404));
+      return next(new AppError("Playlist not found", 404, "playlistFound"));
     }
 
     // Check access permissions
     if (requireAuth && req.authUser) {
       const authUser = req.authUser;
       if (!canViewPlaylist(playlist, authUser)) {
-        return next(new AppError("Not allowed to access this playlist", 403));
+        return next(new AppError("Not allowed to access this playlist", 403, "allowedAccessPlaylist"));
       }
 
       if (requireEdit && !canEditPlaylist(playlist, authUser)) {
-        return next(new AppError("Not allowed to modify this playlist", 403));
+        return next(new AppError("Not allowed to modify this playlist", 403, "allowedModifyPlaylist"));
       }
 
       if (requireManage && !canManagePlaylist(playlist, authUser)) {
-        return next(new AppError("Not allowed to delete this playlist", 403));
+        return next(new AppError("Not allowed to delete this playlist", 403, "allowedDeletePlaylist"));
       }
     }
 
@@ -72,7 +72,7 @@ export function resolveTrackIds(
     }
 
     if (!Array.isArray(trackIds)) {
-      return next(new AppError("trackIds must be an array of track ids", 400));
+      return next(new AppError("trackIds must be an array of track ids", 400, "trackidsArrayTrackIds"));
     }
 
     if (trackIds.length === 0) {
@@ -82,11 +82,11 @@ export function resolveTrackIds(
     // Validate each track ID is a string
     for (const item of trackIds) {
       if (typeof item !== "string") {
-        return next(new AppError("trackIds must be an array of track ids", 400));
+        return next(new AppError("trackIds must be an array of track ids", 400, "trackidsArrayTrackIds"));
       }
       const normalized = item.trim();
       if (!normalized) {
-        return next(new AppError("trackIds must be an array of track ids", 400));
+        return next(new AppError("trackIds must be an array of track ids", 400, "trackidsArrayTrackIds"));
       }
     }
 

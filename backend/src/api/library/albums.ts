@@ -49,7 +49,7 @@ export function createAlbumRouter(indexStore: IndexStore): Router {
     try {
       const albumId = req.params.albumId?.trim();
       if (!albumId) {
-        return next(new AppError("Album id is required", 400));
+        return next(new AppError("Album id is required", 400, "albumId"));
       }
 
       const ownerNamesById = getOwnerNamesById();
@@ -64,7 +64,7 @@ export function createAlbumRouter(indexStore: IndexStore): Router {
           (track) => normalizeAlbumName(track.tags.album) === collaborativeAlbum.normalizedAlbumName
         );
         if (matchingTracks.length === 0) {
-          return next(new AppError("Album not found", 404));
+          return next(new AppError("Album not found", 404, "albumFound"));
         }
         matchingTracks.sort(compareAlbumTrackOrder);
         res.json(buildAlbumResponse(albumId, matchingTracks[0]?.tags.album, matchingTracks[0]?.cover, matchingTracks));
@@ -102,7 +102,7 @@ export function createAlbumRouter(indexStore: IndexStore): Router {
       }
 
       if (albumTracks.length === 0) {
-        return next(new AppError("Album not found", 404));
+        return next(new AppError("Album not found", 404, "albumFound"));
       }
 
       albumTracks.sort(compareAlbumTrackOrder);

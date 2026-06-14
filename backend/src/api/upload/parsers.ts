@@ -66,7 +66,7 @@ export function collectUploadedFiles(files: unknown): Express.Multer.File[] {
 export function requireOwnerId(req: { authUser?: { id?: string } }): string {
   const ownerId = req.authUser?.id;
   if (!ownerId) {
-    throw new AppError("Authentication required", 401);
+    throw new AppError("Authentication required", 401, "authentication");
   }
   return ownerId;
 }
@@ -74,7 +74,7 @@ export function requireOwnerId(req: { authUser?: { id?: string } }): string {
 export function requireSessionId(req: { body?: Record<string, unknown> }): string {
   const sessionId = normalizeOptionalString(req.body?.sessionId);
   if (!sessionId) {
-    throw new AppError("sessionId is required", 400);
+    throw new AppError("sessionId is required", 400, "sessionid");
   }
   return sessionId;
 }

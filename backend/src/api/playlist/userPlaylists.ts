@@ -30,7 +30,7 @@ export function createUserPlaylistRouter(indexStore: IndexStore): Router {
   router.get("/", requireAuth, (req, res, next) => {
     const authUser = req.authUser;
     if (!authUser) {
-      return next(new AppError("Authentication required", 401));
+      return next(new AppError("Authentication required", 401, "authentication"));
     }
 
     const snapshot = indexStore.getSnapshot();
@@ -46,17 +46,17 @@ export function createUserPlaylistRouter(indexStore: IndexStore): Router {
     const authUser = req.authUser;
     const playlistId = req.params.id;
     if (!authUser || !playlistId) {
-      return next(new AppError("Authentication required", 401));
+      return next(new AppError("Authentication required", 401, "authentication"));
     }
 
     const playlist = findPlaylistById(indexStore, playlistId);
     if (!playlist) {
-      return next(new AppError("Playlist not found", 404));
+      return next(new AppError("Playlist not found", 404, "playlistFound"));
     }
 
     const playable = filterPlayablePlaylists([playlist], authUser)[0];
     if (!playable) {
-      return next(new AppError("Not allowed to access this playlist", 403));
+      return next(new AppError("Not allowed to access this playlist", 403, "allowedAccessPlaylist"));
     }
 
     res.json({ playlist: mapPlaylistResponse(playable) });
@@ -66,22 +66,22 @@ export function createUserPlaylistRouter(indexStore: IndexStore): Router {
     try {
       const authUser = req.authUser;
       if (!authUser) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const visibility = normalizeVisibility(req.body?.visibility);
       if (visibility === null) {
-        return next(new AppError("visibility must be public or private", 400));
+        return next(new AppError("visibility must be public or private", 400, "visibilityPublicPrivate"));
       }
 
       const name = parsePlaylistName(req.body?.name);
       if (!name) {
-        return next(new AppError("name is required", 400));
+        return next(new AppError("name is required", 400, "name"));
       }
 
       const trackIds = parseTrackIds(req.body?.trackIds);
       if (trackIds === null) {
-        return next(new AppError("trackIds must be an array of track ids", 400));
+        return next(new AppError("trackIds must be an array of track ids", 400, "trackidsArrayTrackIds"));
       }
 
       const description = typeof req.body?.description === "string" ? req.body.description.trim() : undefined;
@@ -99,7 +99,7 @@ export function createUserPlaylistRouter(indexStore: IndexStore): Router {
       const rebuilt = await indexStore.refreshPlaylists();
       const playlist = rebuilt.playlists?.find((item) => item.id === playlistId);
       if (!playlist) {
-        return next(new AppError("Playlist was created but not found after reindex", 500));
+        return next(new AppError("Playlist was created but not found after reindex", 500, "playlistWasCreatedButFound"));
       }
 
       log.info("Playlist created", {
@@ -130,31 +130,31 @@ export function createUserPlaylistRouter(indexStore: IndexStore): Router {
       const authUser = req.authUser;
       const playlistId = req.params.id;
       if (!authUser || !playlistId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const existing = findPlaylistById(indexStore, playlistId);
       if (!existing) {
-        return next(new AppError("Playlist not found", 404));
+        return next(new AppError("Playlist not found", 404, "playlistFound"));
       }
 
       if (!canEditPlaylist(existing, authUser)) {
-        return next(new AppError("Not allowed to modify this playlist", 403));
+        return next(new AppError("Not allowed to modify this playlist", 403, "allowedModifyPlaylist"));
       }
 
       const visibility = normalizeVisibility(req.body?.visibility);
       if (visibility !== "public" && visibility !== "private") {
-        return next(new AppError("visibility is required and must be public or private", 400));
+        return next(new AppError("visibility is required and must be public or private", 400, "visibilityPublicPrivate2"));
       }
 
       const name = parsePlaylistName(req.body?.name);
       if (!name) {
-        return next(new AppError("name is required", 400));
+        return next(new AppError("name is required", 400, "name"));
       }
 
       const trackIds = parseTrackIds(req.body?.trackIds);
       if (!trackIds) {
-        return next(new AppError("trackIds is required and must be an array of track ids", 400));
+        return next(new AppError("trackIds is required and must be an array of track ids", 400, "trackidsArrayTrackIds2"));
       }
 
       const snapshot = indexStore.getSnapshot();
@@ -172,7 +172,7 @@ export function createUserPlaylistRouter(indexStore: IndexStore): Router {
         (item) => item.authorId === existing.authorId && item.name === name
       );
       if (!updated) {
-        return next(new AppError("Playlist updated but not found after reindex", 500));
+        return next(new AppError("Playlist updated but not found after reindex", 500, "playlistUpdatedButFoundAfter"));
       }
 
       log.info("Playlist updated", {
@@ -202,31 +202,31 @@ export function createUserPlaylistRouter(indexStore: IndexStore): Router {
       const authUser = req.authUser;
       const playlistId = req.params.id;
       if (!authUser || !playlistId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const existing = findPlaylistById(indexStore, playlistId);
       if (!existing) {
-        return next(new AppError("Playlist not found", 404));
+        return next(new AppError("Playlist not found", 404, "playlistFound"));
       }
 
       if (!canEditPlaylist(existing, authUser)) {
-        return next(new AppError("Not allowed to modify this playlist", 403));
+        return next(new AppError("Not allowed to modify this playlist", 403, "allowedModifyPlaylist"));
       }
 
       const visibility = normalizeVisibility(req.body?.visibility);
       if (visibility === null) {
-        return next(new AppError("visibility must be public or private", 400));
+        return next(new AppError("visibility must be public or private", 400, "visibilityPublicPrivate"));
       }
 
       const name = parsePlaylistName(req.body?.name);
       if (name === null) {
-        return next(new AppError("name must be a non-empty string", 400));
+        return next(new AppError("name must be a non-empty string", 400, "nameNonEmptyString"));
       }
 
       const trackIds = parseTrackIds(req.body?.trackIds);
       if (trackIds === null) {
-        return next(new AppError("trackIds must be an array of track ids", 400));
+        return next(new AppError("trackIds must be an array of track ids", 400, "trackidsArrayTrackIds"));
       }
 
       const description = typeof req.body?.description === "string" ? req.body.description.trim() : undefined;
@@ -260,7 +260,7 @@ export function createUserPlaylistRouter(indexStore: IndexStore): Router {
         (item) => item.authorId === existing.authorId && item.name === (name ?? existing.name)
       );
       if (!updated) {
-        return next(new AppError("Playlist updated but not found after reindex", 500));
+        return next(new AppError("Playlist updated but not found after reindex", 500, "playlistUpdatedButFoundAfter"));
       }
 
       log.info("Playlist patched", {
@@ -289,16 +289,16 @@ export function createUserPlaylistRouter(indexStore: IndexStore): Router {
       const authUser = req.authUser;
       const playlistId = req.params.id;
       if (!authUser || !playlistId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const existing = findPlaylistById(indexStore, playlistId);
       if (!existing) {
-        return next(new AppError("Playlist not found", 404));
+        return next(new AppError("Playlist not found", 404, "playlistFound"));
       }
 
       if (!canManagePlaylist(existing, authUser)) {
-        return next(new AppError("Not allowed to delete this playlist", 403));
+        return next(new AppError("Not allowed to delete this playlist", 403, "allowedDeletePlaylist"));
       }
 
       await deleteFilesystemPlaylist(playlistId);

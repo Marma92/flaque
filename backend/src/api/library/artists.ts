@@ -38,7 +38,7 @@ export function createArtistRouter(indexStore: IndexStore): Router {
     try {
       const normalizedArtist = req.params.artist?.trim().toLowerCase();
       if (!normalizedArtist) {
-        return next(new AppError("Artist is required", 400));
+        return next(new AppError("Artist is required", 400, "artist"));
       }
 
       const ownerNamesById = getOwnerNamesById();

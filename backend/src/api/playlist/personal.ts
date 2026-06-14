@@ -19,7 +19,7 @@ export function createPersonalPlaylistRouter(indexStore: IndexStore): Router {
   router.get("/personal", requireAuth, async (req, res, next) => {
     try {
       const userId = req.authUser?.id;
-      if (!userId) return next(new AppError("Authentication required", 401));
+      if (!userId) return next(new AppError("Authentication required", 401, "authentication"));
       const playlists = await loadPersonalPlaylists(userId);
       res.json({
         playlists: playlists.map((p) => ({
@@ -43,9 +43,9 @@ export function createPersonalPlaylistRouter(indexStore: IndexStore): Router {
   router.get("/personal/trace/:userId", requireAuth, requireAdmin, async (req, res, next) => {
     try {
       const userId = req.params.userId;
-      if (!userId) return next(new AppError("userId is required", 400));
+      if (!userId) return next(new AppError("userId is required", 400, "userid"));
       const trace = await loadPersonalTrace(userId);
-      if (!trace) return next(new AppError("No personal trace available for this user", 404));
+      if (!trace) return next(new AppError("No personal trace available for this user", 404, "noPersonalTraceAvailableUser"));
       res.json(trace);
     } catch (error) {
       next(error);
@@ -55,7 +55,7 @@ export function createPersonalPlaylistRouter(indexStore: IndexStore): Router {
   router.post("/personal/regenerate", requireAuth, async (req, res, next) => {
     try {
       const userId = req.authUser?.id;
-      if (!userId) return next(new AppError("Authentication required", 401));
+      if (!userId) return next(new AppError("Authentication required", 401, "authentication"));
       const playlists = await regeneratePersonalPlaylists(userId, indexStore);
       log.info(`User ${userId} triggered personal regeneration: ${playlists.length} playlist(s)`);
       res.json({
@@ -75,12 +75,12 @@ export function createPersonalPlaylistRouter(indexStore: IndexStore): Router {
   router.get("/personal/:id", requireAuth, async (req, res, next) => {
     try {
       const userId = req.authUser?.id;
-      if (!userId) return next(new AppError("Authentication required", 401));
+      if (!userId) return next(new AppError("Authentication required", 401, "authentication"));
       const id = req.params.id;
-      if (!id) return next(new AppError("Playlist id is required", 400));
+      if (!id) return next(new AppError("Playlist id is required", 400, "playlistId"));
 
       const playlist = await getPersonalPlaylistById(userId, id);
-      if (!playlist) return next(new AppError("Personal playlist not found", 404));
+      if (!playlist) return next(new AppError("Personal playlist not found", 404, "personalPlaylistFound"));
 
       const tracks = playlist.trackIds
         .map((trackId) => indexStore.getTrackById(trackId))

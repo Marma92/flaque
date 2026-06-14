@@ -7,6 +7,7 @@ import enAccount from "./locales/en/account.json";
 import enAdmin from "./locales/en/admin.json";
 import enAuth from "./locales/en/auth.json";
 import enCommon from "./locales/en/common.json";
+import enErrors from "./locales/en/errors.json";
 import enHome from "./locales/en/home.json";
 import enLibrary from "./locales/en/library.json";
 import enPlayer from "./locales/en/player.json";
@@ -15,6 +16,7 @@ import frAccount from "./locales/fr/account.json";
 import frAdmin from "./locales/fr/admin.json";
 import frAuth from "./locales/fr/auth.json";
 import frCommon from "./locales/fr/common.json";
+import frErrors from "./locales/fr/errors.json";
 import frHome from "./locales/fr/home.json";
 import frLibrary from "./locales/fr/library.json";
 import frPlayer from "./locales/fr/player.json";
@@ -38,8 +40,8 @@ export const defaultNS = "common";
 // Resources are bundled (not lazy-loaded over HTTP) so `import "./i18n"` fully
 // initialises i18next synchronously — important for tests and first paint.
 export const resources = {
-  en: { common: enCommon, player: enPlayer, auth: enAuth, account: enAccount, home: enHome, library: enLibrary, playlists: enPlaylists, admin: enAdmin },
-  fr: { common: frCommon, player: frPlayer, auth: frAuth, account: frAccount, home: frHome, library: frLibrary, playlists: frPlaylists, admin: frAdmin }
+  en: { common: enCommon, player: enPlayer, auth: enAuth, account: enAccount, home: enHome, library: enLibrary, playlists: enPlaylists, admin: enAdmin, errors: enErrors },
+  fr: { common: frCommon, player: frPlayer, auth: frAuth, account: frAccount, home: frHome, library: frLibrary, playlists: frPlaylists, admin: frAdmin, errors: frErrors }
 } as const;
 
 void i18n
@@ -60,7 +62,7 @@ void i18n
     // Map regional tags (e.g. "fr-FR") to the base language we ship.
     load: "languageOnly",
     nonExplicitSupportedLngs: true,
-    ns: ["common", "player", "auth", "account", "home", "library", "playlists", "admin"],
+    ns: ["common", "player", "auth", "account", "home", "library", "playlists", "admin", "errors"],
     defaultNS,
     returnNull: false,
     interpolation: {

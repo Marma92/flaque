@@ -19,13 +19,14 @@ describe("errorHandler middleware", () => {
   });
 
   it("should handle AppError and return JSON response", () => {
-    const err = new AppError("Test error", 400, { detail: "more info" });
+    const err = new AppError("Test error", 400, "testError", { detail: "more info" });
 
     errorHandler(err as any, mockReq as any, mockRes as any, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
     expect(mockRes.json).toHaveBeenCalledWith({
       error: "Test error",
+      code: "testError",
       details: { detail: "more info" },
     });
     expect(mockNext).not.toHaveBeenCalled();
