@@ -1,4 +1,37 @@
 {
+  "generatedNames": {
+    "personal": {
+      "discovered-this-year": {
+        "name": "Découverts cette année",
+        "description": "Musique que vous avez ajoutée et commencé à écouter au cours des douze derniers mois."
+      },
+      "forgotten-favorites": {
+        "name": "Favoris oubliés",
+        "description": "Des morceaux que vous adoriez mais que vous n'avez pas écoutés depuis un moment."
+      },
+      "album-deep-cuts": {
+        "name": "Pépites d'album",
+        "description": "Des titres d'albums que vous connaissez mais que vous n'avez pas vraiment écoutés."
+      }
+    },
+    "auto": {
+      "decadeGenre": "{{genre}} {{decadeLabel}}",
+      "tempoGenre": "{{genre}} {{tempo}}",
+      "tempoName": {
+        "slow": "lent",
+        "mid": "mid-tempo",
+        "driving": "entraînant",
+        "fast": "rapide"
+      }
+    },
+    "forYou": {
+      "more": "Plus de {{artist}}",
+      "friends": "{{artist}} & co",
+      "decade": "Années {{decadeLabel}} avec {{artist}}",
+      "around": "Autour de {{artist}}",
+      "because": "Parce que vous écoutez {{artist}}"
+    }
+  },
   "myPlaylists": "Mes playlists",
   "madeForYou": "Fait pour vous",
   "popularPlaylists": "Playlists populaires",

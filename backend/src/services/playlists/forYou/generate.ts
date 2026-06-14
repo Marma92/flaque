@@ -24,7 +24,7 @@ import {
 } from "../forYouRanker";
 import { getUserDismissals } from "./dismissals";
 import { slugify } from "./paths";
-import type { ForYouPlaylist } from "./store";
+import type { ForYouNameVariant, ForYouPlaylist } from "./store";
 
 const log = createLogger("for-you-playlists");
 
@@ -540,20 +540,22 @@ function targetSeedShare(familiarity: number): number {
 
 // ── Naming heuristic ─────────────────────────────────────────────
 
+type PlaylistName = { name: string; nameVariant: ForYouNameVariant; nameDecadeLabel?: string };
+
 function namePlaylist(
   seedArtist: string,
   distinctPeerArtists: number,
   peerShare: number,
   dominantDecade: number | null
-): string {
-  if (peerShare < 0.3) return `More ${seedArtist}`;
-  if (distinctPeerArtists <= 3) return `${seedArtist} & friends`;
+): PlaylistName {
+  if (peerShare < 0.3) return { name: `More ${seedArtist}`, nameVariant: "more" };
+  if (distinctPeerArtists <= 3) return { name: `${seedArtist} & friends`, nameVariant: "friends" };
   if (dominantDecade !== null) {
     const decadeLabel = `${dominantDecade % 100 === 0 ? dominantDecade : dominantDecade % 100}s`;
-    return `${decadeLabel} with ${seedArtist}`;
+    return { name: `${decadeLabel} with ${seedArtist}`, nameVariant: "decade", nameDecadeLabel: decadeLabel };
   }
-  if (peerShare > 0.7) return `Around ${seedArtist}`;
-  return `Because you listen to ${seedArtist}`;
+  if (peerShare > 0.7) return { name: `Around ${seedArtist}`, nameVariant: "around" };
+  return { name: `Because you listen to ${seedArtist}`, nameVariant: "because" };
 }
 
 function dominantDecade(tracks: Track[]): number | null {
@@ -758,19 +760,21 @@ async function buildForYouPlaylist(
   const distinctPeerArtists = new Set(peerPick.picked.map((c) => c.capKey)).size;
   const peerShare = combined.length > 0 ? peerPick.picked.length / combined.length : 0;
   const decade = dominantDecade(sequenced.map((c) => c.track));
-  const name = namePlaylist(seedArtist, distinctPeerArtists, peerShare, decade);
-  baseTrace.playlistName = name;
+  const nameResult = namePlaylist(seedArtist, distinctPeerArtists, peerShare, decade);
+  baseTrace.playlistName = nameResult.name;
 
   const id = `for-you:${slugify(seedArtist)}`;
   return {
     playlist: {
       id,
-      name,
+      name: nameResult.name,
       seedArtist,
       trackIds: sequenced.map((c) => c.track.id),
       trackCount: sequenced.length,
       generatedAt: new Date().toISOString(),
-      score: seedScore
+      score: seedScore,
+      nameVariant: nameResult.nameVariant,
+      ...(nameResult.nameDecadeLabel ? { nameDecadeLabel: nameResult.nameDecadeLabel } : {})
     },
     trace: baseTrace
   };

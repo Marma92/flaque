@@ -1,4 +1,37 @@
 {
+  "generatedNames": {
+    "personal": {
+      "discovered-this-year": {
+        "name": "Discovered this year",
+        "description": "Music you added and started playing in the last twelve months."
+      },
+      "forgotten-favorites": {
+        "name": "Forgotten favorites",
+        "description": "Tracks you used to love but haven't played in a while."
+      },
+      "album-deep-cuts": {
+        "name": "Album deep cuts",
+        "description": "Songs from albums you know, that you haven't actually played."
+      }
+    },
+    "auto": {
+      "decadeGenre": "{{decadeLabel}} {{genre}}",
+      "tempoGenre": "{{tempo}} {{genre}}",
+      "tempoName": {
+        "slow": "Slow",
+        "mid": "Midtempo",
+        "driving": "Driving",
+        "fast": "Fast"
+      }
+    },
+    "forYou": {
+      "more": "More {{artist}}",
+      "friends": "{{artist}} & friends",
+      "decade": "{{decadeLabel}} with {{artist}}",
+      "around": "Around {{artist}}",
+      "because": "Because you listen to {{artist}}"
+    }
+  },
   "myPlaylists": "My Playlists",
   "madeForYou": "Made for you",
   "popularPlaylists": "Popular Playlists",

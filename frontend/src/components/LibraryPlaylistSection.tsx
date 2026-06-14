@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import defaultCoverImage from "../assets/default-cover.png";
 import { coverPathUrl, coverUrl, getForYouPlaylistDetail, playlistCoverUrl } from "../api";
+import { autoPlaylistName, forYouPlaylistName, personalPlaylistDescription, personalPlaylistName } from "../utils/generatedPlaylists";
 import type { AutoPlaylistSummary, ForYouPlaylistSummary, PersonalPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
 
 export type LibraryPlaylistSectionProps = {
@@ -390,6 +391,7 @@ export function LibraryPlaylistSection({
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {forYouPlaylists.map((fy) => {
               const artistPhotoUrl = fy.seedArtistPhoto ? coverPathUrl(fy.seedArtistPhoto) : null;
+              const fyName = forYouPlaylistName(t, fy);
               return (
                 <div
                   key={fy.id}
@@ -418,7 +420,7 @@ export function LibraryPlaylistSection({
                       type="button"
                       className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/cover:bg-black/35 group-hover/cover:opacity-100"
                       onClick={(e) => { e.stopPropagation(); void handlePlayForYou(fy); }}
-                      aria-label={t("playlists:play", { name: fy.name })}
+                      aria-label={t("playlists:play", { name: fyName })}
                     >
                       <svg className="h-10 w-10 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
                         <path d="M8 6v12l10-6-10-6z" />
@@ -426,7 +428,7 @@ export function LibraryPlaylistSection({
                     </button>
                   </div>
                   <div className="p-2">
-                    <p className="line-clamp-2 min-h-[2rem] text-center text-xs font-semibold text-flaque-ink">{fy.name}</p>
+                    <p className="line-clamp-2 min-h-[2rem] text-center text-xs font-semibold text-flaque-ink">{fyName}</p>
                   </div>
 
                   {/* Dismiss button */}
@@ -437,7 +439,7 @@ export function LibraryPlaylistSection({
                       e.stopPropagation();
                       void onDismissForYouPlaylist(fy.id);
                     }}
-                    aria-label={t("playlists:hide", { name: fy.name })}
+                    aria-label={t("playlists:hide", { name: fyName })}
                   >
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -532,7 +534,7 @@ export function LibraryPlaylistSection({
                           className="line-clamp-2 font-display text-sm font-bold leading-tight drop-shadow"
                           style={{ color: "#ffffff" }}
                         >
-                          {pp.name}
+                          {personalPlaylistName(t, pp.variant)}
                         </p>
                       </div>
 
@@ -541,7 +543,7 @@ export function LibraryPlaylistSection({
                         type="button"
                         className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/cover:bg-black/35 group-hover/cover:opacity-100"
                         onClick={(e) => { e.stopPropagation(); onNavigateToPlaylist(pp.id); }}
-                        aria-label={t("playlists:open", { name: pp.name })}
+                        aria-label={t("playlists:open", { name: personalPlaylistName(t, pp.variant) })}
                       >
                         <svg className="h-10 w-10 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
                           <path d="M8 6v12l10-6-10-6z" />
@@ -549,7 +551,7 @@ export function LibraryPlaylistSection({
                       </button>
                     </div>
                     <div className="p-2">
-                      <p className="line-clamp-2 text-xs text-flaque-steel">{pp.description}</p>
+                      <p className="line-clamp-2 text-xs text-flaque-steel">{personalPlaylistDescription(t, pp.variant)}</p>
                       <p className="mt-0.5 text-xs text-flaque-steel/80">
                         {t("common:trackCount", { count: pp.trackCount })}
                       </p>
@@ -612,7 +614,7 @@ export function LibraryPlaylistSection({
                       type="button"
                       className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/cover:bg-black/35 group-hover/cover:opacity-100"
                       onClick={(e) => { e.stopPropagation(); onNavigateToPlaylist(ap.id); }}
-                      aria-label={t("playlists:play", { name: ap.name })}
+                      aria-label={t("playlists:play", { name: autoPlaylistName(t, ap) })}
                     >
                       <svg className="h-10 w-10 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
                         <path d="M8 6v12l10-6-10-6z" />
@@ -620,7 +622,7 @@ export function LibraryPlaylistSection({
                     </button>
                   </div>
                   <div className="p-2">
-                    <p className="truncate text-xs font-semibold text-flaque-ink">{ap.name}</p>
+                    <p className="truncate text-xs font-semibold text-flaque-ink">{autoPlaylistName(t, ap)}</p>
                     <p className="mt-0.5 text-xs text-flaque-steel">
                       {t("common:trackCount", { count: ap.trackCount })}
                     </p>

@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import { coverPathUrl } from "../api";
 import type { ForYouPlaylistSummary } from "../types";
+import { forYouPlaylistName } from "../utils/generatedPlaylists";
 
 type HomeForYouRowProps = {
   playlists: ForYouPlaylistSummary[];
@@ -30,6 +31,7 @@ export function HomeForYouRow({ playlists, onSelect }: HomeForYouRowProps): JSX.
       >
         {playlists.map((playlist) => {
           const photoUrl = playlist.seedArtistPhoto ? coverPathUrl(playlist.seedArtistPhoto) : null;
+          const name = forYouPlaylistName(t, playlist);
           return (
             <button
               key={playlist.id}
@@ -37,7 +39,7 @@ export function HomeForYouRow({ playlists, onSelect }: HomeForYouRowProps): JSX.
               role="listitem"
               className="group flex w-32 shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl bg-white/85 text-left shadow-sm transition hover:shadow-md sm:w-36"
               onClick={() => onSelect(playlist.id)}
-              title={playlist.name}
+              title={name}
             >
               <div className="relative aspect-square w-full overflow-hidden">
                 {photoUrl ? (
@@ -62,7 +64,7 @@ export function HomeForYouRow({ playlists, onSelect }: HomeForYouRowProps): JSX.
               </div>
               <div className="px-2 py-1.5">
                 <p className="line-clamp-2 min-h-[2rem] text-[11px] font-semibold text-flaque-ink">
-                  {playlist.name}
+                  {name}
                 </p>
                 <p className="mt-0.5 text-[10px] text-flaque-steel">
                   {t("common:trackCount", { count: playlist.trackCount })}

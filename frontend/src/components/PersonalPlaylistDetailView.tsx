@@ -5,6 +5,7 @@ import { coverPathUrl, getPersonalPlaylistDetail } from "../api";
 import { usePlaylistDetailPlayback } from "../hooks/usePlaylistDetailPlayback";
 import type { PersonalPlaylistDetail, Playlist, Track } from "../types";
 import { activeLocale, formatDurationCompact } from "../utils/format";
+import { personalPlaylistDescription, personalPlaylistName } from "../utils/generatedPlaylists";
 import { PlaylistTrackList } from "./PlaylistTrackList";
 
 export type PersonalPlaylistDetailViewProps = {
@@ -130,10 +131,8 @@ export function PersonalPlaylistDetailView({
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col">
-            <h2 className="font-display text-2xl text-flaque-ink">{detail.name}</h2>
-            {detail.description ? (
-              <p className="mt-1 text-sm text-flaque-steel">{detail.description}</p>
-            ) : null}
+            <h2 className="font-display text-2xl text-flaque-ink">{personalPlaylistName(t, detail.variant)}</h2>
+            <p className="mt-1 text-sm text-flaque-steel">{personalPlaylistDescription(t, detail.variant)}</p>
 
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-flaque-steel">
               <span className="rounded-full bg-flaque-sand/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-flaque-ink/70">

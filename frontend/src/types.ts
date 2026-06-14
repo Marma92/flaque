@@ -151,6 +151,8 @@ export type PersonalPlaylistDetail = PersonalPlaylistSummary & {
   trackIds: string[];
 };
 
+export type ForYouNameVariant = "more" | "friends" | "decade" | "around" | "because";
+
 export type ForYouPlaylistSummary = {
   id: string;
   name: string;
@@ -161,6 +163,9 @@ export type ForYouPlaylistSummary = {
   generatedAt: string;
   /** Seed-artist score; higher = better fit. Missing on pre-2026-05 playlists. */
   score?: number;
+  /** Structured name descriptor for client-side localization (falls back to `name`). */
+  nameVariant?: ForYouNameVariant;
+  nameDecadeLabel?: string;
 };
 
 export type ForYouPlaylistDetail = ForYouPlaylistSummary & {

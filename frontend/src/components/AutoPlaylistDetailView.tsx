@@ -5,6 +5,7 @@ import { getAutoPlaylistDetail } from "../api";
 import { usePlaylistDetailPlayback } from "../hooks/usePlaylistDetailPlayback";
 import type { AutoPlaylistDetail, Playlist, Track } from "../types";
 import { activeLocale, formatDurationCompact } from "../utils/format";
+import { autoPlaylistName } from "../utils/generatedPlaylists";
 import { PlaylistTrackList } from "./PlaylistTrackList";
 
 export type AutoPlaylistDetailViewProps = {
@@ -151,7 +152,7 @@ export function AutoPlaylistDetailView({
 
           {/* Info */}
           <div className="flex min-w-0 flex-1 flex-col">
-            <h2 className="font-display text-2xl text-flaque-ink">{detail.name}</h2>
+            <h2 className="font-display text-2xl text-flaque-ink">{autoPlaylistName(t, detail)}</h2>
 
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-flaque-steel">
               <span className="rounded-full bg-flaque-sand/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-flaque-ink/70">
