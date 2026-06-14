@@ -319,7 +319,8 @@ export function createAuthRouter(): Router {
         to: user.email,
         username: user.username,
         resetUrl,
-        expiresAt: resetToken.expiresAt
+        expiresAt: resetToken.expiresAt,
+        language: normalizeLanguage(user.language)
       }).then((sent) => {
         emitAuthAuditLog(sent ? "info" : "warn", "forgot-password-email-dispatch", {
           ip,
