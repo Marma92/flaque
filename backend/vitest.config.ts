@@ -1,6 +1,16 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  resolve: {
+    // Resolve the workspace package from its TypeScript source so Vitest never
+    // depends on `shared/dist` being built. The compiled output (package
+    // `main`) is only needed by the backend's compiled Node runtime.
+    alias: {
+      "@flaque/shared": fileURLToPath(new URL("../shared/src/index.ts", import.meta.url))
+    }
+  },
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
