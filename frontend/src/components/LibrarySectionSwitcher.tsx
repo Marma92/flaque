@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import type { LibrarySection } from "../types/library";
 import { navigateTo } from "../utils/appUtils";
 
@@ -13,16 +15,12 @@ export function LibrarySectionSwitcher({
   activeSection,
   onSectionChange
 }: LibrarySectionSwitcherProps): JSX.Element {
+  const { t } = useTranslation("library");
+  const sectionKeys: LibrarySection[] = ["home", "music", "artists", "albums", "playlists"];
   return (
     <section className="border border-flaque-clay/60 bg-white/85 p-3 shadow-panel backdrop-blur-sm md:p-5">
       <div className="flex flex-wrap items-center justify-center gap-1.5">
-          {([
-            ["home", "Home"],
-            ["music", "Library"],
-            ["artists", "Artists"],
-            ["albums", "Albums"],
-            ["playlists", "Playlists"]
-          ] as const).map(([sectionKey, sectionLabel]) => (
+          {sectionKeys.map((sectionKey) => (
             <button
               key={sectionKey}
               className={`min-w-[6rem] rounded-xl px-2.5 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.12em] transition ${
@@ -33,7 +31,7 @@ export function LibrarySectionSwitcher({
               type="button"
               onClick={() => { navigateTo("library", sectionKey); onSectionChange(sectionKey); }}
             >
-              {sectionLabel}
+              {t(`sections.${sectionKey}`)}
             </button>
           ))}
       </div>

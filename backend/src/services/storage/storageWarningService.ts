@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 
 import { storageRoot } from "../../utils/paths";
 import { getTransporter, resolveSenderAddress } from "../../utils/email";
+import { storageWarningEmailMessage } from "../../utils/emailMessages";
 import { listAdminUsersWithEmail } from "../../auth/db";
 import { createLogger } from "../../utils/logger";
 
@@ -74,29 +75,32 @@ export async function checkStorageAndWarnAdmins(): Promise<void> {
       return;
     }
 
-    const adminEmails = admins.map((a) => a.email);
+    // Send one email per admin in their own language (replaces the previous
+    // single bcc email) so each recipient reads the warning localized.
+    const sender = resolveSenderAddress();
+    const warningVars = {
+      usedPercent: usedPercent.toFixed(1),
+      used: formatBytes(diskUsed),
+      total: formatBytes(diskTotal),
+      free: formatBytes(diskFree),
+      threshold
+    };
 
-    await transporter.sendMail({
-      from: resolveSenderAddress(),
-      to: adminEmails[0],
-      bcc: adminEmails.slice(1),
-      subject: `Flaque: Low disk storage warning (${usedPercent.toFixed(1)}% used)`,
-      text: [
-        "Disk storage on your Flaque server is running low.",
-        "",
-        `Current usage: ${usedPercent.toFixed(1)}% (${formatBytes(diskUsed)} used of ${formatBytes(diskTotal)} total)`,
-        `Free space remaining: ${formatBytes(diskFree)}`,
-        `Warning threshold: ${threshold}%`,
-        "",
-        "Consider freeing up disk space or expanding storage to avoid disruption."
-      ].join("\n")
-    });
+    for (const admin of admins) {
+      const message = storageWarningEmailMessage(admin.language, warningVars);
+      await transporter.sendMail({
+        from: sender,
+        to: admin.email,
+        subject: message.subject,
+        text: message.text
+      });
+    }
 
     lastWarningSentAt = Date.now();
     log.info("Storage warning email sent to admins", {
       usedPercent: usedPercent.toFixed(1),
       diskFree: formatBytes(diskFree),
-      recipients: adminEmails.length
+      recipients: admins.length
     });
   } catch (error) {
     log.error("Failed to check storage or send warning email", { error: String(error) });

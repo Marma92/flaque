@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import type { ForYouPlaylistSummary, RadioTrack, Track } from "../types";
 import type { RecentUploadAlbum, RecentUploadItem } from "../api";
 import type { UploadPeriod } from "../hooks/useRecentlyUploaded";
@@ -64,6 +66,7 @@ export function HomePanels({
   onSelectForYouPlaylist,
   onNavigateToPlaylists
 }: HomePanelsProps): JSX.Element | null {
+  const { t } = useTranslation(["home", "common"]);
   const hasRecent = recentTracks.length > 0;
   const hasUploaded = recentlyUploadedItems.length > 0 || recentlyUploadedLoading;
   const hasForYou = forYouPlaylists.length > 0 && Boolean(onSelectForYouPlaylist);
@@ -80,13 +83,13 @@ export function HomePanels({
             disabled={!canStartRadio}
             onClick={() => onStartRadioPlayback?.()}
             className="radio-play-btn shrink-0 flex w-20 flex-col items-center justify-center rounded-lg cursor-pointer disabled:cursor-not-allowed sm:w-24 mb-[5px]"
-            aria-label="Launch radio"
-            title="Launch radio"
+            aria-label={t("home:radio.launch")}
+            title={t("home:radio.launch")}
           >
             <svg className="h-7 w-7 drop-shadow-sm sm:h-8 sm:w-8" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M8 6v12l10-6-10-6z" />
             </svg>
-            <span className="mt-1 font-display text-[10px] font-semibold tracking-[0.25em]">PLAY</span>
+            <span className="mt-1 font-display text-[10px] font-semibold tracking-[0.25em]">{t("home:radio.play")}</span>
           </button>
 
           <button
@@ -97,22 +100,22 @@ export function HomePanels({
           >
             <div className="flex items-center justify-between gap-3 border-b border-current/20 pb-1">
               <p className="truncate text-sm font-bold tracking-[0.25em]">FLAQUE FM</p>
-              <p className="radio-screen-subtle shrink-0 text-[10px] uppercase tracking-[0.3em]">Now Playing</p>
+              <p className="radio-screen-subtle shrink-0 text-[10px] uppercase tracking-[0.3em]">{t("home:radio.nowPlaying")}</p>
             </div>
             {radioLoading ? (
-              <p className="radio-screen-subtle mt-2 text-sm">Syncing station state...</p>
+              <p className="radio-screen-subtle mt-2 text-sm">{t("home:radio.syncing")}</p>
             ) : radioCurrentTrack ? (
               <>
-                <p className="mt-2 truncate text-lg" title={radioCurrentTrack.title ?? "Untitled"}>
-                  {radioCurrentTrack.title ?? "Untitled"}
+                <p className="mt-2 truncate text-lg" title={radioCurrentTrack.title ?? t("home:radio.untitled")}>
+                  {radioCurrentTrack.title ?? t("home:radio.untitled")}
                 </p>
                 <p className="radio-screen-subtle mt-1 truncate text-sm">
-                  {radioCurrentTrack.artist ?? "Unknown artist"}
+                  {radioCurrentTrack.artist ?? t("common:unknownArtist")}
                   {radioCurrentTrack.album ? ` - ${radioCurrentTrack.album}` : ""}
                 </p>
               </>
             ) : (
-              <p className="radio-screen-subtle mt-2 text-sm">No active track yet.</p>
+              <p className="radio-screen-subtle mt-2 text-sm">{t("home:radio.noTrack")}</p>
             )}
           </button>
         </div>
@@ -157,8 +160,8 @@ export function HomePanels({
       {!hasRecent && !hasUploaded && !resumeState && !hasForYou ? (
         <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-flaque-clay/60 bg-white/80 p-8 text-center">
           <div className="text-sm text-flaque-steel">
-            <p className="font-bold text-flaque-ink">Oh flaque !</p>
-            <p className="mt-1">Nothing to play here at the moment. Where would you like to start ?</p>
+            <p className="font-bold text-flaque-ink">{t("home:empty.title")}</p>
+            <p className="mt-1">{t("home:empty.subtitle")}</p>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2">
             {onStartRadioPlayback ? (
@@ -171,7 +174,7 @@ export function HomePanels({
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M8 6v12l10-6-10-6z" />
                 </svg>
-                Tune in to FLAQUE FM
+                {t("home:radio.tuneIn")}
               </button>
             ) : null}
             {onNavigateToLibrary ? (
@@ -184,7 +187,7 @@ export function HomePanels({
                   <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
                   <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
                 </svg>
-                Browse library
+                {t("home:empty.browseLibrary")}
               </button>
             ) : null}
             {onNavigateToPlaylists ? (
@@ -201,7 +204,7 @@ export function HomePanels({
                   <line x1="3" y1="12" x2="3.01" y2="12" />
                   <line x1="3" y1="18" x2="3.01" y2="18" />
                 </svg>
-                View playlists
+                {t("home:empty.viewPlaylists")}
               </button>
             ) : null}
           </div>

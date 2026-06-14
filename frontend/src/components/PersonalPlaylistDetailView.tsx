@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { coverPathUrl, getPersonalPlaylistDetail } from "../api";
 import { usePlaylistDetailPlayback } from "../hooks/usePlaylistDetailPlayback";
 import type { PersonalPlaylistDetail, Playlist, Track } from "../types";
-import { formatDurationCompact } from "../utils/format";
+import { activeLocale, formatDurationCompact } from "../utils/format";
+import { personalPlaylistDescription, personalPlaylistName } from "../utils/generatedPlaylists";
 import { PlaylistTrackList } from "./PlaylistTrackList";
 
 export type PersonalPlaylistDetailViewProps = {
@@ -19,6 +21,7 @@ export function PersonalPlaylistDetailView({
   onBack,
   onPlayTrack
 }: PersonalPlaylistDetailViewProps): JSX.Element {
+  const { t } = useTranslation(["playlists", "common"]);
   const [detail, setDetail] = useState<PersonalPlaylistDetail | null>(null);
   const [detailTracks, setDetailTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +76,7 @@ export function PersonalPlaylistDetailView({
     return (
       <section className="m-4 rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <BackButton onClick={onBack} />
-        <p className="text-sm text-flaque-steel">Loading...</p>
+        <p className="text-sm text-flaque-steel">{t("playlists:loading")}</p>
       </section>
     );
   }
@@ -82,7 +85,7 @@ export function PersonalPlaylistDetailView({
     return (
       <section className="m-4 rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <BackButton onClick={onBack} />
-        <p className="text-sm text-flaque-steel">Personal playlist not found.</p>
+        <p className="text-sm text-flaque-steel">{t("playlists:personalNotFound")}</p>
       </section>
     );
   }
@@ -119,7 +122,7 @@ export function PersonalPlaylistDetailView({
               type="button"
               className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
               onClick={handlePlayAll}
-              aria-label={`Play ${detail.name}`}
+              aria-label={t("playlists:play", { name: detail.name })}
             >
               <svg className="h-12 w-12 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
                 <path d="M8 6v12l10-6-10-6z" />
@@ -128,18 +131,16 @@ export function PersonalPlaylistDetailView({
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col">
-            <h2 className="font-display text-2xl text-flaque-ink">{detail.name}</h2>
-            {detail.description ? (
-              <p className="mt-1 text-sm text-flaque-steel">{detail.description}</p>
-            ) : null}
+            <h2 className="font-display text-2xl text-flaque-ink">{personalPlaylistName(t, detail.variant)}</h2>
+            <p className="mt-1 text-sm text-flaque-steel">{personalPlaylistDescription(t, detail.variant)}</p>
 
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-flaque-steel">
               <span className="rounded-full bg-flaque-sand/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-flaque-ink/70">
-                Personal mix
+                {t("playlists:personalMix")}
               </span>
-              <span>{detail.trackCount} track{detail.trackCount !== 1 ? "s" : ""}</span>
+              <span>{t("common:trackCount", { count: detail.trackCount })}</span>
               {totalDuration > 0 ? <span>{formatDurationCompact(totalDuration)}</span> : null}
-              <span>Generated {new Date(detail.generatedAt).toLocaleDateString()}</span>
+              <span>{t("playlists:generated", { date: new Date(detail.generatedAt).toLocaleDateString(activeLocale()) })}</span>
             </div>
 
             <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
@@ -179,6 +180,7 @@ export function PersonalPlaylistDetailView({
 }
 
 function BackButton({ onClick }: { onClick: () => void }): JSX.Element {
+  const { t } = useTranslation("playlists");
   return (
     <button
       type="button"
@@ -188,7 +190,7 @@ function BackButton({ onClick }: { onClick: () => void }): JSX.Element {
       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
       </svg>
-      Back to playlists
+      {t("backToPlaylists")}
     </button>
   );
 }

@@ -28,7 +28,7 @@ export function createServerRouter(): Router {
     try {
       const secret = process.env.UPDATE_SECRET;
       if (!secret) {
-        return next(new AppError("Self-update is not configured", 501));
+        return next(new AppError("Self-update is not configured", 501, "selfUpdateConfigured"));
       }
 
       log.info("Server update initiated", { userId: _req.authUser?.id ?? "unknown" });

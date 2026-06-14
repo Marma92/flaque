@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
 import type { User } from "../types";
 
@@ -45,6 +46,7 @@ export function UserActionsModal({
   error,
   onStateChange
 }: UserActionsModalProps): JSX.Element {
+  const { t } = useTranslation("admin");
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
       <form
@@ -53,19 +55,19 @@ export function UserActionsModal({
       >
         <h3 className="font-display text-xl text-flaque-ink">
           {modalState.kind === "rename"
-            ? `Rename ${modalState.user.username}`
+            ? t("users.modal.renameTitle", { username: modalState.user.username })
             : modalState.kind === "changeEmail"
-              ? `Change email for ${modalState.user.username}`
+              ? t("users.modal.changeEmailTitle", { username: modalState.user.username })
               : modalState.kind === "resetPassword"
-                ? `Reset password for ${modalState.user.username}`
+                ? t("users.modal.resetPasswordTitle", { username: modalState.user.username })
                 : modalState.kind === "toggleRole"
-                  ? `Change role for ${modalState.user.username}`
-                  : `Delete ${modalState.user.username}`}
+                  ? t("users.modal.toggleRoleTitle", { username: modalState.user.username })
+                  : t("users.modal.deleteTitle", { username: modalState.user.username })}
         </h3>
 
         {modalState.kind === "rename" ? (
           <label className="mt-4 block text-sm text-flaque-ink">
-            New username
+            {t("users.modal.newUsername")}
             <input
               className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               type="text"
@@ -90,7 +92,7 @@ export function UserActionsModal({
 
         {modalState.kind === "changeEmail" ? (
           <label className="mt-4 block text-sm text-flaque-ink">
-            New email
+            {t("users.modal.newEmail")}
             <input
               className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               type="email"
@@ -112,7 +114,7 @@ export function UserActionsModal({
 
         {modalState.kind === "resetPassword" ? (
           <label className="mt-4 block text-sm text-flaque-ink">
-            New password
+            {t("users.modal.newPassword")}
             <input
               className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
               type="password"
@@ -135,14 +137,23 @@ export function UserActionsModal({
 
         {modalState.kind === "toggleRole" ? (
           <p className="mt-4 text-sm text-flaque-steel">
-            Confirm role change for <strong>{modalState.user.username}</strong> to <strong>{modalState.nextRole}</strong>.
+            <Trans
+              i18nKey="users.modal.confirmRole"
+              ns="admin"
+              values={{ username: modalState.user.username, role: modalState.nextRole }}
+              components={{ strong: <strong /> }}
+            />
           </p>
         ) : null}
 
         {modalState.kind === "deleteUser" ? (
           <p className="mt-4 text-sm text-red-700">
-            This action cannot be undone. The account <strong>{modalState.user.username}</strong> will be
-            permanently deleted.
+            <Trans
+              i18nKey="users.modal.deleteWarning"
+              ns="admin"
+              values={{ username: modalState.user.username }}
+              components={{ strong: <strong /> }}
+            />
           </p>
         ) : null}
 
@@ -157,7 +168,7 @@ export function UserActionsModal({
             onClick={onClose}
             disabled={submitting}
           >
-            Cancel
+            {t("users.modal.cancel")}
           </button>
           <button
             className={`rounded-xl px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
@@ -167,16 +178,16 @@ export function UserActionsModal({
             disabled={submitting}
           >
             {submitting
-              ? "Saving..."
+              ? t("users.modal.saving")
               : modalState.kind === "rename"
-                ? "Save username"
+                ? t("users.modal.saveUsername")
                 : modalState.kind === "changeEmail"
-                  ? "Save email"
+                  ? t("users.modal.saveEmail")
                   : modalState.kind === "resetPassword"
-                    ? "Reset password"
+                    ? t("users.resetPassword")
                     : modalState.kind === "toggleRole"
-                      ? "Confirm role"
-                      : "Delete user"}
+                      ? t("users.modal.confirmRoleBtn")
+                      : t("users.modal.deleteBtn")}
           </button>
         </div>
       </form>

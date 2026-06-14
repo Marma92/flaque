@@ -1,4 +1,5 @@
 import { ChangeEvent, DragEvent, FormEvent, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { UploadTrackPreview, UploadTracksResult } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
@@ -74,6 +75,7 @@ function extractYearFromTags(tags?: UploadTrackPreview["tags"]): string | undefi
 }
 
 export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.Element {
+  const { t } = useTranslation(["admin", "common"]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inspectRequestRef = useRef(0);
 
@@ -92,11 +94,11 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
 
   const selectedFileCountLabel = useMemo(() => {
     if (pendingFiles.length === 0) {
-      return "No files selected yet";
+      return t("admin:upload.noFiles");
     }
 
-    return `${pendingFiles.length} file${pendingFiles.length > 1 ? "s" : ""} selected`;
-  }, [pendingFiles.length]);
+    return t("admin:upload.filesSelected", { count: pendingFiles.length });
+  }, [pendingFiles.length, t]);
 
   async function inspectFiles(files: File[]): Promise<void> {
     const requestId = inspectRequestRef.current + 1;
@@ -134,7 +136,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
             ...current,
             [fileKey]: {
               loading: false,
-              error: error instanceof Error ? error.message : "Unable to inspect metadata"
+              error: error instanceof Error ? error.message : t("admin:upload.inspectFailed")
             }
           }));
         }
@@ -184,7 +186,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
 
   async function runUpload(): Promise<void> {
     if (pendingFiles.length === 0) {
-      setUploadMessage("Select at least one file before uploading.");
+      setUploadMessage(t("admin:upload.selectFirst"));
       return;
     }
 
@@ -241,9 +243,9 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
       });
 
       const dedupMessage =
-        result.deduplicated > 0 ? ` (${result.deduplicated} duplicate${result.deduplicated > 1 ? "s" : ""} skipped)` : "";
+        result.deduplicated > 0 ? t("admin:upload.dedup", { count: result.deduplicated }) : "";
       setUploadMessage(
-        `Upload complete: ${result.uploaded}/${result.processed} file${result.processed > 1 ? "s" : ""} stored${dedupMessage}.`
+        t("admin:upload.uploadComplete", { uploaded: result.uploaded, count: result.processed, dedup: dedupMessage })
       );
       setUploadProgressPercent(100);
 
@@ -255,7 +257,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
       }
     } catch (error) {
       setUploadProgressPercent(0);
-      setUploadMessage(error instanceof Error ? error.message : "Upload failed");
+      setUploadMessage(error instanceof Error ? error.message : t("admin:upload.uploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -269,14 +271,14 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
   return (
     <div className="space-y-4">
       <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-        <h2 className="font-display text-2xl text-flaque-ink">Upload</h2>
+        <h2 className="font-display text-2xl text-flaque-ink">{t("admin:upload.title")}</h2>
         <p className="mt-2 text-sm text-flaque-steel">
-          Select audio files to preview metadata and embedded cover before storing them in your library.
+          {t("admin:upload.description")}
         </p>
 
         <form className="mt-4 space-y-4" onSubmit={handleUploadSubmit}>
           <label className="block text-sm text-flaque-ink" htmlFor="upload-audio-files">
-            Files
+            {t("admin:upload.filesLabel")}
           </label>
 
           <input
@@ -317,41 +319,41 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
               }
             }}
           >
-            <p className="text-sm font-medium text-flaque-ink">Drag and drop audio files here</p>
-            <p className="mt-1 text-xs text-flaque-steel">or click to browse your local files</p>
+            <p className="text-sm font-medium text-flaque-ink">{t("admin:upload.dropHere")}</p>
+            <p className="mt-1 text-xs text-flaque-steel">{t("admin:upload.orBrowse")}</p>
           </div>
 
           <p className="text-sm text-flaque-steel">{selectedFileCountLabel}</p>
 
-          <p className="text-xs text-flaque-steel/90">Supported formats: FLAC, MP3, WAV, OGG, Opus, M4A.</p>
+          <p className="text-xs text-flaque-steel/90">{t("admin:upload.supportedFormats")}</p>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <label className="text-sm text-flaque-ink">
-              Artist override (optional)
+              {t("admin:upload.artistOverride")}
               <input
                 className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
                 type="text"
                 value={uploadArtist}
                 onChange={(event) => setUploadArtist(event.target.value)}
                 disabled={uploading}
-                placeholder="Apply artist to all files"
+                placeholder={t("admin:upload.applyArtist")}
               />
             </label>
 
             <label className="text-sm text-flaque-ink">
-              Album override (optional)
+              {t("admin:upload.albumOverride")}
               <input
                 className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
                 type="text"
                 value={uploadAlbum}
                 onChange={(event) => setUploadAlbum(event.target.value)}
                 disabled={uploading}
-                placeholder="Apply album to all files"
+                placeholder={t("admin:upload.applyAlbum")}
               />
             </label>
 
             <label className="text-sm text-flaque-ink">
-              Year override (optional)
+              {t("admin:upload.yearOverride")}
               <input
                 className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
                 type="text"
@@ -359,7 +361,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                 value={uploadYear}
                 onChange={(event) => setUploadYear(event.target.value)}
                 disabled={uploading}
-                placeholder="e.g. 1979"
+                placeholder={t("admin:fields.yearPlaceholder")}
               />
             </label>
 
@@ -370,8 +372,8 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                 disabled={uploading || pendingFiles.length === 0}
               >
                 {uploading
-                  ? "Uploading..."
-                  : `Upload ${pendingFiles.length} file${pendingFiles.length > 1 ? "s" : ""}`}
+                  ? t("admin:upload.uploading")
+                  : t("admin:upload.uploadFiles", { count: pendingFiles.length })}
               </button>
             </div>
           </div>
@@ -402,7 +404,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                   void runUpload();
                 }}
               >
-                Retry upload
+                {t("admin:upload.retry")}
               </button>
             ) : null}
           </div>
@@ -411,7 +413,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
 
       {pendingFiles.length > 0 ? (
         <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-          <h3 className="font-display text-xl text-flaque-ink">Metadata preview</h3>
+          <h3 className="font-display text-xl text-flaque-ink">{t("admin:upload.metadataPreview")}</h3>
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             {pendingFiles.map((file) => {
               const fileKey = getFileKey(file);
@@ -422,9 +424,9 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                 preview?.tags.artist?.trim() ||
                 preview?.tags.albumArtist?.trim() ||
                 preview?.tags.artists?.find((entry) => entry.trim()) ||
-                "Unknown artist";
+                t("common:unknownArtist");
               const year = extractYearFromTags(preview?.tags);
-              const albumBase = preview?.tags.album?.trim() || "Unknown album";
+              const albumBase = preview?.tags.album?.trim() || t("admin:upload.unknownAlbum");
               const album = year ? `${albumBase} (${year})` : albumBase;
               const genreFromTags = preview?.tags.genre?.join(", ") ?? "";
               const editableMetadata = editableMetadataByFileKey[fileKey];
@@ -446,7 +448,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                     <img
                       className="h-20 w-20 shrink-0 rounded-xl border border-flaque-clay/60 object-cover"
                       src={preview?.coverDataUrl ?? defaultCoverImage}
-                      alt={`Cover preview for ${file.name}`}
+                      alt={t("admin:upload.coverAlt", { name: file.name })}
                     />
 
                     <div className="min-w-0 flex-1 space-y-2">
@@ -456,13 +458,13 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                       <p className="text-xs text-flaque-steel">{formatFileSize(file.size)}</p>
 
                       {previewState?.loading ? (
-                        <p className="text-xs text-flaque-steel">Reading metadata...</p>
+                        <p className="text-xs text-flaque-steel">{t("admin:upload.readingMetadata")}</p>
                       ) : previewState?.error ? (
                         <p className="text-xs text-red-700">{previewState.error}</p>
                       ) : (
                         <div className="grid grid-cols-1 gap-2 text-sm">
                           <label className="text-flaque-steel">
-                            Title
+                            {t("admin:fields.title")}
                             <input
                               className="mt-1 w-full rounded-lg border border-flaque-clay bg-white px-2 py-1 text-flaque-ink"
                               value={editableTitle}
@@ -483,7 +485,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                             />
                           </label>
                           <label className="text-flaque-steel">
-                            Artist
+                            {t("admin:fields.artist")}
                             <input
                               className="mt-1 w-full rounded-lg border border-flaque-clay bg-white px-2 py-1 text-flaque-ink"
                               value={editableArtist}
@@ -504,7 +506,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                             />
                           </label>
                           <label className="text-flaque-steel">
-                            Album
+                            {t("admin:fields.album")}
                             <input
                               className="mt-1 w-full rounded-lg border border-flaque-clay bg-white px-2 py-1 text-flaque-ink"
                               value={editableAlbum}
@@ -526,13 +528,13 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                           </label>
 
                           <label className="text-flaque-steel">
-                            Year
+                            {t("admin:fields.year")}
                             <input
                               className="mt-1 w-full rounded-lg border border-flaque-clay bg-white px-2 py-1 text-flaque-ink"
                               value={editableYear}
                               disabled={uploading}
                               inputMode="numeric"
-                              placeholder="e.g. 1979"
+                              placeholder={t("admin:fields.yearPlaceholder")}
                               onChange={(event) => {
                                 const nextYear = event.target.value;
                                 setEditableMetadataByFileKey((current) => ({
@@ -550,12 +552,12 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                           </label>
 
                           <label className="text-flaque-steel">
-                            Genre
+                            {t("admin:fields.genre")}
                             <input
                               className="mt-1 w-full rounded-lg border border-flaque-clay bg-white px-2 py-1 text-flaque-ink"
                               value={editableGenre}
                               disabled={uploading}
-                              placeholder="e.g. Rock, Progressive Rock"
+                              placeholder={t("admin:fields.genrePlaceholder")}
                               onChange={(event) => {
                                 const nextGenre = event.target.value;
                                 setEditableMetadataByFileKey((current) => ({
@@ -570,13 +572,13 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                                 }));
                               }}
                             />
-                            <span className="mt-0.5 block text-[10px] text-flaque-steel/80">Comma-separated</span>
+                            <span className="mt-0.5 block text-[10px] text-flaque-steel/80">{t("admin:fields.commaSeparated")}</span>
                           </label>
 
                           <p className="text-xs text-flaque-steel">
-                            {preview?.codec?.toUpperCase() ?? "Unknown codec"}
+                            {preview?.codec?.toUpperCase() ?? t("admin:upload.unknownCodec")}
                             {preview?.duration ? ` - ${formatDuration(preview.duration)}` : ""}
-                            {trackPosition ? ` - Track ${trackPosition}` : ""}
+                            {trackPosition ? t("admin:upload.trackSuffix", { position: trackPosition }) : ""}
                           </p>
                         </div>
                       )}

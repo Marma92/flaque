@@ -361,6 +361,50 @@ describe("userRoutes", () => {
     expect(newLoginResponse.status).toBe(200);
   });
 
+  it("lets a user set their own language and rejects unsupported values", async () => {
+    const adminCookie = await login("admin", "admin-secret-123");
+    await createUserAsAdmin({
+      adminCookie,
+      username: "lea",
+      password: "lea-strong-password-7",
+      role: "user"
+    });
+    const userCookie = await login("lea", "lea-strong-password-7");
+
+    const before = await apiRequest("/api/auth/me", {
+      method: "GET",
+      headers: { Cookie: userCookie }
+    });
+    expect((before.payload as { user: { language: string } }).user.language).toBe("en");
+
+    const changeResponse = await apiRequest("/api/users/me/language", {
+      method: "POST",
+      headers: { Cookie: userCookie },
+      body: JSON.stringify({ language: "fr" })
+    });
+    expect(changeResponse.status).toBe(200);
+    expect((changeResponse.payload as { user: { language: string } }).user.language).toBe("fr");
+
+    const after = await apiRequest("/api/auth/me", {
+      method: "GET",
+      headers: { Cookie: userCookie }
+    });
+    expect((after.payload as { user: { language: string } }).user.language).toBe("fr");
+
+    const rejected = await apiRequest("/api/users/me/language", {
+      method: "POST",
+      headers: { Cookie: userCookie },
+      body: JSON.stringify({ language: "de" })
+    });
+    expect(rejected.status).toBe(400);
+
+    const unauthenticated = await apiRequest("/api/users/me/language", {
+      method: "POST",
+      body: JSON.stringify({ language: "fr" })
+    });
+    expect(unauthenticated.status).toBe(401);
+  });
+
   it("stores and serves profile photos from the user folder", async () => {
     const adminCookie = await login("admin", "admin-secret-123");
     await createUserAsAdmin({

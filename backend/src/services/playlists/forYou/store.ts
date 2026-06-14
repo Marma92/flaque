@@ -9,6 +9,9 @@ const log = createLogger("for-you-playlists");
 
 export const REGENERATION_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;
 
+/** Stable identifier for the naming heuristic that produced the playlist name. */
+export type ForYouNameVariant = "more" | "friends" | "decade" | "around" | "because";
+
 export type ForYouPlaylist = {
   id: string;
   name: string;
@@ -16,6 +19,13 @@ export type ForYouPlaylist = {
   trackIds: string[];
   trackCount: number;
   generatedAt: string;
+  /**
+   * Structured name descriptor so the client can render the name in its own
+   * language. `name` above stays the English fallback for old playlists that
+   * predate these fields.
+   */
+  nameVariant?: ForYouNameVariant;
+  nameDecadeLabel?: string;
   /**
    * Seed-artist score used to rank playlists "best-fit first" on Home.
    * Missing on playlists generated before this field was introduced — those

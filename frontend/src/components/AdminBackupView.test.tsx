@@ -9,7 +9,7 @@ import { AdminBackupView } from "./AdminBackupView";
 
 // ── Mock data ──────────────────────────────────────────────────────────
 
-const adminUser: User = { id: "admin-1", username: "admin", email: "admin@test.local", role: "admin" };
+const adminUser: User = { id: "admin-1", username: "admin", email: "admin@test.local", role: "admin", language: "en" };
 
 function createBackup(overrides: Partial<BackupEntry> = {}): BackupEntry {
   return {

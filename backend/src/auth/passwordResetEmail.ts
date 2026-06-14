@@ -1,5 +1,8 @@
+import { normalizeLanguage, type UserLanguage } from "@flaque/shared";
+
 import { createLogger } from "../utils/logger";
 import { getTransporter, resolveSenderAddress } from "../utils/email";
+import { passwordResetEmailMessage } from "../utils/emailMessages";
 
 const log = createLogger("auth");
 
@@ -8,6 +11,7 @@ type PasswordResetEmailInput = {
   username: string;
   resetUrl: string;
   expiresAt: number;
+  language?: UserLanguage;
 };
 
 export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Promise<boolean> {
@@ -18,23 +22,24 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
     return false;
   }
 
+  const language = normalizeLanguage(input.language);
   const expiresDate = new Date(input.expiresAt);
-  const expiresLabel = Number.isFinite(expiresDate.getTime()) ? expiresDate.toISOString() : "soon";
+  const expiresLabel = Number.isFinite(expiresDate.getTime())
+    ? expiresDate.toLocaleString(language)
+    : (language === "fr" ? "bientôt" : "soon");
+
+  const message = passwordResetEmailMessage(language, {
+    username: input.username,
+    resetUrl: input.resetUrl,
+    expiresLabel
+  });
 
   try {
     await transporter.sendMail({
       from: resolveSenderAddress(),
       to: input.to,
-      subject: "Flaque password reset",
-      text: [
-        `Hello ${input.username},`,
-        "",
-        "A password reset was requested for your Flaque account.",
-        `Use this link to reset your password: ${input.resetUrl}`,
-        `This link expires at ${expiresLabel}.`,
-        "",
-        "If you did not request this, you can ignore this email."
-      ].join("\n")
+      subject: message.subject,
+      text: message.text
     });
     return true;
   } catch (error) {

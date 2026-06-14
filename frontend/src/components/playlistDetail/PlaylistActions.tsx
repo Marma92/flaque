@@ -1,4 +1,5 @@
 import type { JSX } from "react";
+import { useTranslation } from "react-i18next";
 
 type PlaylistActionsProps = {
   editing: boolean;
@@ -27,6 +28,7 @@ export function PlaylistActions({
   onCancel,
   onDelete
 }: PlaylistActionsProps): JSX.Element {
+  const { t } = useTranslation("playlists");
   if (editing) {
     return (
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
@@ -39,7 +41,7 @@ export function PlaylistActions({
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          {coverUploading ? "Uploading cover..." : saving ? "Saving..." : "Save"}
+          {coverUploading ? t("uploadingCover") : saving ? t("saving") : t("save")}
         </button>
         <button
           type="button"
@@ -47,7 +49,7 @@ export function PlaylistActions({
           onClick={onCancel}
           disabled={saving}
         >
-          Cancel
+          {t("cancel")}
         </button>
       </div>
     );
@@ -63,7 +65,7 @@ export function PlaylistActions({
         <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
           <path d="M8 5v14l11-7z" />
         </svg>
-        Play all
+        {t("playAll")}
       </button>
 
       <button
@@ -78,7 +80,7 @@ export function PlaylistActions({
           <path d="M4 4l6 6" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M15 16l2 2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        Shuffle
+        {t("shuffle")}
       </button>
 
       {canEdit ? (
@@ -90,7 +92,7 @@ export function PlaylistActions({
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
-          Edit
+          {t("edit")}
         </button>
       ) : null}
 
@@ -103,7 +105,7 @@ export function PlaylistActions({
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
-          Delete
+          {t("delete")}
         </button>
       ) : null}
     </div>

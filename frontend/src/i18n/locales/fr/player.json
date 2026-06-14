@@ -1,0 +1,79 @@
+{
+  "empty": {
+    "title": "Lecteur",
+    "subtitle": "Sélectionnez un morceau dans la bibliothèque pour lancer la lecture.",
+    "browseLibrary": "Parcourir la bibliothèque"
+  },
+  "radioStopped": "Radio arrêtée",
+  "controls": {
+    "previous": "Précédent",
+    "previousAria": "Morceau précédent",
+    "next": "Suivant",
+    "nextAria": "Morceau suivant",
+    "play": "Lecture",
+    "playAria": "Lancer la lecture",
+    "pause": "Pause",
+    "pauseAria": "Mettre en pause",
+    "stop": "Arrêter",
+    "stopRadioAria": "Arrêter la radio",
+    "shuffleOn": "Lecture aléatoire activée",
+    "shuffleOff": "Lecture aléatoire désactivée",
+    "enableShuffle": "Activer la lecture aléatoire",
+    "disableShuffle": "Désactiver la lecture aléatoire",
+    "showQueue": "Afficher la file",
+    "hideQueue": "Masquer la file",
+    "addToPlaylist": "Ajouter à une playlist",
+    "openOptions": "Ouvrir les options du lecteur",
+    "closeOptions": "Fermer les options du lecteur",
+    "moreOptions": "Plus d'options",
+    "close": "Fermer",
+    "mute": "Couper le son",
+    "unmute": "Rétablir le son",
+    "volume": "Volume"
+  },
+  "repeat": {
+    "offTitle": "Répétition désactivée",
+    "allTitle": "Répéter tout",
+    "oneTitle": "Répéter le morceau",
+    "enableAllAria": "Activer la répétition de tout",
+    "enableOneAria": "Activer la répétition du morceau",
+    "disableAria": "Désactiver la répétition"
+  },
+  "quality": {
+    "label": "Qualité",
+    "original": "Original",
+    "opus": "Repli Opus",
+    "mp3": "Repli MP3"
+  },
+  "transcode": {
+    "fallbackActive": "Diffusion en repli via {{codec}}.",
+    "flacOnly": "Le transcodage de repli n'est disponible que pour les fichiers FLAC. Diffusion de la source originale."
+  },
+  "trackInfo": {
+    "openArtist": "Ouvrir l'artiste : {{name}}",
+    "openAlbum": "Ouvrir l'album : {{name}}",
+    "lyricsBadge": "Paroles"
+  },
+  "artwork": {
+    "coverAlt": "Pochette de {{name}}",
+    "coverAltGeneric": "Pochette du morceau",
+    "radioMode": "Mode radio",
+    "radio": "Radio",
+    "showLyrics": "Afficher les paroles",
+    "hideLyrics": "Masquer les paroles",
+    "closeLyrics": "Fermer les paroles",
+    "openPlayerView": "Ouvrir la vue lecteur"
+  },
+  "queue": {
+    "title": "File d'attente",
+    "stateNow": "En cours",
+    "statePlayed": "Joué",
+    "stateNext": "À suivre"
+  },
+  "status": {
+    "shuffleExhausted": "La lecture aléatoire n'a plus de morceau dans la file actuelle.",
+    "queueEnd": "Vous avez atteint la fin de la file actuelle.",
+    "queueStart": "Vous êtes déjà au début de la file actuelle.",
+    "navigateError": "Impossible de changer de morceau pour le moment."
+  }
+}

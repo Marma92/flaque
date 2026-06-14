@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type LoginPageProps = {
   onLogin: (login: string, password: string) => Promise<void>;
@@ -36,6 +37,7 @@ function clearResetTokenInUrl(): void {
 }
 
 export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: LoginPageProps): JSX.Element {
+  const { t } = useTranslation("auth");
   const [mode, setMode] = useState<AuthMode>(() => (readResetTokenFromUrl() ? "reset" : "login"));
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -70,7 +72,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
       await onLogin(login, password);
       setPassword("");
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Login failed");
+      setError(submitError instanceof Error ? submitError.message : t("loginFailed"));
     } finally {
       setLoading(false);
     }
@@ -85,9 +87,9 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
 
     try {
       await onRequestPasswordReset(login);
-      setMessage("If this account exists, a recovery email has been sent.");
+      setMessage(t("forgot.emailSent"));
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Unable to request password reset");
+      setError(submitError instanceof Error ? submitError.message : t("forgot.requestError"));
     } finally {
       setLoading(false);
     }
@@ -97,17 +99,17 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
     event.preventDefault();
 
     if (!resetToken) {
-      setError("Missing reset token.");
+      setError(t("reset.missingToken"));
       return;
     }
 
     if (newPassword.length < PASSWORD_MIN_LENGTH) {
-      setError(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
+      setError(t("reset.tooShort", { count: PASSWORD_MIN_LENGTH }));
       return;
     }
 
     if (newPassword !== confirmNewPassword) {
-      setError("Passwords do not match.");
+      setError(t("reset.mismatch"));
       return;
     }
 
@@ -123,9 +125,9 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
       setConfirmNewPassword("");
       setPassword("");
       switchMode("login");
-      setMessage("Password reset successful. You can now log in.");
+      setMessage(t("reset.success"));
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Unable to reset password");
+      setError(submitError instanceof Error ? submitError.message : t("reset.resetError"));
     } finally {
       setLoading(false);
     }
@@ -134,19 +136,19 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-12">
       <section className="w-full max-w-md rounded-3xl border border-flaque-clay/50 bg-white/80 p-8 shadow-panel backdrop-blur-sm">
-        <h1 className="sr-only">Flaque login</h1>
+        <h1 className="sr-only">{t("srTitle")}</h1>
 
         <div className="mb-6 flex justify-center">
           <div className="relative h-20 w-20 origin-center scale-[1.35]">
             <img
               className="header-logo-light h-full w-full object-contain drop-shadow-[0_8px_18px_rgba(44,31,26,0.18)]"
               src="/favicon.png"
-              alt="Flaque logo"
+              alt={t("logoAlt")}
             />
             <img
               className="header-logo-dark absolute inset-0 h-full w-full object-contain"
               src="/logo-dark.png"
-              alt="Flaque logo (dark mode)"
+              alt={t("logoAltDark")}
             />
           </div>
         </div>
@@ -154,7 +156,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
         {mode === "login" ? (
           <form className="space-y-4" onSubmit={handleSubmit}>
             <label className="block text-sm text-flaque-ink">
-              Username or email
+              {t("usernameOrEmail")}
               <input
                 className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
                 type="text"
@@ -166,7 +168,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
             </label>
 
             <label className="block text-sm text-flaque-ink">
-              Password
+              {t("password")}
               <div className="relative mt-1">
                 <input
                   className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 pr-10 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
@@ -180,7 +182,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
                   type="button"
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-flaque-steel transition hover:text-flaque-ink"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? t("hidePassword") : t("showPassword")}
                 >
                   {showPassword ? (
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -200,13 +202,13 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
             </label>
 
             <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="text-flaque-steel">Need help?</span>
+              <span className="text-flaque-steel">{t("needHelp")}</span>
               <button
                 className="text-flaque-ink underline decoration-flaque-clay underline-offset-2 transition hover:text-black"
                 type="button"
                 onClick={() => switchMode("forgot")}
               >
-                Forgot password?
+                {t("forgotPassword")}
               </button>
             </div>
 
@@ -223,17 +225,17 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
               type="submit"
               disabled={loading}
             >
-              {loading ? "Logging in..." : "Login"}
+              {loading ? t("loggingIn") : t("login")}
             </button>
           </form>
         ) : null}
 
         {mode === "forgot" ? (
           <form className="space-y-4" onSubmit={handleForgotPasswordSubmit}>
-            <p className="text-sm text-flaque-steel">Enter your username or email to receive a password reset link.</p>
+            <p className="text-sm text-flaque-steel">{t("forgot.intro")}</p>
 
             <label className="block text-sm text-flaque-ink">
-              Username or email
+              {t("usernameOrEmail")}
               <input
                 className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
                 type="text"
@@ -257,7 +259,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
               type="submit"
               disabled={loading}
             >
-              {loading ? "Sending..." : "Send recovery email"}
+              {loading ? t("forgot.sending") : t("forgot.send")}
             </button>
 
             <button
@@ -266,17 +268,17 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
               onClick={() => switchMode("login")}
               disabled={loading}
             >
-              Back to login
+              {t("backToLogin")}
             </button>
           </form>
         ) : null}
 
         {mode === "reset" ? (
           <form className="space-y-4" onSubmit={handleResetPasswordSubmit}>
-            <p className="text-sm text-flaque-steel">Choose a new password for your account.</p>
+            <p className="text-sm text-flaque-steel">{t("reset.intro")}</p>
 
             <label className="block text-sm text-flaque-ink">
-              New password
+              {t("reset.newPassword")}
               <div className="relative mt-1">
                 <input
                   className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 pr-10 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
@@ -291,7 +293,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
                   type="button"
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-flaque-steel transition hover:text-flaque-ink"
                   onClick={() => setShowNewPassword((prev) => !prev)}
-                  aria-label={showNewPassword ? "Hide password" : "Show password"}
+                  aria-label={showNewPassword ? t("hidePassword") : t("showPassword")}
                 >
                   {showNewPassword ? (
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -311,7 +313,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
             </label>
 
             <label className="block text-sm text-flaque-ink">
-              Confirm new password
+              {t("reset.confirmNewPassword")}
               <div className="relative mt-1">
                 <input
                   className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 pr-10 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
@@ -326,7 +328,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
                   type="button"
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-flaque-steel transition hover:text-flaque-ink"
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  aria-label={showConfirmPassword ? t("hidePassword") : t("showPassword")}
                 >
                   {showConfirmPassword ? (
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -358,7 +360,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
               type="submit"
               disabled={loading}
             >
-              {loading ? "Resetting..." : "Reset password"}
+              {loading ? t("reset.resetting") : t("reset.submit")}
             </button>
 
             <button
@@ -371,7 +373,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
               }}
               disabled={loading}
             >
-              Back to login
+              {t("backToLogin")}
             </button>
           </form>
         ) : null}

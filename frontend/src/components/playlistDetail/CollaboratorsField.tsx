@@ -1,4 +1,5 @@
 import type { JSX } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { User } from "../../types";
 
@@ -37,6 +38,7 @@ export function CollaboratorsField({
   ownerNameById,
   ownerId
 }: CollaboratorsFieldProps): JSX.Element | null {
+  const { t } = useTranslation("playlists");
   const availableCollaborators = allUsers.filter(
     (u) => u.id !== ownerId && !editCollaboratorIds.includes(u.id)
   );
@@ -45,16 +47,16 @@ export function CollaboratorsField({
     return (
       <div className="mt-2">
         <div className="flex flex-wrap items-center gap-1">
-          <span className="text-xs text-flaque-steel">Collaborators:</span>
+          <span className="text-xs text-flaque-steel">{t("collaborators.label")}</span>
           {editCollaboratorIds.includes("everyone") ? (
             <span className="inline-flex items-center gap-0.5 text-[10px] text-yellow-600">
               {everyoneIcon}
-              Everyone
+              {t("collaborators.everyone")}
               <button
                 type="button"
                 className="ml-0.5 text-flaque-steel hover:text-red-500"
                 onClick={() => onEditCollaboratorIdsChange(editCollaboratorIds.filter((c) => c !== "everyone"))}
-                aria-label="Remove everyone"
+                aria-label={t("collaborators.removeEveryone")}
               >
                 {removeIcon}
               </button>
@@ -69,7 +71,7 @@ export function CollaboratorsField({
                     type="button"
                     className="text-flaque-steel hover:text-red-500"
                     onClick={() => onEditCollaboratorIdsChange(editCollaboratorIds.filter((c) => c !== collab))}
-                    aria-label={`Remove ${u?.username ?? collab}`}
+                    aria-label={t("collaborators.remove", { name: u?.username ?? collab })}
                   >
                     {removeIcon}
                   </button>
@@ -87,9 +89,9 @@ export function CollaboratorsField({
             }}
             disabled={saving}
           >
-            <option value="">Add collaborator...</option>
+            <option value="">{t("collaborators.add")}</option>
             {!editCollaboratorIds.includes("everyone") ? (
-              <option value="everyone">Everyone</option>
+              <option value="everyone">{t("collaborators.everyone")}</option>
             ) : null}
             {availableCollaborators.map((u) => (
               <option key={u.id} value={u.id}>{u.username}</option>
@@ -106,11 +108,11 @@ export function CollaboratorsField({
 
   return (
     <div className="mt-2 flex flex-wrap gap-1">
-      <span className="text-xs text-flaque-steel">Collaborators:</span>
+      <span className="text-xs text-flaque-steel">{t("collaborators.label")}</span>
       {collaborators.includes("everyone") ? (
         <span className="flex items-center gap-0.5 text-[10px] text-yellow-600">
           {everyoneIcon}
-          Everyone
+          {t("collaborators.everyone")}
         </span>
       ) : (
         collaborators.map((collab) => (

@@ -38,17 +38,17 @@ export function createStreamingRouter(indexStore: IndexStore): Router {
     try {
       const trackId = req.params.id;
       if (!trackId) {
-        return next(new AppError("Track id is required", 400));
+        return next(new AppError("Track id is required", 400, "trackId"));
       }
 
       const track = indexStore.getTrackById(trackId);
       if (!track) {
-        return next(new AppError("Track not found", 404));
+        return next(new AppError("Track not found", 404, "trackFound"));
       }
 
       const transcode = parseTranscodeFormat(req.query.transcode);
       if (transcode === null) {
-        return next(new AppError("transcode must be one of: opus, mp3 (or omitted for source stream)", 400));
+        return next(new AppError("transcode must be one of: opus, mp3 (or omitted for source stream)", 400, "transcodeOpusMp3OmittedSource"));
       }
 
       const absolutePath = resolveTrackAbsolutePath(track.path);

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { getBackupDownloadUrl } from "../api";
 import type { User } from "../types";
@@ -17,6 +18,7 @@ function formatBackupId(id: string): string {
 }
 
 export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Element {
+  const { t } = useTranslation("admin");
   const {
     backups, loadingBackups,
     config, loadingConfig: loadingConfig,
@@ -71,12 +73,12 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
       <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="font-display text-xl text-flaque-ink">Backup schedule</h3>
+            <h3 className="font-display text-xl text-flaque-ink">{t("backup.scheduleTitle")}</h3>
             {!loadingConfig && config ? (
               <p className="mt-1 text-sm text-flaque-steel">
                 {config.scheduledEnabled
-                  ? `Automatic every ${config.intervalHours}h, ${config.retentionDays}-day retention`
-                  : "Automatic backups disabled"}
+                  ? t("backup.scheduleSummary", { hours: config.intervalHours, days: config.retentionDays })
+                  : t("backup.automaticDisabled")}
               </p>
             ) : null}
           </div>
@@ -88,7 +90,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
               onClick={startEditSchedule}
               disabled={loadingConfig || !config}
             >
-              Configure
+              {t("backup.configure")}
             </button>
           ) : null}
         </div>
@@ -102,12 +104,12 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
                 onChange={(e) => setScheduleEnabled(e.target.checked)}
                 className="h-4 w-4 rounded border-flaque-clay text-flaque-ink"
               />
-              Enable automatic backups
+              {t("backup.enableAutomatic")}
             </label>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-sm text-flaque-ink">
-                Interval (hours)
+                {t("backup.intervalHours")}
                 <input
                   className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
                   type="number"
@@ -119,7 +121,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
               </label>
 
               <label className="block text-sm text-flaque-ink">
-                Retention (days)
+                {t("backup.retentionDays")}
                 <input
                   className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
                   type="number"
@@ -138,7 +140,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
                 onChange={(e) => setIncludeIndex(e.target.checked)}
                 className="h-4 w-4 rounded border-flaque-clay text-flaque-ink"
               />
-              Include library index files in backups
+              {t("backup.includeIndex")}
             </label>
 
             <div className="flex gap-2">
@@ -147,14 +149,14 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
                 type="button"
                 onClick={() => { void saveSchedule(); }}
               >
-                Save
+                {t("backup.save")}
               </button>
               <button
                 className="rounded-xl border border-flaque-clay bg-white px-4 py-2 text-sm text-flaque-ink transition hover:bg-flaque-cream"
                 type="button"
                 onClick={() => setEditingSchedule(false)}
               >
-                Cancel
+                {t("backup.cancel")}
               </button>
             </div>
           </div>
@@ -163,9 +165,9 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
 
       {/* Actions */}
       <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-        <h3 className="font-display text-xl text-flaque-ink">Manual backup</h3>
+        <h3 className="font-display text-xl text-flaque-ink">{t("backup.manualTitle")}</h3>
         <p className="mt-1 text-sm text-flaque-steel">
-          Create a snapshot of the user database{config?.includeIndex ? " and library index" : ""}.
+          {config?.includeIndex ? t("backup.manualDescriptionWithIndex") : t("backup.manualDescription")}
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -175,7 +177,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
             onClick={() => { void onCreateBackup(); }}
             disabled={creating || restoring}
           >
-            {creating ? "Creating backup..." : "Create backup now"}
+            {creating ? t("backup.creating") : t("backup.createNow")}
           </button>
 
           <button
@@ -184,7 +186,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
             onClick={() => { void onRefresh(); }}
             disabled={loadingBackups}
           >
-            {loadingBackups ? "Refreshing..." : "Refresh"}
+            {loadingBackups ? t("backup.refreshing") : t("backup.refresh")}
           </button>
 
           <button
@@ -193,7 +195,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
             onClick={() => { void onPurgeExpired(); }}
             disabled={loadingBackups}
           >
-            Purge expired
+            {t("backup.purgeExpired")}
           </button>
         </div>
       </section>
@@ -201,15 +203,15 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
       {/* Backup list */}
       <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
         <h3 className="font-display text-xl text-flaque-ink">
-          Backups{backups.length > 0 ? ` (${backups.length})` : ""}
+          {t("backup.listTitle")}{backups.length > 0 ? ` (${backups.length})` : ""}
         </h3>
 
         {loadingBackups && backups.length === 0 ? (
-          <p className="mt-3 text-sm text-flaque-steel">Loading backups...</p>
+          <p className="mt-3 text-sm text-flaque-steel">{t("backup.loading")}</p>
         ) : null}
 
         {!loadingBackups && backups.length === 0 ? (
-          <p className="mt-3 text-sm text-flaque-steel">No backups yet. Create one above.</p>
+          <p className="mt-3 text-sm text-flaque-steel">{t("backup.empty")}</p>
         ) : null}
 
         {backups.length > 0 ? (
@@ -225,13 +227,13 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
                       {formatBackupId(backup.id)}
                     </p>
                     <p className="mt-0.5 text-xs text-flaque-steel">
-                      {backup.trigger === "scheduled" ? "Scheduled" : "Manual"}
+                      {backup.trigger === "scheduled" ? t("backup.scheduled") : t("backup.manual")}
                       {" \u00b7 "}
                       {formatSize(backup.sizeBytes)}
                       {" \u00b7 "}
                       {backup.includesDatabase ? "DB" : ""}
                       {backup.includesDatabase && backup.includesIndex ? " + " : ""}
-                      {backup.includesIndex ? "Index" : ""}
+                      {backup.includesIndex ? t("backup.index") : ""}
                     </p>
                     <p className="mt-0.5 text-xs text-flaque-steel/70">
                       {formatDate(backup.createdAt)}
@@ -244,7 +246,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
                       className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream"
                       download
                     >
-                      Download
+                      {t("backup.download")}
                     </a>
 
                     {confirmRestoreId === backup.id ? (
@@ -257,7 +259,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
                             void onRestoreBackup(backup.id).finally(() => setConfirmRestoreId(null));
                           }}
                         >
-                          {restoring ? "Restoring..." : "Confirm restore"}
+                          {restoring ? t("backup.restoring") : t("backup.confirmRestore")}
                         </button>
                         <button
                           className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream"
@@ -265,7 +267,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
                           onClick={() => setConfirmRestoreId(null)}
                           disabled={restoring}
                         >
-                          Cancel
+                          {t("backup.cancel")}
                         </button>
                       </div>
                     ) : (
@@ -278,7 +280,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
                           setConfirmDeleteId(null);
                         }}
                       >
-                        Restore
+                        {t("backup.restore")}
                       </button>
                     )}
 
@@ -291,14 +293,14 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
                             void onDeleteBackup(backup.id).finally(() => setConfirmDeleteId(null));
                           }}
                         >
-                          Confirm delete
+                          {t("backup.confirmDelete")}
                         </button>
                         <button
                           className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream"
                           type="button"
                           onClick={() => setConfirmDeleteId(null)}
                         >
-                          Cancel
+                          {t("backup.cancel")}
                         </button>
                       </div>
                     ) : (
@@ -311,7 +313,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
                           setConfirmRestoreId(null);
                         }}
                       >
-                        Delete
+                        {t("backup.delete")}
                       </button>
                     )}
                   </div>

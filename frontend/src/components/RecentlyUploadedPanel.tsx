@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { coverUrl } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
 import type { RecentUploadAlbum, RecentUploadItem } from "../api";
@@ -21,10 +23,7 @@ type RecentlyUploadedPanelProps = {
   ownerNameById?: Record<string, string>;
 };
 
-const periodOptions: { value: UploadPeriod; label: string; shortLabel: string }[] = [
-  { value: "7d", label: "7 days", shortLabel: "7d" },
-  { value: "30d", label: "30 days", shortLabel: "30d" }
-];
+const periodOptions: UploadPeriod[] = ["7d", "30d"];
 
 const GRID_CLASS =
   "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-6";
@@ -42,6 +41,7 @@ function VinylAlbumCard({
   onOpen: (album: RecentUploadAlbum) => void;
   ownerLabel?: string;
 }): JSX.Element {
+  const { t } = useTranslation("home");
   const year = album.tracks
     .map((track) => getTrackDisplayYear(track))
     .find((value): value is string => Boolean(value));
@@ -52,8 +52,8 @@ function VinylAlbumCard({
         type="button"
         className="relative block aspect-square w-full cursor-pointer overflow-hidden bg-flaque-cream"
         onClick={() => onPlay(album)}
-        title={`Play ${album.albumName}`}
-        aria-label={`Play ${album.albumName}`}
+        title={t("albumPlay", { album: album.albumName })}
+        aria-label={t("albumPlay", { album: album.albumName })}
         style={{
           WebkitMaskImage:
             "radial-gradient(circle at 50% 50%, transparent 4%, black 4.5%)",
@@ -72,14 +72,14 @@ function VinylAlbumCard({
             <img
               className="h-full w-full object-cover"
               src={coverUrl(album.coverTrackId)}
-              alt={`Cover for ${album.albumName}`}
+              alt={t("albumCoverAlt", { album: album.albumName })}
               onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
             />
           </div>
         </div>
         {/* Track count badge */}
         <span className="absolute bottom-1 right-1 rounded-md bg-flaque-ink/85 px-1.5 py-0.5 text-[9px] font-semibold text-white">
-          +{album.trackCount} tracks
+          {t("albumTrackBadge", { count: album.trackCount })}
         </span>
       </button>
       <div
@@ -93,7 +93,7 @@ function VinylAlbumCard({
             onOpen(album);
           }
         }}
-        title={`Open ${album.albumName}`}
+        title={t("albumOpen", { album: album.albumName })}
       >
         <p className="truncate text-[11px] font-semibold text-flaque-ink">{albumLabel}</p>
         <p className="truncate text-[10px] text-flaque-steel">{album.artist}</p>
@@ -124,8 +124,9 @@ function TrackCard({
   onSelect: (track: Track) => void;
   ownerLabel?: string;
 }): JSX.Element {
+  const { t } = useTranslation(["library", "common"]);
   const title = getTrackDisplayTitle(track);
-  const artist = getTrackDisplayArtist(track) ?? "Unknown artist";
+  const artist = getTrackDisplayArtist(track) ?? t("common:unknownArtist");
   const albumWithYear = getTrackDisplayAlbumWithYear(track);
 
   return (
@@ -139,7 +140,7 @@ function TrackCard({
         <img
           className="h-full w-full object-cover"
           src={coverUrl(track.id, track.cover)}
-          alt={albumWithYear ? `Cover for ${albumWithYear}` : `Cover for ${title}`}
+          alt={t("library:track.coverAlt", { name: albumWithYear ?? title })}
           onError={(e) => { e.currentTarget.src = defaultCoverImage; }}
         />
         <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100">
@@ -174,6 +175,8 @@ export function RecentlyUploadedPanel({
   onAlbumOpen,
   ownerNameById
 }: RecentlyUploadedPanelProps): JSX.Element | null {
+  const { t } = useTranslation("home");
+
   if (!loading && items.length === 0) {
     return null;
   }
@@ -183,28 +186,28 @@ export function RecentlyUploadedPanel({
   return (
     <section className="border border-flaque-clay/60 rounded-xl bg-white/85 p-5 shadow-panel backdrop-blur-sm">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="shrink-0 font-display text-xl text-flaque-ink">Recent Uploads</h2>
+        <h2 className="shrink-0 font-display text-xl text-flaque-ink">{t("recentUploads")}</h2>
         <div className="flex gap-1">
           {periodOptions.map((option) => (
             <button
-              key={option.value}
+              key={option}
               className={`rounded-lg px-2.5 py-1 text-xs font-medium transition ${
-                period === option.value
+                period === option
                   ? "bg-flaque-ink text-white"
                   : "border border-flaque-clay bg-white text-flaque-steel hover:bg-flaque-cream"
               }`}
               type="button"
-              onClick={() => onPeriodChange(option.value)}
+              onClick={() => onPeriodChange(option)}
             >
-              <span className="md:hidden">{option.shortLabel}</span>
-              <span className="hidden md:inline">{option.label}</span>
+              <span className="md:hidden">{t(`period.${option}Short`)}</span>
+              <span className="hidden md:inline">{t(`period.${option}`)}</span>
             </button>
           ))}
         </div>
       </div>
 
       {loading && items.length === 0 ? (
-        <p className="mt-3 text-sm text-flaque-steel">Loading...</p>
+        <p className="mt-3 text-sm text-flaque-steel">{t("loading")}</p>
       ) : (
         <div className={`mt-3 grid gap-2 ${GRID_CLASS}`}>
           {items.map((item) =>

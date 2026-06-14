@@ -11,6 +11,7 @@ export type UserRow = {
   password_hash: string;
   role: UserRole;
   email: string | null;
+  language: string | null;
 };
 
 export type SessionUserRow = {
@@ -18,6 +19,7 @@ export type SessionUserRow = {
   id: string;
   username: string;
   role: UserRole;
+  language: string | null;
   session_id: string;
   created_at: number;
   expires_at: number;
@@ -124,6 +126,10 @@ function ensureUserSchemaMigrations(database: Database.Database): void {
     database.exec("ALTER TABLE users ADD COLUMN email TEXT");
   }
 
+  if (!hasTableColumn(database, "users", "language")) {
+    database.exec("ALTER TABLE users ADD COLUMN language TEXT");
+  }
+
   database.exec("UPDATE users SET email = NULL WHERE TRIM(COALESCE(email, '')) = ''");
   database.exec("UPDATE users SET email = LOWER(TRIM(email)) WHERE email IS NOT NULL");
 }
@@ -160,6 +166,7 @@ export function initializeAuthDatabase(): void {
       email TEXT,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'user',
+      language TEXT,
       created_at INTEGER NOT NULL
     );
 

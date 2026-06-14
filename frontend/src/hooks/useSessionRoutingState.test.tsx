@@ -81,7 +81,8 @@ function createUser(username: string): User {
     id: `${username}-id`,
     username,
     email: `${username}@test.local`,
-    role: "user"
+    role: "user",
+    language: "en"
   };
 }
 

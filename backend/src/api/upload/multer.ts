@@ -53,7 +53,7 @@ export function createAudioUpload(maxUploadBytes: number): multer.Multer {
         callback(null, true);
         return;
       }
-      callback(new AppError("Unsupported audio format", 400));
+      callback(new AppError("Unsupported audio format", 400, "unsupportedAudioFormat"));
     }
   });
 }

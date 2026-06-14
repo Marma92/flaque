@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { coverUrl } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
 import type { Track } from "../types";
@@ -17,12 +19,13 @@ type PlaylistTrackListProps = {
 export function PlaylistTrackList({
   tracks,
   onTrackPlay,
-  emptyMessage = "No playable tracks."
+  emptyMessage
 }: PlaylistTrackListProps): JSX.Element {
+  const { t } = useTranslation(["playlists", "common"]);
   return (
     <div className="rounded-2xl border border-flaque-clay/60 bg-white/85 shadow-panel backdrop-blur-sm">
       {tracks.length === 0 ? (
-        <p className="px-5 py-4 text-sm text-flaque-steel">{emptyMessage}</p>
+        <p className="px-5 py-4 text-sm text-flaque-steel">{emptyMessage ?? t("playlists:noPlayableTracks")}</p>
       ) : (
         <ul>
           {tracks.map((track, index) => (
@@ -54,7 +57,7 @@ export function PlaylistTrackList({
                   <span className="truncate">{getTrackDisplayTitle(track)}</span>
                 </p>
                 <p className="truncate text-xs text-flaque-steel">
-                  {getTrackDisplayArtist(track) ?? "Unknown artist"}
+                  {getTrackDisplayArtist(track) ?? t("common:unknownArtist")}
                   {track.tags.album ? ` · ${track.tags.album}` : ""}
                 </p>
               </div>

@@ -51,8 +51,8 @@ function makePlaylist(overrides: Partial<Playlist> = {}): Playlist {
   };
 }
 
-const defaultUser: User = { id: "user-1", username: "alice", email: "alice@test.local", role: "user" };
-const otherUser: User = { id: "user-2", username: "bob", email: "bob@test.local", role: "user" };
+const defaultUser: User = { id: "user-1", username: "alice", email: "alice@test.local", role: "user", language: "en" };
+const otherUser: User = { id: "user-2", username: "bob", email: "bob@test.local", role: "user", language: "en" };
 
 function createTracksMap(tracks: Track[]): Map<string, Track> {
   return new Map(tracks.map((t) => [t.id, t]));
@@ -201,7 +201,7 @@ describe("PlaylistDetailView", () => {
 
   it("shows visibility badge", () => {
     render(<PlaylistDetailView {...defaultProps} />);
-    expect(screen.getByText("public")).toBeTruthy();
+    expect(screen.getByText("Public")).toBeTruthy();
   });
 
   it("shows private badge for private playlist", () => {
@@ -213,7 +213,7 @@ describe("PlaylistDetailView", () => {
         manageablePlaylists={[playlist]}
       />
     );
-    expect(screen.getByText("private")).toBeTruthy();
+    expect(screen.getByText("Private")).toBeTruthy();
   });
 
   // ── Listen count ─────────────────────────────────────────────

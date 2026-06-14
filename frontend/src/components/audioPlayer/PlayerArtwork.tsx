@@ -1,4 +1,5 @@
 import type { JSX } from "react";
+import { useTranslation } from "react-i18next";
 
 import { coverUrl } from "../../api";
 import defaultCoverImage from "../../assets/default-cover.png";
@@ -40,14 +41,17 @@ export function PlayerArtwork({
   currentTime,
   onArtworkClick
 }: PlayerArtworkProps): JSX.Element {
-  const altText = displayAlbumWithYear ? `Cover for ${displayAlbumWithYear}` : "Track cover";
+  const { t } = useTranslation("player");
+  const altText = displayAlbumWithYear
+    ? t("artwork.coverAlt", { name: displayAlbumWithYear })
+    : t("artwork.coverAltGeneric");
 
   if (expanded) {
     return (
       <div className="relative shrink-0 overflow-hidden rounded-2xl">
         {isRadioMode && !isRadioStopped ? (
           <div className="absolute left-4 top-4 z-30 rounded-md border border-[rgba(255,255,255,0.5)] bg-[#ffffff] p-1 shadow-sm">
-            <img className="h-10 w-10" src="/radio.png" alt="Radio mode" />
+            <img className="h-10 w-10" src="/radio.png" alt={t("artwork.radioMode")} />
           </div>
         ) : null}
         {hasLyrics && !isRadioStopped ? (
@@ -56,12 +60,12 @@ export function PlayerArtwork({
             type="button"
             onClick={onToggleLyricsOverlay}
             aria-pressed={showLyricsOverlay}
-            aria-label={showLyricsOverlay ? "Hide lyrics" : "Show lyrics"}
+            aria-label={showLyricsOverlay ? t("artwork.hideLyrics") : t("artwork.showLyrics")}
           />
         ) : null}
         {isRadioStopped ? (
           <div className={`${artworkClassName} border border-[rgba(255,255,255,0.5)] bg-[#ffffff] flex items-center justify-center`}>
-            <img className="h-30 w-30" src="/radio.png" alt="Radio" />
+            <img className="h-30 w-30" src="/radio.png" alt={t("artwork.radio")} />
           </div>
         ) : (
           <img
@@ -80,7 +84,7 @@ export function PlayerArtwork({
               className="absolute right-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
               type="button"
               onClick={onCloseLyricsOverlay}
-              aria-label="Close lyrics"
+              aria-label={t("artwork.closeLyrics")}
             >
               <CloseIcon />
             </button>
@@ -101,18 +105,18 @@ export function PlayerArtwork({
     <div className="relative shrink-0">
       {isRadioMode && !isRadioStopped ? (
         <div className="absolute left-2 top-2 z-20 rounded-md border border-[rgba(255,255,255,0.5)] bg-[#ffffff] p-1 shadow-sm">
-          <img className="h-3.5 w-3.5" src="/radio.png" alt="Radio mode" />
+          <img className="h-3.5 w-3.5" src="/radio.png" alt={t("artwork.radioMode")} />
         </div>
       ) : null}
       {isRadioStopped ? (
         <div className={`${artworkClassName} flex items-center justify-center border border-[rgba(255,255,255,0.5)] bg-[#ffffff]`}>
-          <img className="h-10 w-10" src="/radio.png" alt="Radio" />
+          <img className="h-10 w-10" src="/radio.png" alt={t("artwork.radio")} />
         </div>
       ) : onArtworkClick ? (
         <button
           className="shrink-0 rounded-2xl"
           type="button"
-          aria-label="Open player view"
+          aria-label={t("artwork.openPlayerView")}
           onClick={onArtworkClick}
         >
           <img

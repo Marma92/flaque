@@ -1,11 +1,12 @@
-import type { Playlist, Track } from "@flaque/shared";
+import type { Playlist, Track, UserLanguage } from "@flaque/shared";
 
 export type {
   Playlist,
   PlaylistVisibility,
   Track,
   TrackTagExtraValue,
-  TrackTags
+  TrackTags,
+  UserLanguage
 } from "@flaque/shared";
 
 export type User = {
@@ -13,6 +14,7 @@ export type User = {
   username: string;
   email: string;
   role: "admin" | "user";
+  language: UserLanguage;
 };
 
 export type UserSession = {
@@ -149,6 +151,8 @@ export type PersonalPlaylistDetail = PersonalPlaylistSummary & {
   trackIds: string[];
 };
 
+export type ForYouNameVariant = "more" | "friends" | "decade" | "around" | "because";
+
 export type ForYouPlaylistSummary = {
   id: string;
   name: string;
@@ -159,6 +163,9 @@ export type ForYouPlaylistSummary = {
   generatedAt: string;
   /** Seed-artist score; higher = better fit. Missing on pre-2026-05 playlists. */
   score?: number;
+  /** Structured name descriptor for client-side localization (falls back to `name`). */
+  nameVariant?: ForYouNameVariant;
+  nameDecadeLabel?: string;
 };
 
 export type ForYouPlaylistDetail = ForYouPlaylistSummary & {

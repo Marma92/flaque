@@ -50,20 +50,20 @@ export function createPlaylistEngagementRouter(indexStore: IndexStore): Router {
       const authUser = req.authUser;
       const playlistId = req.params.id;
       if (!authUser || !playlistId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const playlist = findPlaylistById(indexStore, playlistId);
       if (!playlist) {
-        return next(new AppError("Playlist not found", 404));
+        return next(new AppError("Playlist not found", 404, "playlistFound"));
       }
 
       if (playlist.visibility !== "public") {
-        return next(new AppError("Only public playlists can be hearted", 403));
+        return next(new AppError("Only public playlists can be hearted", 403, "onlyPublicPlaylistsCanHearted"));
       }
 
       if (playlist.authorId === authUser.id) {
-        return next(new AppError("Cannot heart your own playlist", 400));
+        return next(new AppError("Cannot heart your own playlist", 400, "cannotHeartOwnPlaylist"));
       }
 
       const result = await togglePlaylistHeart(playlistId, authUser.id);
@@ -86,12 +86,12 @@ export function createPlaylistEngagementRouter(indexStore: IndexStore): Router {
       const authUser = req.authUser;
       const playlistId = req.params.id;
       if (!authUser || !playlistId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const playlist = findPlaylistById(indexStore, playlistId);
       if (!playlist) {
-        return next(new AppError("Playlist not found", 404));
+        return next(new AppError("Playlist not found", 404, "playlistFound"));
       }
 
       const debounceKey = `${authUser.id}:${playlistId}`;
@@ -128,25 +128,25 @@ export function createPlaylistEngagementRouter(indexStore: IndexStore): Router {
       const authUser = req.authUser;
       const playlistId = req.params.id;
       if (!authUser || !playlistId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const playlist = findPlaylistById(indexStore, playlistId);
       if (!playlist) {
-        return next(new AppError("Playlist not found", 404));
+        return next(new AppError("Playlist not found", 404, "playlistFound"));
       }
 
       if (!canEditPlaylist(playlist, authUser)) {
-        return next(new AppError("Not allowed to modify this playlist", 403));
+        return next(new AppError("Not allowed to modify this playlist", 403, "allowedModifyPlaylist"));
       }
 
       const file = req.file;
       if (!file) {
-        return next(new AppError("cover image file is required", 400));
+        return next(new AppError("cover image file is required", 400, "coverImageFile"));
       }
 
       if (!file.mimetype.toLowerCase().startsWith("image/")) {
-        return next(new AppError("Unsupported image format", 400));
+        return next(new AppError("Unsupported image format", 400, "unsupportedImageFormat"));
       }
 
       const sharp = (await import("sharp")).default;
@@ -158,7 +158,7 @@ export function createPlaylistEngagementRouter(indexStore: IndexStore): Router {
           .webp({ quality: 85 })
           .toBuffer();
       } catch {
-        return next(new AppError("Invalid image file", 400));
+        return next(new AppError("Invalid image file", 400, "invalidImageFile"));
       }
 
       const playlistDir = getPlaylistDirectory(playlistId);
@@ -185,16 +185,16 @@ export function createPlaylistEngagementRouter(indexStore: IndexStore): Router {
       const authUser = req.authUser;
       const playlistId = req.params.id;
       if (!authUser || !playlistId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const playlist = findPlaylistById(indexStore, playlistId);
       if (!playlist || !playlist.cover) {
-        return next(new AppError("Cover not found", 404));
+        return next(new AppError("Cover not found", 404, "coverFound"));
       }
 
       if (!canViewPlaylist(playlist, authUser)) {
-        return next(new AppError("Not allowed to access this playlist", 403));
+        return next(new AppError("Not allowed to access this playlist", 403, "allowedAccessPlaylist"));
       }
 
       res.setHeader("Cache-Control", "private, max-age=86400");
@@ -209,16 +209,16 @@ export function createPlaylistEngagementRouter(indexStore: IndexStore): Router {
       const authUser = req.authUser;
       const playlistId = req.params.id;
       if (!authUser || !playlistId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const playlist = findPlaylistById(indexStore, playlistId);
       if (!playlist) {
-        return next(new AppError("Playlist not found", 404));
+        return next(new AppError("Playlist not found", 404, "playlistFound"));
       }
 
       if (!canEditPlaylist(playlist, authUser)) {
-        return next(new AppError("Not allowed to modify this playlist", 403));
+        return next(new AppError("Not allowed to modify this playlist", 403, "allowedModifyPlaylist"));
       }
 
       const playlistDir = getPlaylistDirectory(playlistId);

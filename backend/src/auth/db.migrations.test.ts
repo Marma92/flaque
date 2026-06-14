@@ -92,11 +92,25 @@ describe("initializeAuthDatabase migrations", () => {
     migratedDb.close();
 
     expect(userColumns.some((column) => column.name === "email")).toBe(true);
+    expect(userColumns.some((column) => column.name === "language")).toBe(true);
     expect(userIndexes.some((index) => index.name === "idx_users_email")).toBe(true);
     expect(columns.some((column) => column.name === "last_seen_at")).toBe(true);
     expect(columns.some((column) => column.name === "user_agent")).toBe(true);
     expect(columns.some((column) => column.name === "ip_address")).toBe(true);
     expect(columns.some((column) => column.name === "label")).toBe(true);
     expect(indexes.some((index) => index.name === "idx_sessions_last_seen_at")).toBe(true);
+  });
+
+  it("defaults a migrated user's language to en and persists updates", async () => {
+    createLegacyAuthDatabase(usersDbPath);
+
+    const { initializeAuthDatabase, findUserById, setUserLanguage } = await import("./db");
+    initializeAuthDatabase();
+
+    // Legacy rows have no language column value → normalized to the default.
+    expect(findUserById("legacy-user")?.language).toBe("en");
+
+    expect(setUserLanguage("legacy-user", "fr")).toBe(true);
+    expect(findUserById("legacy-user")?.language).toBe("fr");
   });
 });

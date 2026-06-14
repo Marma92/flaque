@@ -1,4 +1,5 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { deletePlaylistCover, getUsers, playlistCoverUrl, uploadPlaylistCover } from "../api";
 import { usePlaylistDetailPlayback } from "../hooks/usePlaylistDetailPlayback";
@@ -43,6 +44,7 @@ export function PlaylistDetailView({
   onHeart,
   onReportListen
 }: PlaylistDetailViewProps): JSX.Element {
+  const { t } = useTranslation(["playlists", "common"]);
   const playlist = availablePlaylists.find((p) => p.id === playlistId);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -160,9 +162,9 @@ export function PlaylistDetailView({
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Back to playlists
+          {t("playlists:backToPlaylists")}
         </button>
-        <p className="text-sm text-flaque-steel">Playlist not found.</p>
+        <p className="text-sm text-flaque-steel">{t("playlists:notFound")}</p>
       </section>
     );
   }
@@ -257,7 +259,7 @@ export function PlaylistDetailView({
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
-        Back to playlists
+        {t("playlists:backToPlaylists")}
       </button>
 
       <input
@@ -290,7 +292,7 @@ export function PlaylistDetailView({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <span className="mt-1 text-xs font-medium text-white">Change cover</span>
+                    <span className="mt-1 text-xs font-medium text-white">{t("playlists:changeCover")}</span>
                   </div>
                 </button>
                 {(coverPreview ?? (!coverRemoved && playlist.cover)) ? (
@@ -300,7 +302,7 @@ export function PlaylistDetailView({
                     onClick={handleCoverRemove}
                     disabled={saving || coverUploading}
                   >
-                    Remove
+                    {t("playlists:removeCover")}
                   </button>
                 ) : null}
               </>
@@ -311,7 +313,7 @@ export function PlaylistDetailView({
                   type="button"
                   className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
                   onClick={handlePlayAll}
-                  aria-label={`Play ${playlist.name}`}
+                  aria-label={t("playlists:play", { name: playlist.name })}
                 >
                   <svg className="h-10 w-10 drop-shadow-md" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
                     <path d="M8 6v12l10-6-10-6z" />
@@ -345,8 +347,8 @@ export function PlaylistDetailView({
                   onChange={(e) => setEditVisibility(e.target.value as PlaylistVisibility)}
                   disabled={saving}
                 >
-                  <option value="private">Private</option>
-                  <option value="public">Public</option>
+                  <option value="private">{t("playlists:visibility.private")}</option>
+                  <option value="public">{t("playlists:visibility.public")}</option>
                 </select>
               ) : (
                 <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
@@ -354,7 +356,7 @@ export function PlaylistDetailView({
                     ? "bg-green-100 text-green-700"
                     : "bg-flaque-clay/30 text-flaque-steel"
                 }`}>
-                  {playlist.visibility}
+                  {t(`playlists:visibility.${playlist.visibility}`)}
                 </span>
               )}
             </div>
@@ -364,7 +366,7 @@ export function PlaylistDetailView({
                 className="mt-1 w-full resize-none rounded-lg border border-flaque-clay/40 bg-transparent px-2 py-1 text-sm text-flaque-steel outline-none transition focus:border-flaque-ink/40"
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
-                placeholder="Add a description..."
+                placeholder={t("playlists:addDescription")}
                 rows={2}
                 disabled={saving}
               />
@@ -372,10 +374,10 @@ export function PlaylistDetailView({
               <p className="mt-1 text-sm text-flaque-steel">{playlist.description}</p>
             ) : null}
 
-            <p className="mt-2 text-sm text-flaque-steel">by {owner}</p>
+            <p className="mt-2 text-sm text-flaque-steel">{t("playlists:by", { owner })}</p>
 
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-flaque-steel">
-              <span>{(editing ? editTrackIds : playlist.trackIds).length} track{(editing ? editTrackIds : playlist.trackIds).length !== 1 ? "s" : ""}</span>
+              <span>{t("common:trackCount", { count: (editing ? editTrackIds : playlist.trackIds).length })}</span>
               {totalDuration > 0 && !editing ? <span>{formatDurationCompact(totalDuration)}</span> : null}
               {!editing && playlist.listenCount > 0 ? (
                 <span className="flex items-center gap-0.5">
@@ -396,7 +398,7 @@ export function PlaylistDetailView({
                   }`}
                   onClick={() => { void handleHeart(); }}
                   disabled={hearting}
-                  aria-label={hasHearted ? "Remove heart" : "Heart playlist"}
+                  aria-label={hasHearted ? t("playlists:removeHeart") : t("playlists:heart")}
                 >
                   <svg className="h-3.5 w-3.5" fill={hasHearted ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />

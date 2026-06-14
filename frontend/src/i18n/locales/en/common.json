@@ -1,0 +1,11 @@
+{
+  "unknownArtist": "Unknown artist",
+  "unknown": "Unknown",
+  "trackCount_one": "{{count, number}} track",
+  "trackCount_other": "{{count, number}} tracks",
+  "albumCount_one": "{{count, number}} album",
+  "albumCount_other": "{{count, number}} albums",
+  "language": {
+    "label": "Language"
+  }
+}

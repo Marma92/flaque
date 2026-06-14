@@ -47,19 +47,19 @@ export function createCoverRouter(indexStore: IndexStore): Router {
     try {
       const relativePath = typeof req.query.path === "string" ? req.query.path.trim() : "";
       if (!relativePath) {
-        return next(new AppError("path query parameter is required", 400));
+        return next(new AppError("path query parameter is required", 400, "pathQueryParameter"));
       }
 
       const extension = path.extname(relativePath).toLowerCase();
       if (!ALLOWED_IMAGE_EXTENSIONS.has(extension)) {
-        return next(new AppError("Unsupported image path", 400));
+        return next(new AppError("Unsupported image path", 400, "unsupportedImagePath"));
       }
 
       const absolutePath = resolveDataRelativePath(relativePath);
       const hasFile = await fileExists(absolutePath);
       if (!hasFile) {
         log.warn("Cover not found for path", { path: relativePath });
-        return next(new AppError("Cover not found", 404));
+        return next(new AppError("Cover not found", 404, "coverFound"));
       }
 
       res.setHeader("Cache-Control", "private, max-age=86400");
@@ -73,13 +73,13 @@ export function createCoverRouter(indexStore: IndexStore): Router {
     try {
       const trackId = req.params.id;
       if (!trackId) {
-        return next(new AppError("Track id is required", 400));
+        return next(new AppError("Track id is required", 400, "trackId"));
       }
 
       const coverPath = (await resolveAlbumCoverByTrackId(indexStore, trackId)) ?? (await findCoverFileByTrackId(trackId));
       if (!coverPath) {
         log.warn("Cover not found for track", { trackId });
-        return next(new AppError("Cover not found", 404));
+        return next(new AppError("Cover not found", 404, "coverFound"));
       }
 
       res.setHeader("Cache-Control", "private, max-age=86400");

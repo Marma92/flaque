@@ -46,7 +46,7 @@ function makeTrack(id: string): Track {
 }
 
 function makeUser(id: string, role: "admin" | "user" = "user"): AuthUser {
-  return { id, username: id, role, email: `${id}@test.local` };
+  return { id, username: id, role, email: `${id}@test.local`, language: "en" };
 }
 
 function makePlaylist(overrides: Partial<Playlist> & { id: string; authorId: string }): Playlist {

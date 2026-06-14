@@ -40,7 +40,7 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
     try {
       const trackId = req.params.id;
       if (!trackId) {
-        return next(new AppError("Track id is required", 400));
+        return next(new AppError("Track id is required", 400, "trackId"));
       }
 
       const hasTitle = hasOwnProperty(req.body, "title");
@@ -50,12 +50,12 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
       const hasGenre = hasOwnProperty(req.body, "genre");
 
       if (!hasTitle && !hasArtist && !hasAlbum && !hasYear && !hasGenre) {
-        return next(new AppError("At least one metadata field is required: title, artist, album, year, genre", 400));
+        return next(new AppError("At least one metadata field is required: title, artist, album, year, genre", 400, "metadataFieldTitleArtistAlbum"));
       }
 
       const currentTrack = indexStore.getTrackById(trackId);
       if (!currentTrack) {
-        return next(new AppError("Track not found", 404));
+        return next(new AppError("Track not found", 404, "trackFound"));
       }
 
       const parsedTitle = hasTitle ? parseMetadataField(req.body?.title) : undefined;
@@ -64,11 +64,11 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
       const parsedYear = hasYear ? parseMetadataYearField(req.body?.year) : undefined;
       const parsedGenre = hasGenre ? parseMetadataGenreField(req.body?.genre) : undefined;
 
-      if (parsedTitle === null) return next(new AppError("title must be a string or null", 400));
-      if (parsedArtist === null) return next(new AppError("artist must be a string or null", 400));
-      if (parsedAlbum === null) return next(new AppError("album must be a string or null", 400));
-      if (parsedYear === null) return next(new AppError("year must be an integer between 1000 and 2999, or null", 400));
-      if (parsedGenre === null) return next(new AppError("genre must be an array of strings or null", 400));
+      if (parsedTitle === null) return next(new AppError("title must be a string or null", 400, "titleStringNull"));
+      if (parsedArtist === null) return next(new AppError("artist must be a string or null", 400, "artistStringNull"));
+      if (parsedAlbum === null) return next(new AppError("album must be a string or null", 400, "albumStringNull"));
+      if (parsedYear === null) return next(new AppError("year must be an integer between 1000 and 2999, or null", 400, "yearIntegerBetween10002999"));
+      if (parsedGenre === null) return next(new AppError("genre must be an array of strings or null", 400, "genreArrayStringsNull"));
 
       const currentOverrides = await readTrackMetadataOverrides();
       const currentOverride = currentOverrides[trackId] ?? {};
@@ -125,12 +125,12 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
     try {
       const trackIds = req.body?.trackIds;
       if (!Array.isArray(trackIds) || trackIds.length === 0) {
-        return next(new AppError("trackIds array is required", 400));
+        return next(new AppError("trackIds array is required", 400, "trackidsArray"));
       }
 
       const validIds = trackIds.filter((id): id is string => typeof id === "string" && id.length > 0);
       if (validIds.length === 0) {
-        return next(new AppError("No valid track ids provided", 400));
+        return next(new AppError("No valid track ids provided", 400, "noValidTrackIds"));
       }
 
       const deleted: string[] = [];
@@ -182,12 +182,12 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
     try {
       const trackIds = req.body?.trackIds;
       if (!Array.isArray(trackIds) || trackIds.length === 0) {
-        return next(new AppError("trackIds array is required", 400));
+        return next(new AppError("trackIds array is required", 400, "trackidsArray"));
       }
 
       const validIds = trackIds.filter((id): id is string => typeof id === "string" && id.length > 0);
       if (validIds.length === 0) {
-        return next(new AppError("No valid track ids provided", 400));
+        return next(new AppError("No valid track ids provided", 400, "noValidTrackIds"));
       }
 
       const hasTitle = hasOwnProperty(req.body, "title");
@@ -197,7 +197,7 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
       const hasGenre = hasOwnProperty(req.body, "genre");
 
       if (!hasTitle && !hasArtist && !hasAlbum && !hasYear && !hasGenre) {
-        return next(new AppError("At least one metadata field is required: title, artist, album, year, genre", 400));
+        return next(new AppError("At least one metadata field is required: title, artist, album, year, genre", 400, "metadataFieldTitleArtistAlbum"));
       }
 
       const parsedTitle = hasTitle ? parseMetadataField(req.body?.title) : undefined;
@@ -206,11 +206,11 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
       const parsedYear = hasYear ? parseMetadataYearField(req.body?.year) : undefined;
       const parsedGenre = hasGenre ? parseMetadataGenreField(req.body?.genre) : undefined;
 
-      if (parsedTitle === null) return next(new AppError("title must be a string or null", 400));
-      if (parsedArtist === null) return next(new AppError("artist must be a string or null", 400));
-      if (parsedAlbum === null) return next(new AppError("album must be a string or null", 400));
-      if (parsedYear === null) return next(new AppError("year must be an integer between 1000 and 2999, or null", 400));
-      if (parsedGenre === null) return next(new AppError("genre must be an array of strings or null", 400));
+      if (parsedTitle === null) return next(new AppError("title must be a string or null", 400, "titleStringNull"));
+      if (parsedArtist === null) return next(new AppError("artist must be a string or null", 400, "artistStringNull"));
+      if (parsedAlbum === null) return next(new AppError("album must be a string or null", 400, "albumStringNull"));
+      if (parsedYear === null) return next(new AppError("year must be an integer between 1000 and 2999, or null", 400, "yearIntegerBetween10002999"));
+      if (parsedGenre === null) return next(new AppError("genre must be an array of strings or null", 400, "genreArrayStringsNull"));
 
       const currentOverrides = await readTrackMetadataOverrides();
       const overridePatch: Record<string, TrackMetadataOverride> = {};
@@ -274,12 +274,12 @@ export function createTrackMutationRouter(indexStore: IndexStore): Router {
     try {
       const trackId = req.params.id;
       if (!trackId) {
-        return next(new AppError("Track id is required", 400));
+        return next(new AppError("Track id is required", 400, "trackId"));
       }
 
       const track = indexStore.getTrackById(trackId);
       if (!track) {
-        return next(new AppError("Track not found", 404));
+        return next(new AppError("Track not found", 404, "trackFound"));
       }
 
       const absolutePath = resolveTrackAbsolutePath(track.path);

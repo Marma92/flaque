@@ -21,6 +21,7 @@ import { useForYouPlaylists } from "./hooks/useForYouPlaylists";
 import { usePersonalPlaylists } from "./hooks/usePersonalPlaylists";
 import { useRadioStation } from "./hooks/useRadioStation";
 import { useResumeState } from "./hooks/useResumeState";
+import { useLanguageSync } from "./hooks/useLanguageSync";
 
 type AuthenticatedAppProps = {
   user: User;
@@ -229,6 +230,7 @@ export function AuthenticatedApp({
   }, [user?.id]);
 
   useDocumentTitle(selectedTrackRefreshed);
+  useLanguageSync(user);
 
   useEffect(() => {
     if (activeView !== "player") {

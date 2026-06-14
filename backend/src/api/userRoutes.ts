@@ -6,6 +6,8 @@ import multer from "multer";
 import { Router } from "express";
 import sharp from "sharp";
 
+import { isSupportedLanguage } from "@flaque/shared";
+
 import {
   countUsersByRole,
   createUser,
@@ -13,6 +15,7 @@ import {
   findUserById,
   findUserByUsername,
   listUsers,
+  setUserLanguage,
   updateUserEmail,
   updateUserPassword,
   updateUserRole,
@@ -119,7 +122,7 @@ export function createUserRouter(): Router {
     try {
       const authUser = req.authUser;
       if (!authUser) {
-        return next(new AppError("Unauthorized", 401));
+        return next(new AppError("Unauthorized", 401, "unauthorized"));
       }
 
       res.setHeader("Cache-Control", "private, no-store, max-age=0, must-revalidate");
@@ -127,7 +130,7 @@ export function createUserRouter(): Router {
 
       const profilePhotoPath = await resolveUserProfilePhotoPath(authUser.id);
       if (!profilePhotoPath) {
-        return next(new AppError("Profile photo not found", 404));
+        return next(new AppError("Profile photo not found", 404, "profilePhotoFound"));
       }
 
       res.sendFile(profilePhotoPath);
@@ -152,23 +155,23 @@ export function createUserRouter(): Router {
     try {
       const authUser = req.authUser;
       if (!authUser) {
-        return next(new AppError("Unauthorized", 401));
+        return next(new AppError("Unauthorized", 401, "unauthorized"));
       }
 
       const file = req.file;
       if (!file) {
-        return next(new AppError("photo file is required", 400));
+        return next(new AppError("photo file is required", 400, "photoFile"));
       }
 
       if (!file.mimetype.toLowerCase().startsWith("image/")) {
-        return next(new AppError("Unsupported image format", 400));
+        return next(new AppError("Unsupported image format", 400, "unsupportedImageFormat"));
       }
 
       let convertedBuffer: Buffer;
       try {
         convertedBuffer = await convertProfilePhotoToWebp(file.buffer);
       } catch {
-        return next(new AppError("Invalid image file", 400));
+        return next(new AppError("Invalid image file", 400, "invalidImageFile"));
       }
 
       const profileDir = getUserProfileDir(authUser.id);
@@ -199,7 +202,7 @@ export function createUserRouter(): Router {
     const nextPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword : "";
 
     if (currentPassword.length === 0) {
-      return next(new AppError("currentPassword is required", 400));
+      return next(new AppError("currentPassword is required", 400, "currentpassword"));
     }
 
     const passwordError = validatePassword(nextPassword);
@@ -208,12 +211,12 @@ export function createUserRouter(): Router {
     }
 
     if (currentPassword === nextPassword) {
-      return next(new AppError("New password must be different from the current password", 400));
+      return next(new AppError("New password must be different from the current password", 400, "newPasswordDifferentFromCurrent"));
     }
 
     const authUser = req.authUser;
     if (!authUser) {
-      return next(new AppError("Unauthorized", 401));
+      return next(new AppError("Unauthorized", 401, "unauthorized"));
     }
 
     const existingUser = findUserByUsername(authUser.username);
@@ -224,12 +227,12 @@ export function createUserRouter(): Router {
         reason: "invalid-current-password",
         ip: getClientIp(req) ?? "unknown"
       });
-      return next(new AppError("Current password is invalid", 401));
+      return next(new AppError("Current password is invalid", 401, "currentPasswordInvalid"));
     }
 
     const updated = updateUserPassword(authUser.id, nextPassword);
     if (!updated) {
-      return next(new AppError("User not found", 404));
+      return next(new AppError("User not found", 404, "userFound"));
     }
 
     emitSecurityAuditLog("info", "user-password-changed", "User changed password", {
@@ -253,7 +256,7 @@ export function createUserRouter(): Router {
     try {
       const authUser = req.authUser;
       if (!authUser) {
-        return next(new AppError("Unauthorized", 401));
+        return next(new AppError("Unauthorized", 401, "unauthorized"));
       }
 
       const email = normalizeOptionalString(req.body?.email) ?? "";
@@ -264,7 +267,7 @@ export function createUserRouter(): Router {
 
       const updated = updateUserEmail(authUser.id, email);
       if (!updated) {
-        return next(new AppError("User not found", 404));
+        return next(new AppError("User not found", 404, "userFound"));
       }
 
       emitSecurityAuditLog("info", "user-email-changed", "User changed email", {
@@ -277,8 +280,32 @@ export function createUserRouter(): Router {
       res.json({ ok: true, user: updatedUser });
     } catch (error) {
       if (isSqliteUniqueError(error)) {
-        return next(new AppError("Email address already in use", 409));
+        return next(new AppError("Email address already in use", 409, "emailAddressAlreadyUse"));
       }
+      next(error);
+    }
+  });
+
+  router.post("/users/me/language", requireAuth, (req, res, next) => {
+    try {
+      const authUser = req.authUser;
+      if (!authUser) {
+        return next(new AppError("Unauthorized", 401, "unauthorized"));
+      }
+
+      const language = req.body?.language;
+      if (!isSupportedLanguage(language)) {
+        return next(new AppError("Unsupported language", 400, "unsupportedLanguage"));
+      }
+
+      const updated = setUserLanguage(authUser.id, language);
+      if (!updated) {
+        return next(new AppError("User not found", 404, "userFound"));
+      }
+
+      const updatedUser = findUserById(authUser.id);
+      res.json({ ok: true, user: updatedUser });
+    } catch (error) {
       next(error);
     }
   });
@@ -310,12 +337,12 @@ export function createUserRouter(): Router {
       }
 
       if (!role) {
-        return next(new AppError("Role must be either user or admin", 400));
+        return next(new AppError("Role must be either user or admin", 400, "roleEitherUserAdmin"));
       }
 
       const existing = findUserByUsername(username);
       if (existing) {
-        return next(new AppError("Username already exists", 409));
+        return next(new AppError("Username already exists", 409, "usernameAlreadyExists"));
       }
 
       const user = createUser(username, password, role, email);
@@ -334,9 +361,9 @@ export function createUserRouter(): Router {
       if (isSqliteUniqueError(error)) {
         const errorMessage = (error as Error).message ?? "";
         if (errorMessage.includes("email")) {
-          return next(new AppError("Email address already in use", 409));
+          return next(new AppError("Email address already in use", 409, "emailAddressAlreadyUse"));
         }
-        return next(new AppError("Username already exists", 409));
+        return next(new AppError("Username already exists", 409, "usernameAlreadyExists"));
       }
 
       next(error);
@@ -348,7 +375,7 @@ export function createUserRouter(): Router {
       const userId = req.params.id;
 
       if (!userId) {
-        return next(new AppError("User id is required", 400));
+        return next(new AppError("User id is required", 400, "userId"));
       }
 
       const hasUsername = hasOwnProperty(req.body, "username");
@@ -356,14 +383,14 @@ export function createUserRouter(): Router {
       const hasEmail = hasOwnProperty(req.body, "email");
 
       if (!hasUsername && !hasRole && !hasEmail) {
-        return next(new AppError("At least one field must be provided: username, role, or email", 400));
+        return next(new AppError("At least one field must be provided: username, role, or email", 400, "fieldUsernameRoleEmail"));
       }
 
       let nextUsername: string | undefined;
       if (hasUsername) {
         const parsedUsername = normalizeOptionalString(req.body?.username);
         if (!parsedUsername) {
-          return next(new AppError("username must be a string", 400));
+          return next(new AppError("username must be a string", 400, "usernameString"));
         }
 
         const usernameError = validateUsername(parsedUsername);
@@ -378,7 +405,7 @@ export function createUserRouter(): Router {
       if (hasRole) {
         nextRole = parseRole(req.body?.role) ?? undefined;
         if (!nextRole) {
-          return next(new AppError("Role must be either user or admin", 400));
+          return next(new AppError("Role must be either user or admin", 400, "roleEitherUserAdmin"));
         }
       }
 
@@ -386,7 +413,7 @@ export function createUserRouter(): Router {
       if (hasEmail) {
         const parsedEmail = normalizeOptionalString(req.body?.email);
         if (!parsedEmail) {
-          return next(new AppError("email must be a string", 400));
+          return next(new AppError("email must be a string", 400, "emailString"));
         }
 
         const emailError = validateEmail(parsedEmail);
@@ -399,7 +426,7 @@ export function createUserRouter(): Router {
 
       const existingUser = findUserById(userId);
       if (!existingUser) {
-        return next(new AppError("User not found", 404));
+        return next(new AppError("User not found", 404, "userFound"));
       }
 
       const shouldChangeUsername =
@@ -415,32 +442,32 @@ export function createUserRouter(): Router {
       if (shouldChangeUsername && nextUsername) {
         const usernameOwner = findUserByUsername(nextUsername);
         if (usernameOwner && usernameOwner.id !== existingUser.id) {
-          return next(new AppError("Username already exists", 409));
+          return next(new AppError("Username already exists", 409, "usernameAlreadyExists"));
         }
       }
 
       if (existingUser.role === "admin" && nextRole === "user" && countUsersByRole("admin") <= 1) {
-        return next(new AppError("Cannot demote the last admin account", 400));
+        return next(new AppError("Cannot demote the last admin account", 400, "cannotDemoteLastAdminAccount"));
       }
 
       if (shouldChangeUsername && nextUsername) {
         const updated = updateUserUsername(userId, nextUsername);
         if (!updated) {
-          return next(new AppError("User not found", 404));
+          return next(new AppError("User not found", 404, "userFound"));
         }
       }
 
       if (shouldChangeRole && nextRole) {
         const updated = updateUserRole(userId, nextRole);
         if (!updated) {
-          return next(new AppError("User not found", 404));
+          return next(new AppError("User not found", 404, "userFound"));
         }
       }
 
       if (shouldChangeEmail && nextEmail) {
         const updated = updateUserEmail(userId, nextEmail);
         if (!updated) {
-          return next(new AppError("User not found", 404));
+          return next(new AppError("User not found", 404, "userFound"));
         }
       }
 
@@ -467,7 +494,7 @@ export function createUserRouter(): Router {
 
       const updatedUser = findUserById(userId);
       if (!updatedUser) {
-        return next(new AppError("User not found", 404));
+        return next(new AppError("User not found", 404, "userFound"));
       }
 
       res.json({ user: updatedUser });
@@ -475,9 +502,9 @@ export function createUserRouter(): Router {
       if (isSqliteUniqueError(error)) {
         const errorMessage = (error as Error).message ?? "";
         if (errorMessage.includes("email")) {
-          return next(new AppError("Email address already in use", 409));
+          return next(new AppError("Email address already in use", 409, "emailAddressAlreadyUse"));
         }
-        return next(new AppError("Username already exists", 409));
+        return next(new AppError("Username already exists", 409, "usernameAlreadyExists"));
       }
 
       next(error);
@@ -489,7 +516,7 @@ export function createUserRouter(): Router {
     const password = typeof req.body?.password === "string" ? req.body.password : "";
 
     if (!userId) {
-      return next(new AppError("User id is required", 400));
+      return next(new AppError("User id is required", 400, "userId"));
     }
 
     const passwordError = validatePassword(password);
@@ -499,12 +526,12 @@ export function createUserRouter(): Router {
 
     const existingUser = findUserById(userId);
     if (!existingUser) {
-      return next(new AppError("User not found", 404));
+      return next(new AppError("User not found", 404, "userFound"));
     }
 
     const updated = updateUserPassword(userId, password);
     if (!updated) {
-      return next(new AppError("User not found", 404));
+      return next(new AppError("User not found", 404, "userFound"));
     }
 
     emitSecurityAuditLog("info", "admin-user-password-reset", `Admin reset password for user "${existingUser.username}"`, {
@@ -529,25 +556,25 @@ export function createUserRouter(): Router {
     const userId = req.params.id;
 
     if (!userId) {
-      return next(new AppError("User id is required", 400));
+      return next(new AppError("User id is required", 400, "userId"));
     }
 
     if (req.authUser?.id === userId) {
-      return next(new AppError("You cannot delete your own account", 400));
+      return next(new AppError("You cannot delete your own account", 400, "cannotDeleteOwnAccount"));
     }
 
     const existingUser = findUserById(userId);
     if (!existingUser) {
-      return next(new AppError("User not found", 404));
+      return next(new AppError("User not found", 404, "userFound"));
     }
 
     if (existingUser.role === "admin" && countUsersByRole("admin") <= 1) {
-      return next(new AppError("Cannot delete the last admin account", 400));
+      return next(new AppError("Cannot delete the last admin account", 400, "cannotDeleteLastAdminAccount"));
     }
 
     const deleted = deleteUserById(userId);
     if (!deleted) {
-      return next(new AppError("User not found", 404));
+      return next(new AppError("User not found", 404, "userFound"));
     }
 
     emitSecurityAuditLog("info", "admin-user-deleted", `Admin deleted user "${existingUser.username}"`, {

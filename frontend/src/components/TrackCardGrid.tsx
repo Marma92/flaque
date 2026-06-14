@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { coverUrl } from "../api";
 import defaultCoverImage from "../assets/default-cover.png";
 import type { Track } from "../types";
@@ -24,12 +26,13 @@ export function TrackCardGrid({
   ownerNameById,
   showOwner = false
 }: TrackCardGridProps): JSX.Element {
+  const { t } = useTranslation(["library", "common"]);
   const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
   return (
     <div className={`mt-3 grid gap-2.5 ${gridClassName ?? DEFAULT_GRID}`}>
       {tracks.map((track) => {
         const title = getTrackDisplayTitle(track);
-        const artist = getTrackDisplayArtist(track) ?? "Unknown artist";
+        const artist = getTrackDisplayArtist(track) ?? t("common:unknownArtist");
         const albumWithYear = getTrackDisplayAlbumWithYear(track);
 
         return (
@@ -44,7 +47,7 @@ export function TrackCardGrid({
               <img
                 className="h-14 w-14 shrink-0 rounded-lg object-cover"
                 src={coverUrl(track.id, track.cover)}
-                alt={albumWithYear ? `Cover for ${albumWithYear}` : `Cover for ${title}`}
+                alt={t("library:track.coverAlt", { name: albumWithYear ?? title })}
                 onError={(event) => {
                   event.currentTarget.src = defaultCoverImage;
                 }}

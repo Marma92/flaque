@@ -51,7 +51,7 @@ export function createUploadRouter(indexStore: IndexStore): Router {
       }
 
       if (!uploadedFile) {
-        return next(new AppError("A file is required", 400));
+        return next(new AppError("A file is required", 400, "file"));
       }
 
       const ownerId = requireOwnerId(req);
@@ -93,7 +93,7 @@ export function createUploadRouter(indexStore: IndexStore): Router {
 
       try {
         if (uploadedFiles.length === 0) {
-          return next(new AppError("At least one file is required", 400));
+          return next(new AppError("At least one file is required", 400, "file2"));
         }
 
         const ownerId = requireOwnerId(req);

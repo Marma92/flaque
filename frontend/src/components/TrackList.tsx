@@ -1,4 +1,5 @@
 import { Fragment, KeyboardEvent, memo, MouseEvent, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { coverUrl } from "../api";
 import type { Playlist, Track } from "../types";
@@ -32,11 +33,13 @@ export const TrackList = memo(function TrackList({
   onTrackSelect,
   playlists = [],
   onAddTrackToPlaylist,
-  emptyMessage = "No tracks match this filter yet.",
+  emptyMessage,
   constrainHeight = true,
   showTrackNumber = false,
   showCover = false
 }: TrackListProps): JSX.Element {
+  const { t } = useTranslation(["library", "common"]);
+  const resolvedEmptyMessage = emptyMessage ?? t("library:track.emptyDefault");
   const resolveOwnerLabel = (owner: string): string => ownerNameById?.[owner] ?? owner;
   const [playlistPickerTrackId, setPlaylistPickerTrackId] = useState<string | null>(null);
 
@@ -82,8 +85,8 @@ export const TrackList = memo(function TrackList({
         {tracks.map((track) => {
           const selected = track.id === currentTrackId;
           const trackTitle = getTrackDisplayTitle(track);
-          const trackArtist = getTrackDisplayArtist(track) ?? "Unknown";
-          const trackAlbum = getTrackDisplayAlbumWithYear(track) ?? "Unknown";
+          const trackArtist = getTrackDisplayArtist(track) ?? t("common:unknown");
+          const trackAlbum = getTrackDisplayAlbumWithYear(track) ?? t("common:unknown");
           const hasLyrics = Boolean(getTrackDisplayLyrics(track));
           const showPlaylistPicker = playlistPickerTrackId === track.id;
 
@@ -105,8 +108,8 @@ export const TrackList = memo(function TrackList({
                         : "border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
                     } ${showPlaylistPicker ? "ring-2 ring-flaque-sand/55" : ""}`}
                     type="button"
-                    aria-label={`Add ${trackTitle} to playlist`}
-                    title={hasPlayablePlaylists ? "Add to playlist" : "Create a playlist first"}
+                    aria-label={t("library:track.addToPlaylistAria", { title: trackTitle })}
+                    title={hasPlayablePlaylists ? t("library:track.addToPlaylist") : t("library:track.createPlaylistFirst")}
                     onClick={(event) => handleAddToPlaylistClick(event, track.id)}
                     disabled={!hasPlayablePlaylists}
                   >
@@ -186,7 +189,7 @@ export const TrackList = memo(function TrackList({
           );
         })}
 
-        {tracks.length === 0 ? <p className="text-sm text-flaque-steel">{emptyMessage}</p> : null}
+        {tracks.length === 0 ? <p className="text-sm text-flaque-steel">{resolvedEmptyMessage}</p> : null}
       </div>
 
       <div className={`hidden overflow-auto md:block${constrainHeight ? " max-h-[50vh]" : ""}`}>
@@ -209,8 +212,8 @@ export const TrackList = memo(function TrackList({
             {tracks.map((track) => {
               const selected = track.id === currentTrackId;
               const trackTitle = getTrackDisplayTitle(track);
-              const trackArtist = getTrackDisplayArtist(track) ?? "Unknown";
-              const trackAlbum = getTrackDisplayAlbumWithYear(track) ?? "Unknown";
+              const trackArtist = getTrackDisplayArtist(track) ?? t("common:unknown");
+              const trackAlbum = getTrackDisplayAlbumWithYear(track) ?? t("common:unknown");
               const hasLyrics = Boolean(getTrackDisplayLyrics(track));
               const showPlaylistPicker = playlistPickerTrackId === track.id;
 
@@ -219,7 +222,7 @@ export const TrackList = memo(function TrackList({
                   <tr
                     role="button"
                     tabIndex={0}
-                    aria-label={`Play ${trackTitle}`}
+                    aria-label={t("library:track.playAria", { title: trackTitle })}
                     className={`cursor-pointer border-t border-flaque-clay/40 transition ${
                       selected ? "bg-flaque-sand/20" : "hover:bg-flaque-cream/60"
                     }`}
@@ -233,8 +236,8 @@ export const TrackList = memo(function TrackList({
                             showPlaylistPicker ? "ring-2 ring-flaque-sand/55" : ""
                           }`}
                           type="button"
-                          aria-label={`Add ${trackTitle} to playlist`}
-                          title={hasPlayablePlaylists ? "Add to playlist" : "Create a playlist first"}
+                          aria-label={t("library:track.addToPlaylistAria", { title: trackTitle })}
+                          title={hasPlayablePlaylists ? t("library:track.addToPlaylist") : t("library:track.createPlaylistFirst")}
                           onClick={(event) => handleAddToPlaylistClick(event, track.id)}
                           onKeyDown={(event) => {
                             event.stopPropagation();
@@ -310,7 +313,7 @@ export const TrackList = memo(function TrackList({
             {tracks.length === 0 ? (
               <tr>
                 <td className="px-4 py-4 text-flaque-steel" colSpan={7 + (showTrackNumber ? 1 : 0) + (showCover ? 1 : 0)}>
-                  {emptyMessage}
+                  {resolvedEmptyMessage}
                 </td>
               </tr>
             ) : null}

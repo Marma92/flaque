@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import type { Track } from "../types";
 import { TrackCardGrid } from "./TrackCardGrid";
 
@@ -11,6 +13,8 @@ type RecentTracksPanelProps = {
  * Compact list of recently played tracks shown in the Library view.
  */
 export function RecentTracksPanel({ tracks, onTrackReplay, gridClassName }: RecentTracksPanelProps): JSX.Element | null {
+  const { t } = useTranslation("home");
+
   if (tracks.length === 0) {
     return null;
   }
@@ -19,7 +23,7 @@ export function RecentTracksPanel({ tracks, onTrackReplay, gridClassName }: Rece
 
   return (
     <section className="border border-flaque-clay/60 rounded-xl bg-white/85 p-5 shadow-panel backdrop-blur-sm">
-      <h2 className="font-display text-xl text-flaque-ink">Played Recently</h2>
+      <h2 className="font-display text-xl text-flaque-ink">{t("playedRecently")}</h2>
       <TrackCardGrid tracks={visibleTracks} onTrackSelect={onTrackReplay} gridClassName={gridClassName} />
     </section>
   );

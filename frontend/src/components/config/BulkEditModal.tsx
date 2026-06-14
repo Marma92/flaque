@@ -1,4 +1,5 @@
 import type { Dispatch, FormEvent, JSX, SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
 
 export type BulkEditState = {
   trackIds: string[];
@@ -29,76 +30,77 @@ export function BulkEditModal({
   onSubmit,
   onCancel
 }: BulkEditModalProps): JSX.Element {
+  const { t } = useTranslation("admin");
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
       <form
         className="w-full max-w-md rounded-3xl border border-flaque-clay/60 bg-white p-5 shadow-panel"
         onSubmit={onSubmit}
       >
-        <h3 className="font-display text-xl text-flaque-ink">Edit {state.trackIds.length} tracks</h3>
+        <h3 className="font-display text-xl text-flaque-ink">{t("bulk.editTitle", { count: state.trackIds.length })}</h3>
         <p className="mt-2 text-sm text-flaque-steel">
-          Only fields you change will be updated. Unchanged fields keep their current values.
+          {t("bulk.editDescription")}
         </p>
 
         <label className="mt-4 block text-sm text-flaque-ink">
-          Title
+          {t("fields.title")}
           <input
             className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
             type="text"
             value={state.title}
-            placeholder={state.commonTitle === undefined ? "Mixed values" : ""}
+            placeholder={state.commonTitle === undefined ? t("bulk.mixedValues") : ""}
             onChange={(e) => onChange((s) => s ? { ...s, title: e.target.value } : s)}
           />
         </label>
 
         <label className="mt-3 block text-sm text-flaque-ink">
-          Artist
+          {t("fields.artist")}
           <input
             className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
             type="text"
             value={state.artist}
-            placeholder={state.commonArtist === undefined ? "Mixed values" : ""}
+            placeholder={state.commonArtist === undefined ? t("bulk.mixedValues") : ""}
             onChange={(e) => onChange((s) => s ? { ...s, artist: e.target.value } : s)}
           />
         </label>
 
         <label className="mt-3 block text-sm text-flaque-ink">
-          Album
+          {t("fields.album")}
           <input
             className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
             type="text"
             value={state.album}
-            placeholder={state.commonAlbum === undefined ? "Mixed values" : ""}
+            placeholder={state.commonAlbum === undefined ? t("bulk.mixedValues") : ""}
             onChange={(e) => onChange((s) => s ? { ...s, album: e.target.value } : s)}
           />
         </label>
 
         <label className="mt-3 block text-sm text-flaque-ink">
-          Year
+          {t("fields.year")}
           <input
             className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
             type="text"
             inputMode="numeric"
             value={state.year}
-            placeholder={state.commonYear === undefined ? "Mixed values" : "e.g. 1979"}
+            placeholder={state.commonYear === undefined ? t("bulk.mixedValues") : t("fields.yearPlaceholder")}
             onChange={(e) => onChange((s) => s ? { ...s, year: e.target.value } : s)}
           />
         </label>
 
         <label className="mt-3 block text-sm text-flaque-ink">
-          Genre
+          {t("fields.genre")}
           <input
             className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
             type="text"
             value={state.genre}
-            placeholder={state.commonGenre === undefined ? "Mixed values" : "e.g. Rock, Progressive Rock"}
+            placeholder={state.commonGenre === undefined ? t("bulk.mixedValues") : t("fields.genrePlaceholder")}
             onChange={(e) => onChange((s) => s ? { ...s, genre: e.target.value } : s)}
           />
-          <span className="mt-0.5 block text-xs text-flaque-steel">Comma-separated</span>
+          <span className="mt-0.5 block text-xs text-flaque-steel">{t("fields.commaSeparated")}</span>
         </label>
 
         <p className="mt-3 text-xs text-flaque-steel">
-          Leave a field empty to clear override and fallback to embedded file metadata.
+          {t("bulk.editHint")}
         </p>
 
         <div className="mt-5 flex items-center justify-end gap-2">
@@ -108,14 +110,14 @@ export function BulkEditModal({
             onClick={onCancel}
             disabled={saving}
           >
-            Cancel
+            {t("bulk.cancel")}
           </button>
           <button
             className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
             type="submit"
             disabled={saving}
           >
-            {saving ? "Saving..." : `Save ${state.trackIds.length} tracks`}
+            {saving ? t("bulk.saving") : t("bulk.save", { count: state.trackIds.length })}
           </button>
         </div>
       </form>

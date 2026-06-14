@@ -21,16 +21,16 @@ export function createPlayCountRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.authUser?.id;
       if (!userId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const trackId = req.params.id;
       if (!trackId) {
-        return next(new AppError("Track id is required", 400));
+        return next(new AppError("Track id is required", 400, "trackId"));
       }
 
       if (!indexStore.hasTrack(trackId)) {
-        return next(new AppError("Track not found", 404));
+        return next(new AppError("Track not found", 404, "trackFound"));
       }
 
       await incrementPlayCount(userId, trackId);
@@ -45,16 +45,16 @@ export function createPlayCountRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.authUser?.id;
       if (!userId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const trackId = req.params.id;
       if (!trackId) {
-        return next(new AppError("Track id is required", 400));
+        return next(new AppError("Track id is required", 400, "trackId"));
       }
 
       if (!indexStore.hasTrack(trackId)) {
-        return next(new AppError("Track not found", 404));
+        return next(new AppError("Track not found", 404, "trackFound"));
       }
 
       await recordSkip(userId, trackId);
@@ -69,7 +69,7 @@ export function createPlayCountRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.authUser?.id;
       if (!userId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const stats = await getUserPlayStats(userId, indexStore);
@@ -83,7 +83,7 @@ export function createPlayCountRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.authUser?.id;
       if (!userId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const state = await getPlaybackState(userId);
@@ -107,7 +107,7 @@ export function createPlayCountRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.authUser?.id;
       if (!userId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       const body = req.body as { trackId?: unknown; positionSec?: unknown; queue?: unknown } | undefined;
@@ -126,13 +126,13 @@ export function createPlayCountRouter(indexStore: IndexStore): Router {
         : undefined;
 
       if (!trackId) {
-        return next(new AppError("trackId is required", 400));
+        return next(new AppError("trackId is required", 400, "trackid"));
       }
       if (positionSec === null) {
-        return next(new AppError("positionSec must be a finite number", 400));
+        return next(new AppError("positionSec must be a finite number", 400, "positionsecFiniteNumber"));
       }
       if (!indexStore.hasTrack(trackId)) {
-        return next(new AppError("Track not found", 404));
+        return next(new AppError("Track not found", 404, "trackFound"));
       }
 
       const state = await setPlaybackState(userId, { trackId, positionSec, queue });
@@ -146,7 +146,7 @@ export function createPlayCountRouter(indexStore: IndexStore): Router {
     try {
       const userId = req.authUser?.id;
       if (!userId) {
-        return next(new AppError("Authentication required", 401));
+        return next(new AppError("Authentication required", 401, "authentication"));
       }
 
       await clearPlaybackState(userId);

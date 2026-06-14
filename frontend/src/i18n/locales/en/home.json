@@ -1,0 +1,37 @@
+{
+  "radio": {
+    "launch": "Launch radio",
+    "play": "PLAY",
+    "nowPlaying": "Now Playing",
+    "syncing": "Syncing station state...",
+    "untitled": "Untitled",
+    "noTrack": "No active track yet.",
+    "tuneIn": "Tune in to FLAQUE FM"
+  },
+  "madeForYou": "Made for you",
+  "playedRecently": "Played Recently",
+  "recentUploads": "Recent Uploads",
+  "loading": "Loading...",
+  "period": {
+    "7d": "7 days",
+    "7dShort": "7d",
+    "30d": "30 days",
+    "30dShort": "30d"
+  },
+  "resume": {
+    "label": "Resume",
+    "action": "Resume",
+    "dismiss": "Dismiss"
+  },
+  "empty": {
+    "title": "Oh flaque !",
+    "subtitle": "Nothing to play here at the moment. Where would you like to start ?",
+    "browseLibrary": "Browse library",
+    "viewPlaylists": "View playlists"
+  },
+  "albumPlay": "Play {{album}}",
+  "albumOpen": "Open {{album}}",
+  "albumCoverAlt": "Cover for {{album}}",
+  "albumTrackBadge_one": "+{{count}} track",
+  "albumTrackBadge_other": "+{{count}} tracks"
+}

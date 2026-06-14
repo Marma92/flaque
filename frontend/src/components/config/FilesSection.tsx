@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Track, TrackMetadataPatch } from "../../types";
 import {
@@ -43,6 +44,7 @@ export function FilesSection({
   onBulkDeleteTracks,
   onBulkUpdateTrackMetadata
 }: FilesSectionProps): JSX.Element {
+  const { t } = useTranslation(["admin", "common"]);
   const [searchText, setSearchText] = useState("");
   const [page, setPage] = useState(0);
   const [activeTrackActionId, setActiveTrackActionId] = useState<string | null>(null);
@@ -280,7 +282,7 @@ export function FilesSection({
       await onBulkUpdateTrackMetadata(bulkEditState.trackIds, patch);
       setBulkEditState(null);
       clearSelection();
-      showBulkSuccess(`Metadata updated for ${count} track${count !== 1 ? "s" : ""}.`);
+      showBulkSuccess(t("admin:files.metadataUpdated", { count }));
     } catch (error) {
       void error;
     } finally {
@@ -311,16 +313,16 @@ export function FilesSection({
       <section className="flex flex-col rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm lg:h-[calc(100vh-6rem)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="font-display text-xl text-flaque-ink">Global file management</h3>
+            <h3 className="font-display text-xl text-flaque-ink">{t("admin:files.title")}</h3>
             <p className="text-sm text-flaque-steel">
-              {filteredTracks.length} / {tracks.length} track{tracks.length !== 1 ? "s" : ""}
+              {t("admin:files.trackCount", { shown: filteredTracks.length, count: tracks.length })}
             </p>
           </div>
 
           <input
             className="w-full max-w-sm rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
             type="search"
-            placeholder="Search by title, file name, artist, path"
+            placeholder={t("admin:files.searchPlaceholder")}
             value={searchText}
             onChange={(event) => { setSearchText(event.target.value); setPage(0); }}
           />
@@ -329,28 +331,28 @@ export function FilesSection({
         {selectedTrackIds.size > 0 ? (
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-flaque-clay/60 bg-flaque-cream/60 px-4 py-2.5">
             <span className="text-sm font-medium text-flaque-ink">
-              {selectedTrackIds.size} selected
+              {t("admin:files.selected", { count: selectedTrackIds.size })}
             </span>
             <button
               className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream"
               type="button"
               onClick={openBulkEditModal}
             >
-              Edit metadata
+              {t("admin:files.editMetadata")}
             </button>
             <button
               className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs text-red-700 transition hover:bg-red-50"
               type="button"
               onClick={() => setBulkDeleteConfirm(true)}
             >
-              Delete files
+              {t("admin:files.deleteFiles")}
             </button>
             <button
               className="ml-auto rounded-lg px-3 py-1.5 text-xs text-flaque-steel transition hover:text-flaque-ink"
               type="button"
               onClick={clearSelection}
             >
-              Clear selection
+              {t("admin:files.clearSelection")}
             </button>
           </div>
         ) : null}
@@ -385,7 +387,7 @@ export function FilesSection({
                       {title}
                     </p>
                     <p className="mt-1 truncate text-xs text-flaque-steel">
-                      {getTrackDisplayArtist(track) ?? "Unknown"}
+                      {getTrackDisplayArtist(track) ?? t("common:unknown")}
                       {getTrackDisplayAlbumWithYear(track) ? ` - ${getTrackDisplayAlbumWithYear(track)}` : ""}
                     </p>
                     <p className="mt-1 truncate font-mono text-[11px] text-flaque-steel/80" title={track.path}>
@@ -399,7 +401,7 @@ export function FilesSection({
                         disabled={runningAction}
                         onClick={() => openEditModal(track)}
                       >
-                        Edit
+                        {t("admin:files.edit")}
                       </button>
                       <button
                         className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -407,7 +409,7 @@ export function FilesSection({
                         disabled={runningAction}
                         onClick={() => openDeleteTrackModal(track)}
                       >
-                        Delete file
+                        {t("admin:files.deleteFile")}
                       </button>
                     </div>
                   </div>
@@ -416,7 +418,7 @@ export function FilesSection({
             );
           })}
 
-          {filteredTracks.length === 0 ? <p className="text-sm text-flaque-steel">No tracks match this search.</p> : null}
+          {filteredTracks.length === 0 ? <p className="text-sm text-flaque-steel">{t("admin:files.noMatch")}</p> : null}
         </div>
 
         <div className="mt-4 hidden min-h-0 flex-1 overflow-auto rounded-2xl border border-flaque-clay/40 lg:block">
@@ -432,12 +434,12 @@ export function FilesSection({
                     onChange={togglePageSelection}
                   />
                 </th>
-                <th className="px-4 py-3 font-medium">Title</th>
-                <th className="px-4 py-3 font-medium">Artist</th>
-                <th className="px-4 py-3 font-medium">Album</th>
-                <th className="px-4 py-3 font-medium">Owner</th>
-                <th className="px-4 py-3 font-medium">Path</th>
-                <th className="px-4 py-3 font-medium">Actions</th>
+                <th className="px-4 py-3 font-medium">{t("admin:files.colTitle")}</th>
+                <th className="px-4 py-3 font-medium">{t("admin:files.colArtist")}</th>
+                <th className="px-4 py-3 font-medium">{t("admin:files.colAlbum")}</th>
+                <th className="px-4 py-3 font-medium">{t("admin:files.colOwner")}</th>
+                <th className="px-4 py-3 font-medium">{t("admin:files.colPath")}</th>
+                <th className="px-4 py-3 font-medium">{t("admin:files.colActions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -461,8 +463,8 @@ export function FilesSection({
                         {title}
                       </span>
                     </td>
-                    <td className="max-w-[12rem] truncate px-4 py-3 text-flaque-steel" title={getTrackDisplayArtist(track) ?? "Unknown"}>{getTrackDisplayArtist(track) ?? "Unknown"}</td>
-                    <td className="max-w-[14rem] truncate px-4 py-3 text-flaque-steel" title={getTrackDisplayAlbumWithYear(track) ?? "Unknown"}>{getTrackDisplayAlbumWithYear(track) ?? "Unknown"}</td>
+                    <td className="max-w-[12rem] truncate px-4 py-3 text-flaque-steel" title={getTrackDisplayArtist(track) ?? t("common:unknown")}>{getTrackDisplayArtist(track) ?? t("common:unknown")}</td>
+                    <td className="max-w-[14rem] truncate px-4 py-3 text-flaque-steel" title={getTrackDisplayAlbumWithYear(track) ?? t("common:unknown")}>{getTrackDisplayAlbumWithYear(track) ?? t("common:unknown")}</td>
                     <td className="max-w-[8rem] truncate px-4 py-3 text-flaque-steel" title={resolveOwnerLabel(track.owner)}>{resolveOwnerLabel(track.owner)}</td>
                     <td className="max-w-[14rem] truncate px-4 py-3 font-mono text-xs text-flaque-steel" title={track.path}>{track.path}</td>
                     <td className="px-4 py-3">
@@ -473,16 +475,16 @@ export function FilesSection({
                           disabled={runningAction}
                           onClick={() => openEditModal(track)}
                         >
-                          Edit
+                          {t("admin:files.edit")}
                         </button>
                         <button
                           className="rounded-lg border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
                           type="button"
                           disabled={runningAction}
                           onClick={() => { void handleReEnrichClicked(track); }}
-                          title="Force a fresh MusicBrainz lookup for this track"
+                          title={t("admin:files.reEnrichTitle")}
                         >
-                          Re-enrich
+                          {t("admin:files.reEnrich")}
                         </button>
                         <button
                           className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -490,7 +492,7 @@ export function FilesSection({
                           disabled={runningAction}
                           onClick={() => openDeleteTrackModal(track)}
                         >
-                          Delete file
+                          {t("admin:files.deleteFile")}
                         </button>
                       </div>
                     </td>
@@ -501,7 +503,7 @@ export function FilesSection({
               {filteredTracks.length === 0 ? (
                 <tr>
                   <td className="px-4 py-4 text-flaque-steel" colSpan={7}>
-                    No tracks match this search.
+                    {t("admin:files.noMatch")}
                   </td>
                 </tr>
               ) : null}
@@ -512,7 +514,7 @@ export function FilesSection({
         {totalPages > 1 ? (
           <div className="mt-3 flex shrink-0 items-center justify-between text-sm text-flaque-steel">
             <span>
-              {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filteredTracks.length)} of {filteredTracks.length}
+              {t("admin:files.pageRange", { from: safePage * PAGE_SIZE + 1, to: Math.min((safePage + 1) * PAGE_SIZE, filteredTracks.length), total: filteredTracks.length })}
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -521,7 +523,7 @@ export function FilesSection({
                 disabled={safePage === 0}
                 onClick={() => setPage(safePage - 1)}
               >
-                Previous
+                {t("admin:files.previous")}
               </button>
               <span className="px-2 text-xs">
                 {safePage + 1} / {totalPages}
@@ -532,7 +534,7 @@ export function FilesSection({
                 disabled={safePage >= totalPages - 1}
                 onClick={() => setPage(safePage + 1)}
               >
-                Next
+                {t("admin:files.next")}
               </button>
             </div>
           </div>

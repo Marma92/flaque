@@ -10,7 +10,7 @@ import { AdminServerView } from "./AdminServerView";
 
 // ── Mock data ──────────────────────────────────────────────────────────
 
-const adminUser: User = { id: "admin-1", username: "admin", email: "admin@test.local", role: "admin" };
+const adminUser: User = { id: "admin-1", username: "admin", email: "admin@test.local", role: "admin", language: "en" };
 
 const defaultVersionInfo: VersionInfo = {
   currentVersion: "0.3.0",
