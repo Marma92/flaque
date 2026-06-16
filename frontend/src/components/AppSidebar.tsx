@@ -86,9 +86,9 @@ export function AppSidebar({
   }, [mobileMenuOpen]);
 
   const sidebarButtonClassName = (isActive: boolean): string =>
-    `flex w-full items-center justify-between rounded-xl px-1 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 lg:px-3 ${
+    `flex w-full items-center justify-between rounded-xl px-1 py-2 text-sm font-medium transition duration-200 ease-swift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 lg:px-3 ${
       isActive
-        ? "bg-flaque-ink text-flaque-cream"
+        ? "bg-flaque-ink text-flaque-cream shadow-panel"
         : "text-flaque-ink hover:bg-flaque-cream/80"
     }`;
 
@@ -119,7 +119,7 @@ export function AppSidebar({
     <>
       <div className="flex items-center justify-start border-b border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:hidden">
         <button
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/70 bg-white/80 text-flaque-ink transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/60 bg-white/80 text-flaque-ink transition duration-200 ease-swift hover:border-flaque-clay hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
           type="button"
           aria-label="Open menu"
           onClick={() => setMobileMenuOpen(true)}
@@ -254,7 +254,7 @@ export function AppSidebar({
                     </span>
                   </button>
                   <button
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/70 bg-white/80 text-flaque-ink transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/60 bg-white/80 text-flaque-ink transition duration-200 ease-swift hover:border-flaque-clay hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
                     type="button"
                     aria-label={themeToggleLabel}
                     title={themeToggleLabel}
@@ -380,7 +380,7 @@ export function AppSidebar({
                 </span>
               </button>
               <button
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/70 bg-white/80 text-flaque-ink transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/60 bg-white/80 text-flaque-ink transition duration-200 ease-swift hover:border-flaque-clay hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
                 type="button"
                 aria-label={themeToggleLabel}
                 title={themeToggleLabel}

@@ -116,7 +116,7 @@ function SystemStatsSection({ systemStats, history, loading }: SystemStatsSectio
   const { t } = useTranslation("admin");
   if (loading && !systemStats) {
     return (
-      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 flaque-panel p-5">
         <h3 className="font-display text-xl text-flaque-ink">{t("server.system")}</h3>
         <p className="mt-2 text-sm text-flaque-steel">{t("loading")}</p>
       </section>
@@ -125,7 +125,7 @@ function SystemStatsSection({ systemStats, history, loading }: SystemStatsSectio
 
   if (!systemStats) {
     return (
-      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 flaque-panel p-5">
         <h3 className="font-display text-xl text-flaque-ink">{t("server.system")}</h3>
         <p className="mt-2 text-sm text-flaque-steel">{t("server.statsUnavailable")}</p>
       </section>
@@ -144,7 +144,7 @@ function SystemStatsSection({ systemStats, history, loading }: SystemStatsSectio
   }
 
   return (
-    <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+    <section className="rounded-xl m-4 flaque-panel p-5">
       <h3 className="font-display text-xl text-flaque-ink">{t("server.system")}</h3>
 
       <div className="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -196,7 +196,7 @@ function StorageSection({ storageUsage, loading }: { storageUsage: StorageUsage 
   const { t } = useTranslation("admin");
   if (loading && !storageUsage) {
     return (
-      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 flaque-panel p-5">
         <h3 className="font-display text-xl text-flaque-ink">{t("server.storage")}</h3>
         <p className="mt-2 text-sm text-flaque-steel">{t("loading")}</p>
       </section>
@@ -205,7 +205,7 @@ function StorageSection({ storageUsage, loading }: { storageUsage: StorageUsage 
 
   if (!storageUsage) {
     return (
-      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 flaque-panel p-5">
         <h3 className="font-display text-xl text-flaque-ink">{t("server.storage")}</h3>
         <p className="mt-2 text-sm text-flaque-steel">{t("server.storageUnavailable")}</p>
       </section>
@@ -216,7 +216,7 @@ function StorageSection({ storageUsage, loading }: { storageUsage: StorageUsage 
   const usedPercent = disk.total > 0 ? (disk.used / disk.total) * 100 : 0;
 
   return (
-    <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+    <section className="rounded-xl m-4 flaque-panel p-5">
       <h3 className="font-display text-xl text-flaque-ink">{t("server.storage")}</h3>
 
       <div className="mt-3">
@@ -271,7 +271,7 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate, o
 
   if (loading && !versionInfo) {
     return (
-      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 flaque-panel p-5">
         <p className="text-sm text-flaque-steel">{t("server.checkingUpdates")}</p>
       </section>
     );
@@ -369,7 +369,7 @@ function VersionSection({ versionInfo, loading, updateStatus, onTriggerUpdate, o
   }
 
   return (
-    <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 px-5 py-3 shadow-panel backdrop-blur-sm">
+    <section className="rounded-xl m-4 flaque-panel px-5 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-flaque-steel">
           {t("server.runningVersion", { version: versionInfo.currentVersion })}
@@ -422,7 +422,7 @@ export function AdminServerView({ currentUser }: AdminServerViewProps): JSX.Elem
       <SystemStatsSection systemStats={systemStats} history={systemStatsHistory} loading={loadingSystemStats} />
       <StorageSection storageUsage={storageUsage} loading={loadingStorage} />
 
-      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 flaque-panel p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-display text-xl text-flaque-ink">{t("server.serverLogs")}</h3>
@@ -435,7 +435,7 @@ export function AdminServerView({ currentUser }: AdminServerViewProps): JSX.Elem
 
           <div className="flex flex-wrap items-center gap-2">
             <select
-              className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input text-sm"
               value={selectedFile ?? ""}
               onChange={(e) => onFileChange(e.target.value)}
               disabled={loadingFiles}
@@ -451,7 +451,7 @@ export function AdminServerView({ currentUser }: AdminServerViewProps): JSX.Elem
             </select>
 
             <select
-              className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input text-sm"
               value={levelFilter ?? ""}
               onChange={(e) => {
                 const val = e.target.value;

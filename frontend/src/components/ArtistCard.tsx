@@ -17,7 +17,7 @@ export const ArtistCard = memo(function ArtistCard({ artist, onSelect }: ArtistC
 
   return (
     <button
-      className="aspect-square rounded-xl bg-white/85 p-3 text-center transition hover:bg-flaque-cream"
+      className="focus-ring aspect-square rounded-xl bg-white/85 p-3 text-center transition duration-200 ease-swift hover:-translate-y-0.5 hover:bg-flaque-cream hover:shadow-panel"
       title={artist.name}
       type="button"
       onClick={handleClick}

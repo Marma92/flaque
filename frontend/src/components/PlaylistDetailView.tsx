@@ -153,7 +153,7 @@ export function PlaylistDetailView({
 
   if (!playlist) {
     return (
-      <section className="m-4 rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="m-4 flaque-panel p-5">
         <button
           type="button"
           className="mb-4 flex items-center gap-1 text-sm text-flaque-steel transition hover:text-flaque-ink"

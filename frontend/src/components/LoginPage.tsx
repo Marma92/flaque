@@ -135,7 +135,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-12">
-      <section className="w-full max-w-md rounded-3xl border border-flaque-clay/50 bg-white/80 p-8 shadow-panel backdrop-blur-sm">
+      <section className="w-full max-w-md rounded-3xl border border-flaque-clay/60 bg-white/80 p-8 shadow-elevated backdrop-blur-sm">
         <h1 className="sr-only">{t("srTitle")}</h1>
 
         <div className="mb-6 flex justify-center">
@@ -158,7 +158,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
             <label className="block text-sm text-flaque-ink">
               {t("usernameOrEmail")}
               <input
-                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                className="flaque-input mt-1"
                 type="text"
                 value={login}
                 onChange={(event) => setLogin(event.target.value)}
@@ -171,7 +171,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
               {t("password")}
               <div className="relative mt-1">
                 <input
-                  className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 pr-10 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                  className="flaque-input pr-10"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
@@ -180,7 +180,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
                 />
                 <button
                   type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-flaque-steel transition hover:text-flaque-ink"
+                  className="focus-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-flaque-steel transition duration-200 ease-swift hover:text-flaque-ink"
                   onClick={() => setShowPassword((prev) => !prev)}
                   aria-label={showPassword ? t("hidePassword") : t("showPassword")}
                 >
@@ -204,7 +204,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="text-flaque-steel">{t("needHelp")}</span>
               <button
-                className="text-flaque-ink underline decoration-flaque-clay underline-offset-2 transition hover:text-black"
+                className="focus-ring rounded-md text-flaque-ink underline decoration-flaque-clay underline-offset-2 transition duration-200 ease-swift hover:text-black"
                 type="button"
                 onClick={() => switchMode("forgot")}
               >
@@ -221,7 +221,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
             ) : null}
 
             <button
-              className="w-full rounded-xl bg-flaque-ink px-3 py-2 font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-70"
+              className="flaque-btn-primary w-full py-2 text-base"
               type="submit"
               disabled={loading}
             >
@@ -237,7 +237,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
             <label className="block text-sm text-flaque-ink">
               {t("usernameOrEmail")}
               <input
-                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                className="flaque-input mt-1"
                 type="text"
                 value={login}
                 onChange={(event) => setLogin(event.target.value)}
@@ -255,7 +255,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
             ) : null}
 
             <button
-              className="w-full rounded-xl bg-flaque-ink px-3 py-2 font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-70"
+              className="flaque-btn-primary w-full py-2 text-base"
               type="submit"
               disabled={loading}
             >
@@ -263,7 +263,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
             </button>
 
             <button
-              className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink transition hover:bg-flaque-cream"
+              className="flaque-btn w-full py-2 text-base"
               type="button"
               onClick={() => switchMode("login")}
               disabled={loading}
@@ -281,7 +281,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
               {t("reset.newPassword")}
               <div className="relative mt-1">
                 <input
-                  className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 pr-10 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                  className="flaque-input pr-10"
                   type={showNewPassword ? "text" : "password"}
                   value={newPassword}
                   onChange={(event) => setNewPassword(event.target.value)}
@@ -291,7 +291,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
                 />
                 <button
                   type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-flaque-steel transition hover:text-flaque-ink"
+                  className="focus-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-flaque-steel transition duration-200 ease-swift hover:text-flaque-ink"
                   onClick={() => setShowNewPassword((prev) => !prev)}
                   aria-label={showNewPassword ? t("hidePassword") : t("showPassword")}
                 >
@@ -316,7 +316,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
               {t("reset.confirmNewPassword")}
               <div className="relative mt-1">
                 <input
-                  className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 pr-10 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                  className="flaque-input pr-10"
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmNewPassword}
                   onChange={(event) => setConfirmNewPassword(event.target.value)}
@@ -326,7 +326,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
                 />
                 <button
                   type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-flaque-steel transition hover:text-flaque-ink"
+                  className="focus-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-flaque-steel transition duration-200 ease-swift hover:text-flaque-ink"
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
                   aria-label={showConfirmPassword ? t("hidePassword") : t("showPassword")}
                 >
@@ -356,7 +356,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
             ) : null}
 
             <button
-              className="w-full rounded-xl bg-flaque-ink px-3 py-2 font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-70"
+              className="flaque-btn-primary w-full py-2 text-base"
               type="submit"
               disabled={loading}
             >
@@ -364,7 +364,7 @@ export function LoginPage({ onLogin, onRequestPasswordReset, onResetPassword }: 
             </button>
 
             <button
-              className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink transition hover:bg-flaque-cream"
+              className="flaque-btn w-full py-2 text-base"
               type="button"
               onClick={() => {
                 clearResetTokenInUrl();

@@ -93,7 +93,7 @@ export const TrackList = memo(function TrackList({
           return (
             <div
               key={track.id}
-              className={`w-full rounded-2xl border px-3 py-3 text-left transition ${
+              className={`w-full rounded-2xl border px-3 py-3 text-left transition duration-200 ease-swift ${
                 selected
                   ? "border-flaque-ink bg-flaque-ink text-flaque-cream"
                   : "border-flaque-clay/60 bg-flaque-cream/45 text-flaque-ink hover:bg-flaque-cream"
@@ -102,11 +102,11 @@ export const TrackList = memo(function TrackList({
               <div className="flex items-start gap-2">
                 {hasPlaylistAction ? (
                   <button
-                    className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-sm font-semibold transition ${
+                    className={`focus-ring mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-sm font-semibold transition duration-200 ease-swift ${
                       selected
                         ? "border-flaque-cream/40 bg-flaque-cream/20 text-flaque-cream hover:bg-flaque-cream/30"
                         : "border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
-                    } ${showPlaylistPicker ? "ring-2 ring-flaque-sand/55" : ""}`}
+                    } ${showPlaylistPicker ? "ring-2 ring-flaque-sand/70" : ""}`}
                     type="button"
                     aria-label={t("library:track.addToPlaylistAria", { title: trackTitle })}
                     title={hasPlayablePlaylists ? t("library:track.addToPlaylist") : t("library:track.createPlaylistFirst")}
@@ -132,7 +132,7 @@ export const TrackList = memo(function TrackList({
                   </div>
                 ) : null}
 
-                <button className="min-w-0 flex-1 text-left" type="button" onClick={() => handleTrackSelect(track)}>
+                <button className="focus-ring min-w-0 flex-1 rounded-lg text-left" type="button" onClick={() => handleTrackSelect(track)}>
                   <p className="text-sm font-medium">
                     <span className="flex min-w-0 items-center gap-1.5">
                       {hasLyrics ? <span className={getLyricsBadgeClassName(selected)}>L</span> : null}
@@ -223,8 +223,8 @@ export const TrackList = memo(function TrackList({
                     role="button"
                     tabIndex={0}
                     aria-label={t("library:track.playAria", { title: trackTitle })}
-                    className={`cursor-pointer border-t border-flaque-clay/40 transition ${
-                      selected ? "bg-flaque-sand/20" : "hover:bg-flaque-cream/60"
+                    className={`cursor-pointer border-t border-l-2 border-flaque-clay/40 transition duration-200 ease-swift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-flaque-sand/70 ${
+                      selected ? "border-l-flaque-ink bg-flaque-sand/20" : "border-l-transparent hover:bg-flaque-cream/60"
                     }`}
                     onClick={() => handleTrackSelect(track)}
                     onKeyDown={(event) => handleTrackRowKeyDown(event, track)}
@@ -232,8 +232,8 @@ export const TrackList = memo(function TrackList({
                     <td className="px-1 py-3 text-center">
                       {hasPlaylistAction ? (
                         <button
-                          className={`inline-flex h-6 w-6 items-center justify-center rounded-lg border border-flaque-clay bg-white text-sm font-semibold text-flaque-ink transition hover:bg-flaque-cream ${
-                            showPlaylistPicker ? "ring-2 ring-flaque-sand/55" : ""
+                          className={`focus-ring inline-flex h-6 w-6 items-center justify-center rounded-lg border border-flaque-clay bg-white text-sm font-semibold text-flaque-ink transition duration-200 ease-swift hover:bg-flaque-cream ${
+                            showPlaylistPicker ? "ring-2 ring-flaque-sand/70" : ""
                           }`}
                           type="button"
                           aria-label={t("library:track.addToPlaylistAria", { title: trackTitle })}

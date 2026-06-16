@@ -5,6 +5,9 @@ import defaultCoverImage from "../assets/default-cover.png";
 import { coverPathUrl, coverUrl, getForYouPlaylistDetail, playlistCoverUrl } from "../api";
 import { autoPlaylistName, forYouPlaylistName, personalPlaylistDescription, personalPlaylistName } from "../utils/generatedPlaylists";
 import type { AutoPlaylistSummary, ForYouPlaylistSummary, PersonalPlaylistSummary, Playlist, PlaylistVisibility, Track, User } from "../types";
+import { SkeletonCardGrid } from "./Skeleton";
+
+const PLAYLIST_GRID_CLASS = "mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6";
 
 export type LibraryPlaylistSectionProps = {
   availablePlaylists: Playlist[];
@@ -305,7 +308,7 @@ export function LibraryPlaylistSection({
   return (
     <div className="m-4 space-y-6">
       {/* ── My Playlists ──────────────────────────────────────────── */}
-      <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="flaque-panel p-5">
         <SectionHeader title={t("playlists:myPlaylists")} />
 
         <form
@@ -314,14 +317,14 @@ export function LibraryPlaylistSection({
         >
           <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]">
             <input
-              className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input text-sm"
               type="text"
               placeholder={t("playlists:newPlaylistName")}
               value={playlistName}
               onChange={(event) => setPlaylistName(event.target.value)}
             />
             <select
-              className="rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input text-sm"
               value={playlistVisibility}
               onChange={(event) => setPlaylistVisibility(event.target.value as PlaylistVisibility)}
             >
@@ -338,7 +341,7 @@ export function LibraryPlaylistSection({
           </div>
           {playlistName.trim() ? (
             <textarea
-              className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input text-sm"
               rows={2}
               placeholder={t("playlists:descriptionOptional")}
               value={playlistDescription}
@@ -368,7 +371,7 @@ export function LibraryPlaylistSection({
       </section>
 
       {/* ── Made For You ────────────────────────────────────────── */}
-      <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="flaque-panel p-5">
         <div className="flex items-center justify-between">
           <SectionHeader title={t("playlists:madeForYou")} />
           {!loadingForYouPlaylists && onRefreshForYouPlaylists ? (
@@ -386,7 +389,10 @@ export function LibraryPlaylistSection({
           ) : null}
         </div>
         {loadingForYouPlaylists ? (
-          <p className="mt-2 text-sm text-flaque-steel">{t("playlists:forYouLoading")}</p>
+          <>
+            <p className="sr-only" role="status">{t("playlists:forYouLoading")}</p>
+            <SkeletonCardGrid className={PLAYLIST_GRID_CLASS} />
+          </>
         ) : forYouPlaylists.length > 0 ? (
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {forYouPlaylists.map((fy) => {
@@ -456,7 +462,7 @@ export function LibraryPlaylistSection({
 
       {/* ── Popular Playlists ─────────────────────────────────────── */}
       {popularPlaylists.length > 0 ? (
-        <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <section className="flaque-panel p-5">
           <SectionHeader title={t("playlists:popularPlaylists")} />
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {popularPlaylists.map((playlist) => (
@@ -496,7 +502,10 @@ export function LibraryPlaylistSection({
             ) : null}
           </div>
           {loadingPersonalPlaylists ? (
-            <p className="mt-2 text-sm text-flaque-steel">{t("playlists:loading")}</p>
+            <>
+              <p className="sr-only" role="status">{t("playlists:loading")}</p>
+              <SkeletonCardGrid className={PLAYLIST_GRID_CLASS} />
+            </>
           ) : (
             <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
               {personalPlaylists.map((pp) => {
@@ -568,7 +577,10 @@ export function LibraryPlaylistSection({
       <section className="rounded-xl border border-flaque-clay/60 bg-gradient-to-br from-white/85 to-flaque-cream/40 p-5 shadow-panel backdrop-blur-sm">
         <SectionHeader title={t("playlists:automaticPlaylists")} />
         {loadingAutoPlaylists ? (
-          <p className="mt-2 text-sm text-flaque-steel">{t("playlists:loading")}</p>
+          <>
+            <p className="sr-only" role="status">{t("playlists:loading")}</p>
+            <SkeletonCardGrid className={PLAYLIST_GRID_CLASS} />
+          </>
         ) : autoPlaylists.length === 0 ? (
           <p className="mt-2 text-sm text-flaque-steel">
             {t("playlists:autoEmpty")}

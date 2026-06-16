@@ -26,7 +26,7 @@ export function ResumeRow({ track, positionSec, onResume, onDismiss }: ResumeRow
   const progressPercent = duration > 0 ? Math.min(100, (clampedPosition / duration) * 100) : 0;
 
   return (
-    <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-4 shadow-panel backdrop-blur-sm">
+    <section className="flaque-panel p-4">
       <div className="flex items-center gap-4">
         <img
           className="h-16 w-16 shrink-0 rounded-md object-cover"
@@ -57,10 +57,10 @@ export function ResumeRow({ track, positionSec, onResume, onDismiss }: ResumeRow
             </span>
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-stretch gap-1.5">
+        <div className="flex shrink-0 flex-col items-stretch gap-2">
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-flaque-ink px-3 py-1.5 text-xs font-medium uppercase tracking-[0.12em] text-flaque-cream transition hover:bg-flaque-ink/90"
+            className="flaque-btn-primary px-3 py-1.5 text-[11px] uppercase tracking-[0.12em]"
             onClick={() => onResume(track, clampedPosition)}
           >
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -70,7 +70,7 @@ export function ResumeRow({ track, positionSec, onResume, onDismiss }: ResumeRow
           </button>
           <button
             type="button"
-            className="rounded-xl border border-flaque-clay/60 bg-white px-3 py-1 text-[11px] text-flaque-steel transition hover:bg-flaque-cream hover:text-flaque-ink"
+            className="flaque-btn px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-flaque-steel hover:text-flaque-ink"
             onClick={onDismiss}
           >
             {t("home:resume.dismiss")}

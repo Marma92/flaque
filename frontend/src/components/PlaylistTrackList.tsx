@@ -23,7 +23,7 @@ export function PlaylistTrackList({
 }: PlaylistTrackListProps): JSX.Element {
   const { t } = useTranslation(["playlists", "common"]);
   return (
-    <div className="rounded-2xl border border-flaque-clay/60 bg-white/85 shadow-panel backdrop-blur-sm">
+    <div className="rounded-2xl flaque-panel">
       {tracks.length === 0 ? (
         <p className="px-5 py-4 text-sm text-flaque-steel">{emptyMessage ?? t("playlists:noPlayableTracks")}</p>
       ) : (

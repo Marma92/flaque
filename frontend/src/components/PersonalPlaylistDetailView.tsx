@@ -74,7 +74,7 @@ export function PersonalPlaylistDetailView({
 
   if (loading) {
     return (
-      <section className="m-4 rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="m-4 flaque-panel p-5">
         <BackButton onClick={onBack} />
         <p className="text-sm text-flaque-steel">{t("playlists:loading")}</p>
       </section>
@@ -83,7 +83,7 @@ export function PersonalPlaylistDetailView({
 
   if (!detail) {
     return (
-      <section className="m-4 rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="m-4 flaque-panel p-5">
         <BackButton onClick={onBack} />
         <p className="text-sm text-flaque-steel">{t("playlists:personalNotFound")}</p>
       </section>

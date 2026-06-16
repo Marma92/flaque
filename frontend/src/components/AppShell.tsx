@@ -75,10 +75,8 @@ export function AppShell({
   const shouldRenderPlayer = Boolean(audioPlayerProps.track) || activeView === "player";
 
   const sectionButtonClassName = (isActive: boolean): string =>
-    `rounded-xl px-2 py-1.5 text-center text-[10px] font-medium uppercase tracking-[0.08em] transition md:min-w-[6rem] md:px-2.5 md:text-[11px] md:tracking-[0.12em] ${
-      isActive
-        ? "bg-flaque-ink text-flaque-cream"
-        : "border border-flaque-clay bg-white text-flaque-ink hover:bg-flaque-cream"
+    `flaque-pill px-2 py-1.5 text-[10px] uppercase tracking-[0.08em] md:min-w-[6rem] md:px-2.5 md:text-[11px] md:tracking-[0.12em] ${
+      isActive ? "flaque-pill-on" : "flaque-pill-off"
     }`;
 
   const configSections: Array<[ConfigSection, string]> = [
@@ -125,19 +123,19 @@ export function AppShell({
         />
 
         {activeView === "library" ? (
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="animate-rise-in min-h-0 flex-1 overflow-hidden">
             <LibraryWorkspace {...libraryWorkspaceProps} />
           </div>
         ) : null}
 
         {activeView === "upload" ? (
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="animate-rise-in min-h-0 flex-1 overflow-y-auto">
             <UploadView {...uploadViewProps} />
           </div>
         ) : null}
 
         {activeView === "config" && user.role === "admin" ? (
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="animate-rise-in min-h-0 flex-1 overflow-y-auto">
             {configViewProps.activeSection === "index" || configViewProps.activeSection === "files" ? (
               <ConfigView {...configViewProps} />
             ) : null}
@@ -161,7 +159,7 @@ export function AppShell({
         ) : null}
 
         {activeView === "account" ? (
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="animate-rise-in min-h-0 flex-1 overflow-y-auto">
             <AccountView
               user={user}
               setUser={setUser}

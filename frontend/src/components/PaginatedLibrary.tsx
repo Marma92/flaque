@@ -175,7 +175,7 @@ export function PaginatedLibrary({
               <path d="m20 20-3.5-3.5" strokeLinecap="round" />
             </svg>
             <input
-              className="w-full rounded-full border border-flaque-clay bg-white py-2 pl-9 pr-3 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input rounded-full py-2 pl-9 pr-3 text-sm"
               type="search"
               placeholder={t("library:search")}
               value={searchDraft}
@@ -242,7 +242,7 @@ export function PaginatedLibrary({
             <label className="text-xs text-flaque-steel">
               {t("library:filter.owner")}
               <select
-                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                className="flaque-input mt-1 text-sm"
                 value={filters.owner ?? ""}
                 onChange={(event) =>
                   onFilterChange({ ...filters, owner: event.target.value || undefined })
@@ -259,7 +259,7 @@ export function PaginatedLibrary({
             <label className="text-xs text-flaque-steel">
               {t("library:filter.artist")}
               <select
-                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                className="flaque-input mt-1 text-sm"
                 value={filters.artist ?? ""}
                 onChange={(event) =>
                   onFilterChange({ ...filters, artist: event.target.value || undefined })
@@ -276,7 +276,7 @@ export function PaginatedLibrary({
             <label className="text-xs text-flaque-steel">
               {t("library:filter.album")}
               <select
-                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                className="flaque-input mt-1 text-sm"
                 value={filters.album ?? ""}
                 onChange={(event) =>
                   onFilterChange({ ...filters, album: event.target.value || undefined })

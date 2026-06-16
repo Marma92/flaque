@@ -38,7 +38,7 @@ export function TrackCardGrid({
         return (
           <button
             key={track.id}
-            className="w-full rounded-xl bg-flaque-cream/50 p-2.5 text-left transition hover:bg-flaque-cream"
+            className="flaque-card w-full p-2.5 text-left"
             type="button"
             onClick={() => onTrackSelect(track)}
             title={title}

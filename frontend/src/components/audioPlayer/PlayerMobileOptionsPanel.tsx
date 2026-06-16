@@ -1,4 +1,4 @@
-import type { JSX } from "react";
+import type { CSSProperties, JSX } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { RepeatMode, TranscodeMode } from "../../hooks/useAudioPlayback";
@@ -57,7 +57,7 @@ export function PlayerMobileOptionsPanel({
     <div className="space-y-3 rounded-xl border border-flaque-clay/60 bg-flaque-cream/45 p-3 lg:hidden">
       <div className="flex items-center justify-end">
         <button
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-sand"
+          className="focus-ring flex h-8 w-8 items-center justify-center rounded-lg border border-flaque-clay bg-white text-flaque-ink transition duration-200 ease-swift hover:bg-flaque-sand active:scale-95"
           type="button"
           aria-label={t("controls.closeOptions")}
           title={t("controls.close")}
@@ -69,7 +69,7 @@ export function PlayerMobileOptionsPanel({
 
       <div className="grid grid-cols-2 gap-2">
         <button
-          className={`flex h-9 items-center justify-center rounded-xl transition ${
+          className={`focus-ring flex h-9 items-center justify-center rounded-xl transition duration-200 ease-swift active:scale-95 ${
             repeatMode === "off"
               ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-sand"
               : "bg-flaque-ink text-flaque-cream hover:bg-flaque-steel"
@@ -83,7 +83,7 @@ export function PlayerMobileOptionsPanel({
         </button>
 
         <button
-          className={`flex h-9 items-center justify-center rounded-xl transition ${
+          className={`focus-ring flex h-9 items-center justify-center rounded-xl transition duration-200 ease-swift active:scale-95 ${
             shuffleEnabled
               ? "bg-flaque-ink text-flaque-cream hover:bg-flaque-steel"
               : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-sand"
@@ -124,7 +124,8 @@ export function PlayerMobileOptionsPanel({
         </button>
 
         <input
-          className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-flaque-clay/60"
+          className="flaque-range h-2 flex-1 cursor-pointer appearance-none rounded-full"
+          style={{ "--range-progress": `${volume * 100}%` } as CSSProperties}
           type="range"
           min={0}
           max={1}

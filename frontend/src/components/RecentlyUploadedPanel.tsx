@@ -11,6 +11,7 @@ import {
   getTrackDisplayTitle,
   getTrackDisplayYear
 } from "../utils/tracks";
+import { SkeletonCardGrid } from "./Skeleton";
 
 type RecentlyUploadedPanelProps = {
   items: RecentUploadItem[];
@@ -47,7 +48,7 @@ function VinylAlbumCard({
     .find((value): value is string => Boolean(value));
   const albumLabel = year ? `${album.albumName} (${year})` : album.albumName;
   return (
-    <div className="group relative flex w-full flex-col overflow-hidden rounded-xl text-left shadow-sm transition hover:shadow-md">
+    <div className="group relative flex w-full flex-col overflow-hidden rounded-xl text-left shadow-sm transition duration-200 ease-swift hover:-translate-y-0.5 hover:shadow-lift">
       <button
         type="button"
         className="relative block aspect-square w-full cursor-pointer overflow-hidden bg-flaque-cream"
@@ -132,7 +133,7 @@ function TrackCard({
   return (
     <button
       type="button"
-      className="group flex w-full flex-col overflow-hidden rounded-xl bg-white/85 text-left shadow-sm transition hover:shadow-md"
+      className="focus-ring group flex w-full flex-col overflow-hidden rounded-xl bg-white/85 text-left shadow-sm transition duration-200 ease-swift hover:-translate-y-0.5 hover:shadow-lift"
       onClick={() => onSelect(track)}
       title={title}
     >
@@ -184,17 +185,15 @@ export function RecentlyUploadedPanel({
   const resolveOwner = (owner: string): string => ownerNameById?.[owner] ?? owner;
 
   return (
-    <section className="border border-flaque-clay/60 rounded-xl bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+    <section className="flaque-panel p-5">
       <div className="flex items-center justify-between gap-2">
         <h2 className="shrink-0 font-display text-xl text-flaque-ink">{t("recentUploads")}</h2>
         <div className="flex gap-1">
           {periodOptions.map((option) => (
             <button
               key={option}
-              className={`rounded-lg px-2.5 py-1 text-xs font-medium transition ${
-                period === option
-                  ? "bg-flaque-ink text-white"
-                  : "border border-flaque-clay bg-white text-flaque-steel hover:bg-flaque-cream"
+              className={`flaque-pill px-2.5 py-1 text-xs ${
+                period === option ? "flaque-pill-on" : "flaque-pill-off"
               }`}
               type="button"
               onClick={() => onPeriodChange(option)}
@@ -207,7 +206,10 @@ export function RecentlyUploadedPanel({
       </div>
 
       {loading && items.length === 0 ? (
-        <p className="mt-3 text-sm text-flaque-steel">{t("loading")}</p>
+        <>
+          <p className="sr-only" role="status">{t("loading")}</p>
+          <SkeletonCardGrid className={`mt-3 grid gap-2 ${GRID_CLASS}`} count={12} />
+        </>
       ) : (
         <div className={`mt-3 grid gap-2 ${GRID_CLASS}`}>
           {items.map((item) =>

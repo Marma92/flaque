@@ -47,7 +47,7 @@ export function PlayerShell({
           {activeView !== "player" ? (
             <div className="pointer-events-none absolute inset-x-0 top-0.5 flex justify-end pr-2 md:justify-center md:pr-0">
               <button
-                className="pointer-events-auto flex h-6 w-8 items-center justify-center rounded-full border border-flaque-clay/60 bg-transparent text-flaque-steel transition hover:bg-flaque-sand/70"
+                className="focus-ring pointer-events-auto flex h-6 w-8 items-center justify-center rounded-full border border-flaque-clay/60 bg-transparent text-flaque-steel transition duration-200 ease-swift hover:bg-flaque-sand/70"
                 type="button"
                 aria-label="Expand player"
                 title="Expand player"
@@ -65,7 +65,7 @@ export function PlayerShell({
       {activeView === "player" ? (
         <div className="mt-2 flex justify-center">
           <button
-            className="flex h-8 w-12 mb-4 items-center justify-center rounded-full border border-flaque-clay/70 bg-white/90 text-flaque-steel transition hover:bg-flaque-cream"
+            className="focus-ring flex h-8 w-12 mb-4 items-center justify-center rounded-full border border-flaque-clay/60 bg-white/90 text-flaque-steel transition duration-200 ease-swift hover:bg-flaque-cream"
             type="button"
             aria-label="Collapse player"
             title="Collapse player"

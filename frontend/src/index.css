@@ -4,6 +4,58 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  /*
+   * Shared surface & control primitives. These canonicalise the patterns that
+   * were previously hand-rolled (with drifting opacities) across the app:
+   *   - container surfaces -> .flaque-panel
+   *   - tappable content   -> .flaque-card
+   *   - secondary actions  -> .flaque-btn / .flaque-btn-primary
+   *   - keyboard focus     -> .focus-ring (compose onto any interactive element)
+   * Radius: surfaces & cards rounded-xl (the app-wide default), small chips
+   * rounded-lg, prominent hero cards rounded-3xl. Keep new UI on rounded-xl.
+   */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent;
+  }
+
+  .flaque-panel {
+    @apply rounded-xl border border-flaque-clay/60 bg-white/80 shadow-panel backdrop-blur-sm;
+  }
+
+  .flaque-card {
+    @apply rounded-xl bg-flaque-cream/50 transition duration-200 ease-swift hover:-translate-y-0.5 hover:bg-flaque-cream hover:shadow-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent;
+  }
+
+  .flaque-btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl border border-flaque-clay/60 bg-flaque-cream/80 px-3 py-2 text-sm font-medium text-flaque-ink transition duration-200 ease-swift hover:border-flaque-clay hover:bg-flaque-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .flaque-input {
+    @apply w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none transition duration-200 ease-swift focus:border-flaque-sand focus:ring-2 focus:ring-flaque-sand/60;
+  }
+
+  .flaque-btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl bg-flaque-ink px-3 py-2 text-sm font-medium text-flaque-cream transition duration-200 ease-swift hover:bg-flaque-ink/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  /*
+   * Segmented-control pill. Compose: `flaque-pill ${active ? "flaque-pill-on" : "flaque-pill-off"}`.
+   * Size / text / tracking are set by the caller so the same control scales.
+   */
+  .flaque-pill {
+    @apply rounded-xl text-center font-medium transition duration-200 ease-swift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent;
+  }
+
+  .flaque-pill-on {
+    @apply bg-flaque-ink text-flaque-cream shadow-panel;
+  }
+
+  .flaque-pill-off {
+    @apply border border-flaque-clay/60 bg-white text-flaque-ink hover:border-flaque-clay hover:bg-flaque-cream;
+  }
+}
+
 :root {
   color-scheme: light;
   --surface-rgb: 255 255 255;
@@ -69,16 +121,33 @@ input[type="range"]::-webkit-slider-thumb {
   height: 16px;
   border-radius: 9999px;
   background: rgb(var(--flaque-ink-rgb));
+  border: 2px solid rgb(var(--surface-rgb));
+  box-shadow: 0 1px 2px rgb(var(--flaque-shadow-rgb) / 0.45);
   cursor: pointer;
 }
 
 input[type="range"]::-moz-range-thumb {
   width: 16px;
   height: 16px;
-  border: none;
   border-radius: 9999px;
   background: rgb(var(--flaque-ink-rgb));
+  border: 2px solid rgb(var(--surface-rgb));
+  box-shadow: 0 1px 2px rgb(var(--flaque-shadow-rgb) / 0.45);
   cursor: pointer;
+}
+
+/*
+ * Range track with a "played" fill. Caller sets --range-progress (e.g. 42%)
+ * inline from value/max; theme vars flip the colours in dark mode.
+ */
+.flaque-range {
+  background: linear-gradient(
+    to right,
+    rgb(var(--flaque-ink-rgb)) 0%,
+    rgb(var(--flaque-ink-rgb)) var(--range-progress, 0%),
+    rgb(var(--flaque-clay-rgb) / 0.6) var(--range-progress, 0%),
+    rgb(var(--flaque-clay-rgb) / 0.6) 100%
+  );
 }
 
 .font-lcd {

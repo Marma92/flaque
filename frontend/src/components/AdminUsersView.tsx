@@ -258,7 +258,7 @@ export function AdminUsersView({
 
   return (
     <div className="space-y-4">
-      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 flaque-panel p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-display text-xl text-flaque-ink">{t("users.title")}</h3>
@@ -281,7 +281,7 @@ export function AdminUsersView({
           <label className="text-sm text-flaque-ink">
             {t("users.fieldUsername")}
             <input
-              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input mt-1"
               type="text"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
@@ -295,7 +295,7 @@ export function AdminUsersView({
           <label className="text-sm text-flaque-ink">
             {t("users.fieldEmail")}
             <input
-              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input mt-1"
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
@@ -307,7 +307,7 @@ export function AdminUsersView({
           <label className="text-sm text-flaque-ink">
             {t("users.fieldPassword")}
             <input
-              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input mt-1"
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
@@ -321,7 +321,7 @@ export function AdminUsersView({
           <label className="text-sm text-flaque-ink">
             {t("users.fieldRole")}
             <select
-              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input mt-1"
               value={role}
               onChange={(event) => setRole(event.target.value as "user" | "admin")}
             >
@@ -332,7 +332,7 @@ export function AdminUsersView({
 
           <div className="flex items-end">
             <button
-              className="w-full rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full flaque-btn-primary px-4 disabled:cursor-not-allowed disabled:opacity-60"
               type="submit"
               disabled={submitting}
             >
@@ -345,7 +345,7 @@ export function AdminUsersView({
           <label className="text-sm text-flaque-ink md:col-span-2">
             {t("users.searchUsers")}
             <input
-              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input mt-1"
               type="search"
               placeholder={t("users.searchPlaceholder")}
               value={searchText}
@@ -356,7 +356,7 @@ export function AdminUsersView({
           <label className="text-sm text-flaque-ink">
             {t("users.fieldRole")} filter
             <select
-              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input mt-1"
               value={roleFilter}
               onChange={(event) => setRoleFilter(event.target.value as UserRoleFilter)}
             >
@@ -394,7 +394,7 @@ export function AdminUsersView({
         ) : null}
       </section>
 
-      <section className="overflow-hidden rounded-xl m-4 border border-flaque-clay/60 bg-white/85 shadow-panel backdrop-blur-sm">
+      <section className="overflow-hidden rounded-xl m-4 flaque-panel">
         <div className="space-y-3 p-4 lg:hidden">
           {filteredUsers.map((entry) => {
             const runningAction = activeUserActionId === entry.id;

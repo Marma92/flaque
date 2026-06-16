@@ -23,7 +23,7 @@ export function HomeForYouRow({ playlists, onSelect }: HomeForYouRowProps): JSX.
   }
 
   return (
-    <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+    <section className="flaque-panel p-5">
       <h2 className="font-display text-xl text-flaque-ink">{t("home:madeForYou")}</h2>
       <div
         className="mt-3 flex gap-3 overflow-x-auto pb-1 [scrollbar-width:thin]"
@@ -37,7 +37,7 @@ export function HomeForYouRow({ playlists, onSelect }: HomeForYouRowProps): JSX.
               key={playlist.id}
               type="button"
               role="listitem"
-              className="group flex w-32 shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl bg-white/85 text-left shadow-sm transition hover:shadow-md sm:w-36"
+              className="group flex w-32 shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl bg-white/85 text-left shadow-sm transition duration-200 ease-swift hover:-translate-y-0.5 hover:shadow-lift focus-ring sm:w-36"
               onClick={() => onSelect(playlist.id)}
               title={name}
             >

@@ -80,7 +80,7 @@ export function LibraryView({
 
   return (
     <div className="space-y-4">
-      <section className="rounded-3xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="flaque-panel rounded-3xl p-5">
         <div>
           <div>
             <h2 className="font-display text-2xl text-flaque-ink">Library</h2>
@@ -114,7 +114,7 @@ export function LibraryView({
                 <label className="text-xs text-flaque-steel">
                   Owner
                   <select
-                    className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                    className="flaque-input mt-1 text-sm"
                     value={filters.owner ?? ""}
                     onChange={(event) =>
                       onFilterChange({
@@ -135,7 +135,7 @@ export function LibraryView({
                 <label className="text-xs text-flaque-steel">
                   Artist
                   <select
-                    className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                    className="flaque-input mt-1 text-sm"
                     value={filters.artist ?? ""}
                     onChange={(event) =>
                       onFilterChange({
@@ -156,7 +156,7 @@ export function LibraryView({
                 <label className="text-xs text-flaque-steel">
                   Album
                   <select
-                    className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                    className="flaque-input mt-1 text-sm"
                     value={filters.album ?? ""}
                     onChange={(event) =>
                       onFilterChange({
@@ -177,7 +177,7 @@ export function LibraryView({
                 <label className="text-xs text-flaque-steel">
                   Search
                   <input
-                    className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                    className="flaque-input mt-1 text-sm"
                     type="search"
                     placeholder="Search title, artist, album, year"
                     value={searchDraft}

@@ -270,7 +270,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
 
   return (
     <div className="space-y-4">
-      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 flaque-panel p-5">
         <h2 className="font-display text-2xl text-flaque-ink">{t("admin:upload.title")}</h2>
         <p className="mt-2 text-sm text-flaque-steel">
           {t("admin:upload.description")}
@@ -331,7 +331,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
             <label className="text-sm text-flaque-ink">
               {t("admin:upload.artistOverride")}
               <input
-                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                className="flaque-input mt-1 text-sm"
                 type="text"
                 value={uploadArtist}
                 onChange={(event) => setUploadArtist(event.target.value)}
@@ -343,7 +343,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
             <label className="text-sm text-flaque-ink">
               {t("admin:upload.albumOverride")}
               <input
-                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                className="flaque-input mt-1 text-sm"
                 type="text"
                 value={uploadAlbum}
                 onChange={(event) => setUploadAlbum(event.target.value)}
@@ -355,7 +355,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
             <label className="text-sm text-flaque-ink">
               {t("admin:upload.yearOverride")}
               <input
-                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                className="flaque-input mt-1 text-sm"
                 type="text"
                 inputMode="numeric"
                 value={uploadYear}
@@ -367,7 +367,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
 
             <div className="flex items-end">
               <button
-                className="w-full rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full flaque-btn-primary px-4 disabled:cursor-not-allowed disabled:opacity-60"
                 type="submit"
                 disabled={uploading || pendingFiles.length === 0}
               >
@@ -412,7 +412,7 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
       </section>
 
       {pendingFiles.length > 0 ? (
-        <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+        <section className="rounded-xl m-4 flaque-panel p-5">
           <h3 className="font-display text-xl text-flaque-ink">{t("admin:upload.metadataPreview")}</h3>
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             {pendingFiles.map((file) => {
