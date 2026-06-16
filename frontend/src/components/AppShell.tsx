@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Track, User } from "../types";
 import { navigateTo, type ViewName } from "../utils/appUtils";
@@ -72,6 +73,7 @@ export function AppShell({
   audioPlayerProps,
   onAutoPlaylistsRegenerated
 }: AppShellProps): JSX.Element {
+  const { t } = useTranslation("admin");
   const shouldRenderPlayer = Boolean(audioPlayerProps.track) || activeView === "player";
 
   const sectionButtonClassName = (isActive: boolean): string =>
@@ -79,20 +81,18 @@ export function AppShell({
       isActive ? "flaque-pill-on" : "flaque-pill-off"
     }`;
 
-  const configSections: Array<[ConfigSection, string]> = [
-    ["index", "Index"], ["files", "Files"], ["users", "Users"], ["library", "Library"], ["server", "Server"], ["backup", "Backup"]
-  ];
+  const configSections: ConfigSection[] = ["index", "files", "users", "library", "server", "backup"];
 
   const sectionSwitcher = activeView === "config" && user.role === "admin" ? (
     <>
-      {configSections.map(([key, label]) => (
+      {configSections.map((key) => (
         <button
           key={key}
           className={sectionButtonClassName(configViewProps.activeSection === key)}
           type="button"
           onClick={() => { navigateTo("config", key); configViewProps.onSectionChange(key); }}
         >
-          {label}
+          {t(`tabs.${key}`)}
         </button>
       ))}
     </>
