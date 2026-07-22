@@ -91,10 +91,18 @@ npm install
 cp .env.example backend/.env
 ```
 
-At first backend startup, if no user exists yet, a default admin account is created automatically with:
+At first backend startup, if no user exists yet, a bootstrap admin account is
+created automatically:
 
-- username: `admin`
-- password: `admin`
+- Set `ADMIN_PASSWORD` (and optionally `ADMIN_USERNAME` / `ADMIN_EMAIL`) to
+  choose the credentials.
+- If `ADMIN_PASSWORD` is left empty, a strong random password is generated and
+  printed **once** in the backend logs at startup — copy it, then change it
+  after first login.
+
+If you run the backend behind a reverse proxy, also set `TRUST_PROXY` (e.g. `1`)
+so login rate-limiting and audit logs key on the real client IP rather than a
+spoofable `X-Forwarded-For` header.
 
 To enable password recovery emails, also configure SMTP:
 

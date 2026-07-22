@@ -252,8 +252,22 @@ export async function teardownTestServer(): Promise<void> {
   const { dataRoot } = ctx;
   ctx = null;
 
-  await fs.rm(dataRoot, { recursive: true, force: true });
-  vi.resetModules();
+  // Release the SQLite handle before removing the temp dir; on Windows an open
+  // file cannot be unlinked (EBUSY), unlike POSIX.
+  try {
+    const { requireDb } = await import("../auth/db");
+    requireDb().close();
+  } catch {
+    // Database may not be open for this test; nothing to close.
+  }
+
+  // Always reset modules (even if cleanup throws) so module-level state such as
+  // the auth rate-limit buckets cannot leak into the next test.
+  try {
+    await fs.rm(dataRoot, { recursive: true, force: true });
+  } finally {
+    vi.resetModules();
+  }
 }
 
 export type ApiResponse = {

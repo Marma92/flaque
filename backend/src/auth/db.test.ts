@@ -19,30 +19,42 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  // Release the SQLite handle before removing the temp dir; on Windows an open
+  // file cannot be unlinked (EBUSY), unlike POSIX.
+  try {
+    const { requireDb } = await import("./db");
+    requireDb().close();
+  } catch {
+    // Database was never opened for this test; nothing to close.
+  }
   await fs.rm(dataRoot, { recursive: true, force: true });
   delete process.env.DATA_ROOT;
   vi.resetModules();
 });
 
 describe("ensureDefaultAdmin", () => {
-  it("creates the bootstrap admin with default admin/admin credentials", async () => {
+  it("creates the bootstrap admin with a generated (non-default) password", async () => {
     const { ensureDefaultAdmin, findUserByUsername } = await import("./db");
     const { verifyPassword } = await import("./password");
 
     const admin = ensureDefaultAdmin();
-    expect(admin).toMatchObject({
+    expect(admin?.user).toMatchObject({
       username: "admin",
       role: "admin"
     });
+    expect(admin?.generatedPassword).toEqual(expect.any(String));
+    expect(admin?.generatedPassword?.length).toBeGreaterThanOrEqual(16);
 
     const row = findUserByUsername("admin");
     expect(row).not.toBeNull();
-    if (!row) {
+    if (!row || !admin?.generatedPassword) {
       return;
     }
 
     expect(row.email).toBe("admin@localhost");
-    expect(verifyPassword("admin", row.password_hash)).toBe(true);
+    // The generated password works and the old hard-coded default no longer does.
+    expect(verifyPassword(admin.generatedPassword, row.password_hash)).toBe(true);
+    expect(verifyPassword("admin", row.password_hash)).toBe(false);
   });
 
   it("does not create a new admin when at least one user already exists", async () => {

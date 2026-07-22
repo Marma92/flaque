@@ -31,8 +31,11 @@ async function run(): Promise<void> {
   initializeAuthDatabase();
   const admin = ensureDefaultAdmin();
 
-  if (admin) {
-    console.log(`Bootstrap admin ready: ${admin.username}`);
+  if (admin?.generatedPassword) {
+    console.log(`Bootstrap admin ready: ${admin.user.username}`);
+    console.log(`Generated password (shown once): ${admin.generatedPassword}`);
+  } else if (admin) {
+    console.log(`Bootstrap admin ready: ${admin.user.username}`);
   }
 
   console.log("Auth database reset complete.");
