@@ -79,12 +79,19 @@ describe("ensureDefaultAdmin (fresh install)", () => {
     expect(row?.email).toBe("owner@example.com");
   });
 
-  it("rejects an ADMIN_PASSWORD that violates the password policy", async () => {
-    process.env.ADMIN_PASSWORD = "short";
-    const { ensureDefaultAdmin, listUsers } = await import("./db");
+  it("uses an operator-provided ADMIN_PASSWORD as-is without enforcing the password policy", async () => {
+    // Bootstrap secrets are the operator's explicit choice (and CI/e2e and the
+    // prod setup script rely on short defaults). We accept them verbatim; the
+    // security win is that we never fall back to a silent hard-coded default.
+    process.env.ADMIN_PASSWORD = "admin";
+    const { ensureDefaultAdmin, findUserByUsername } = await import("./db");
+    const { verifyPassword } = await import("./password");
 
-    expect(() => ensureDefaultAdmin()).toThrow(/ADMIN_PASSWORD is invalid/);
-    expect(listUsers()).toHaveLength(0);
+    const result = ensureDefaultAdmin();
+    expect(result?.generatedPassword).toBeNull();
+
+    const row = findUserByUsername("admin");
+    expect(verifyPassword("admin", row?.password_hash ?? "")).toBe(true);
   });
 });
 

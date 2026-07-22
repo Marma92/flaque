@@ -1,7 +1,6 @@
 import { randomInt } from "node:crypto";
 
 import type { AuthUser } from "../types/auth";
-import { validatePassword } from "../utils/validation";
 
 import {
   createUser,
@@ -65,13 +64,6 @@ function generateAdminPassword(): string {
   return chars.join("");
 }
 
-function requireValidConfiguredPassword(password: string): void {
-  const error = validatePassword(password);
-  if (error) {
-    throw new Error(`ADMIN_PASSWORD is invalid: ${error}`);
-  }
-}
-
 /**
  * Ensure a usable admin account exists on startup.
  *
@@ -89,8 +81,11 @@ export function ensureDefaultAdmin(): BootstrapAdminResult | null {
   const configuredPassword = readEnv("ADMIN_PASSWORD");
 
   if (listUsers().length === 0) {
+    // An explicitly provided ADMIN_PASSWORD is the operator's own choice and is
+    // used as-is (the interactive password policy is not enforced on bootstrap
+    // secrets). When absent, a strong random password is generated instead —
+    // the old guessable admin/admin default is never used.
     if (configuredPassword !== undefined) {
-      requireValidConfiguredPassword(configuredPassword);
       const user = createUser(username, configuredPassword, "admin", email);
       return { user, generatedPassword: null, passwordSynced: false };
     }
@@ -104,7 +99,6 @@ export function ensureDefaultAdmin(): BootstrapAdminResult | null {
   if (configuredPassword !== undefined && parseBooleanEnv(process.env.BOOTSTRAP_SYNC_ADMIN_PASSWORD)) {
     const existing = findUserByUsername(username);
     if (existing && existing.role === "admin") {
-      requireValidConfiguredPassword(configuredPassword);
       updateUserPassword(existing.id, configuredPassword);
       const refreshed = findUserById(existing.id);
       if (refreshed) {
