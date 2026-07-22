@@ -39,9 +39,18 @@ function buildTransport(): pino.TransportMultiOptions {
   const maxFiles = Number.isFinite(parsedMaxFiles) && parsedMaxFiles > 0 ? Math.floor(parsedMaxFiles) : 14;
   const rotationMaxSize = (process.env.LOG_ROTATION_MAX_SIZE ?? "").trim();
 
+  const stdoutTarget = { target: "pino/file", options: { destination: 1 }, level };
+
+  // Under test we skip the rotating file transport: its worker keeps the log
+  // file open, which blocks temp-dir cleanup on Windows (ENOTEMPTY) and serves
+  // no purpose in a test run.
+  if (process.env.NODE_ENV === "test") {
+    return { targets: [stdoutTarget] };
+  }
+
   return {
     targets: [
-      { target: "pino/file", options: { destination: 1 }, level },
+      stdoutTarget,
       {
         target: "pino-roll",
         options: {
