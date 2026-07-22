@@ -25,8 +25,14 @@ async function initSystem(): Promise<void> {
 
   console.log("[4/5] Ensuring bootstrap admin account...");
   const admin = ensureDefaultAdmin();
-  if (admin) {
-    console.log(`      Admin account ready: ${admin.username}`);
+  if (admin?.generatedPassword) {
+    console.log(`      Admin account created: ${admin.user.username}`);
+    console.log(`      Generated password (shown once): ${admin.generatedPassword}`);
+    console.log("      Set ADMIN_PASSWORD to choose your own, and change it after first login.");
+  } else if (admin?.passwordSynced) {
+    console.log(`      Admin password synced from ADMIN_PASSWORD: ${admin.user.username}`);
+  } else if (admin) {
+    console.log(`      Admin account created: ${admin.user.username}`);
   } else {
     console.log("      Admin account already present");
   }

@@ -61,8 +61,16 @@ async function bootstrap(): Promise<void> {
   initializeAuthDatabase();
 
   const seededAdmin = ensureDefaultAdmin();
-  if (seededAdmin) {
-    log.info(`Admin user ready: ${seededAdmin.username}`);
+  if (seededAdmin?.generatedPassword) {
+    log.warn(
+      "Bootstrap admin created with a GENERATED password (shown once — store it now, " +
+        "then change it after first login; set ADMIN_PASSWORD to choose your own)",
+      { username: seededAdmin.user.username, password: seededAdmin.generatedPassword }
+    );
+  } else if (seededAdmin?.passwordSynced) {
+    log.info(`Admin password synced from ADMIN_PASSWORD: ${seededAdmin.user.username}`);
+  } else if (seededAdmin) {
+    log.info(`Admin user ready: ${seededAdmin.user.username}`);
   }
 
   const indexStore = new IndexStore();
