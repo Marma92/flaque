@@ -1,6 +1,14 @@
 {
   "loading": "Loading...",
   "save": "Save",
+  "tabs": {
+    "index": "Index",
+    "files": "Files",
+    "users": "Users",
+    "library": "Library",
+    "server": "Server",
+    "backup": "Backup"
+  },
   "fields": {
     "title": "Title",
     "artist": "Artist",

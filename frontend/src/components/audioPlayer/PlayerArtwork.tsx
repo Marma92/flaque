@@ -56,7 +56,7 @@ export function PlayerArtwork({
         ) : null}
         {hasLyrics && !isRadioStopped ? (
           <button
-            className="absolute inset-0 z-10 cursor-pointer"
+            className="absolute inset-0 z-10 cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-flaque-sand/80"
             type="button"
             onClick={onToggleLyricsOverlay}
             aria-pressed={showLyricsOverlay}
@@ -81,7 +81,7 @@ export function PlayerArtwork({
         {showLyricsOverlay && displayLyrics && !isRadioStopped ? (
           <div className="absolute inset-0 z-20 overflow-hidden bg-black/80 p-5">
             <button
-              className="absolute right-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
+              className="absolute right-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-white/15 text-white transition duration-200 ease-swift hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
               type="button"
               onClick={onCloseLyricsOverlay}
               aria-label={t("artwork.closeLyrics")}
@@ -114,7 +114,7 @@ export function PlayerArtwork({
         </div>
       ) : onArtworkClick ? (
         <button
-          className="shrink-0 rounded-2xl"
+          className="focus-ring shrink-0 rounded-2xl"
           type="button"
           aria-label={t("artwork.openPlayerView")}
           onClick={onArtworkClick}

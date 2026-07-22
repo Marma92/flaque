@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useAudioPlayback, type RepeatMode, type TranscodeMode } from "../hooks/useAudioPlayback";
@@ -175,16 +175,16 @@ export function AudioPlayer({
     ? `${artworkSize} shrink-0 rounded-2xl object-cover shadow-md`
     : `${artworkSize} shrink-0 rounded-2xl border border-flaque-clay/50 object-cover`;
   const ghostControlButtonClassName = expanded
-    ? "flex h-9 w-9 items-center justify-center rounded-xl bg-flaque-cream/80 text-flaque-ink transition hover:bg-flaque-sand disabled:cursor-not-allowed disabled:opacity-60"
-    : "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-flaque-clay bg-white text-flaque-ink transition hover:bg-flaque-sand disabled:cursor-not-allowed disabled:opacity-60";
+    ? "focus-ring flex h-9 w-9 items-center justify-center rounded-xl bg-flaque-cream/80 text-flaque-ink transition duration-200 ease-swift hover:bg-flaque-sand active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+    : "focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-flaque-clay bg-white text-flaque-ink transition duration-200 ease-swift hover:bg-flaque-sand active:scale-95 disabled:cursor-not-allowed disabled:opacity-60";
   const qualitySelectClassName = expanded
-    ? "rounded-lg bg-flaque-cream/90 px-2 py-1 text-xs text-flaque-ink"
-    : "rounded-lg border border-flaque-clay bg-white px-2 py-1 text-xs text-flaque-ink";
+    ? "focus-ring rounded-lg bg-flaque-cream/90 px-2 py-1 text-xs text-flaque-ink transition duration-200 ease-swift"
+    : "focus-ring rounded-lg border border-flaque-clay bg-white px-2 py-1 text-xs text-flaque-ink transition duration-200 ease-swift";
   const playlistButtonClassName = `${ghostControlButtonClassName} ${
-    showPlaylistPicker ? "ring-2 ring-flaque-sand/55" : ""
+    showPlaylistPicker ? "ring-2 ring-flaque-sand/70" : ""
   }`;
   const queueButtonClassName = `${ghostControlButtonClassName} ${
-    showQueuePanel ? "ring-2 ring-flaque-sand/55" : ""
+    showQueuePanel ? "ring-2 ring-flaque-sand/70" : ""
   }`;
   const displayTitle = getTrackDisplayTitle(track);
   const trackArtist = getTrackDisplayArtist(track);
@@ -207,6 +207,12 @@ export function AudioPlayer({
   const repeatLabel = repeatLabels[repeatMode];
   const isVolumeMuted = muted || volume === 0;
   const handleToggleMuted = () => setMuted((current) => !current);
+
+  // Played-fill progress for the range tracks (see .flaque-range in index.css).
+  const seekMax = Math.max(duration || track.duration, 1);
+  const seekValue = Math.min(currentTime, duration || track.duration || 0);
+  const seekProgress = `${seekMax > 0 ? (seekValue / seekMax) * 100 : 0}%`;
+  const volumeProgress = `${volume * 100}%`;
 
   return (
     <section className={sectionClassName}>
@@ -273,7 +279,7 @@ export function AudioPlayer({
                 </button>
               )}
               <button
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-flaque-ink text-flaque-cream transition hover:bg-flaque-steel"
+                className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-flaque-ink text-flaque-cream transition duration-200 ease-swift hover:bg-flaque-steel active:scale-95"
                 type="button"
                 aria-label={
                   isRadioMode && isPlaying
@@ -330,7 +336,7 @@ export function AudioPlayer({
               <div className="flex justify-center gap-1.5">
                 {isRadioMode ? null : (
                   <button
-                    className={`hidden h-9 w-9 items-center justify-center rounded-xl transition lg:flex ${
+                    className={`focus-ring hidden h-9 w-9 items-center justify-center rounded-xl transition duration-200 ease-swift active:scale-95 lg:flex ${
                       repeatMode === "off"
                         ? "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-sand"
                         : "bg-flaque-ink text-flaque-cream hover:bg-flaque-steel"
@@ -346,7 +352,7 @@ export function AudioPlayer({
 
                 {isRadioMode ? null : (
                   <button
-                    className={`hidden h-9 w-9 items-center justify-center rounded-xl transition lg:flex ${
+                    className={`focus-ring hidden h-9 w-9 items-center justify-center rounded-xl transition duration-200 ease-swift active:scale-95 lg:flex ${
                       shuffleEnabled
                         ? "bg-flaque-ink text-flaque-cream hover:bg-flaque-steel"
                         : "bg-flaque-cream/80 text-flaque-ink hover:bg-flaque-sand"
@@ -423,7 +429,8 @@ export function AudioPlayer({
                 </button>
 
                 <input
-                  className="h-2 w-28 cursor-pointer appearance-none rounded-full bg-flaque-clay/60"
+                  className="flaque-range h-2 w-28 cursor-pointer appearance-none rounded-full"
+                  style={{ "--range-progress": volumeProgress } as CSSProperties}
                   type="range"
                   min={0}
                   max={1}
@@ -476,12 +483,13 @@ export function AudioPlayer({
           {expanded ? (
             <>
               <input
-                className={`h-2 w-full appearance-none rounded-full bg-flaque-clay/60 ${seekLocked ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+                className={`flaque-range h-2 w-full appearance-none rounded-full ${seekLocked ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+                style={{ "--range-progress": seekProgress } as CSSProperties}
                 type="range"
                 min={0}
-                max={Math.max(duration || track.duration, 1)}
+                max={seekMax}
                 step={0.1}
-                value={Math.min(currentTime, duration || track.duration || 0)}
+                value={seekValue}
                 disabled={seekLocked}
                 onChange={(event) => onSeek(Number(event.target.value))}
               />
@@ -496,12 +504,13 @@ export function AudioPlayer({
                 {formatDuration(currentTime)} / {formatDuration(duration || track.duration)}
               </span>
               <input
-                className={`h-2 flex-1 appearance-none rounded-full bg-flaque-clay/60 ${seekLocked ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+                className={`flaque-range h-2 flex-1 appearance-none rounded-full ${seekLocked ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+                style={{ "--range-progress": seekProgress } as CSSProperties}
                 type="range"
                 min={0}
-                max={Math.max(duration || track.duration, 1)}
+                max={seekMax}
                 step={0.1}
-                value={Math.min(currentTime, duration || track.duration || 0)}
+                value={seekValue}
                 disabled={seekLocked}
                 onChange={(event) => onSeek(Number(event.target.value))}
               />

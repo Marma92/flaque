@@ -1,6 +1,14 @@
 {
   "loading": "Chargement…",
   "save": "Enregistrer",
+  "tabs": {
+    "index": "Index",
+    "files": "Fichiers",
+    "users": "Utilisateurs",
+    "library": "Bibliothèque",
+    "server": "Serveur",
+    "backup": "Sauvegarde"
+  },
   "fields": {
     "title": "Titre",
     "artist": "Artiste",

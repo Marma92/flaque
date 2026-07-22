@@ -101,7 +101,7 @@ export function ForYouPlaylistDetailView({
 
   if (loading) {
     return (
-      <section className="m-4 rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="m-4 flaque-panel p-5">
         {backButton}
         <p className="mt-4 text-sm text-flaque-steel">{t("playlists:loading")}</p>
       </section>
@@ -110,7 +110,7 @@ export function ForYouPlaylistDetailView({
 
   if (!detail) {
     return (
-      <section className="m-4 rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="m-4 flaque-panel p-5">
         {backButton}
         <p className="mt-4 text-sm text-flaque-steel">{t("playlists:forYouNotFound")}</p>
       </section>

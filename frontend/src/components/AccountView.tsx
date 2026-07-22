@@ -296,7 +296,7 @@ export function AccountView({
 
   return (
     <div>
-      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 flaque-panel p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="mt-1 font-display text-2xl text-flaque-ink">{t("account:title")}</h2>
 
@@ -373,7 +373,7 @@ export function AccountView({
               {editingEmail ? (
                 <div className="mt-1 flex items-center gap-2">
                   <input
-                    className="w-full max-w-xs rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                    className="flaque-input max-w-xs py-1.5 text-sm"
                     type="email"
                     value={emailDraft}
                     onChange={(event) => setEmailDraft(event.target.value)}
@@ -468,7 +468,7 @@ export function AccountView({
               {t("account:password.current")}
               <input
                 id="account-current-password"
-                className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                className="flaque-input mt-1 text-sm"
                 type="password"
                 value={currentPassword}
                 onChange={(event) => setCurrentPassword(event.target.value)}
@@ -550,7 +550,7 @@ export function AccountView({
 
             <div className="flex items-center gap-2">
               <button
-                className="rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                className="flaque-btn px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-60"
                 type="button"
                 onClick={() => {
                   void loadSessions();
@@ -561,7 +561,7 @@ export function AccountView({
               </button>
 
               <button
-                className="rounded-xl border border-flaque-clay bg-white px-3 py-1.5 text-xs text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                className="flaque-btn px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-60"
                 type="button"
                 onClick={() => {
                   void handleLogoutOthers();
@@ -630,7 +630,7 @@ export function AccountView({
         </div>
       </section>
 
-      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 flaque-panel p-5">
         <h3 className="font-display text-xl text-flaque-ink">{t("common:language.label")}</h3>
         <div className="mt-3 max-w-xs">
           <label className="sr-only" htmlFor="account-language-select">
@@ -638,7 +638,7 @@ export function AccountView({
           </label>
           <select
             id="account-language-select"
-            className="w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+            className="flaque-input text-sm"
             value={currentLanguage}
             onChange={(event) => {
               const next = event.target.value;
@@ -665,7 +665,7 @@ export function AccountView({
         </div>
       </section>
 
-      <section className="rounded-xl m-4 border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="rounded-xl m-4 flaque-panel p-5">
         <h3 className="font-display text-xl text-flaque-ink">{t("account:stats.heading")}</h3>
 
         {loadingStats ? (

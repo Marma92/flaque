@@ -35,7 +35,7 @@ export function QueuePanel({ tracks, currentIndex, expanded, onTrackSelect }: Qu
               ? t("player:queue.statePlayed")
               : t("player:queue.stateNext");
           const rowClassName = isCurrent
-            ? "border-flaque-sand/80 bg-white text-flaque-ink shadow-sm"
+            ? "border-flaque-sand/80 border-l-4 border-l-flaque-ink bg-white text-flaque-ink shadow-sm"
             : isPlayed
               ? "border-flaque-clay/40 bg-flaque-cream/60 text-flaque-steel/70 opacity-70"
               : "border-flaque-clay/50 bg-white/80 text-flaque-ink";
@@ -43,9 +43,9 @@ export function QueuePanel({ tracks, currentIndex, expanded, onTrackSelect }: Qu
           return (
             <button
               key={`${queueTrack.id}-${index}`}
-              className={`flex w-full items-center gap-2 rounded-xl border ${
+              className={`focus-ring flex w-full items-center gap-2 rounded-xl border ${
                 expanded ? "px-2.5 py-2" : "px-2 py-1.5"
-              } text-left transition ${rowClassName} ${
+              } text-left transition duration-200 ease-swift ${rowClassName} ${
                 onTrackSelect ? "hover:bg-flaque-cream" : "cursor-default"
               }`}
               type="button"

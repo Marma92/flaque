@@ -76,7 +76,7 @@ export function HomePanels({
 
   return (
     <div className="space-y-4 m-4">
-      <section className="rounded-xl border border-flaque-clay/60 bg-white/80 p-4 shadow-panel backdrop-blur-sm">
+      <section className="flaque-panel p-4">
         <div className="flex items-stretch gap-3">
           <button
             type="button"
@@ -158,7 +158,7 @@ export function HomePanels({
       ) : null}
 
       {!hasRecent && !hasUploaded && !resumeState && !hasForYou ? (
-        <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-flaque-clay/60 bg-white/80 p-8 text-center">
+        <div className="flaque-panel flex flex-col items-center justify-center gap-5 p-8 text-center">
           <div className="text-sm text-flaque-steel">
             <p className="font-bold text-flaque-ink">{t("home:empty.title")}</p>
             <p className="mt-1">{t("home:empty.subtitle")}</p>
@@ -166,7 +166,7 @@ export function HomePanels({
           <div className="flex flex-wrap items-center justify-center gap-2">
             {onStartRadioPlayback ? (
               <button
-                className="inline-flex items-center gap-1.5 rounded-xl border border-flaque-clay/60 bg-flaque-cream/80 px-3 py-2 text-sm font-medium text-flaque-ink transition hover:bg-flaque-cream disabled:cursor-not-allowed disabled:opacity-60"
+                className="flaque-btn"
                 type="button"
                 disabled={!canStartRadio}
                 onClick={() => onStartRadioPlayback?.()}
@@ -179,7 +179,7 @@ export function HomePanels({
             ) : null}
             {onNavigateToLibrary ? (
               <button
-                className="inline-flex items-center gap-1.5 rounded-xl border border-flaque-clay/60 bg-flaque-cream/80 px-3 py-2 text-sm font-medium text-flaque-ink transition hover:bg-flaque-cream"
+                className="flaque-btn"
                 type="button"
                 onClick={onNavigateToLibrary}
               >
@@ -192,7 +192,7 @@ export function HomePanels({
             ) : null}
             {onNavigateToPlaylists ? (
               <button
-                className="inline-flex items-center gap-1.5 rounded-xl border border-flaque-clay/60 bg-flaque-cream/80 px-3 py-2 text-sm font-medium text-flaque-ink transition hover:bg-flaque-cream"
+                className="flaque-btn"
                 type="button"
                 onClick={onNavigateToPlaylists}
               >

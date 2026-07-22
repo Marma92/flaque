@@ -70,7 +70,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
       ) : null}
 
       {/* Schedule configuration */}
-      <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="flaque-panel p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-display text-xl text-flaque-ink">{t("backup.scheduleTitle")}</h3>
@@ -111,7 +111,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
               <label className="block text-sm text-flaque-ink">
                 {t("backup.intervalHours")}
                 <input
-                  className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                  className="flaque-input mt-1 text-sm"
                   type="number"
                   min="1"
                   max="720"
@@ -123,7 +123,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
               <label className="block text-sm text-flaque-ink">
                 {t("backup.retentionDays")}
                 <input
-                  className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-sm text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+                  className="flaque-input mt-1 text-sm"
                   type="number"
                   min="1"
                   max="365"
@@ -145,7 +145,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
 
             <div className="flex gap-2">
               <button
-                className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black"
+                className="flaque-btn-primary px-4"
                 type="button"
                 onClick={() => { void saveSchedule(); }}
               >
@@ -164,7 +164,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
       </section>
 
       {/* Actions */}
-      <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="flaque-panel p-5">
         <h3 className="font-display text-xl text-flaque-ink">{t("backup.manualTitle")}</h3>
         <p className="mt-1 text-sm text-flaque-steel">
           {config?.includeIndex ? t("backup.manualDescriptionWithIndex") : t("backup.manualDescription")}
@@ -172,7 +172,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
-            className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+            className="flaque-btn-primary px-4 disabled:cursor-not-allowed disabled:opacity-60"
             type="button"
             onClick={() => { void onCreateBackup(); }}
             disabled={creating || restoring}
@@ -201,7 +201,7 @@ export function AdminBackupView({ currentUser }: AdminBackupViewProps): JSX.Elem
       </section>
 
       {/* Backup list */}
-      <section className="rounded-xl border border-flaque-clay/60 bg-white/85 p-5 shadow-panel backdrop-blur-sm">
+      <section className="flaque-panel p-5">
         <h3 className="font-display text-xl text-flaque-ink">
           {t("backup.listTitle")}{backups.length > 0 ? ` (${backups.length})` : ""}
         </h3>

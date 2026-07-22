@@ -29,17 +29,25 @@ export const AlbumList = memo(function AlbumList({ albums, selectedAlbum, onAlbu
         return (
           <div
             key={albumKey}
-            className={`rounded-xl p-2 text-left transition cursor-pointer ${
+            role="button"
+            tabIndex={0}
+            className={`focus-ring rounded-xl p-2 text-left transition duration-200 ease-swift cursor-pointer ${
               isSelected
                 ? "bg-flaque-sand/25"
                 : "hover:bg-flaque-cream/60"
             }`}
             onClick={() => onAlbumSelect(album)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onAlbumSelect(album);
+              }
+            }}
             title={albumLabel}
           >
             <div className="group relative">
               <img
-                className="aspect-square w-full object-cover"
+                className="aspect-square w-full rounded-lg object-cover"
                 src={getAlbumCoverSrc(album)}
                 alt={t("library:albumCard.coverAlt", { album: albumLabel })}
                 onError={(event) => {
@@ -48,7 +56,7 @@ export const AlbumList = memo(function AlbumList({ albums, selectedAlbum, onAlbu
               />
               {onPlayAlbum ? (
                 <button
-                  className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"
+                  className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 opacity-0 transition duration-200 ease-swift group-hover:bg-black/35 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:bg-black/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/80"
                   type="button"
                   aria-label={t("library:albumCard.play", { album: playLabel })}
                   onClick={(event) => {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { User } from "../types";
 import type { LibrarySection } from "../types/library";
@@ -14,13 +15,7 @@ type AppSidebarProps = {
   onLibrarySectionChange: (section: LibrarySection) => void;
 };
 
-const LIBRARY_ITEMS: Array<{ key: LibrarySection; label: string }> = [
-  { key: "home", label: "Home" },
-  { key: "music", label: "Library" },
-  { key: "artists", label: "Artists" },
-  { key: "albums", label: "Albums" },
-  { key: "playlists", label: "Playlists" }
-];
+const LIBRARY_ITEMS: LibrarySection[] = ["home", "music", "artists", "albums", "playlists"];
 
 const THEME_STORAGE_KEY = "flaque_theme_v1";
 
@@ -32,6 +27,7 @@ export function AppSidebar({
   onViewChange,
   onLibrarySectionChange
 }: AppSidebarProps): JSX.Element {
+  const { t } = useTranslation(["library", "common"]);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -86,9 +82,9 @@ export function AppSidebar({
   }, [mobileMenuOpen]);
 
   const sidebarButtonClassName = (isActive: boolean): string =>
-    `flex w-full items-center justify-between rounded-xl px-1 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 lg:px-3 ${
+    `flex w-full items-center justify-between rounded-xl px-1 py-2 text-sm font-medium transition duration-200 ease-swift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand/70 lg:px-3 ${
       isActive
-        ? "bg-flaque-ink text-flaque-cream"
+        ? "bg-flaque-ink text-flaque-cream shadow-panel"
         : "text-flaque-ink hover:bg-flaque-cream/80"
     }`;
 
@@ -113,15 +109,15 @@ export function AppSidebar({
     window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
   };
 
-  const themeToggleLabel = theme === "dark" ? "Switch to light theme" : "Switch to dark theme";
+  const themeToggleLabel = theme === "dark" ? t("common:nav.themeToLight") : t("common:nav.themeToDark");
 
   return (
     <>
       <div className="flex items-center justify-start border-b border-flaque-clay/60 bg-white/80 px-3 py-2 shadow-panel backdrop-blur-sm md:hidden">
         <button
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/70 bg-white/80 text-flaque-ink transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/60 bg-white/80 text-flaque-ink transition duration-200 ease-swift hover:border-flaque-clay hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
           type="button"
-          aria-label="Open menu"
+          aria-label={t("common:nav.openMenu")}
           onClick={() => setMobileMenuOpen(true)}
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
@@ -131,21 +127,21 @@ export function AppSidebar({
       </div>
 
       {mobileMenuOpen ? (
-        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
+        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label={t("common:nav.menuLabel")}>
           <button
             className="absolute inset-0 bg-flaque-ink/45"
             type="button"
-            aria-label="Close menu"
+            aria-label={t("common:nav.closeMenu")}
             onClick={() => setMobileMenuOpen(false)}
           />
           <aside className="absolute left-0 top-0 h-full w-[min(86vw,22rem)] border-r border-flaque-clay/70 bg-white/95 shadow-2xl backdrop-blur-md">
             <div className="flex h-full flex-col gap-3 p-4">
               <div className="flex items-center justify-between">
-                <span className="font-display text-sm uppercase tracking-[0.12em] text-flaque-steel">Navigation</span>
+                <span className="font-display text-sm uppercase tracking-[0.12em] text-flaque-steel">{t("common:nav.navigation")}</span>
                 <button
                   className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-flaque-clay/70 bg-white text-flaque-ink transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
                   type="button"
-                  aria-label="Close menu"
+                  aria-label={t("common:nav.closeMenu")}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
@@ -157,8 +153,8 @@ export function AppSidebar({
               <button
                 className="flex w-full items-center gap-3 p-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
                 type="button"
-                aria-label="Go to home"
-                title="Home"
+                aria-label={t("common:nav.goToHome")}
+                title={t("library:sections.home")}
                 onClick={() => handleLibraryEntryClick("home")}
               >
                 <span className="relative h-12 w-12 shrink-0 overflow-hidden">
@@ -179,18 +175,18 @@ export function AppSidebar({
                 </span>
               </button>
 
-              <nav className="border rounded-xl border-flaque-clay/50 bg-white/70 p-2" aria-label="Music navigation">
+              <nav className="border rounded-xl border-flaque-clay/50 bg-white/70 p-2" aria-label={t("common:nav.musicNav")}>
                 <ul className="space-y-1">
-                  {LIBRARY_ITEMS.map((item) => {
-                    const isActive = activeView === "library" && activeLibrarySection === item.key;
+                  {LIBRARY_ITEMS.map((section) => {
+                    const isActive = activeView === "library" && activeLibrarySection === section;
                     return (
-                      <li key={item.key}>
+                      <li key={section}>
                         <button
                           className={sidebarButtonClassName(isActive)}
                           type="button"
-                          onClick={() => handleLibraryEntryClick(item.key)}
+                          onClick={() => handleLibraryEntryClick(section)}
                         >
-                          <span>{item.label}</span>
+                          <span>{t(`library:sections.${section}`)}</span>
                         </button>
                       </li>
                     );
@@ -210,7 +206,7 @@ export function AppSidebar({
                         <img className="nav-icon-light absolute inset-0 h-full w-full" src="/settings-light.png" alt="" />
                         <img className="nav-icon-dark absolute inset-0 h-full w-full" src="/settings-dark.png" alt="" />
                       </span>
-                      <span>Settings</span>
+                      <span>{t("common:nav.settings")}</span>
                     </span>
                   </button>
                 ) : null}
@@ -225,7 +221,7 @@ export function AppSidebar({
                       <img className="nav-icon-light absolute inset-0 h-full w-full" src="/upload-light.png" alt="" />
                       <img className="nav-icon-dark absolute inset-0 h-full w-full" src="/upload-dark.png" alt="" />
                     </span>
-                    <span>Upload</span>
+                    <span>{t("common:nav.upload")}</span>
                   </span>
                 </button>
 
@@ -243,18 +239,18 @@ export function AppSidebar({
                           <img
                             className="h-full w-full object-cover"
                             src={avatarUrl}
-                            alt={`${user.username} profile`}
+                            alt={t("common:nav.profileAlt", { name: user.username })}
                             onError={() => {
                               setAvatarLoadFailed(true);
                             }}
                           />
                         )}
                       </span>
-                      <span>Account</span>
+                      <span>{t("common:nav.account")}</span>
                     </span>
                   </button>
                   <button
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/70 bg-white/80 text-flaque-ink transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/60 bg-white/80 text-flaque-ink transition duration-200 ease-swift hover:border-flaque-clay hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
                     type="button"
                     aria-label={themeToggleLabel}
                     title={themeToggleLabel}
@@ -283,8 +279,8 @@ export function AppSidebar({
           <button
             className="flex w-full flex-col items-center gap-0 p-2 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand lg:flex-row lg:gap-3 lg:text-left"
             type="button"
-            aria-label="Go to home"
-            title="Home"
+            aria-label={t("common:nav.goToHome")}
+            title={t("library:sections.home")}
             onClick={() => handleLibraryEntryClick("home")}
           >
             <span className="relative h-12 w-12 shrink-0 overflow-hidden">
@@ -305,18 +301,18 @@ export function AppSidebar({
             </span>
           </button>
 
-          <nav className="border rounded-xl border-flaque-clay/50 bg-white/70 px-1 py-2 lg:p-2" aria-label="Music navigation">
+          <nav className="border rounded-xl border-flaque-clay/50 bg-white/70 px-1 py-2 lg:p-2" aria-label={t("common:nav.musicNav")}>
             <ul className="space-y-1">
-              {LIBRARY_ITEMS.map((item) => {
-                const isActive = activeView === "library" && activeLibrarySection === item.key;
+              {LIBRARY_ITEMS.map((section) => {
+                const isActive = activeView === "library" && activeLibrarySection === section;
                 return (
-                  <li key={item.key}>
+                  <li key={section}>
                     <button
                       className={sidebarButtonClassName(isActive)}
                       type="button"
-                      onClick={() => handleLibraryEntryClick(item.key)}
+                      onClick={() => handleLibraryEntryClick(section)}
                     >
-                      <span>{item.label}</span>
+                      <span>{t(`library:sections.${section}`)}</span>
                     </button>
                   </li>
                 );
@@ -336,7 +332,7 @@ export function AppSidebar({
                     <img className="nav-icon-light absolute inset-0 h-full w-full" src="/settings-light.png" alt="" />
                     <img className="nav-icon-dark absolute inset-0 h-full w-full" src="/settings-dark.png" alt="" />
                   </span>
-                  <span>Settings</span>
+                  <span>{t("common:nav.settings")}</span>
                 </span>
               </button>
             ) : null}
@@ -351,7 +347,7 @@ export function AppSidebar({
                   <img className="nav-icon-light absolute inset-0 h-full w-full" src="/upload-light.png" alt="" />
                   <img className="nav-icon-dark absolute inset-0 h-full w-full" src="/upload-dark.png" alt="" />
                 </span>
-                <span>Upload</span>
+                <span>{t("common:nav.upload")}</span>
               </span>
             </button>
 
@@ -369,18 +365,18 @@ export function AppSidebar({
                       <img
                         className="h-full w-full object-cover"
                         src={avatarUrl}
-                        alt={`${user.username} profile`}
+                        alt={t("common:nav.profileAlt", { name: user.username })}
                         onError={() => {
                           setAvatarLoadFailed(true);
                         }}
                       />
                     )}
                   </span>
-                  <span>Account</span>
+                  <span>{t("common:nav.account")}</span>
                 </span>
               </button>
               <button
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/70 bg-white/80 text-flaque-ink transition hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-flaque-clay/60 bg-white/80 text-flaque-ink transition duration-200 ease-swift hover:border-flaque-clay hover:bg-flaque-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flaque-sand"
                 type="button"
                 aria-label={themeToggleLabel}
                 title={themeToggleLabel}

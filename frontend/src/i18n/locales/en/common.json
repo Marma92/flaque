@@ -7,5 +7,19 @@
   "albumCount_other": "{{count, number}} albums",
   "language": {
     "label": "Language"
+  },
+  "nav": {
+    "navigation": "Navigation",
+    "settings": "Settings",
+    "upload": "Upload",
+    "account": "Account",
+    "goToHome": "Go to home",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "menuLabel": "Navigation menu",
+    "musicNav": "Music navigation",
+    "profileAlt": "{{name}} profile",
+    "themeToLight": "Switch to light theme",
+    "themeToDark": "Switch to dark theme"
   }
 }

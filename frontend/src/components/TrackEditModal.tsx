@@ -41,7 +41,7 @@ export function TrackEditModal({
         <label className="mt-4 block text-sm text-flaque-ink">
           {t("admin:fields.title")}
           <input
-            className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+            className="flaque-input mt-1"
             type="text"
             value={editState.title}
             onChange={(event) =>
@@ -60,7 +60,7 @@ export function TrackEditModal({
         <label className="mt-3 block text-sm text-flaque-ink">
           {t("admin:fields.artist")}
           <input
-            className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+            className="flaque-input mt-1"
             type="text"
             value={editState.artist}
             onChange={(event) =>
@@ -79,7 +79,7 @@ export function TrackEditModal({
         <label className="mt-3 block text-sm text-flaque-ink">
           {t("admin:fields.album")}
           <input
-            className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+            className="flaque-input mt-1"
             type="text"
             value={editState.album}
             onChange={(event) =>
@@ -98,7 +98,7 @@ export function TrackEditModal({
         <label className="mt-3 block text-sm text-flaque-ink">
           {t("admin:fields.year")}
           <input
-            className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+            className="flaque-input mt-1"
             type="text"
             inputMode="numeric"
             value={editState.year}
@@ -119,7 +119,7 @@ export function TrackEditModal({
         <label className="mt-3 block text-sm text-flaque-ink">
           {t("admin:fields.genre")}
           <input
-            className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+            className="flaque-input mt-1"
             type="text"
             value={editState.genre}
             placeholder={t("admin:fields.genrePlaceholder")}
@@ -151,7 +151,7 @@ export function TrackEditModal({
             {t("admin:bulk.cancel")}
           </button>
           <button
-            className="rounded-xl bg-flaque-ink px-4 py-2 text-sm font-medium text-flaque-cream transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+            className="flaque-btn-primary px-4 disabled:cursor-not-allowed disabled:opacity-60"
             type="submit"
             disabled={saving}
           >

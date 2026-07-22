@@ -69,7 +69,7 @@ export function UserActionsModal({
           <label className="mt-4 block text-sm text-flaque-ink">
             {t("users.modal.newUsername")}
             <input
-              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input mt-1"
               type="text"
               value={modalState.username}
               minLength={3}
@@ -94,7 +94,7 @@ export function UserActionsModal({
           <label className="mt-4 block text-sm text-flaque-ink">
             {t("users.modal.newEmail")}
             <input
-              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input mt-1"
               type="email"
               value={modalState.email}
               onChange={(event) => {
@@ -116,7 +116,7 @@ export function UserActionsModal({
           <label className="mt-4 block text-sm text-flaque-ink">
             {t("users.modal.newPassword")}
             <input
-              className="mt-1 w-full rounded-xl border border-flaque-clay bg-white px-3 py-2 text-flaque-ink outline-none ring-flaque-sand transition focus:ring-2"
+              className="flaque-input mt-1"
               type="password"
               value={modalState.password}
               minLength={8}
