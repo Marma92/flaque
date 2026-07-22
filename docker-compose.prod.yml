@@ -11,6 +11,9 @@ services:
     environment:
       NODE_ENV: production
       DATA_ROOT: /app/data
+      # The backend always sits behind the nginx frontend, which sets
+      # X-Forwarded-For — trust exactly that one hop for real client IPs.
+      TRUST_PROXY: ${TRUST_PROXY:-1}
     ports:
       - "${FLAQUE_BACKEND_PORT:-4000}:${BACKEND_PORT:-4000}"
     volumes:

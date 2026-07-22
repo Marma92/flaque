@@ -14,8 +14,44 @@ function parseAllowedOrigins(): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Resolve the Express `trust proxy` setting from TRUST_PROXY.
+ *
+ * The client IP feeds rate-limiting and audit logs, so it must not be forgeable
+ * by a spoofed `X-Forwarded-For`. Default to `false` (trust nothing): `req.ip`
+ * is then the direct socket peer and headers are ignored. Behind a reverse
+ * proxy set TRUST_PROXY explicitly — `1` for a single hop (our nginx frontend),
+ * a larger hop count, or a comma-separated allowlist of proxy IPs/subnets.
+ */
+export function resolveTrustProxySetting(raw: string | undefined): boolean | number | string {
+  const value = (raw ?? "").trim();
+  if (!value) {
+    return false;
+  }
+
+  const lowered = value.toLowerCase();
+  if (["false", "0", "no", "off"].includes(lowered)) {
+    return false;
+  }
+  if (["true", "on", "yes"].includes(lowered)) {
+    return true;
+  }
+
+  // A bare integer is a hop count (number of proxies in front of the app).
+  if (/^\d+$/.test(value)) {
+    return Number(value);
+  }
+
+  // Otherwise defer to Express/proxy-addr: a comma-separated list of trusted
+  // IPs/subnets or keywords like "loopback", "linklocal", "uniquelocal".
+  return value;
+}
+
 export function createApp(indexStore: IndexStore): express.Express {
   const app = express();
+
+  // Derive req.ip from the configured proxy chain rather than a raw header.
+  app.set("trust proxy", resolveTrustProxySetting(process.env.TRUST_PROXY));
 
   const allowedOrigins = parseAllowedOrigins();
 
