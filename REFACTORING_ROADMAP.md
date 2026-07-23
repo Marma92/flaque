@@ -47,13 +47,15 @@ The audit found that both pieces of Phase D had already shipped between the
 2026-04-19 snapshot and the start of this round:
 
 - **D1. Backend error handling.** `backend/src/utils/AppError.ts` defines
-  `AppError(message, statusCode, details?)`. `backend/src/middleware/errorHandler.ts`
-  is mounted in both `app.ts:37` and `api/router.ts:39`, emits
-  `{ error, details? }`, and special-cases `multer.MulterError`. Routes
+  `AppError(message, statusCode, code?, details?)`. `backend/src/middleware/errorHandler.ts`
+  is mounted in both `app.ts` and `api/router.ts`, emits
+  `{ error, code?, details? }`, and special-cases `multer.MulterError`. Routes
   consistently use `next(err)`. The two remaining ad-hoc 4xx responses are
   intentional: `radioRoutes.ts` returns a domain-specific envelope and
-  `authRoutes.ts:120` needs a `Retry-After` header alongside the JSON.
-  The speculative `code` field is omitted — no consumer discriminates on it.
+  `authRoutes.ts` needs a `Retry-After` header alongside the JSON.
+  The stable `code` field is consumed by the frontend
+  (`frontend/src/api/client.ts`) to localise errors through the `errors` i18n
+  namespace.
 - **D2. Frontend 401 entry point.** `useSessionRoutingState.ts:95-103`
   registers exactly one `setUnauthorizedHandler` callback that clears the user
   and broadcasts a logout event. The bypass list for normal-login-flow paths
