@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { errorHandler } from "./errorHandler";
 import { AppError } from "../utils/AppError";
-import type { Request, Response, NextFunction } from "express";
+import type { Response } from "express";
 
 describe("errorHandler middleware", () => {
   const mockReq = {};

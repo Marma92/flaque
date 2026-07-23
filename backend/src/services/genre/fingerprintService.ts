@@ -103,7 +103,9 @@ function runFpcalc(filePath: string, fpcalcPath: string): Promise<FingerprintRes
       done = true;
       try {
         child.kill("SIGKILL");
-      } catch {}
+      } catch {
+        // Process may already have exited; nothing to clean up.
+      }
       log.warn("fpcalc timed out", { filePath });
       resolve(null);
     }, FPCALC_TIMEOUT_MS);

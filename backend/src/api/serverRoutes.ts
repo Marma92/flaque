@@ -56,7 +56,7 @@ export function createServerRouter(): Router {
     }
   });
 
-  router.get("/server/update/status", requireAuth, requireAdmin, async (_req, res, next) => {
+  router.get("/server/update/status", requireAuth, requireAdmin, async (_req, res) => {
     try {
       const updaterUrl = process.env.UPDATER_URL ?? "http://updater:9090";
 

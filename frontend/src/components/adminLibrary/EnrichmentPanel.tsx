@@ -53,7 +53,7 @@ export function EnrichmentPanel({ onPollTick }: Props): JSX.Element {
     try {
       const stats = await getGenreCacheStats();
       setCacheStats(stats);
-    } catch {}
+    } catch { /* best-effort: ignore failures */ }
   }, []);
 
   function stopPolling(): void {
@@ -87,7 +87,7 @@ export function EnrichmentPanel({ onPollTick }: Props): JSX.Element {
       await new Promise((r) => setTimeout(r, TOGGLE_SETTLE_MS));
       const fresh = await pollStatus();
       if (fresh && !fresh.running) await loadCacheStats();
-    } catch {} finally {
+    } catch { /* best-effort: ignore failures */ } finally {
       setToggling(false);
     }
   }
@@ -96,7 +96,7 @@ export function EnrichmentPanel({ onPollTick }: Props): JSX.Element {
     try {
       await clearGenreCache();
       await loadCacheStats();
-    } catch {}
+    } catch { /* best-effort: ignore failures */ }
   }
 
   const percent = status && status.total > 0

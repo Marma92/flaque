@@ -455,13 +455,13 @@ function extractArtistMbid(detail: MBRecordingDetail): string | undefined {
   return undefined;
 }
 
-const LUCENE_SPECIAL = /([+\-!(){}\[\]^"~*?:\\/]|&&|\|\|)/g;
+const LUCENE_SPECIAL = /([+\-!(){}[\]^"~*?:\\/]|&&|\|\|)/g;
 
 function escapeLucene(value: string): string {
   return value.replace(LUCENE_SPECIAL, "\\$1");
 }
 
-const PARENS_OR_BRACKETS = /[(\[][^)\]]*[)\]]/g;
+const PARENS_OR_BRACKETS = /[([][^)\]]*[)\]]/g;
 const FEAT_SUFFIX = /\s+(feat\.?|featuring|ft\.?)\s+.*$/i;
 const TRAILING_DASH_QUALIFIER = /\s+-\s+.*$/;
 

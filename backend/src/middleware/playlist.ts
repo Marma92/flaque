@@ -51,7 +51,7 @@ export function loadPlaylist(
     }
 
     // Attach playlist to request for use in route handlers
-    (req as any).playlist = playlist;
+    req.playlist = playlist;
     next();
   };
 }
@@ -65,8 +65,8 @@ export function resolveTrackIds(
   propertyName: string = "tracks"
 ) {
   return async function (req: Request, res: Response, next: NextFunction) {
-    // Check if trackIds are present in request body or params
-    const trackIds = req.body.trackIds || (req as any).trackIds;
+    // Check if trackIds are present in the request body
+    const trackIds = req.body.trackIds;
     if (!trackIds) {
       return next();
     }
@@ -94,8 +94,8 @@ export function resolveTrackIds(
     const tracksById = indexStore.getTracksById(trackIds);
     const tracks = trackIds.map((id) => tracksById.get(id)).filter((t): t is NonNullable<typeof t> => t !== undefined);
 
-    // Attach resolved tracks to request
-    (req as any)[propertyName] = tracks;
+    // Attach resolved tracks to request under the configured property name.
+    (req as unknown as Record<string, unknown>)[propertyName] = tracks;
     next();
   };
 }

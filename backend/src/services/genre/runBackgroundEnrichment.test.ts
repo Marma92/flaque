@@ -1,7 +1,5 @@
 import fsSync from "node:fs";
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
+import fs from "node:fs/promises";import path from "node:path";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { IndexStore } from "../indexer/indexStore";

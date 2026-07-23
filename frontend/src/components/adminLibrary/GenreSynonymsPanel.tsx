@@ -77,7 +77,7 @@ export const GenreSynonymsPanel = forwardRef<GenreSynonymsPanelHandle, Props>(
         await deleteGenreSynonym(key);
         await loadSynonyms();
         onSynonymsChanged?.();
-      } catch {}
+      } catch { /* best-effort: ignore failures */ }
     }
 
     async function handleReset(): Promise<void> {
@@ -86,7 +86,7 @@ export const GenreSynonymsPanel = forwardRef<GenreSynonymsPanelHandle, Props>(
         await loadSynonyms();
         setMessage(t("synonyms.resetDone"));
         onSynonymsChanged?.();
-      } catch {}
+      } catch { /* best-effort: ignore failures */ }
     }
 
     async function handleReapply(): Promise<void> {

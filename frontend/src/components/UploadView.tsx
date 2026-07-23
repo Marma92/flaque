@@ -427,7 +427,6 @@ export function UploadView({ onUpload, onInspectFile }: UploadViewProps): JSX.El
                 t("common:unknownArtist");
               const year = extractYearFromTags(preview?.tags);
               const albumBase = preview?.tags.album?.trim() || t("admin:upload.unknownAlbum");
-              const album = year ? `${albumBase} (${year})` : albumBase;
               const genreFromTags = preview?.tags.genre?.join(", ") ?? "";
               const editableMetadata = editableMetadataByFileKey[fileKey];
               const editableTitle = editableMetadata?.title ?? title;

@@ -224,7 +224,6 @@ function SectionHeader({ title }: { title: string }): JSX.Element {
 
 export function LibraryPlaylistSection({
   availablePlaylists,
-  manageablePlaylists,
   ownerNameById,
   allTracksById,
   user,
