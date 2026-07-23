@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { LibraryIndex, Track } from "../types/library";
 import { apiRequest, getDataRoot, login, setupTestServer, teardownTestServer } from "./testHelpers";

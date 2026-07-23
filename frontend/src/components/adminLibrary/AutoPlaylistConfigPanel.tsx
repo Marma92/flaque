@@ -34,7 +34,7 @@ export function AutoPlaylistConfigPanel({ onAutoPlaylistsRegenerated }: Props): 
       setMaxField(String(cfg.maxPlaylists));
       setMinField(String(cfg.minTracksPerPlaylist));
       setTracksField(String(cfg.tracksPerPlaylist));
-    } catch {} finally {
+    } catch { /* best-effort: ignore failures */ } finally {
       setLoading(false);
     }
   }

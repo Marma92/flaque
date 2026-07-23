@@ -25,7 +25,7 @@ export function LibraryLabelsPanel({ refreshKey = 0, onPromote }: Props): JSX.El
     try {
       const data = await getLibraryGenreLabels();
       setLabels(data);
-    } catch {} finally {
+    } catch { /* best-effort: ignore failures */ } finally {
       setLoading(false);
     }
   }, []);

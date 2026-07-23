@@ -23,6 +23,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
       - name: Type-check backend
         run: npx tsc --noEmit --project backend/tsconfig.json
 

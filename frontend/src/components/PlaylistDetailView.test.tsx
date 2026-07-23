@@ -52,8 +52,6 @@ function makePlaylist(overrides: Partial<Playlist> = {}): Playlist {
 }
 
 const defaultUser: User = { id: "user-1", username: "alice", email: "alice@test.local", role: "user", language: "en" };
-const otherUser: User = { id: "user-2", username: "bob", email: "bob@test.local", role: "user", language: "en" };
-
 function createTracksMap(tracks: Track[]): Map<string, Track> {
   return new Map(tracks.map((t) => [t.id, t]));
 }

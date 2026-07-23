@@ -51,12 +51,6 @@ type TableColumnRow = {
   name: string;
 };
 
-type PublicUserRow = {
-  id: string;
-  username: string;
-  role: UserRole;
-};
-
 export type CountRow = {
   count: number;
 };

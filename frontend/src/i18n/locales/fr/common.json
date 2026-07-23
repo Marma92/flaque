@@ -1,6 +1,11 @@
 {
   "unknownArtist": "Artiste inconnu",
   "unknown": "Inconnu",
+  "errorBoundary": {
+    "title": "Une erreur est survenue",
+    "description": "L'application a rencontré une erreur inattendue. Vous pouvez essayer de recharger la page.",
+    "reload": "Recharger"
+  },
   "trackCount_one": "{{count, number}} morceau",
   "trackCount_other": "{{count, number}} morceaux",
   "albumCount_one": "{{count, number}} album",

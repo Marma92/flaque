@@ -6,7 +6,7 @@ import { Router } from "express";
 
 import { requireAdmin, requireAuth } from "../auth/middleware";
 import { AppError } from "../utils/AppError";
-import { backupsRoot, cacheRoot, configRoot, dataRoot, indexRoot, logsRoot, storageRoot } from "../utils/paths";
+import { backupsRoot, cacheRoot, configRoot, indexRoot, logsRoot, storageRoot } from "../utils/paths";
 
 const LOG_FILE_PATTERN = /^flaque\.(\d{4}-\d{2}-\d{2}\.)?\d+\.log$/;
 const DEFAULT_LIMIT = 200;
@@ -147,7 +147,7 @@ export function createLogRouter(): Router {
         return;
       }
 
-      let lines = content.split("\n").filter((line) => line.trim().length > 0);
+      const lines = content.split("\n").filter((line) => line.trim().length > 0);
       lines.reverse();
 
       let entries = lines.map(tryParseJsonLine).filter((entry): entry is Record<string, unknown> => entry !== null);

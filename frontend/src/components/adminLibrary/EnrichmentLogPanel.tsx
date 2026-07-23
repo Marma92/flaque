@@ -46,7 +46,7 @@ export function EnrichmentLogPanel({ refreshKey = 0 }: Props): JSX.Element {
     try {
       const data = await getEnrichmentLog(LOG_FETCH_LIMIT);
       setEntries(data);
-    } catch {}
+    } catch { /* best-effort: ignore failures */ }
   }, []);
 
   useEffect(() => { void load(); }, [load, refreshKey]);
@@ -55,7 +55,7 @@ export function EnrichmentLogPanel({ refreshKey = 0 }: Props): JSX.Element {
     try {
       await clearEnrichmentLog();
       setEntries([]);
-    } catch {}
+    } catch { /* best-effort: ignore failures */ }
   }
 
   return (
