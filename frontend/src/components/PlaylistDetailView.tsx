@@ -151,6 +151,14 @@ export function PlaylistDetailView({
     if (coverInputRef.current) coverInputRef.current.value = "";
   }
 
+  // Hooks must run on every render, so this stays above the early return below.
+  const playback = usePlaylistDetailPlayback({
+    playlist: playlist ?? null,
+    tracks,
+    onPlay,
+    onPlayTrack
+  });
+
   if (!playlist) {
     return (
       <section className="m-4 flaque-panel p-5">
@@ -168,13 +176,6 @@ export function PlaylistDetailView({
       </section>
     );
   }
-
-  const playback = usePlaylistDetailPlayback({
-    playlist: playlist ?? null,
-    tracks,
-    onPlay,
-    onPlayTrack
-  });
 
   function reportListenOnce(): void {
     if (!playlist || listenReportedRef.current) return;
