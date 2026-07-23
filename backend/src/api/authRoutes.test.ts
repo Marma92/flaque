@@ -54,6 +54,22 @@ describe("authRoutes", () => {
     expect(byEmail.status).toBe(200);
   });
 
+  it("returns an identical 401 for an unknown user and a wrong password", async () => {
+    const unknownUser = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ login: "nobody-here", password: "some-password-123" })
+    });
+    expect(unknownUser.status).toBe(401);
+    expect((unknownUser.payload as { code?: string }).code).toBe("invalidCredentials");
+
+    const wrongPassword = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ login: "admin", password: "definitely-not-the-password" })
+    });
+    expect(wrongPassword.status).toBe(401);
+    expect((wrongPassword.payload as { code?: string }).code).toBe("invalidCredentials");
+  });
+
   it("rate limits repeated failed login attempts", async () => {
     process.env.AUTH_RATE_LIMIT_WINDOW_MS = "60000";
     process.env.AUTH_LOGIN_RATE_LIMIT_MAX = "2";
