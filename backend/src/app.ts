@@ -1,6 +1,7 @@
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import express from "express";
+import helmet from "helmet";
 
 import { IndexStore } from "./services/indexer/indexStore";
 import { createApiRouter } from "./api/router";
@@ -52,6 +53,19 @@ export function createApp(indexStore: IndexStore): express.Express {
 
   // Derive req.ip from the configured proxy chain rather than a raw header.
   app.set("trust proxy", resolveTrustProxySetting(process.env.TRUST_PROXY));
+
+  // Security headers on every response. This backend serves JSON and media
+  // (covers/audio) rather than HTML documents, so:
+  // - CSP is disabled here; the SPA (served by the nginx frontend) owns the
+  //   document Content-Security-Policy.
+  // - Cross-Origin-Resource-Policy is relaxed to cross-origin so the SPA on a
+  //   different origin can embed cover art and audio streams.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: "cross-origin" }
+    })
+  );
 
   const allowedOrigins = parseAllowedOrigins();
 
