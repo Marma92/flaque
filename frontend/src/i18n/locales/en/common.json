@@ -1,6 +1,11 @@
 {
   "unknownArtist": "Unknown artist",
   "unknown": "Unknown",
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "The app hit an unexpected error. You can try reloading the page.",
+    "reload": "Reload"
+  },
   "trackCount_one": "{{count, number}} track",
   "trackCount_other": "{{count, number}} tracks",
   "albumCount_one": "{{count, number}} album",
