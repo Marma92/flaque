@@ -110,6 +110,11 @@ async function invokeApp(pathname: string, options: RequestInit = {}): Promise<T
   req.socket = socket;
   req.push(requestBody);
   req.push(null);
+  // The whole body is provided synchronously above, so mark the mock message as
+  // fully received. A real HTTP parser sets this; without it Node emits an
+  // 'aborted' event when the stream is destroyed, which multer 2.x treats as an
+  // aborted upload and fails multipart requests in tests.
+  req.complete = true;
 
   const res = new ServerResponse(req);
   res.assignSocket(socket);
