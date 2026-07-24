@@ -82,7 +82,7 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect }: CoverflowPro
     let closestDist = Infinity;
 
     for (let i = 0; i < items.length; i++) {
-      const li = items[i];
+      const li = items[i]!;
       const cover = li.querySelector<HTMLElement>(".cover-transform");
       if (!cover) continue;
 
@@ -102,8 +102,8 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect }: CoverflowPro
 
     // Update the label with the centered album info
     const label = labelRef.current;
-    if (label && albums[closestIdx]) {
-      const album = albums[closestIdx];
+    const album = albums[closestIdx];
+    if (label && album) {
       const titleEl = label.querySelector<HTMLElement>(".coverflow-title");
       const artistEl = label.querySelector<HTMLElement>(".coverflow-artist");
       if (titleEl) titleEl.textContent = album.name;
@@ -136,9 +136,10 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect }: CoverflowPro
 
     const items = wrapper.querySelectorAll<HTMLElement>(".cards li");
     for (let i = 0; i < items.length; i++) {
-      if (items[i].classList.contains("selected")) {
+      const item = items[i]!;
+      if (item.classList.contains("selected")) {
         wrapper.scrollTo({
-          left: items[i].offsetLeft - wrapper.clientWidth / 2 + items[i].offsetWidth / 2,
+          left: item.offsetLeft - wrapper.clientWidth / 2 + item.offsetWidth / 2,
           behavior: "instant"
         });
         break;

@@ -129,8 +129,8 @@ describe("sortAndGroupAlbums", () => {
       "album-asc"
     );
     expect(groups.map((g) => g.label)).toEqual(["A", "B", "#"]);
-    expect(groups[0].albums.map((a) => a.name)).toEqual(["Alpha", "Apple"]);
-    expect(groups[2].albums.map((a) => a.name)).toEqual(["1999"]);
+    expect(groups[0]!.albums.map((a) => a.name)).toEqual(["Alpha", "Apple"]);
+    expect(groups[2]!.albums.map((a) => a.name)).toEqual(["1999"]);
   });
 
   it("groups artist sort by artist first letter (ignoring leading The)", () => {
@@ -156,8 +156,8 @@ describe("sortAndGroupAlbums", () => {
       "year-desc"
     );
     expect(groups.map((g) => g.label)).toEqual(["2020", "1999", "Unknown"]);
-    expect(groups[0].albums.map((a) => a.name)).toEqual(["A", "B"]);
-    expect(groups[2].albums).toHaveLength(1);
+    expect(groups[0]!.albums.map((a) => a.name)).toEqual(["A", "B"]);
+    expect(groups[2]!.albums).toHaveLength(1);
   });
 
   it("returns an empty list for empty input", () => {

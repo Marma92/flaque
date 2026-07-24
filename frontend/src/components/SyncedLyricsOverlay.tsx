@@ -13,7 +13,7 @@ export function SyncedLyricsOverlay({ lines, currentTime }: SyncedLyricsOverlayP
 
   const activeIndex = useMemo(() => {
     for (let i = lines.length - 1; i >= 0; i--) {
-      if (currentTime >= lines[i].t) return i;
+      if (currentTime >= lines[i]!.t) return i;
     }
     return -1;
   }, [lines, currentTime]);

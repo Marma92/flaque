@@ -207,11 +207,11 @@ describe("LibraryAlbumsSection", () => {
     );
 
     const addTrackButtons = screen.getAllByRole("button", { name: "Add Trouble's Coming to playlist" });
-    fireEvent.click(addTrackButtons[0]);
+    fireEvent.click(addTrackButtons[0]!);
     expect(onTrackSelect).not.toHaveBeenCalled();
 
     const confirmAddButtons = screen.getAllByRole("button", { name: "Add" });
-    fireEvent.click(confirmAddButtons[0]);
+    fireEvent.click(confirmAddButtons[0]!);
 
     await waitFor(() => {
       expect(onAddTrackToPlaylist).toHaveBeenCalledWith({

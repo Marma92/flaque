@@ -80,11 +80,11 @@ export function usePlaybackCommands({
     if (options?.shuffle) {
       setShuffleEnabled(true);
       const startIndex = Math.floor(Math.random() * playlistTracks.length);
-      requestTrackPlaybackWithStatus(playlistTracks[startIndex], playlistTracks);
+      requestTrackPlaybackWithStatus(playlistTracks[startIndex]!, playlistTracks);
       return;
     }
 
-    requestTrackPlaybackWithStatus(playlistTracks[0], playlistTracks);
+    requestTrackPlaybackWithStatus(playlistTracks[0]!, playlistTracks);
   }, [allTracksById, requestTrackPlaybackWithStatus, setLibraryError, setShuffleEnabled]);
 
   const handlePlayAlbum = useCallback(async (album: AlbumEntry): Promise<void> => {
@@ -104,7 +104,7 @@ export function usePlaybackCommands({
       }
 
       setLibraryError(null);
-      requestTrackPlaybackWithStatus(sorted[0], sorted);
+      requestTrackPlaybackWithStatus(sorted[0]!, sorted);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to play album";
       setLibraryError(message);
