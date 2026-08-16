@@ -7,7 +7,7 @@ import { AppError } from "../utils/AppError";
 
 import { findUserByLogin, updateUserPassword } from "../auth/db";
 import { requireAuth } from "../auth/middleware";
-import { verifyPassword } from "../auth/password";
+import { hashPassword, verifyPassword } from "../auth/password";
 import { consumePasswordResetToken, createPasswordResetToken } from "../auth/passwordResetDb";
 import { sendPasswordResetEmail } from "../auth/passwordResetEmail";
 import {
@@ -41,6 +41,18 @@ type RateLimitBucket = {
 };
 
 const rateLimitBuckets = new Map<string, RateLimitBucket>();
+
+// Comparing the submitted password against a real bcrypt hash even when no
+// account matches keeps the login response time roughly constant, so an
+// attacker cannot enumerate valid usernames from a fast "user not found" path.
+// Computed lazily and once.
+let dummyPasswordHash: string | null = null;
+function getDummyPasswordHash(): string {
+  if (dummyPasswordHash === null) {
+    dummyPasswordHash = hashPassword("flaque-nonexistent-account-timing-guard");
+  }
+  return dummyPasswordHash;
+}
 
 function parseDeviceLabel(value: unknown): string | undefined {
   const label = normalizeOptionalString(value);
@@ -234,7 +246,10 @@ export function createAuthRouter(): Router {
     }
 
     const user = findUserByLogin(login);
-    if (!user || !verifyPassword(password, user.password_hash)) {
+    // Always run the comparison (against a dummy hash when the user is unknown)
+    // so the response timing does not depend on whether the account exists.
+    const passwordMatches = verifyPassword(password, user?.password_hash ?? getDummyPasswordHash());
+    if (!user || !passwordMatches) {
       emitAuthAuditLog("warn", "login-failed", {
         ip,
         loginFingerprint,
