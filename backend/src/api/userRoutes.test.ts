@@ -421,8 +421,12 @@ describe("userRoutes", () => {
     await fs.mkdir(profileDir, { recursive: true });
     await fs.writeFile(path.join(profileDir, "avatar.png"), "legacy-avatar");
 
+    // A well-formed 1x1 RGBA PNG. The previous fixture was a malformed 1-bit
+    // grayscale PNG that older libpng tolerated; the patched libpng shipped with
+    // sharp 0.35 rejects it outright ("vipspng: libpng read error"), which is the
+    // hardening working as intended rather than a regression.
     const tinyPng = Array.from(
-      Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+lm8sAAAAASUVORK5CYII=", "base64")
+      Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64")
     );
 
     const uploadResponse = await apiMultipartRequest({
