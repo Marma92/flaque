@@ -42,7 +42,51 @@ export function withApiBase(path: string): string {
   return `${API_BASE}${path}`;
 }
 
+/**
+ * Identical GETs already in flight, keyed by path.
+ *
+ * Independent hooks legitimately ask for the same resource at the same moment —
+ * `useLibraryData` runs one effect keyed on `filters` and another keyed on
+ * `user`, and with no filters applied both request `/api/library` on mount.
+ * They share the single round-trip instead of racing two.
+ *
+ * This is coalescing, not caching: an entry lives only until its request
+ * settles, so every new call still hits the network. Callers do receive the
+ * same resolved object, which is safe here because API payloads are treated as
+ * immutable state.
+ */
+const inFlightGets = new Map<string, Promise<unknown>>();
+
 export async function requestJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const method = (options.method ?? "GET").toUpperCase();
+  // Only plain reads are shared: anything carrying a body, custom headers or a
+  // non-GET method may not be interchangeable between callers.
+  const coalescable =
+    method === "GET" && !options.body && !options.headers && !options.skipJson;
+
+  if (coalescable) {
+    const existing = inFlightGets.get(path) as Promise<T> | undefined;
+    if (existing) {
+      return existing;
+    }
+  }
+
+  const request = performRequest<T>(path, options);
+
+  if (coalescable) {
+    inFlightGets.set(path, request);
+    const release = (): void => {
+      inFlightGets.delete(path);
+    };
+    // Both branches are handled, so this never surfaces as an unhandled
+    // rejection; the caller still sees the original promise's failure.
+    request.then(release, release);
+  }
+
+  return request;
+}
+
+async function performRequest<T>(path: string, options: RequestOptions): Promise<T> {
   const response = await fetch(withApiBase(path), {
     credentials: "include",
     ...options,
