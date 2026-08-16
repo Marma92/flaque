@@ -135,8 +135,7 @@ export function Coverflow({ albums, selectedAlbum, onAlbumSelect }: CoverflowPro
     if (!wrapper || !selectedKey) return;
 
     const items = wrapper.querySelectorAll<HTMLElement>(".cards li");
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i]!;
+    for (const item of items) {
       if (item.classList.contains("selected")) {
         wrapper.scrollTo({
           left: item.offsetLeft - wrapper.clientWidth / 2 + item.offsetWidth / 2,

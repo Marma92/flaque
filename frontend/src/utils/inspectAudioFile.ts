@@ -155,8 +155,8 @@ function pictureToDataUrl(picture?: IPicture): string | undefined {
   const mime = picture.format || "image/jpeg";
   const bytes = picture.data instanceof Uint8Array ? picture.data : new Uint8Array(picture.data);
   let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]!);
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
   }
   return `data:${mime};base64,${btoa(binary)}`;
 }
