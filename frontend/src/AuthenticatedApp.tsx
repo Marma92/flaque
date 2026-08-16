@@ -464,7 +464,7 @@ export function AuthenticatedApp({
           onRecentlyUploadedAlbumPlay: (album) => {
             const sortedTracks = sortAlbumTracksByNumber(album.tracks);
             if (sortedTracks.length === 0) return;
-            requestTrackPlaybackWithStatus(sortedTracks[0], sortedTracks);
+            requestTrackPlaybackWithStatus(sortedTracks[0]!, sortedTracks);
           },
           onRecentlyUploadedAlbumOpen: (album) => {
             const targetName = normalizeText(album.albumName);

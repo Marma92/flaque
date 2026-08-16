@@ -116,7 +116,7 @@ describe("AccountView", () => {
     const revokeButtons = screen.getAllByRole("button", { name: "Revoke" });
     expect(revokeButtons.length).toBe(2);
 
-    fireEvent.click(revokeButtons[1]);
+    fireEvent.click(revokeButtons[1]!);
 
     await waitFor(() => {
       expect(mockHandleRevokeMySession).toHaveBeenCalledWith("session-other");

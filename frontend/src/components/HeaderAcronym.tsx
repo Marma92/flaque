@@ -24,7 +24,7 @@ function tokenize(text: string, expansions: Record<string, string>) {
         }
 
         if (!matched) {
-            tokens.push(text[i]);
+            tokens.push(text.charAt(i));
             i++;
         }
     }

@@ -123,7 +123,7 @@ describe("useSessionRoutingState", () => {
       expect(screen.getByTestId("user").textContent).toBe("alice");
     });
 
-    const channel = MockBroadcastChannel.instances[0];
+    const channel = MockBroadcastChannel.instances[0]!;
     channel.emit({
       sourceId: "other-tab",
       kind: "logout",
@@ -147,7 +147,7 @@ describe("useSessionRoutingState", () => {
       expect(MockBroadcastChannel.instances.length).toBe(1);
     });
 
-    const channel = MockBroadcastChannel.instances[0];
+    const channel = MockBroadcastChannel.instances[0]!;
 
     fireEvent.click(screen.getByRole("button", { name: "Notify" }));
     await waitFor(() => {

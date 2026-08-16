@@ -107,7 +107,7 @@ export function useAdminServer({ user }: UseAdminServerArgs): UseAdminServerResu
       .then((files) => {
         setLogFiles(files);
         if (files.length > 0 && !selectedFile) {
-          setSelectedFile(files[0].name);
+          setSelectedFile(files[0]!.name);
         }
       })
       .catch((error) => {

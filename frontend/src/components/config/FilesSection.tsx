@@ -31,7 +31,7 @@ function normalizeSearch(value: string): string {
 
 function computeCommonField(tracks: Track[], getter: (t: Track) => string | undefined): string | undefined {
   if (tracks.length === 0) return undefined;
-  const first = getter(tracks[0]);
+  const first = getter(tracks[0]!);
   return tracks.every((t) => getter(t) === first) ? first : undefined;
 }
 
