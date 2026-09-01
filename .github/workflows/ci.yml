@@ -99,6 +99,11 @@ jobs:
 
       - run: npm ci
 
+      # Blocking: production dependencies are currently free of known
+      # advisories, so any new one should fail the build rather than scroll past
+      # unnoticed. Dev-only dependencies are excluded — they never ship.
+      # If a low/moderate advisory in a transitive dependency ever blocks
+      # unrelated work, add `--audit-level=high` rather than restoring
+      # continue-on-error.
       - name: Audit production dependencies
         run: npm audit --omit=dev
-        continue-on-error: true
