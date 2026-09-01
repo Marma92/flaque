@@ -13,6 +13,7 @@ import { useDocumentTitle } from "./hooks/useDocumentTitle";
 import { useInfiniteLibrary } from "./hooks/useInfiniteLibrary";
 import { useLibraryCommands } from "./hooks/useLibraryCommands";
 import { useLibraryData } from "./hooks/useLibraryData";
+import { useLibraryNavigation } from "./hooks/useLibraryNavigation";
 import { usePlaybackCommands } from "./hooks/usePlaybackCommands";
 import { usePlaybackState } from "./hooks/usePlaybackState";
 import { useRecentlyUploaded } from "./hooks/useRecentlyUploaded";
@@ -73,6 +74,18 @@ export function AuthenticatedApp({
     selectArtist, clearSelectedArtist, selectArtistAlbum, clearSelectedArtistAlbum,
     selectAlbum, clearSelectedAlbum
   } = useLibraryData({ user, activeView, activeLibrarySection });
+
+  // ── Library navigation ───────────────────────────────────────────────
+  const { goToSection, openPlaylists, openArtist, openAlbum, resetSelections } = useLibraryNavigation({
+    setActiveView,
+    setActiveLibrarySection,
+    setPlaylistDetailId,
+    selectArtist,
+    clearSelectedArtist,
+    clearSelectedArtistAlbum,
+    selectAlbum,
+    clearSelectedAlbum
+  });
 
   // ── Recently uploaded ────────────────────────────────────────────────
   const {
@@ -250,9 +263,7 @@ export function AuthenticatedApp({
     }
     setActiveView(nextView);
     setPlaylistDetailId(null);
-    clearSelectedArtist();
-    clearSelectedArtistAlbum();
-    clearSelectedAlbum();
+    resetSelections();
   }
 
   function handleCollapsePlayer(): void {
@@ -283,24 +294,8 @@ export function AuthenticatedApp({
       previewTrackId: selectedTrackRefreshed.id
     };
 
-    navigateTo("library", "artists");
-    setActiveView("library");
-    setActiveLibrarySection("artists");
-    setPlaylistDetailId(null);
-    clearSelectedAlbum();
-    clearSelectedArtistAlbum();
-    selectArtist(artistEntry);
-  }, [
-    clearSelectedAlbum,
-    clearSelectedArtistAlbum,
-    library.artists,
-    libraryArtists,
-    selectArtist,
-    selectedTrackRefreshed,
-    setActiveLibrarySection,
-    setActiveView,
-    setPlaylistDetailId
-  ]);
+    openArtist(artistEntry);
+  }, [library.artists, libraryArtists, openArtist, selectedTrackRefreshed]);
 
   const handleOpenCurrentTrackAlbum = useCallback((): void => {
     if (!selectedTrackRefreshed) {
@@ -338,24 +333,8 @@ export function AuthenticatedApp({
       previewTrackId: selectedTrackRefreshed.id
     };
 
-    navigateTo("library", "albums");
-    setActiveView("library");
-    setActiveLibrarySection("albums");
-    setPlaylistDetailId(null);
-    clearSelectedArtist();
-    clearSelectedArtistAlbum();
-    selectAlbum(albumEntry);
-  }, [
-    clearSelectedArtist,
-    clearSelectedArtistAlbum,
-    library.albums,
-    libraryAlbums,
-    selectAlbum,
-    selectedTrackRefreshed,
-    setActiveLibrarySection,
-    setActiveView,
-    setPlaylistDetailId
-  ]);
+    openAlbum(albumEntry);
+  }, [library.albums, libraryAlbums, openAlbum, selectedTrackRefreshed]);
 
   async function handleLogout(): Promise<void> {
     await logout();
@@ -484,12 +463,8 @@ export function AuthenticatedApp({
               trackCount: album.trackCount,
               cover: album.coverTrackId
             };
-            navigateTo("library", "albums");
-            setActiveLibrarySection("albums");
-            setPlaylistDetailId(null);
-            clearSelectedArtist();
-            clearSelectedArtistAlbum();
-            selectAlbum(albumEntry);
+            // Already inside the library view here, so the view stays put.
+            openAlbum(albumEntry, { setView: false });
           },
           ownerNameById,
           radioLoading: loadingRadio,
@@ -500,14 +475,7 @@ export function AuthenticatedApp({
             setActiveView("player");
             startRadioPlayback();
           },
-          onNavigateToLibrary: () => {
-            navigateTo("library", "music");
-            setActiveLibrarySection("music");
-            setPlaylistDetailId(null);
-            clearSelectedArtist();
-            clearSelectedArtistAlbum();
-            clearSelectedAlbum();
-          },
+          onNavigateToLibrary: () => goToSection("music"),
           resumeState,
           onResume: (track, positionSec) => {
             setPlayerStatusMessage(null);
@@ -519,22 +487,8 @@ export function AuthenticatedApp({
             void dismissResume();
           },
           forYouPlaylists,
-          onSelectForYouPlaylist: (playlistId: string) => {
-            navigateTo("library", "playlists");
-            setActiveLibrarySection("playlists");
-            setPlaylistDetailId(playlistId);
-            clearSelectedArtist();
-            clearSelectedArtistAlbum();
-            clearSelectedAlbum();
-          },
-          onNavigateToPlaylists: () => {
-            navigateTo("library", "playlists");
-            setActiveLibrarySection("playlists");
-            setPlaylistDetailId(null);
-            clearSelectedArtist();
-            clearSelectedArtistAlbum();
-            clearSelectedAlbum();
-          }
+          onSelectForYouPlaylist: (playlistId: string) => openPlaylists(playlistId),
+          onNavigateToPlaylists: () => openPlaylists()
         },
         musicProps: {
           owners: library.owners,
