@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getCurrentUser, getMySessions, setUnauthorizedHandler } from "./api";
+import { requestJson } from "./api/client";
 
 type MockResponseInit = {
   status: number;
@@ -63,5 +64,68 @@ describe("api unauthorized handler", () => {
     mockFetchOnce({ status: 403, body: { error: "forbidden" } });
     await expect(getMySessions()).rejects.toThrow("forbidden");
     expect(handler).not.toHaveBeenCalled();
+  });
+});
+
+describe("in-flight GET coalescing", () => {
+  it("shares one round-trip between concurrent identical GETs", async () => {
+    mockFetchOnce({ status: 200, body: { value: 42 } });
+
+    const [first, second] = await Promise.all([
+      requestJson<{ value: number }>("/api/library"),
+      requestJson<{ value: number }>("/api/library")
+    ]);
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(first).toEqual({ value: 42 });
+    // Same resolved object, which is why payloads must stay treated as immutable.
+    expect(second).toBe(first);
+  });
+
+  it("does not cache: a later identical GET hits the network again", async () => {
+    mockFetchOnce({ status: 200, body: { value: 1 } });
+    await requestJson("/api/library");
+
+    mockFetchOnce({ status: 200, body: { value: 2 } });
+    const second = await requestJson("/api/library");
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(second).toEqual({ value: 2 });
+  });
+
+  it("keeps distinct paths independent", async () => {
+    mockFetchOnce({ status: 200, body: { a: true } });
+    mockFetchOnce({ status: 200, body: { b: true } });
+
+    const [a, b] = await Promise.all([
+      requestJson("/api/library"),
+      requestJson("/api/artists")
+    ]);
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(a).toEqual({ a: true });
+    expect(b).toEqual({ b: true });
+  });
+
+  it("never shares mutations", async () => {
+    mockFetchOnce({ status: 200, body: { ok: 1 } });
+    mockFetchOnce({ status: 200, body: { ok: 2 } });
+
+    await Promise.all([
+      requestJson("/api/radio/create", { method: "POST" }),
+      requestJson("/api/radio/create", { method: "POST" })
+    ]);
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("releases the entry when the shared request fails", async () => {
+    mockFetchOnce({ status: 500, body: { error: "boom" } });
+    await expect(requestJson("/api/library")).rejects.toThrow("boom");
+
+    // A failed request must not leave a poisoned entry behind.
+    mockFetchOnce({ status: 200, body: { recovered: true } });
+    await expect(requestJson("/api/library")).resolves.toEqual({ recovered: true });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 });
